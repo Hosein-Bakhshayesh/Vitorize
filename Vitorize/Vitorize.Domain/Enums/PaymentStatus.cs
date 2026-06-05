@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 
 namespace Vitorize.Domain.Enums
 {
-    public enum DeliveryType : byte
+    public enum PaymentStatus : byte
     {
-        Instant = 1,
-        Manual = 2,
-        SupportRequired = 3
+        Pending = 1,
+        Paid = 2,
+        Failed = 3,
+        Cancelled = 4,
+        Refunded = 5
     }
 }
