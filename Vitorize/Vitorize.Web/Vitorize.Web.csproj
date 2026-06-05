@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vitorize.Shared\Vitorize.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Helpers\" />
+    <Folder Include="Extensions\" />
+    <Folder Include="Models\Cart\" />
+    <Folder Include="Models\Checkout\" />
+    <Folder Include="Models\Common\" />
+    <Folder Include="Models\Payments\" />
+    <Folder Include="Models\Orders\" />
+    <Folder Include="Models\Products\" />
+    <Folder Include="Pages\Admin\Categories\" />
+    <Folder Include="Pages\Admin\Brands\" />
+    <Folder Include="Pages\Admin\GiftCodes\" />
+    <Folder Include="Pages\Admin\Coupons\" />
+    <Folder Include="Pages\Admin\Orders\" />
+    <Folder Include="Pages\Admin\Products\" />
+    <Folder Include="Pages\Cart\" />
+    <Folder Include="Pages\Checkout\" />
+    <Folder Include="Pages\Orders\" />
+    <Folder Include="Pages\Products\" />
+    <Folder Include="ViewModels\" />
+  </ItemGroup>
+
+</Project>

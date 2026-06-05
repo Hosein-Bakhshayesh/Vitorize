@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] | Vitorize Admin</title>
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        vitorize: {
+                            50: '#ecfeff',
+                            100: '#cffafe',
+                            500: '#00A79D',
+                            700: '#006D6F',
+                            900: '#004E50'
+                        }
+                    },
+                    boxShadow: {
+                        soft: '0 24px 80px rgba(15, 23, 42, .08)',
+                        teal: '0 20px 60px rgba(0, 167, 157, .18)'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="min-h-screen bg-[#f6fbfb] text-slate-800 antialiased">
+    <div class="fixed inset-0 pointer-events-none">
+        <div class="absolute right-72 top-10 h-80 w-80 rounded-full bg-vitorize-100 blur-3xl"></div>
+        <div class="absolute left-20 bottom-20 h-96 w-96 rounded-full bg-cyan-100 blur-3xl"></div>
+    </div>
+
+    <div class="relative min-h-screen flex">
+        <aside class="fixed right-0 top-0 z-40 hidden h-screen w-80 flex-col border-l border-white/60 bg-white/70 backdrop-blur-2xl lg:flex shadow-soft">
+            <div class="px-6 pt-7">
+                <div class="rounded-[2rem] bg-gradient-to-br from-vitorize-700 to-vitorize-500 p-5 text-white shadow-teal">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-white">
+                            <img src="/images/logo.png" alt="Vitorize" class="h-11 w-11" />
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-black tracking-tight">Vitorize</h1>
+                            <p class="mt-1 text-xs text-white/75">پنل مدیریت فروشگاه</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="mt-7 flex-1 space-y-2 px-5">
+                <a href="/Admin" class="flex items-center justify-between rounded-3xl bg-vitorize-700 px-5 py-4 text-sm font-black text-white shadow-teal">
+                    <span>داشبورد</span>
+                    <span class="h-2.5 w-2.5 rounded-full bg-white"></span>
+                </a>
+
+                <a href="/Admin/Products" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">محصولات</a>
+                <a href="/Admin/Categories" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">دسته‌بندی‌ها</a>
+                <a href="/Admin/Brands" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">برندها</a>
+                <a href="/Admin/GiftCodes" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">کدهای گیفت‌کارت</a>
+                <a href="/Admin/Coupons" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">کدهای تخفیف</a>
+                <a href="/Admin/Orders" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">سفارش‌ها</a>
+            </nav>
+
+            <div class="p-5">
+                <div class="rounded-[2rem] border border-white/70 bg-white/60 p-5 backdrop-blur-xl">
+                    <p class="text-sm font-black text-slate-900">@User.Identity?.Name</p>
+                    <p class="mt-1 text-xs text-slate-500">مدیر سیستم</p>
+                    <a href="/Account/Logout" class="mt-4 block rounded-2xl bg-slate-100 px-4 py-3 text-center text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600">
+                        خروج از پنل
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="min-h-screen w-full lg:pr-80">
+            <header class="sticky top-0 z-30 border-b border-white/70 bg-white/65 backdrop-blur-2xl">
+                <div class="flex h-24 items-center justify-between px-6 lg:px-10">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">@ViewData["Title"]</h2>
+                        <p class="mt-2 text-xs text-slate-500">مدیریت یکپارچه فروشگاه دیجیتال Vitorize</p>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="hidden rounded-2xl bg-vitorize-50 px-4 py-3 text-xs font-black text-vitorize-700 md:block">
+                            Live Admin
+                        </div>
+                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-soft">
+                            <img src="/images/logo.png" alt="Vitorize" class="h-8 w-8" />
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <section class="p-6 lg:p-10">
+                @RenderBody()
+            </section>
+        </main>
+    </div>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
