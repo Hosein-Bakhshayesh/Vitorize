@@ -10,10 +10,14 @@ namespace Vitorize.Infrastructure.Services
     public class PaymentService : IPaymentService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
 
-        public PaymentService(VitorizeDbContext dbContext)
+        public PaymentService(
+            VitorizeDbContext dbContext,
+            IGiftCodeDeliveryService giftCodeDeliveryService)
         {
             _dbContext = dbContext;
+            _giftCodeDeliveryService = giftCodeDeliveryService;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(
@@ -145,6 +149,11 @@ namespace Vitorize.Infrastructure.Services
                 }
 
                 await _dbContext.SaveChangesAsync();
+
+                await _giftCodeDeliveryService.DeliverOrderAsync(
+                    order.Id,
+                    userId);
+
                 await transaction.CommitAsync();
 
                 return new PaymentVerifyResultDto
