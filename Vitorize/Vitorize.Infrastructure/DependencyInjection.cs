@@ -31,6 +31,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IEncryptionService, AesEncryptionService>();
             services.AddScoped<IAdminGiftCodeService, AdminGiftCodeService>();
             services.AddScoped<IGiftCodeReservationService, GiftCodeReservationService>();
+            services.AddScoped<ICartService, CartService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
