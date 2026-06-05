@@ -33,6 +33,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IGiftCodeReservationService, GiftCodeReservationService>();
             services.AddScoped<ICartService, CartService>();
             services.AddScoped<ICheckoutService, CheckoutService>();
+            services.AddScoped<IPaymentService, PaymentService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
