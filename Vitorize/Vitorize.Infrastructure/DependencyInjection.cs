@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
@@ -27,6 +28,11 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminBrandService, AdminBrandService>();
             services.AddScoped<IAdminProductService, AdminProductService>();
             services.AddScoped<IAdminProductVariantService, AdminProductVariantService>();
+            services.AddScoped<IEncryptionService, AesEncryptionService>();
+            services.AddScoped<IAdminGiftCodeService, AdminGiftCodeService>();
+
+            services.Configure<EncryptionSettings>(
+                configuration.GetSection("Encryption"));
 
             // Framework Services
             services.AddHttpContextAccessor();
