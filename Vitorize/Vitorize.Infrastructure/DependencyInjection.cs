@@ -26,6 +26,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminCategoryService, AdminCategoryService>();
             services.AddScoped<IAdminBrandService, AdminBrandService>();
             services.AddScoped<IAdminProductService, AdminProductService>();
+            services.AddScoped<IAdminProductVariantService, AdminProductVariantService>();
 
             // Framework Services
             services.AddHttpContextAccessor();
