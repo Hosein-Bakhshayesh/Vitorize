@@ -11,10 +11,14 @@ namespace Vitorize.Infrastructure.Services
     public class CheckoutService : ICheckoutService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly ICouponService _couponService;
 
-        public CheckoutService(VitorizeDbContext dbContext)
+        public CheckoutService(
+            VitorizeDbContext dbContext,
+            ICouponService couponService)
         {
             _dbContext = dbContext;
+            _couponService = couponService;
         }
 
         public async Task<CheckoutResultDto> CheckoutAsync(
@@ -23,6 +27,8 @@ namespace Vitorize.Infrastructure.Services
         {
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            request ??= new CheckoutRequestDto();
 
             var cart = await _dbContext.Carts
                 .Include(x => x.CartItems)
@@ -39,12 +45,32 @@ namespace Vitorize.Infrastructure.Services
 
             try
             {
+                var now = DateTime.UtcNow;
+
                 var subtotalAmount = cart.CartItems.Sum(x =>
                     x.UnitPrice * x.Quantity);
 
                 var discountAmount = 0m;
+                Guid? couponId = null;
+
+                if (!string.IsNullOrWhiteSpace(request.CouponCode))
+                {
+                    var couponResult = await _couponService.ValidateAsync(
+                        userId,
+                        new Vitorize.Application.DTOs.Coupons.ValidateCouponRequestDto
+                        {
+                            Code = request.CouponCode,
+                            OrderAmount = subtotalAmount
+                        });
+
+                    couponId = couponResult.CouponId;
+                    discountAmount = couponResult.DiscountAmount;
+                }
 
                 var finalAmount = subtotalAmount - discountAmount;
+
+                if (finalAmount < 0)
+                    finalAmount = 0;
 
                 var order = new Order
                 {
@@ -56,8 +82,9 @@ namespace Vitorize.Infrastructure.Services
                     SubtotalAmount = subtotalAmount,
                     DiscountAmount = discountAmount,
                     FinalAmount = finalAmount,
+                    CouponId = couponId,
                     Description = request.Description,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = now
                 };
 
                 await _dbContext.Orders.AddAsync(order);
@@ -70,25 +97,17 @@ namespace Vitorize.Infrastructure.Services
                     {
                         Id = Guid.NewGuid(),
                         OrderId = order.Id,
-
                         ProductId = cartItem.ProductId,
                         ProductVariantId = cartItem.ProductVariantId,
-
                         ProductTitle = cartItem.Product.Title,
                         VariantTitle = cartItem.ProductVariant?.Title,
-
                         Quantity = cartItem.Quantity,
-
                         UnitPrice = cartItem.UnitPrice,
                         TotalPrice = cartItem.UnitPrice * cartItem.Quantity,
-
                         DeliveryType = cartItem.Product.DeliveryType,
                         DeliveryStatus = (byte)DeliveryStatus.Pending,
-
-                        RequiresVerification =
-                            cartItem.Product.RequiresVerification,
-
-                        CreatedAt = DateTime.UtcNow
+                        RequiresVerification = cartItem.Product.RequiresVerification,
+                        CreatedAt = now
                     };
 
                     orderItems.Add(orderItem);
@@ -97,7 +116,6 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.OrderItems.AddRangeAsync(orderItems);
 
                 var reservationIds = new List<Guid>();
-                var now = DateTime.UtcNow;
                 var reservationExpiresAt = now.AddMinutes(15);
 
                 foreach (var orderItem in orderItems)
@@ -146,6 +164,26 @@ namespace Vitorize.Infrastructure.Services
                     }
                 }
 
+                if (couponId.HasValue)
+                {
+                    var coupon = await _dbContext.Coupons
+                        .FirstOrDefaultAsync(x => x.Id == couponId.Value);
+
+                    if (coupon == null)
+                        throw new BusinessException("کد تخفیف معتبر نیست.");
+
+                    coupon.UsedCount += 1;
+
+                    await _dbContext.CouponUsages.AddAsync(new CouponUsage
+                    {
+                        Id = Guid.NewGuid(),
+                        CouponId = coupon.Id,
+                        UserId = userId,
+                        OrderId = order.Id,
+                        UsedAt = now
+                    });
+                }
+
                 var payment = new Payment
                 {
                     Id = Guid.NewGuid(),
@@ -155,7 +193,7 @@ namespace Vitorize.Infrastructure.Services
                     Gateway = "Mock",
                     Status = (byte)PaymentStatus.Pending,
                     CallbackVerified = false,
-                    RequestedAt = DateTime.UtcNow
+                    RequestedAt = now
                 };
 
                 await _dbContext.Payments.AddAsync(payment);
