@@ -18,9 +18,9 @@
                 extend: {
                     colors: {
                         vitorize: {
-                            500: '#00A79D',
-                            700: '#006D6F',
-                            900: '#004E50'
+                            500: '#06B6D4',
+                            700: '#0891B2',
+                            900: '#0F172A'
                         }
                     }
                 }
@@ -29,110 +29,82 @@
     </script>
 </head>
 
-<body class="min-h-screen bg-slate-50 text-slate-900">
-    <main class="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+<body class="min-h-screen overflow-hidden bg-slate-50 text-slate-900">
+    <main class="relative flex min-h-screen items-center justify-center px-6 py-10">
 
-        <section class="hidden lg:flex bg-gradient-to-br from-vitorize-900 to-vitorize-500 p-14 text-white relative overflow-hidden">
-            <div class="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
-            <div class="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-teal-300/20 blur-3xl"></div>
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute -top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-3xl"></div>
+            <div class="absolute -bottom-40 -left-40 h-[520px] w-[520px] rounded-full bg-teal-400/10 blur-3xl"></div>
+            <div class="absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/50 blur-3xl"></div>
+        </div>
 
-            <div class="relative z-10 flex flex-col justify-between w-full">
-                <div class="flex items-center gap-4">
-                    <div class="h-16 w-16 rounded-3xl bg-white/10 flex items-center justify-center">
-                        <img src="/images/logo.png" class="h-11 w-11" alt="Vitorize" />
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-black">Vitorize</h1>
-                        <p class="text-sm text-white/70 mt-1">Admin Console</p>
-                    </div>
-                </div>
+        <div class="relative z-10 w-full max-w-md">
 
-                <div>
-                    <p class="inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white/80">
-                        مدیریت فروشگاه دیجیتال
-                    </p>
-
-                    <h2 class="mt-6 text-5xl font-black leading-[1.5]">
-                        مدیریت سریع، امن و یکپارچه
-                    </h2>
-
-                    <p class="mt-5 max-w-xl text-base leading-8 text-white/70">
-                        محصولات، سفارش‌ها، گیفت‌کارت‌ها، کدهای تخفیف و گزارش‌های فروش را از یک پنل حرفه‌ای کنترل کنید.
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="rounded-3xl bg-white/10 p-5">
-                        <p class="text-xl font-black">Orders</p>
-                        <p class="mt-1 text-xs text-white/60">مدیریت سفارش‌ها</p>
-                    </div>
-                    <div class="rounded-3xl bg-white/10 p-5">
-                        <p class="text-xl font-black">Codes</p>
-                        <p class="mt-1 text-xs text-white/60">تحویل کدها</p>
-                    </div>
-                    <div class="rounded-3xl bg-white/10 p-5">
-                        <p class="text-xl font-black">Reports</p>
-                        <p class="mt-1 text-xs text-white/60">گزارش فروش</p>
-                    </div>
+            <div class="mb-8 text-center">
+                <div class="mx-auto flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/60 bg-white/40 shadow-[0_20px_60px_rgba(15,23,42,.08)] backdrop-blur-2xl">
+                    <img src="/images/logo.png" class="h-16 w-16" alt="Vitorize" />
                 </div>
             </div>
-        </section>
 
-        <section class="flex items-center justify-center px-6 py-10">
-            <div class="w-full max-w-md">
-                <div class="text-center mb-8">
-                    <div class="mx-auto h-24 w-24 rounded-[2rem] bg-white shadow-2xl shadow-slate-200 flex items-center justify-center">
-                        <img src="/images/logo.png" class="h-16 w-16" alt="Vitorize" />
-                    </div>
+            <div class="rounded-[2.5rem] border border-white/60 bg-white/45 p-8 shadow-[0_25px_80px_rgba(15,23,42,.10)] backdrop-blur-2xl">
 
-                    <h1 class="mt-6 text-2xl font-black">
-                        ورود به پنل مدیریت
+                <div class="mb-8 text-center">
+                    <h1 class="text-3xl font-black text-slate-800">
+                        Vitorize
                     </h1>
 
-                    <p class="mt-2 text-sm text-slate-500">
-                        حساب مدیریتی خود را وارد کنید.
+                    <p class="mt-2 text-sm font-bold text-slate-500">
+                        ورود به پنل مدیریت
                     </p>
                 </div>
 
-                <div class="rounded-[2rem] bg-white border border-slate-100 p-7 shadow-2xl shadow-slate-200/70">
-                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-                    {
-                        <div class="mb-5 rounded-2xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
-                            @Model.ErrorMessage
-                        </div>
-                    }
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="mb-5 rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm font-bold text-red-700">
+                        @Model.ErrorMessage
+                    </div>
+                }
 
-                    <form method="post" class="space-y-5">
-                        <div>
-                            <label asp-for="Input.Mobile" class="block mb-2 text-sm font-bold">
-                                شماره موبایل
-                            </label>
-                            <input asp-for="Input.Mobile"
-                                   class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none focus:border-vitorize-500 focus:ring-4 focus:ring-teal-100"
-                                   placeholder="09123456789" />
-                            <span asp-validation-for="Input.Mobile" class="block mt-1 text-xs text-red-600"></span>
-                        </div>
+                <form method="post" class="space-y-5">
+                    <div>
+                        <label asp-for="Input.Mobile" class="mb-2 block text-sm font-black text-slate-700">
+                            شماره موبایل
+                        </label>
 
-                        <div>
-                            <label asp-for="Input.Password" class="block mb-2 text-sm font-bold">
-                                رمز عبور
-                            </label>
-                            <input asp-for="Input.Password"
-                                   type="password"
-                                   class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none focus:border-vitorize-500 focus:ring-4 focus:ring-teal-100"
-                                   placeholder="رمز عبور" />
-                            <span asp-validation-for="Input.Password" class="block mt-1 text-xs text-red-600"></span>
-                        </div>
+                        <input asp-for="Input.Mobile"
+                               placeholder="09123456789"
+                               class="w-full rounded-2xl border border-white/60 bg-white/55 px-5 py-4 text-sm outline-none backdrop-blur-xl transition focus:border-vitorize-500 focus:bg-white/80 focus:ring-4 focus:ring-cyan-100" />
 
-                        <button type="submit"
-                                class="w-full rounded-2xl bg-vitorize-700 py-3.5 text-sm font-black text-white shadow-lg shadow-teal-900/20 hover:bg-vitorize-900 transition">
-                            ورود به داشبورد
-                        </button>
-                    </form>
-                </div>
+                        <span asp-validation-for="Input.Mobile" class="mt-2 block text-xs font-bold text-red-600"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="Input.Password" class="mb-2 block text-sm font-black text-slate-700">
+                            رمز عبور
+                        </label>
+
+                        <input asp-for="Input.Password"
+                               type="password"
+                               placeholder="رمز عبور"
+                               class="w-full rounded-2xl border border-white/60 bg-white/55 px-5 py-4 text-sm outline-none backdrop-blur-xl transition focus:border-vitorize-500 focus:bg-white/80 focus:ring-4 focus:ring-cyan-100" />
+
+                        <span asp-validation-for="Input.Password" class="mt-2 block text-xs font-bold text-red-600"></span>
+                    </div>
+
+                    <button type="submit"
+                            class="w-full rounded-2xl bg-gradient-to-r from-vitorize-700 to-vitorize-500 py-4 text-sm font-black text-white shadow-xl shadow-cyan-900/20 transition hover:scale-[1.02]">
+                        ورود به داشبورد
+                    </button>
+                </form>
             </div>
-        </section>
 
+            <p class="mt-6 text-center text-xs font-bold text-slate-400">
+                © Vitorize Admin Console
+            </p>
+
+        </div>
     </main>
+
+    <partial name="_ValidationScriptsPartial" />
 </body>
 </html>

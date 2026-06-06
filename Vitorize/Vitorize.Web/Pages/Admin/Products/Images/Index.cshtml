@@ -1,0 +1,131 @@
+﻿@page
+@model Vitorize.Web.Pages.Admin.Products.Images.IndexModel
+@{
+    ViewData["Title"] = "تصاویر محصول";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="space-y-6" dir="rtl">
+    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-sm font-bold text-fuchsia-600">Product Gallery</p>
+                <h1 class="mt-2 text-3xl font-black text-slate-900">تصاویر محصول</h1>
+                <p class="mt-2 text-sm text-slate-500">@(Model.Product?.Title ?? "")</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <a asp-page="/Admin/Products/Details" asp-route-id="@Model.ProductId"
+                   class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700">
+                    جزئیات محصول
+                </a>
+                <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@Model.ProductId"
+                   class="rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-700">
+                    تنوع‌ها
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
+            @Model.SuccessMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <form method="post"
+          enctype="multipart/form-data"
+          asp-page-handler="Upload"
+          asp-route-productId="@Model.ProductId"
+          class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <h2 class="text-lg font-black text-slate-900">آپلود تصویر جدید</h2>
+
+        <div class="mt-5 grid gap-4 lg:grid-cols-12">
+            <input asp-for="ImageFile" type="file" accept="image/*"
+                   class="lg:col-span-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm" />
+
+            <input asp-for="AltText" placeholder="Alt Text"
+                   class="lg:col-span-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+
+            <input asp-for="SortOrder" placeholder="Sort Order"
+                   class="lg:col-span-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+
+            <label class="lg:col-span-2 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                <span>تصویر اصلی</span>
+                <input asp-for="SetAsThumbnail" class="h-5 w-5" />
+            </label>
+
+            <button class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
+                آپلود
+            </button>
+        </div>
+    </form>
+
+    <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        @foreach (var image in Model.Images)
+        {
+            <div class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
+                <div class="relative aspect-square bg-slate-100">
+                    <img src="@image.ImagePath" class="h-full w-full object-cover" />
+
+                    @if (image.IsThumbnail)
+                    {
+                        <span class="absolute right-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">
+                            Thumbnail
+                        </span>
+                    }
+                </div>
+
+                <div class="space-y-3 p-4">
+                    <form method="post"
+                          asp-page-handler="Update"
+                          asp-route-productId="@Model.ProductId"
+                          asp-route-imageId="@image.Id"
+                          asp-route-imagePath="@image.ImagePath">
+                        <input name="altText" value="@image.AltText" placeholder="Alt Text"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs" />
+
+                        <input name="sortOrder" value="@image.SortOrder"
+                               class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs" />
+
+                        <input type="hidden" name="isThumbnail" value="@image.IsThumbnail.ToString()" />
+
+                        <button class="mt-2 w-full rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">
+                            ذخیره Sort / Alt
+                        </button>
+                    </form>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <form method="post"
+                              asp-page-handler="SetThumbnail"
+                              asp-route-productId="@Model.ProductId"
+                              asp-route-imageId="@image.Id">
+                            <button class="w-full rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                                انتخاب اصلی
+                            </button>
+                        </form>
+
+                        <form method="post"
+                              asp-page-handler="Delete"
+                              asp-route-productId="@Model.ProductId"
+                              asp-route-imageId="@image.Id"
+                              asp-route-imagePath="@image.ImagePath"
+                              onsubmit="return confirm('تصویر حذف شود؟')">
+                            <button class="w-full rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                                حذف
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

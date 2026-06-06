@@ -5,6 +5,11 @@
     font-style: normal;
     font-display: swap;
 }
+@font-face {
+    font-family: 'vazir';
+    src: url('fonts/vazir/eot/vazir.eot') format('embedded-opentype'),url('fonts/vazir/ttf/vazir.ttf') format('truetype'),url('fonts/vazir/woff/vazir.woff') format('woff'),url('fonts/vazir/woff2/vazir.woff2') format('woff2');
+}
+
 
 html,
 body,
@@ -12,7 +17,7 @@ button,
 input,
 select,
 textarea {
-    font-family: 'IranSans', Tahoma, Arial, sans-serif !important;
+    font-family: 'vazir', Tahoma, Arial, sans-serif !important;
 }
 
 html {

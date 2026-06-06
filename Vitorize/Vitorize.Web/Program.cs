@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Storage;
 
 namespace Vitorize.Web
 {
@@ -27,6 +28,7 @@ namespace Vitorize.Web
                 });
 
             builder.Services.AddAuthorization();
+            builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
             builder.Services.AddHttpClient<ApiClient>(client =>
             {

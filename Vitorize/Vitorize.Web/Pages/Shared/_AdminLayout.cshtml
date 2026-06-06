@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Html
+
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8" />
@@ -13,17 +15,20 @@
             theme: {
                 extend: {
                     colors: {
-                        vitorize: {
-                            50: '#ecfeff',
-                            100: '#cffafe',
-                            500: '#00A79D',
-                            700: '#006D6F',
-                            900: '#004E50'
+                        vito: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            900: '#0f172a'
                         }
                     },
                     boxShadow: {
-                        soft: '0 24px 80px rgba(15, 23, 42, .08)',
-                        teal: '0 20px 60px rgba(0, 167, 157, .18)'
+                        soft: '0 22px 70px rgba(15, 23, 42, .055)',
+                        innerSoft: 'inset 0 1px 0 rgba(255,255,255,.65)',
+                        glow: '0 18px 45px rgba(20,184,166,.10)'
                     }
                 }
             }
@@ -31,78 +36,218 @@
     </script>
 </head>
 
-<body class="min-h-screen bg-[#f6fbfb] text-slate-800 antialiased">
-    <div class="fixed inset-0 pointer-events-none">
-        <div class="absolute right-72 top-10 h-80 w-80 rounded-full bg-vitorize-100 blur-3xl"></div>
-        <div class="absolute left-20 bottom-20 h-96 w-96 rounded-full bg-cyan-100 blur-3xl"></div>
+<body class="min-h-screen bg-[#f8fafb] text-slate-800 antialiased">
+
+    <div class="pointer-events-none fixed inset-0 overflow-hidden">
+        <div class="absolute -right-40 top-10 h-[430px] w-[430px] rounded-full bg-teal-100/45 blur-3xl"></div>
+        <div class="absolute -left-48 bottom-10 h-[520px] w-[520px] rounded-full bg-cyan-100/35 blur-3xl"></div>
+        <div class="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/70 blur-3xl"></div>
     </div>
 
-    <div class="relative min-h-screen flex">
-        <aside class="fixed right-0 top-0 z-40 hidden h-screen w-80 flex-col border-l border-white/60 bg-white/70 backdrop-blur-2xl lg:flex shadow-soft">
-            <div class="px-6 pt-7">
-                <div class="rounded-[2rem] bg-gradient-to-br from-vitorize-700 to-vitorize-500 p-5 text-white shadow-teal">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-white">
-                            <img src="/images/logo.png" alt="Vitorize" class="h-11 w-11" />
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-black tracking-tight">Vitorize</h1>
-                            <p class="mt-1 text-xs text-white/75">پنل مدیریت فروشگاه</p>
-                        </div>
-                    </div>
-                </div>
+    <div class="relative min-h-screen">
+
+        <div id="mobileSidebarOverlay"
+             onclick="closeMobileSidebar()"
+             class="fixed inset-0 z-40 hidden bg-slate-950/35 backdrop-blur-sm lg:hidden">
+        </div>
+
+        <aside id="mobileSidebar"
+               class="fixed right-0 top-0 z-50 flex h-screen w-72 translate-x-full flex-col border-l border-white/70 bg-white/85 shadow-soft backdrop-blur-2xl transition-transform duration-300 lg:hidden">
+
+            <div class="flex h-20 items-center justify-between px-5">
+                @RenderBrand()
+
+                <button type="button"
+                        onclick="closeMobileSidebar()"
+                        class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                    ✕
+                </button>
             </div>
 
-            <nav class="mt-7 flex-1 space-y-2 px-5">
-                <a href="/Admin" class="flex items-center justify-between rounded-3xl bg-vitorize-700 px-5 py-4 text-sm font-black text-white shadow-teal">
-                    <span>داشبورد</span>
-                    <span class="h-2.5 w-2.5 rounded-full bg-white"></span>
-                </a>
-
-                <a href="/Admin/Products" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">محصولات</a>
-                <a href="/Admin/Categories" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">دسته‌بندی‌ها</a>
-                <a href="/Admin/Brands" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">برندها</a>
-                <a href="/Admin/GiftCodes" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">کدهای گیفت‌کارت</a>
-                <a href="/Admin/Coupons" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">کدهای تخفیف</a>
-                <a href="/Admin/Orders" class="block rounded-3xl px-5 py-4 text-sm font-bold text-slate-600 transition hover:bg-vitorize-50 hover:text-vitorize-900">سفارش‌ها</a>
+            <nav class="flex-1 space-y-1 px-4">
+                @RenderNavLinks()
             </nav>
 
-            <div class="p-5">
-                <div class="rounded-[2rem] border border-white/70 bg-white/60 p-5 backdrop-blur-xl">
-                    <p class="text-sm font-black text-slate-900">@User.Identity?.Name</p>
-                    <p class="mt-1 text-xs text-slate-500">مدیر سیستم</p>
-                    <a href="/Account/Logout" class="mt-4 block rounded-2xl bg-slate-100 px-4 py-3 text-center text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600">
-                        خروج از پنل
-                    </a>
-                </div>
-            </div>
+            @RenderUserBox()
         </aside>
 
-        <main class="min-h-screen w-full lg:pr-80">
-            <header class="sticky top-0 z-30 border-b border-white/70 bg-white/65 backdrop-blur-2xl">
-                <div class="flex h-24 items-center justify-between px-6 lg:px-10">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-900">@ViewData["Title"]</h2>
-                        <p class="mt-2 text-xs text-slate-500">مدیریت یکپارچه فروشگاه دیجیتال Vitorize</p>
-                    </div>
+        <aside class="fixed right-6 top-6 z-30 hidden h-[calc(100vh-48px)] w-72 flex-col rounded-[2.2rem] border border-white/80 bg-white/70 shadow-soft shadow-slate-200/60 backdrop-blur-2xl lg:flex">
 
-                    <div class="flex items-center gap-3">
-                        <div class="hidden rounded-2xl bg-vitorize-50 px-4 py-3 text-xs font-black text-vitorize-700 md:block">
-                            Live Admin
+            <div class="px-5 pt-5">
+                <div class="rounded-[1.7rem] border border-white/75 bg-white/70 p-4 shadow-innerSoft">
+                    @RenderBrand()
+                </div>
+            </div>
+
+            <nav class="mt-6 flex-1 space-y-1 px-4">
+                @RenderNavLinks()
+            </nav>
+
+            @RenderUserBox()
+        </aside>
+
+        <main class="min-h-screen w-full lg:pr-[21.5rem]">
+
+            <header class="sticky top-0 z-20 px-4 pt-4 lg:px-8 lg:pt-6">
+                <div class="rounded-[1.8rem] border border-white/80 bg-white/68 shadow-soft backdrop-blur-2xl">
+                    <div class="flex h-20 items-center justify-between px-5 lg:px-7">
+
+                        <div class="flex items-center gap-3">
+                            <button type="button"
+                                    onclick="openMobileSidebar()"
+                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 lg:hidden">
+                                ☰
+                            </button>
+
+                            <div>
+                                <h2 class="text-xl font-black text-slate-900 lg:text-2xl">
+                                    @ViewData["Title"]
+                                </h2>
+                                <p class="mt-1 hidden text-xs font-bold text-slate-400 sm:block">
+                                    Vitorize Admin Workspace
+                                </p>
+                            </div>
                         </div>
-                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-soft">
-                            <img src="/images/logo.png" alt="Vitorize" class="h-8 w-8" />
+
+                        <div class="flex items-center gap-3">
+                            <div class="hidden items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-xs font-black text-slate-500 md:flex">
+                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                Online
+                            </div>
+
+                            <a href="/Admin/Orders"
+                               class="hidden rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black text-slate-600 transition hover:bg-teal-50 hover:text-vito-700 md:block">
+                                سفارش‌ها
+                            </a>
+
+                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-soft">
+                                <img src="/images/logo.png" alt="Vitorize" class="h-7 w-7" />
+                            </div>
                         </div>
+
                     </div>
                 </div>
             </header>
 
-            <section class="p-6 lg:p-10">
+            <section class="p-4 pt-6 lg:p-8 lg:pt-7">
                 @RenderBody()
             </section>
+
         </main>
     </div>
+
+    <script>
+        function openMobileSidebar() {
+            document.getElementById('mobileSidebarOverlay').classList.remove('hidden');
+            document.getElementById('mobileSidebar').classList.remove('translate-x-full');
+        }
+
+        function closeMobileSidebar() {
+            document.getElementById('mobileSidebarOverlay').classList.add('hidden');
+            document.getElementById('mobileSidebar').classList.add('translate-x-full');
+        }
+    </script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
+@functions {
+    private IHtmlContent RenderBrand()
+    {
+        var html = @"
+<div class=""flex items-center gap-3"">
+    <div class=""flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 shadow-glow"">
+        <img src=""/images/logo.png"" alt=""Vitorize"" class=""h-8 w-8 rounded-xl bg-white p-1"" />
+    </div>
+
+    <div>
+        <h1 class=""text-xl font-black tracking-tight text-slate-900"">Vitorize</h1>
+        <p class=""mt-0.5 text-[11px] font-bold text-slate-400"">Admin Console</p>
+    </div>
+</div>";
+
+        return new HtmlString(html);
+    }
+
+    private IHtmlContent RenderNavLinks()
+    {
+        var currentPath = (Context.Request.Path.Value ?? "").TrimEnd('/').ToLower();
+
+        string Link(string href, string title, string icon, bool exact = false)
+        {
+            var hrefLower = href.TrimEnd('/').ToLower();
+
+            var isActive = exact
+                ? currentPath == hrefLower
+                : currentPath == hrefLower || currentPath.StartsWith(hrefLower + "/");
+
+            var activeClass = isActive
+                ? "bg-slate-900 text-white shadow-soft"
+                : "text-slate-600 hover:bg-white/85 hover:text-vito-700";
+
+            var iconClass = isActive
+                ? "bg-white/15 text-white"
+                : "bg-slate-100 text-slate-500 group-hover:bg-teal-50 group-hover:text-vito-700";
+
+            var dotClass = isActive
+                ? "bg-teal-400"
+                : "bg-slate-200";
+
+            return $@"
+<a href=""{href}"" class=""group flex items-center justify-between rounded-2xl px-4 py-3.5 text-sm font-black transition {activeClass}"">
+    <span class=""flex items-center gap-3"">
+        <span class=""flex h-8 w-8 items-center justify-center rounded-xl text-sm transition {iconClass}"">{icon}</span>
+        <span>{title}</span>
+    </span>
+    <span class=""h-2 w-2 rounded-full {dotClass}""></span>
+</a>";
+        }
+
+        var html = string.Join("", new[]
+        {
+            Link("/Admin", "داشبورد", "⌁", exact: true),
+            Link("/Admin/Products", "محصولات", "◈"),
+            Link("/Admin/Categories", "دسته‌بندی‌ها", "▦"),
+            Link("/Admin/Brands", "برندها", "◇"),
+            Link("/Admin/GiftCodes", "گیفت‌کارت‌ها", "✦"),
+            Link("/Admin/Coupons", "تخفیف‌ها", "%"),
+            Link("/Admin/Orders", "سفارش‌ها", "◎")
+        });
+
+        return new HtmlString(html);
+    }
+
+    private IHtmlContent RenderUserBox()
+    {
+        var name = User.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(name))
+            name = "مدیر سیستم";
+
+        var html = $@"
+<div class=""p-4"">
+    <div class=""rounded-[1.7rem] border border-white/80 bg-white/70 p-4 shadow-innerSoft backdrop-blur-xl"">
+        <div class=""flex items-center gap-3"">
+            <div class=""flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white"">
+                V
+            </div>
+
+            <div class=""min-w-0"">
+                <p class=""truncate text-sm font-black text-slate-900"">{name}</p>
+                <p class=""mt-0.5 text-[11px] font-bold text-slate-400"">مدیر سیستم</p>
+            </div>
+        </div>
+
+        <form method=""post"" action=""/Account/Logout"" class=""mt-4"">
+            <button type=""submit""
+                    class=""w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600"">
+                خروج از پنل
+            </button>
+        </form>
+    </div>
+</div>";
+
+        return new HtmlString(html);
+    }
+}

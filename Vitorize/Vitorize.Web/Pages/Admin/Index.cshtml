@@ -7,137 +7,200 @@
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {
-    <div class="rounded-3xl border border-red-100 bg-red-50 p-5 text-red-700">
+    <div class="rounded-[1.5rem] border border-red-100 bg-red-50/80 px-5 py-4 text-sm font-bold text-red-700 shadow-soft">
         @Model.ErrorMessage
     </div>
 }
 else
 {
-    <div class="space-y-8">
-        <section class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-vitorize-700 to-vitorize-500 p-8 text-white shadow-teal">
-            <div class="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white/15 blur-3xl"></div>
-            <div class="absolute bottom-0 right-20 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="space-y-6">
 
-            <div class="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <p class="inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white/80">
-                        داشبورد زنده Vitorize
-                    </p>
-
-                    <h1 class="mt-5 text-4xl font-black leading-relaxed">
-                        کنترل کامل فروشگاه دیجیتال
-                    </h1>
-
-                    <p class="mt-3 max-w-2xl text-sm leading-8 text-white/70">
-                        آمار فروش، سفارش‌ها، محصولات، کاربران و موجودی کدها مستقیماً از API خوانده می‌شود.
-                    </p>
+        <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-black text-slate-400">درآمد تایید شده</p>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">●</span>
                 </div>
+                <p class="mt-5 text-2xl font-black text-slate-900">@Model.FormatMoney(Model.Dashboard.TotalRevenue)</p>
+                <p class="mt-2 text-xs font-bold text-slate-400">مجموع فروش موفق</p>
+            </div>
 
-                <div class="rounded-[2rem] bg-white/15 p-6 backdrop-blur-xl">
-                    <p class="text-sm text-white/70">درآمد تایید شده</p>
-                    <p class="mt-2 text-4xl font-black">@Model.FormatMoney(Model.Dashboard.TotalRevenue)</p>
+            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-black text-slate-400">کاربران</p>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">◎</span>
                 </div>
+                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.TotalUsers.ToString("N0")</p>
+                <p class="mt-2 text-xs font-bold text-slate-400">کل کاربران ثبت‌شده</p>
+            </div>
+
+            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-black text-slate-400">محصولات فعال</p>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">◈</span>
+                </div>
+                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.TotalProducts.ToString("N0")</p>
+                <p class="mt-2 text-xs font-bold text-slate-400">آماده فروش</p>
+            </div>
+
+            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-black text-slate-400">کدهای آماده</p>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">#</span>
+                </div>
+                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.AvailableGiftCodes.ToString("N0")</p>
+                <p class="mt-2 text-xs font-bold text-slate-400">موجودی قابل تحویل</p>
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-soft backdrop-blur-xl">
-                <p class="text-sm font-bold text-slate-500">کاربران</p>
-                <p class="mt-4 text-3xl font-black text-slate-900">@Model.Dashboard.TotalUsers.ToString("N0")</p>
-                <p class="mt-2 text-xs text-vitorize-700">کل کاربران ثبت‌شده</p>
-            </div>
+        <section class="grid grid-cols-1 gap-6 xl:grid-cols-12">
 
-            <div class="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-soft backdrop-blur-xl">
-                <p class="text-sm font-bold text-slate-500">محصولات فعال</p>
-                <p class="mt-4 text-3xl font-black text-slate-900">@Model.Dashboard.TotalProducts.ToString("N0")</p>
-                <p class="mt-2 text-xs text-vitorize-700">آماده فروش</p>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-soft backdrop-blur-xl">
-                <p class="text-sm font-bold text-slate-500">سفارش‌ها</p>
-                <p class="mt-4 text-3xl font-black text-slate-900">@Model.Dashboard.TotalOrders.ToString("N0")</p>
-                <p class="mt-2 text-xs text-vitorize-700">کل سفارش‌های ثبت‌شده</p>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-soft backdrop-blur-xl">
-                <p class="text-sm font-bold text-slate-500">کدهای آماده</p>
-                <p class="mt-4 text-3xl font-black text-slate-900">@Model.Dashboard.AvailableGiftCodes.ToString("N0")</p>
-                <p class="mt-2 text-xs text-vitorize-700">موجودی قابل تحویل</p>
-            </div>
-        </section>
-
-        <section class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <div class="xl:col-span-2 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-soft backdrop-blur-xl">
-                <div class="mb-6 flex items-center justify-between">
+            <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl xl:col-span-8">
+                <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <h2 class="text-xl font-black text-slate-900">آخرین سفارش‌ها</h2>
-                        <p class="mt-1 text-xs text-slate-500">۵ سفارش آخر سیستم</p>
+                        <h2 class="text-lg font-black text-slate-900">آخرین سفارش‌ها</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-400">۵ سفارش آخر ثبت‌شده در سیستم</p>
                     </div>
-                    <a href="/Admin/Orders" class="rounded-2xl bg-vitorize-700 px-4 py-2 text-xs font-black text-white shadow-teal">
-                        مشاهده همه
+
+                    <a href="/Admin/Orders"
+                       class="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]">
+                        مشاهده همه سفارش‌ها
                     </a>
                 </div>
 
-                <div class="overflow-hidden rounded-3xl border border-slate-100">
-                    <table class="w-full text-right text-sm">
-                        <thead class="bg-slate-50 text-xs text-slate-500">
-                            <tr>
-                                <th class="px-5 py-4">شماره سفارش</th>
-                                <th class="px-5 py-4">مشتری</th>
-                                <th class="px-5 py-4">مبلغ</th>
-                                <th class="px-5 py-4">وضعیت</th>
-                                <th class="px-5 py-4">تاریخ</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @foreach (var order in Model.Dashboard.RecentOrders)
-                            {
-                                <tr class="transition hover:bg-vitorize-50/60">
-                                    <td class="px-5 py-4 font-black text-vitorize-700">@order.OrderNumber</td>
-                                    <td class="px-5 py-4">@order.CustomerName</td>
-                                    <td class="px-5 py-4">@Model.FormatMoney(order.FinalAmount)</td>
-                                    <td class="px-5 py-4">
-                                        <span class="rounded-full bg-vitorize-50 px-3 py-1 text-xs font-black text-vitorize-700">
-                                            @Model.GetOrderStatus(order.Status)
-                                        </span>
-                                    </td>
-                                    <td class="px-5 py-4 text-slate-500">@order.CreatedAt.ToString("yyyy/MM/dd")</td>
+                @if (Model.Dashboard.RecentOrders == null || !Model.Dashboard.RecentOrders.Any())
+                {
+                    <div class="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/70 p-12 text-center">
+                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-2xl shadow-soft">
+                            ◎
+                        </div>
+
+                        <p class="mt-5 text-lg font-black text-slate-700">هنوز سفارشی ثبت نشده</p>
+                        <p class="mt-2 text-sm font-bold text-slate-400">بعد از اولین خرید، سفارش‌ها اینجا نمایش داده می‌شوند.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto rounded-[1.7rem] border border-slate-100 bg-white/70">
+                        <table class="w-full min-w-[760px] text-right text-sm">
+                            <thead class="bg-slate-50/80 text-[11px] font-black uppercase text-slate-400">
+                                <tr>
+                                    <th class="px-5 py-4">شماره سفارش</th>
+                                    <th class="px-5 py-4">مشتری</th>
+                                    <th class="px-5 py-4">مبلغ</th>
+                                    <th class="px-5 py-4">وضعیت</th>
+                                    <th class="px-5 py-4">تاریخ</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach (var order in Model.Dashboard.RecentOrders)
+                                {
+                                    <tr class="transition hover:bg-slate-50/70">
+                                        <td class="px-5 py-4">
+                                            <p dir="ltr" class="text-left font-black text-slate-900">@order.OrderNumber</p>
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <p class="font-black text-slate-700">@order.CustomerName</p>
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <p class="font-black text-slate-900">@Model.FormatMoney(order.FinalAmount)</p>
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                                                @Model.GetOrderStatus(order.Status)
+                                            </span>
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <p class="text-xs font-bold text-slate-400">@order.CreatedAt.ToString("yyyy/MM/dd")</p>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </div>
 
-            <div class="space-y-6">
-                <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-soft backdrop-blur-xl">
-                    <h2 class="text-xl font-black text-slate-900">وضعیت سفارش‌ها</h2>
+            <aside class="space-y-6 xl:col-span-4">
 
-                    <div class="mt-6 space-y-4">
-                        <div class="flex items-center justify-between rounded-3xl bg-amber-50 p-4">
-                            <span class="text-sm font-bold text-slate-600">در انتظار</span>
-                            <span class="text-xl font-black text-amber-600">@Model.Dashboard.PendingOrders.ToString("N0")</span>
+                <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-black text-slate-900">وضعیت سفارش‌ها</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-400">نمای کلی پردازش سفارش‌ها</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between rounded-2xl bg-amber-50/80 p-4">
+                            <div>
+                                <p class="text-sm font-black text-slate-700">در انتظار</p>
+                                <p class="mt-1 text-xs font-bold text-amber-600">نیازمند بررسی</p>
+                            </div>
+                            <span class="text-2xl font-black text-amber-600">@Model.Dashboard.PendingOrders.ToString("N0")</span>
                         </div>
 
-                        <div class="flex items-center justify-between rounded-3xl bg-vitorize-50 p-4">
-                            <span class="text-sm font-bold text-slate-600">تکمیل شده</span>
-                            <span class="text-xl font-black text-vitorize-700">@Model.Dashboard.CompletedOrders.ToString("N0")</span>
+                        <div class="flex items-center justify-between rounded-2xl bg-emerald-50/80 p-4">
+                            <div>
+                                <p class="text-sm font-black text-slate-700">تکمیل شده</p>
+                                <p class="mt-1 text-xs font-bold text-emerald-600">تحویل موفق</p>
+                            </div>
+                            <span class="text-2xl font-black text-emerald-600">@Model.Dashboard.CompletedOrders.ToString("N0")</span>
                         </div>
 
-                        <div class="flex items-center justify-between rounded-3xl bg-slate-50 p-4">
-                            <span class="text-sm font-bold text-slate-600">کدهای تخفیف فعال</span>
-                            <span class="text-xl font-black text-slate-900">@Model.Dashboard.ActiveCoupons.ToString("N0")</span>
+                        <div class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4">
+                            <div>
+                                <p class="text-sm font-black text-slate-700">کل سفارش‌ها</p>
+                                <p class="mt-1 text-xs font-bold text-slate-400">همه وضعیت‌ها</p>
+                            </div>
+                            <span class="text-2xl font-black text-slate-900">@Model.Dashboard.TotalOrders.ToString("N0")</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="rounded-[2rem] bg-gradient-to-br from-vitorize-700 to-vitorize-500 p-6 text-white shadow-teal">
-                    <h2 class="text-xl font-black">مرحله بعد</h2>
-                    <p class="mt-3 text-sm leading-8 text-white/70">
-                        صفحه محصولات، دسته‌بندی‌ها، برندها و سفارش‌ها را به همین سبک و متصل به API می‌سازیم.
-                    </p>
+                <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-black text-slate-900">میانبرها</h2>
+                        <p class="mt-1 text-xs font-bold text-slate-400">دسترسی سریع به بخش‌های اصلی</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <a href="/Admin/Products/Create"
+                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
+                            <span>افزودن محصول</span>
+                            <span>+</span>
+                        </a>
+
+                        <a href="/Admin/Products"
+                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
+                            <span>مدیریت محصولات</span>
+                            <span>◈</span>
+                        </a>
+
+                        <a href="/Admin/GiftCodes"
+                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
+                            <span>کدهای گیفت‌کارت</span>
+                            <span>#</span>
+                        </a>
+                    </div>
                 </div>
-            </div>
+
+                <div class="rounded-[2rem] border border-white/80 bg-slate-900 p-6 text-white shadow-soft">
+                    <h2 class="text-lg font-black">وضعیت MVP</h2>
+                    <p class="mt-3 text-sm font-bold leading-8 text-white/60">
+                        هسته محصولات، تنوع‌ها، آپلود تصویر و داشبورد فعال شده‌اند. مرحله بعد تکمیل دسته‌بندی، برند و گیفت‌کد است.
+                    </p>
+
+                    <div class="mt-5 rounded-2xl bg-white/10 p-4">
+                        <p class="text-xs font-black text-white/60">کدهای تخفیف فعال</p>
+                        <p class="mt-2 text-2xl font-black">@Model.Dashboard.ActiveCoupons.ToString("N0")</p>
+                    </div>
+                </div>
+
+            </aside>
         </section>
     </div>
 }

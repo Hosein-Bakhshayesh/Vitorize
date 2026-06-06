@@ -30,7 +30,6 @@
     <Folder Include="Pages\Admin\GiftCodes\" />
     <Folder Include="Pages\Admin\Coupons\" />
     <Folder Include="Pages\Admin\Orders\" />
-    <Folder Include="Pages\Admin\Products\" />
     <Folder Include="Pages\Cart\" />
     <Folder Include="Pages\Checkout\" />
     <Folder Include="Pages\Orders\" />

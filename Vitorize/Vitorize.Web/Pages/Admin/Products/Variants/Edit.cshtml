@@ -1,0 +1,153 @@
+﻿@page
+@model Vitorize.Web.Pages.Admin.Products.Variants.EditModel
+@{
+    ViewData["Title"] = "ویرایش تنوع محصول";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="space-y-6" dir="rtl">
+    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-sm font-black text-indigo-600">Edit Variant</p>
+                <h1 class="mt-2 text-3xl font-black text-slate-900">@Model.Variant.Title</h1>
+                <p class="mt-2 text-sm text-slate-500">@(Model.Product?.Title ?? "")</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@Model.ProductId"
+                   class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700">
+                    بازگشت
+                </a>
+
+                <a href="/Admin/GiftCodes?productId=@Model.ProductId&variantId=@Model.VariantId"
+                   class="rounded-2xl bg-amber-50 px-5 py-3 text-sm font-black text-amber-700">
+                    کدهای گیفت
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <form method="post" class="grid gap-6 xl:grid-cols-12">
+        <div class="space-y-6 xl:col-span-8">
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">اطلاعات تنوع</h2>
+
+                <div class="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">عنوان تنوع</label>
+                        <input asp-for="Variant.Title"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                        <span asp-validation-for="Variant.Title" class="text-xs text-rose-600"></span>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">SKU</label>
+                        <input asp-for="Variant.Sku"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-left ltr" />
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">Value</label>
+                        <input asp-for="Variant.Value"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">Sort Order</label>
+                        <input asp-for="Variant.SortOrder"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">قیمت‌گذاری</h2>
+
+                <div class="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت</label>
+                        <input asp-for="Variant.Price"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                        <span asp-validation-for="Variant.Price" class="text-xs text-rose-600"></span>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت تخفیف</label>
+                        <input asp-for="Variant.DiscountPrice"
+                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6 xl:col-span-4">
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">وضعیت و موجودی</h2>
+
+                <div class="mt-5 space-y-4">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">Stock Mode</label>
+                        <select asp-for="Variant.StockMode"
+                                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                            <option value="1">موجودی بر اساس GiftCode</option>
+                            <option value="2">موجودی دستی</option>
+                            <option value="3">بدون محدودیت</option>
+                        </select>
+                    </div>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>تنوع پیش‌فرض</span>
+                        <input asp-for="Variant.IsDefault" class="h-5 w-5" />
+                    </label>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>فعال باشد</span>
+                        <input asp-for="Variant.IsActive" class="h-5 w-5" />
+                    </label>
+                </div>
+            </div>
+
+            @if (Model.CurrentVariant != null)
+            {
+                <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                    <h2 class="text-lg font-black text-slate-900">خلاصه فعلی</h2>
+
+                    <div class="mt-5 space-y-3 text-sm">
+                        <div class="flex justify-between rounded-2xl bg-slate-50 p-4">
+                            <span class="font-bold text-slate-500">قیمت نهایی</span>
+                            <span class="font-black text-slate-900">@Model.FormatMoney(Model.CurrentVariant.FinalPrice)</span>
+                        </div>
+
+                        <div class="flex justify-between rounded-2xl bg-slate-50 p-4">
+                            <span class="font-bold text-slate-500">موجودی</span>
+                            <span class="font-black @(Model.CurrentVariant.AvailableStock <= 0 ? "text-rose-600" : "text-emerald-600")">
+                                @Model.CurrentVariant.AvailableStock
+                            </span>
+                        </div>
+
+                        <div class="flex justify-between rounded-2xl bg-slate-50 p-4">
+                            <span class="font-bold text-slate-500">تاریخ ایجاد</span>
+                            <span class="font-black text-slate-900">@Model.CurrentVariant.CreatedAt.ToString("yyyy/MM/dd")</span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <button class="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg">
+                ذخیره تغییرات
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

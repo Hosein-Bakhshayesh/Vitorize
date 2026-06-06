@@ -39,6 +39,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminCouponService, AdminCouponService>();
             services.AddScoped<ICouponService, CouponService>();
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+            services.AddScoped<IAdminProductImageService, AdminProductImageService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));

@@ -1,0 +1,197 @@
+﻿@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.Products.EditModel
+@{
+    ViewData["Title"] = "ویرایش محصول";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="space-y-6" dir="rtl">
+    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-center gap-4">
+                <div class="h-20 w-20 overflow-hidden rounded-3xl bg-slate-100 ring-1 ring-slate-200">
+                    @if (!string.IsNullOrWhiteSpace(Model.Product.ThumbnailImagePath))
+                    {
+                        <img src="@Model.Product.ThumbnailImagePath" class="h-full w-full object-cover" />
+                    }
+                    else
+                    {
+                        <div class="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">No Image</div>
+                    }
+                </div>
+
+                <div>
+                    <p class="text-sm font-black text-indigo-600">Edit Product</p>
+                    <h1 class="mt-2 text-3xl font-black text-slate-900">@Model.Product.Title</h1>
+                    <p class="mt-1 text-xs text-slate-400">@Model.Product.Slug</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <a asp-page="/Admin/Products/Details" asp-route-id="@Model.ProductId"
+                   class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700">جزئیات</a>
+
+                <a asp-page="/Admin/Products/Images/Index" asp-route-productId="@Model.ProductId"
+                   class="rounded-2xl bg-fuchsia-50 px-5 py-3 text-sm font-black text-fuchsia-700">تصاویر</a>
+
+                <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@Model.ProductId"
+                   class="rounded-2xl bg-cyan-50 px-5 py-3 text-sm font-black text-cyan-700">تنوع‌ها</a>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <form method="post" class="grid gap-6 xl:grid-cols-12">
+        <div class="space-y-6 xl:col-span-8">
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">اطلاعات اصلی</h2>
+
+                <div class="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">عنوان محصول</label>
+                        <input asp-for="Product.Title" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                        <span asp-validation-for="Product.Title" class="text-xs text-rose-600"></span>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">Slug</label>
+                        <input asp-for="Product.Slug" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-left ltr" />
+                        <span asp-validation-for="Product.Slug" class="text-xs text-rose-600"></span>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">دسته‌بندی</label>
+                        <select asp-for="Product.CategoryId" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                            @foreach (var category in Model.Categories)
+                            {
+                                <option value="@category.Id">@category.Title</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">برند</label>
+                        <select asp-for="Product.BrandId" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                            <option value="">بدون برند</option>
+                            @foreach (var brand in Model.Brands)
+                            {
+                                <option value="@brand.Id">@brand.Title</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="mb-2 block text-xs font-black text-slate-500">توضیح کوتاه</label>
+                    <textarea asp-for="Product.ShortDescription" rows="3" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
+                </div>
+
+                <div class="mt-4">
+                    <label class="mb-2 block text-xs font-black text-slate-500">توضیح کامل</label>
+                    <textarea asp-for="Product.FullDescription" rows="8" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">قیمت و محدودیت خرید</h2>
+
+                <div class="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت پایه</label>
+                        <input asp-for="Product.BasePrice" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت تخفیف</label>
+                        <input asp-for="Product.DiscountPrice" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">حداقل سفارش</label>
+                        <input asp-for="Product.MinOrderQuantity" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-500">حداکثر سفارش</label>
+                        <input asp-for="Product.MaxOrderQuantity" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6 xl:col-span-4">
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">تنظیمات فروش</h2>
+
+                <div class="mt-5 space-y-4">
+                    <select asp-for="Product.ProductType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                        <option value="1">گیفت کارت</option>
+                        <option value="2">اکانت بازی</option>
+                        <option value="3">سرویس دیجیتال</option>
+                    </select>
+
+                    <select asp-for="Product.DeliveryType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                        <option value="1">تحویل آنی</option>
+                        <option value="2">تحویل دستی</option>
+                        <option value="3">تیکتی</option>
+                    </select>
+
+                    <select asp-for="Product.CurrencyType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                        <option value="1">ریال</option>
+                        <option value="2">تومان</option>
+                        <option value="3">دلار</option>
+                    </select>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>فعال</span>
+                        <input asp-for="Product.IsActive" class="h-5 w-5" />
+                    </label>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>ویژه</span>
+                        <input asp-for="Product.IsFeatured" class="h-5 w-5" />
+                    </label>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>نیازمند احراز هویت</span>
+                        <input asp-for="Product.RequiresVerification" class="h-5 w-5" />
+                    </label>
+
+                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
+                        <span>نیازمند پیام پشتیبانی</span>
+                        <input asp-for="Product.RequiresSupportMessage" class="h-5 w-5" />
+                    </label>
+                </div>
+            </div>
+
+            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+                <h2 class="text-lg font-black text-slate-900">تصویر اصلی و SEO</h2>
+
+                <div class="mt-5 space-y-4">
+                    <input asp-for="Product.ThumbnailImagePath" placeholder="Thumbnail Image Path"
+                           class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-left ltr" />
+
+                    <input asp-for="Product.SeoTitle" placeholder="SEO Title"
+                           class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+
+                    <textarea asp-for="Product.SeoDescription" placeholder="SEO Description" rows="4"
+                              class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
+                </div>
+            </div>
+
+            <button class="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg">
+                ذخیره تغییرات
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
