@@ -6,25 +6,23 @@
 }
 
 <div class="space-y-6" dir="rtl">
-    <div class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-xl backdrop-blur-xl">
-        <div class="relative h-44 bg-gradient-to-l from-slate-950 via-indigo-950 to-fuchsia-700">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.25),transparent_25%)]"></div>
-        </div>
-
-        <div class="-mt-16 flex flex-col gap-5 p-6 lg:flex-row lg:items-end lg:justify-between">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
-                <div class="h-32 w-32 overflow-hidden rounded-[2rem] bg-slate-100 ring-4 ring-white">
+    <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div class="h-32 w-32 shrink-0 overflow-hidden rounded-[2rem] bg-slate-100 ring-1 ring-slate-200">
                     @if (!string.IsNullOrWhiteSpace(Model.Product.ThumbnailImagePath))
                     {
                         <img src="@Model.Product.ThumbnailImagePath" class="h-full w-full object-cover" />
                     }
                     else
                     {
-                        <div class="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">No Image</div>
+                        <div class="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">
+                            No Image
+                        </div>
                     }
                 </div>
 
-                <div class="pb-2">
+                <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <h1 class="text-3xl font-black text-slate-900">@Model.Product.Title</h1>
 
@@ -43,8 +41,8 @@
                         }
                     </div>
 
-                    <p class="mt-2 text-sm text-slate-500">@Model.Product.ShortDescription</p>
-                    <p class="mt-1 text-xs text-slate-400">@Model.Product.Slug</p>
+                    <p class="mt-2 text-sm text-slate-500">@(Model.Product.ShortDescription ?? "توضیح کوتاه ثبت نشده است.")</p>
+                    <p class="mt-2 text-xs text-slate-400">@Model.Product.Slug</p>
                 </div>
             </div>
 
@@ -79,9 +77,7 @@
 
         <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
             <p class="text-xs font-bold text-slate-500">موجودی</p>
-            <p class="mt-2 text-xl font-black @(Model.Product.AvailableStock <= 0 ? "text-rose-600" : "text-emerald-600")">
-                @Model.Product.AvailableStock
-            </p>
+            <p class="mt-2 text-xl font-black @(Model.Product.AvailableStock <= 0 ? "text-rose-600" : "text-emerald-600")">@Model.Product.AvailableStock</p>
         </div>
 
         <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
@@ -151,16 +147,6 @@
                         <span class="font-black text-slate-900">
                             @Model.Product.MinOrderQuantity تا @(Model.Product.MaxOrderQuantity?.ToString() ?? "نامحدود")
                         </span>
-                    </div>
-
-                    <div class="flex justify-between rounded-2xl bg-slate-50 p-4">
-                        <span class="font-bold text-slate-500">احراز هویت</span>
-                        <span class="font-black text-slate-900">@(Model.Product.RequiresVerification ? "لازم دارد" : "ندارد")</span>
-                    </div>
-
-                    <div class="flex justify-between rounded-2xl bg-slate-50 p-4">
-                        <span class="font-bold text-slate-500">پیام پشتیبانی</span>
-                        <span class="font-black text-slate-900">@(Model.Product.RequiresSupportMessage ? "لازم دارد" : "ندارد")</span>
                     </div>
                 </div>
             </div>

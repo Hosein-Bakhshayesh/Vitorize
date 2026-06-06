@@ -27,7 +27,6 @@
     <Folder Include="Models\Products\" />
     <Folder Include="Pages\Admin\Categories\" />
     <Folder Include="Pages\Admin\Brands\" />
-    <Folder Include="Pages\Admin\GiftCodes\" />
     <Folder Include="Pages\Admin\Coupons\" />
     <Folder Include="Pages\Admin\Orders\" />
     <Folder Include="Pages\Cart\" />

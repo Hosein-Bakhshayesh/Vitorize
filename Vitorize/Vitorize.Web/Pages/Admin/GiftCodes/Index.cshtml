@@ -1,0 +1,175 @@
+﻿@page
+@model Vitorize.Web.Pages.Admin.GiftCodes.IndexModel
+@{
+    ViewData["Title"] = "مدیریت کدهای گیفت";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="space-y-6" dir="rtl">
+    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-sm font-black text-amber-600">Gift Codes Center</p>
+                <h1 class="mt-2 text-3xl font-black text-slate-900">مدیریت کدهای گیفت</h1>
+                <p class="mt-2 text-sm text-slate-500">
+                    ورود بچ کدها، بررسی موجودی و حذف بچ‌های اشتباه
+                </p>
+            </div>
+
+            <a asp-page="/Admin/GiftCodes/Import"
+               class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300">
+                + ورود کد جدید
+            </a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
+            @Model.SuccessMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="grid gap-4 md:grid-cols-4">
+        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
+            <p class="text-xs font-bold text-slate-500">تعداد بچ‌ها</p>
+            <p class="mt-2 text-2xl font-black text-slate-900">@Model.TotalBatches</p>
+        </div>
+
+        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
+            <p class="text-xs font-bold text-slate-500">کل کدها</p>
+            <p class="mt-2 text-2xl font-black text-indigo-600">@Model.TotalCodes</p>
+        </div>
+
+        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
+            <p class="text-xs font-bold text-slate-500">قابل فروش</p>
+            <p class="mt-2 text-2xl font-black text-emerald-600">@Model.AvailableCodes</p>
+        </div>
+
+        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
+            <p class="text-xs font-bold text-slate-500">مصرف‌شده</p>
+            <p class="mt-2 text-2xl font-black text-rose-600">@Model.SoldCodes</p>
+        </div>
+    </div>
+
+    <form method="get" class="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <div class="grid gap-3 lg:grid-cols-12">
+            <input asp-for="Search"
+                   placeholder="جستجو در عنوان بچ یا تامین‌کننده..."
+                   class="lg:col-span-10 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-amber-400" />
+
+            <button class="lg:col-span-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white">
+                جستجو
+            </button>
+        </div>
+    </form>
+
+    @if (!Model.Batches.Any())
+    {
+        <div class="rounded-[2rem] border border-dashed border-slate-300 bg-white/70 p-10 text-center shadow-sm">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-50 text-2xl">
+                🎁
+            </div>
+
+            <h2 class="mt-4 text-xl font-black text-slate-900">هنوز بچ کدی وارد نشده</h2>
+
+            <p class="mt-2 text-sm text-slate-500">
+                برای محصولات Instant Delivery باید کدهای گیفت را وارد کنی تا موجودی قابل فروش ساخته شود.
+            </p>
+
+            <a asp-page="/Admin/GiftCodes/Import"
+               class="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
+                ورود اولین بچ کد
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-5">
+            @foreach (var batch in Model.Batches)
+            {
+                var percent = batch.TotalCodes == 0
+                ? 0
+                : (int)Math.Round((decimal)batch.AvailableCodes / batch.TotalCodes * 100);
+
+                <div class="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
+                    <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="text-xl font-black text-slate-900">@batch.BatchTitle</h2>
+
+                                @if (batch.AvailableCodes > 0)
+                                {
+                                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                                        قابل فروش
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">
+                                        تمام شده
+                                    </span>
+                                }
+                            </div>
+
+                            <p class="mt-2 text-sm text-slate-500">
+                                تامین‌کننده:
+                                <span class="font-bold text-slate-700">@(batch.SourceName ?? "ثبت نشده")</span>
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-400">
+                                تاریخ ورود: @Model.FormatDate(batch.ImportedAt)
+                            </p>
+                        </div>
+
+                        <div class="grid gap-3 sm:grid-cols-3 xl:w-[430px]">
+                            <div class="rounded-2xl bg-slate-50 p-4">
+                                <p class="text-xs font-bold text-slate-400">کل کدها</p>
+                                <p class="mt-1 text-lg font-black text-slate-900">@batch.TotalCodes</p>
+                            </div>
+
+                            <div class="rounded-2xl bg-emerald-50 p-4">
+                                <p class="text-xs font-bold text-emerald-500">قابل فروش</p>
+                                <p class="mt-1 text-lg font-black text-emerald-700">@batch.AvailableCodes</p>
+                            </div>
+
+                            <div class="rounded-2xl bg-rose-50 p-4">
+                                <p class="text-xs font-bold text-rose-500">مصرف‌شده</p>
+                                <p class="mt-1 text-lg font-black text-rose-700">@batch.SoldCodes</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                            <span>موجودی باقی‌مانده</span>
+                            <span>@percent%</span>
+                        </div>
+
+                        <div class="h-3 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-emerald-500" style="width:@percent%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                        <form method="post"
+                              asp-page-handler="Delete"
+                              asp-route-id="@batch.Id"
+                              onsubmit="return confirm('کل بچ و کدهای مربوط به آن حذف شود؟')">
+                            <button class="rounded-xl bg-rose-50 px-4 py-2 text-xs font-black text-rose-700">
+                                حذف بچ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -161,9 +161,11 @@
                             ویرایش
                         </a>
 
-                        <a href="/Admin/GiftCodes?productId=@Model.ProductId&variantId=@variant.Id"
+                        <a asp-page="/Admin/GiftCodes/Import"
+                           asp-route-productId="@Model.ProductId"
+                           asp-route-variantId="@variant.Id"
                            class="rounded-xl bg-amber-50 px-4 py-2 text-xs font-black text-amber-700">
-                            کدهای گیفت
+                            ورود کد گیفت
                         </a>
 
                         <form method="post"

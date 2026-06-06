@@ -153,8 +153,11 @@
                     <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@product.Id"
                        class="rounded-xl bg-cyan-50 px-4 py-2 text-xs font-black text-cyan-700">تنوع‌ها</a>
 
-                    <a href="/Admin/GiftCodes?productId=@product.Id"
-                       class="rounded-xl bg-amber-50 px-4 py-2 text-xs font-black text-amber-700">کدها</a>
+                    <a asp-page="/Admin/GiftCodes/Import"
+                       asp-route-productId="@product.Id"
+                       class="rounded-xl bg-amber-50 px-4 py-2 text-xs font-black text-amber-700">
+                        کدها
+                    </a>
 
                     <form method="post"
                           asp-page-handler="Delete"

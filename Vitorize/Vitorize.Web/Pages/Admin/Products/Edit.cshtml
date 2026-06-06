@@ -174,9 +174,32 @@
                 <h2 class="text-lg font-black text-slate-900">تصویر اصلی و SEO</h2>
 
                 <div class="mt-5 space-y-4">
-                    <input asp-for="Product.ThumbnailImagePath" placeholder="Thumbnail Image Path"
-                           class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-left ltr" />
+                    <div class="overflow-hidden rounded-3xl border border-slate-100 bg-slate-50">
+                        <div class="aspect-video bg-white">
+                            @if (!string.IsNullOrWhiteSpace(Model.Product.ThumbnailImagePath))
+                            {
+                                <img src="@Model.Product.ThumbnailImagePath" class="h-full w-full object-cover" />
+                            }
+                            else
+                            {
+                                <div class="flex h-full w-full items-center justify-center text-sm font-bold text-slate-400">
+                                    تصویر اصلی انتخاب نشده
+                                </div>
+                            }
+                        </div>
 
+                        <div class="p-4">
+                            <p class="text-xs font-bold text-slate-500">تصویر اصلی محصول از بخش تصاویر انتخاب می‌شود.</p>
+
+                            <a asp-page="/Admin/Products/Images/Index"
+                               asp-route-productId="@Model.ProductId"
+                               class="mt-3 inline-flex w-full justify-center rounded-2xl bg-fuchsia-50 px-4 py-3 text-sm font-black text-fuchsia-700">
+                                مدیریت تصاویر و انتخاب Thumbnail
+                            </a>
+                        </div>
+                    </div>
+
+                    <input asp-for="Product.ThumbnailImagePath" type="hidden" />
                     <input asp-for="Product.SeoTitle" placeholder="SEO Title"
                            class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
 

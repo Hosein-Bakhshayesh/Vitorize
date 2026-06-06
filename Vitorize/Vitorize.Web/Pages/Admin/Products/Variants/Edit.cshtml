@@ -20,10 +20,13 @@
                     بازگشت
                 </a>
 
-                <a href="/Admin/GiftCodes?productId=@Model.ProductId&variantId=@Model.VariantId"
+                <a asp-page="/Admin/GiftCodes/Import"
+                   asp-route-productId="@Model.ProductId"
+                   asp-route-variantId="@Model.VariantId"
                    class="rounded-2xl bg-amber-50 px-5 py-3 text-sm font-black text-amber-700">
-                    کدهای گیفت
+                    ورود کد گیفت
                 </a>
+
             </div>
         </div>
     </div>
