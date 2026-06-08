@@ -15,11 +15,14 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <a asp-page="/Admin/Products/Details" asp-route-id="@Model.ProductId"
+                <a asp-page="/Admin/Products/Details"
+                   asp-route-id="@Model.ProductId"
                    class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700">
                     جزئیات محصول
                 </a>
-                <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@Model.ProductId"
+
+                <a asp-page="/Admin/Products/Variants/Index"
+                   asp-route-productId="@Model.ProductId"
                    class="rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-700">
                     تنوع‌ها
                 </a>
@@ -46,86 +49,179 @@
           asp-page-handler="Upload"
           asp-route-productId="@Model.ProductId"
           class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur">
-        <h2 class="text-lg font-black text-slate-900">آپلود تصویر جدید</h2>
-
-        <div class="mt-5 grid gap-4 lg:grid-cols-12">
-            <input asp-for="ImageFile" type="file" accept="image/*"
-                   class="lg:col-span-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm" />
-
-            <input asp-for="AltText" placeholder="Alt Text"
-                   class="lg:col-span-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-
-            <input asp-for="SortOrder" placeholder="Sort Order"
-                   class="lg:col-span-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-
-            <label class="lg:col-span-2 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
-                <span>تصویر اصلی</span>
-                <input asp-for="SetAsThumbnail" class="h-5 w-5" />
-            </label>
-
-            <button class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
-                آپلود
-            </button>
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h2 class="text-lg font-black text-slate-900">آپلود تصویر جدید</h2>
+                <p class="mt-1 text-xs font-medium text-slate-500">
+                    تصویر محصول را انتخاب کن، متن جایگزین و ترتیب نمایش را تنظیم کن.
+                </p>
+            </div>
         </div>
-    </form>
 
-    <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        @foreach (var image in Model.Images)
-        {
-            <div class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
-                <div class="relative aspect-square bg-slate-100">
-                    <img src="@image.ImagePath" class="h-full w-full object-cover" />
+        <div class="mt-5 grid gap-5 lg:grid-cols-12">
+            <div class="lg:col-span-3">
+                <div class="aspect-square overflow-hidden rounded-3xl border border-dashed border-slate-300 bg-slate-50">
+                    <img id="imagePreview"
+                         src=""
+                         class="hidden h-full w-full object-cover"
+                         alt="Preview" />
 
-                    @if (image.IsThumbnail)
-                    {
-                        <span class="absolute right-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">
-                            Thumbnail
-                        </span>
-                    }
-                </div>
-
-                <div class="space-y-3 p-4">
-                    <form method="post"
-                          asp-page-handler="Update"
-                          asp-route-productId="@Model.ProductId"
-                          asp-route-imageId="@image.Id"
-                          asp-route-imagePath="@image.ImagePath">
-                        <input name="altText" value="@image.AltText" placeholder="Alt Text"
-                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs" />
-
-                        <input name="sortOrder" value="@image.SortOrder"
-                               class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs" />
-
-                        <input type="hidden" name="isThumbnail" value="@image.IsThumbnail.ToString()" />
-
-                        <button class="mt-2 w-full rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">
-                            ذخیره Sort / Alt
-                        </button>
-                    </form>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <form method="post"
-                              asp-page-handler="SetThumbnail"
-                              asp-route-productId="@Model.ProductId"
-                              asp-route-imageId="@image.Id">
-                            <button class="w-full rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
-                                انتخاب اصلی
-                            </button>
-                        </form>
-
-                        <form method="post"
-                              asp-page-handler="Delete"
-                              asp-route-productId="@Model.ProductId"
-                              asp-route-imageId="@image.Id"
-                              asp-route-imagePath="@image.ImagePath"
-                              onsubmit="return confirm('تصویر حذف شود؟')">
-                            <button class="w-full rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-                                حذف
-                            </button>
-                        </form>
+                    <div id="imagePreviewPlaceholder"
+                         class="flex h-full w-full flex-col items-center justify-center gap-2 text-sm font-bold text-slate-400">
+                        <span class="text-3xl">🖼️</span>
+                        <span>Preview</span>
                     </div>
                 </div>
             </div>
-        }
-    </div>
+
+            <div class="space-y-4 lg:col-span-9">
+                <input asp-for="ImageFile"
+                       type="file"
+                       accept=".jpg,.jpeg,.png,.webp"
+                       onchange="previewProductImage(event)"
+                       class="w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm file:ml-4 file:rounded-xl file:border-0 file:bg-fuchsia-50 file:px-3 file:py-1 file:text-xs file:font-black file:text-fuchsia-700" />
+
+                <div class="grid gap-4 lg:grid-cols-12">
+                    <input asp-for="AltText"
+                           placeholder="Alt Text"
+                           class="lg:col-span-5 rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-50" />
+
+                    <input asp-for="SortOrder"
+                           type="number"
+                           placeholder="Sort Order"
+                           class="lg:col-span-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-50" />
+
+                    <label class="lg:col-span-2 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                        <span>اصلی</span>
+                        <input asp-for="SetAsThumbnail" class="h-5 w-5 accent-fuchsia-600" />
+                    </label>
+
+                    <button type="submit"
+                            class="lg:col-span-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
+                        آپلود
+                    </button>
+                </div>
+
+                <p class="text-xs font-medium text-slate-400">
+                    فرمت‌های مجاز: jpg, jpeg, png, webp
+                </p>
+            </div>
+        </div>
+    </form>
+
+    @if (!Model.Images.Any())
+    {
+        <div class="grid place-items-center rounded-[2rem] border border-dashed border-slate-200 bg-white/80 p-14 text-center shadow-sm backdrop-blur">
+            <div class="text-5xl">🖼️</div>
+            <h3 class="mt-4 text-xl font-black text-slate-900">هنوز تصویری برای این محصول ثبت نشده</h3>
+            <p class="mt-2 text-sm font-medium text-slate-500">
+                اولین تصویر محصول را از بخش بالا آپلود کن.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach (var image in Model.Images)
+            {
+                <div class="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
+                    <div class="relative aspect-square bg-slate-100">
+                        <img src="@image.ImagePath"
+                             class="h-full w-full object-cover"
+                             alt="@image.AltText" />
+
+                        @if (image.IsThumbnail)
+                        {
+                            <span class="absolute right-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">
+                                Thumbnail
+                            </span>
+                        }
+
+                        <span class="absolute left-3 top-3 rounded-full bg-slate-950/70 px-3 py-1 text-xs font-black text-white">
+                            #@image.SortOrder
+                        </span>
+                    </div>
+
+                    <div class="space-y-3 p-4">
+                        <form method="post"
+                              asp-page-handler="Update"
+                              asp-route-productId="@Model.ProductId"
+                              asp-route-imageId="@image.Id"
+                              asp-route-imagePath="@image.ImagePath">
+                            <input name="altText"
+                                   value="@image.AltText"
+                                   placeholder="Alt Text"
+                                   class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50" />
+
+                            <input name="sortOrder"
+                                   value="@image.SortOrder"
+                                   type="number"
+                                   class="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50" />
+
+                            <input type="hidden"
+                                   name="isThumbnail"
+                                   value="@image.IsThumbnail.ToString()" />
+
+                            <button type="submit"
+                                    class="mt-2 w-full rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100">
+                                ذخیره Sort / Alt
+                            </button>
+                        </form>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <form method="post"
+                                  asp-page-handler="SetThumbnail"
+                                  asp-route-productId="@Model.ProductId"
+                                  asp-route-imageId="@image.Id">
+                                <button type="submit"
+                                        class="w-full rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                                        @(image.IsThumbnail ? "disabled" : "")>
+                                    @(image.IsThumbnail ? "تصویر اصلی" : "انتخاب اصلی")
+                                </button>
+                            </form>
+
+                            <form method="post"
+                                  asp-page-handler="Delete"
+                                  asp-route-productId="@Model.ProductId"
+                                  asp-route-imageId="@image.Id"
+                                  asp-route-imagePath="@image.ImagePath"
+                                  onsubmit="return confirm('تصویر حذف شود؟')">
+                                <button type="submit"
+                                        class="w-full rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100">
+                                    حذف
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        function previewProductImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            const placeholder = document.getElementById('imagePreviewPlaceholder');
+
+            if (!file) {
+                preview.src = '';
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+
+            reader.readAsDataURL(file);
+        }
+    </script>
+}

@@ -1,10 +1,8 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Vitorize.Web.Models.Auth;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Account
 {
@@ -22,8 +20,10 @@ namespace Vitorize.Web.Pages.Account
 
         public string? ErrorMessage { get; set; }
 
-        public IActionResult OnGet()
+        public IActionResult OnGet(string? returnUrl = null)
         {
+            Input.ReturnUrl = returnUrl;
+
             if (User.Identity?.IsAuthenticated == true)
                 return RedirectToPage("/Admin/Index");
 
@@ -37,7 +37,11 @@ namespace Vitorize.Web.Pages.Account
 
             var result = await _apiClient.PostAsync<AuthResponseModel>(
                 "auth/login",
-                Input);
+                new
+                {
+                    Input.Mobile,
+                    Input.Password
+                });
 
             if (!result.IsSuccess || result.Data == null)
             {
@@ -45,70 +49,22 @@ namespace Vitorize.Web.Pages.Account
                 return Page();
             }
 
-            if (string.IsNullOrWhiteSpace(result.Data.AccessToken))
+            if (!AuthCookieWriter.HasAnyRole(result.Data.AccessToken, "Admin", "SuperAdmin"))
             {
-                ErrorMessage = "AccessToken از API دریافت نشد.";
+                ErrorMessage = "این صفحه فقط مخصوص مدیران سایت است.";
                 return Page();
             }
 
-            var user = result.Data.User;
+            await AuthCookieWriter.SignInAsync(
+                HttpContext,
+                result.Data,
+                VitorizeAuthSchemes.AdminScheme,
+                VitorizeAuthSchemes.AdminAccessTokenCookie,
+                VitorizeAuthSchemes.AdminRefreshTokenCookie,
+                DateTimeOffset.UtcNow.AddHours(8));
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user?.Id.ToString() ?? string.Empty),
-                new Claim(ClaimTypes.Name, user?.FullName ?? "مدیر سیستم"),
-                new Claim("mobile", user?.Mobile ?? Input.Mobile),
-                new Claim("access_token", result.Data.AccessToken),
-                new Claim("refresh_token", result.Data.RefreshToken ?? string.Empty)
-            };
-
-            if (user?.Roles != null)
-            {
-                foreach (var role in user.Roles)
-                    claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var identity = new ClaimsIdentity(
-                claims,
-                CookieAuthenticationDefaults.AuthenticationScheme);
-
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
-
-            Response.Cookies.Append(
-                "Vitorize.AccessToken",
-                result.Data.AccessToken,
-                new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = Request.IsHttps,
-                    SameSite = SameSiteMode.Lax,
-                    Expires = DateTimeOffset.UtcNow.AddHours(8),
-                    Path = "/"
-                });
-
-            if (!string.IsNullOrWhiteSpace(result.Data.RefreshToken))
-            {
-                Response.Cookies.Append(
-                    "Vitorize.RefreshToken",
-                    result.Data.RefreshToken,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = Request.IsHttps,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddDays(30),
-                        Path = "/"
-                    });
-            }
+            if (!string.IsNullOrWhiteSpace(Input.ReturnUrl) && Url.IsLocalUrl(Input.ReturnUrl))
+                return LocalRedirect(Input.ReturnUrl);
 
             return RedirectToPage("/Admin/Index");
         }

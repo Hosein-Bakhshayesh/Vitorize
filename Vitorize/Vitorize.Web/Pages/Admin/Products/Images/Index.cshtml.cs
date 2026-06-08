@@ -5,11 +5,12 @@ using Vitorize.Web.Constants;
 using Vitorize.Web.Models.Admin.ProductImages;
 using Vitorize.Web.Models.Admin.Products;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.Storage;
 
 namespace Vitorize.Web.Pages.Admin.Products.Images
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = VitorizeAuthSchemes.AdminScheme)]
     public class IndexModel : PageModel
     {
         private readonly ApiClient _apiClient;

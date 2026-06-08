@@ -1,0 +1,252 @@
+@page
+@model Vitorize.Web.Pages.Orders.IndexModel
+@{
+    ViewData["Title"] = "سفارش‌های من | Vitorize";
+}
+
+<nav class="vt-product-breadcrumb">
+    <a asp-page="/Index">خانه</a>
+    <span>/</span>
+    <b>سفارش‌های من</b>
+</nav>
+
+<section class="vt-orders-hero">
+    <div>
+        <span>حساب کاربری ویتورایز</span>
+        <h1>سفارش‌های من</h1>
+        <p>وضعیت خریدها، پرداخت‌ها و کدهای تحویل داده شده را از این بخش مشاهده کنید.</p>
+    </div>
+
+    <a asp-page="/Products/Index">خرید محصول جدید</a>
+</section>
+
+<section class="vt-orders-stats">
+    <div>
+        <span>📦</span>
+        <b>@StorefrontFormat.Number(Model.TotalOrders)</b>
+        <small>کل سفارش‌ها</small>
+    </div>
+
+    <div>
+        <span>✅</span>
+        <b>@StorefrontFormat.Number(Model.Orders.Count(x => x.PaymentStatus == 2))</b>
+        <small>پرداخت موفق</small>
+    </div>
+
+    <div>
+        <span>⚡</span>
+        <b>@StorefrontFormat.Number(Model.DeliveredItems)</b>
+        <small>آیتم تحویل‌شده</small>
+    </div>
+
+    <div>
+        <span>💳</span>
+        <b>@StorefrontFormat.Money(Model.Orders.Sum(x => x.FinalAmount))</b>
+        <small>مجموع خرید</small>
+    </div>
+</section>
+
+@if (!Model.Orders.Any())
+{
+    <section class="vt-orders-empty">
+        <div>🧾</div>
+        <h2>هنوز سفارشی ثبت نکرده‌اید</h2>
+        <p>از فروشگاه ویتورایز محصول موردنظرتان را انتخاب کنید و اولین سفارش خود را ثبت کنید.</p>
+        <a asp-page="/Products/Index">مشاهده محصولات</a>
+    </section>
+}
+else
+{
+    <section class="vt-orders-layout">
+        <div class="vt-orders-list">
+            <div class="vt-orders-list-head">
+                <div>
+                    <span>Order History</span>
+                    <h2>لیست سفارش‌ها</h2>
+                </div>
+            </div>
+
+            @foreach (var order in Model.Orders.OrderByDescending(x => x.CreatedAt))
+            {
+                var isSelected = Model.SelectedOrder?.Id == order.Id;
+
+                <a asp-page="/Orders/Index"
+                   asp-route-OrderId="@order.Id"
+                   class="vt-order-card @(isSelected ? "active" : "")">
+
+                    <div class="vt-order-card-top">
+                        <div>
+                            <b>#@order.OrderNumber</b>
+                            <small>@StorefrontFormat.Date(order.CreatedAt)</small>
+                        </div>
+
+                        <span class="vt-order-status">
+                            @StorefrontFormat.OrderStatus(order.Status)
+                        </span>
+                    </div>
+
+                    <div class="vt-order-card-meta">
+                        <span>@StorefrontFormat.Number(order.Items.Sum(x => x.Quantity)) محصول</span>
+                        <span>@StorefrontFormat.PaymentStatus(order.PaymentStatus)</span>
+                    </div>
+
+                    <div class="vt-order-card-bottom">
+                        <strong>@StorefrontFormat.Money(order.FinalAmount)</strong>
+                        <em>مشاهده جزئیات</em>
+                    </div>
+                </a>
+            }
+        </div>
+
+        <aside class="vt-order-details">
+            @if (Model.SelectedOrder == null)
+            {
+                <div class="vt-order-details-empty">
+                    <div>👈</div>
+                    <b>یک سفارش را انتخاب کنید</b>
+                    <p>جزئیات سفارش و کدهای تحویل‌شده اینجا نمایش داده می‌شود.</p>
+                </div>
+            }
+            else
+            {
+                var order = Model.SelectedOrder;
+
+                <div class="vt-order-details-head">
+                    <div>
+                        <span>جزئیات سفارش</span>
+                        <h2>#@order.OrderNumber</h2>
+                        <p>@StorefrontFormat.Date(order.CreatedAt)</p>
+                    </div>
+
+                    <div class="vt-order-details-status">
+                        @StorefrontFormat.PaymentStatus(order.PaymentStatus)
+                    </div>
+                </div>
+
+                <div class="vt-order-timeline">
+                    <div class="done">
+                        <span>1</span>
+                        <b>ثبت سفارش</b>
+                    </div>
+
+                    <div class="@(order.PaymentStatus == 2 ? "done" : "active")">
+                        <span>2</span>
+                        <b>پرداخت</b>
+                    </div>
+
+                    <div class="@(order.CompletedAt.HasValue ? "done" : "")">
+                        <span>3</span>
+                        <b>تحویل</b>
+                    </div>
+                </div>
+
+                <div class="vt-order-items">
+                    @foreach (var item in order.Items)
+                    {
+                        var visibleDeliveries = item.Deliveries
+                        .Where(x => x.IsVisibleToCustomer && !string.IsNullOrWhiteSpace(x.DeliveredContent))
+                        .ToList();
+
+                        <article class="vt-order-item">
+                            <div class="vt-order-item-head">
+                                <div>
+                                    <h3>@item.ProductTitle</h3>
+
+                                    @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
+                                    {
+                                        <p>@item.VariantTitle</p>
+                                    }
+
+                                    <div class="vt-order-item-meta">
+                                        <span>تعداد @StorefrontFormat.Number(item.Quantity)</span>
+                                        <span>@StorefrontFormat.Money(item.TotalPrice)</span>
+                                    </div>
+                                </div>
+
+                                <span class="vt-delivery-status">
+                                    @StorefrontFormat.DeliveryStatus(item.DeliveryStatus)
+                                </span>
+                            </div>
+
+                            @if (visibleDeliveries.Any())
+                            {
+                                <div class="vt-delivery-list">
+                                    @foreach (var delivery in visibleDeliveries)
+                                    {
+                                        <div class="vt-delivery-box">
+                                            <div class="vt-delivery-box-head">
+                                                <b>کد / اطلاعات تحویل</b>
+                                                <button type="button"
+                                                        class="vt-copy-btn"
+                                                        data-copy="@delivery.DeliveredContent">
+                                                    کپی
+                                                </button>
+                                            </div>
+
+                                            <pre>@delivery.DeliveredContent</pre>
+
+                                            <small>
+                                                تاریخ تحویل:
+                                                @StorefrontFormat.Date(delivery.CreatedAt)
+                                            </small>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="vt-delivery-pending">
+                                    <b>هنوز اطلاعات تحویل برای این آیتم ثبت نشده است.</b>
+                                    <span>در صورت پرداخت موفق، تحویل توسط سیستم یا پشتیبانی انجام می‌شود.</span>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+
+                <div class="vt-order-payment-summary">
+                    <h3>خلاصه پرداخت</h3>
+
+                    <div>
+                        <span>جمع جزء</span>
+                        <b>@StorefrontFormat.Money(order.SubtotalAmount)</b>
+                    </div>
+
+                    <div>
+                        <span>تخفیف</span>
+                        <b>@StorefrontFormat.Money(order.DiscountAmount)</b>
+                    </div>
+
+                    <div class="total">
+                        <span>مبلغ نهایی</span>
+                        <b>@StorefrontFormat.Money(order.FinalAmount)</b>
+                    </div>
+                </div>
+            }
+        </aside>
+    </section>
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.vt-copy-btn').forEach(button => {
+            button.addEventListener('click', async () => {
+                const value = button.getAttribute('data-copy') || '';
+
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const oldText = button.innerText;
+                    button.innerText = 'کپی شد';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.innerText = oldText;
+                        button.classList.remove('copied');
+                    }, 1400);
+                } catch {
+                    alert('امکان کپی خودکار وجود ندارد.');
+                }
+            });
+        });
+    </script>
+}

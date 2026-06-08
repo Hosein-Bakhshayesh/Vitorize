@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Vitorize.Shared.Enums;
 using Vitorize.Web.Models.Admin.Products;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Admin.Products
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = VitorizeAuthSchemes.AdminScheme)]
     public class DetailsModel : PageModel
     {
         private readonly ApiClient _apiClient;
@@ -19,6 +21,7 @@ namespace Vitorize.Web.Pages.Admin.Products
         public AdminProductModel Product { get; set; } = new();
 
         public string? ErrorMessage { get; set; }
+
         public string? SuccessMessage { get; set; }
 
         public async Task<IActionResult> OnGetAsync(Guid id)
@@ -35,33 +38,48 @@ namespace Vitorize.Web.Pages.Admin.Products
             }
 
             Product = result.Data;
+
             return Page();
         }
 
-        public string FormatMoney(decimal amount) => amount.ToString("N0") + " تومان";
-
-        public string GetProductType(byte type) => type switch
+        public string FormatMoney(decimal amount)
         {
-            1 => "گیفت کارت",
-            2 => "اکانت بازی",
-            3 => "سرویس دیجیتال",
-            _ => "نامشخص"
-        };
+            return amount.ToString("N0") + " تومان";
+        }
 
-        public string GetDeliveryType(byte type) => type switch
+        public string GetProductType(byte type)
         {
-            1 => "تحویل آنی",
-            2 => "تحویل دستی",
-            3 => "تیکتی",
-            _ => "نامشخص"
-        };
+            return ((ProductType)type) switch
+            {
+                ProductType.GiftCard => "گیفت کارت",
+                ProductType.GameAccount => "اکانت بازی",
+                ProductType.GameService => "سرویس بازی",
+                ProductType.Subscription => "اشتراک",
+                ProductType.Other => "سایر",
+                _ => "نامشخص"
+            };
+        }
 
-        public string GetCurrencyType(byte type) => type switch
+        public string GetDeliveryType(byte type)
         {
-            1 => "تومان",
-            2 => "ریال",
-            3 => "دلار",
-            _ => "نامشخص"
-        };
+            return ((DeliveryType)type) switch
+            {
+                DeliveryType.Instant => "تحویل آنی",
+                DeliveryType.Manual => "تحویل دستی",
+                DeliveryType.SupportRequired => "نیازمند پشتیبانی",
+                _ => "نامشخص"
+            };
+        }
+
+        public string GetCurrencyType(byte type)
+        {
+            return ((CurrencyType)type) switch
+            {
+                CurrencyType.Rial => "ریال",
+                CurrencyType.Toman => "تومان",
+                CurrencyType.USD => "دلار",
+                _ => "نامشخص"
+            };
+        }
     }
 }

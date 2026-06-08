@@ -3,7 +3,7 @@ using Vitorize.Application.DTOs.Admin.Orders;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
-using Vitorize.Domain.Enums;
+using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
 

@@ -1,0 +1,184 @@
+@page
+@model Vitorize.Web.Pages.Cart.IndexModel
+@{
+    ViewData["Title"] = "سبد خرید | Vitorize";
+    var cart = Model.Cart;
+}
+
+<nav class="vt-product-breadcrumb">
+    <a asp-page="/Index">خانه</a>
+    <span>/</span>
+    <a asp-page="/Products/Index">فروشگاه</a>
+    <span>/</span>
+    <b>سبد خرید</b>
+</nav>
+
+<section class="vt-cart-hero">
+    <div>
+        <span>سبد خرید ویتورایز</span>
+        <h1>سبد خرید شما</h1>
+        <p>
+            @if (cart.Items.Any())
+            {
+                <text>@StorefrontFormat.Number(cart.TotalQuantity) محصول در سبد خرید شما آماده ثبت سفارش است.</text>
+            }
+            else
+            {
+                <text>هنوز محصولی به سبد خرید اضافه نکرده‌اید.</text>
+            }
+        </p>
+    </div>
+
+    <a asp-page="/Products/Index">ادامه خرید</a>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <div class="vt-cart-message">
+        @Model.Message
+    </div>
+}
+
+@if (!cart.Items.Any())
+{
+    <section class="vt-cart-empty">
+        <div class="vt-cart-empty-icon">🛒</div>
+        <h2>سبد خرید شما خالی است</h2>
+        <p>از فروشگاه ویتورایز، گیفت کارت، اکانت بازی، پلی‌استیشن، ایکس‌باکس، تلگرام و ChatGPT را انتخاب کنید.</p>
+        <a asp-page="/Products/Index">مشاهده محصولات</a>
+    </section>
+}
+else
+{
+    <section class="vt-cart-layout">
+        <div class="vt-cart-items">
+            <div class="vt-cart-items-head">
+                <h2>محصولات سبد خرید</h2>
+
+                <form method="post" asp-page-handler="Clear">
+                    <button type="submit">خالی کردن سبد</button>
+                </form>
+            </div>
+
+            @foreach (var item in cart.Items)
+            {
+                <article class="vt-cart-item">
+                    <a asp-page="/Products/Details" asp-route-slug="" class="vt-cart-item-img">
+                        <img src="@StorefrontFormat.ProductImage(item.ThumbnailImagePath)" alt="@item.ProductTitle" />
+                    </a>
+
+                    <div class="vt-cart-item-info">
+                        <h3>@item.ProductTitle</h3>
+
+                        @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
+                        {
+                            <p>@item.VariantTitle</p>
+                        }
+
+                        <div class="vt-cart-item-tags">
+                            <span>دیجیتال</span>
+                            <span>تحویل سریع</span>
+                        </div>
+                    </div>
+
+                    <div class="vt-cart-item-price">
+                        <small>قیمت واحد</small>
+                        <b>@StorefrontFormat.Money(item.UnitPrice)</b>
+                    </div>
+
+                    <form method="post" asp-page-handler="Update" class="vt-cart-qty">
+                        <input type="hidden" name="cartItemId" value="@item.Id" />
+
+                        <button type="submit"
+                                name="quantity"
+                                value="@(item.Quantity - 1)"
+                                disabled="@(item.Quantity <= 1)">
+                            −
+                        </button>
+
+                        <span>@StorefrontFormat.Number(item.Quantity)</span>
+
+                        <button type="submit"
+                                name="quantity"
+                                value="@(item.Quantity + 1)">
+                            +
+                        </button>
+                    </form>
+
+                    <div class="vt-cart-item-total">
+                        <small>جمع</small>
+                        <b>@StorefrontFormat.Money(item.TotalPrice)</b>
+                    </div>
+
+                    <form method="post" asp-page-handler="Remove" class="vt-cart-remove">
+                        <input type="hidden" name="cartItemId" value="@item.Id" />
+                        <button type="submit" title="حذف محصول">×</button>
+                    </form>
+                </article>
+            }
+        </div>
+
+        <aside class="vt-cart-summary">
+            <h2>خلاصه سفارش</h2>
+
+            <div class="vt-cart-coupon">
+                <label>کد تخفیف</label>
+                <div>
+                    <input placeholder="کد تخفیف را وارد کنید" />
+                    <button type="button">اعمال</button>
+                </div>
+                <small>کد تخفیف در مرحله پرداخت نهایی بررسی می‌شود.</small>
+            </div>
+
+            <div class="vt-cart-summary-lines">
+                <div>
+                    <span>تعداد محصولات</span>
+                    <b>@StorefrontFormat.Number(cart.TotalQuantity)</b>
+                </div>
+
+                <div>
+                    <span>جمع جزء</span>
+                    <b>@StorefrontFormat.Money(cart.SubtotalAmount)</b>
+                </div>
+
+                <div>
+                    <span>تخفیف</span>
+                    <b>@StorefrontFormat.Money(0)</b>
+                </div>
+            </div>
+
+            <div class="vt-cart-grand-total">
+                <span>مبلغ قابل پرداخت</span>
+                <b>@StorefrontFormat.Money(cart.SubtotalAmount)</b>
+            </div>
+
+            <a asp-page="/Checkout/Index" class="vt-cart-checkout">
+                ادامه ثبت سفارش
+            </a>
+
+            <div class="vt-cart-trust">
+                <span>⚡ تحویل سریع بعد از پرداخت</span>
+                <span>🛡 ضمانت اصالت محصول</span>
+                <span>🔒 پرداخت امن</span>
+                <span>🎧 پشتیبانی واقعی</span>
+            </div>
+        </aside>
+    </section>
+}
+
+@if (Model.SuggestedProducts.Any())
+{
+    <section class="vt-section">
+        <div class="vt-section-head">
+            <a asp-page="/Products/Index" asp-route-IsFeatured="true" class="vt-outline-link">مشاهده همه</a>
+            <h2>پیشنهادهای ویژه برای شما</h2>
+        </div>
+
+        <div class="vt-products-grid">
+            @foreach (var product in Model.SuggestedProducts.Take(4))
+            {
+                <partial name="Shared/_ProductCard" model="product" />
+            }
+        </div>
+    </section>
+}

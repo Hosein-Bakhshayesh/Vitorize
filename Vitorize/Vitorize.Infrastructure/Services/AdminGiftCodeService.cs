@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.GiftCodes;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
-using Vitorize.Domain.Enums;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services

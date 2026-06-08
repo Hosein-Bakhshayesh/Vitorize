@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Account
 {
+    [IgnoreAntiforgeryToken]
     public class LogoutModel : PageModel
     {
         public async Task<IActionResult> OnGetAsync()
@@ -21,10 +22,14 @@ namespace Vitorize.Web.Pages.Account
 
         private async Task LogoutAsync()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignOutAsync(VitorizeAuthSchemes.AdminScheme);
 
-            Response.Cookies.Delete("Vitorize.AccessToken");
-            Response.Cookies.Delete("Vitorize.RefreshToken");
+            Response.Cookies.Delete(VitorizeAuthSchemes.AdminAccessTokenCookie, new CookieOptions { Path = "/" });
+            Response.Cookies.Delete(VitorizeAuthSchemes.AdminRefreshTokenCookie, new CookieOptions { Path = "/" });
+            Response.Cookies.Delete("Vitorize.Admin.Auth", new CookieOptions { Path = "/" });
+
+            Response.Cookies.Delete("Vitorize.AccessToken", new CookieOptions { Path = "/" });
+            Response.Cookies.Delete("Vitorize.RefreshToken", new CookieOptions { Path = "/" });
         }
     }
 }

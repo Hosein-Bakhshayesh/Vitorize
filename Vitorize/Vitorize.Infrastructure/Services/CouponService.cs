@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Coupons;
 using Vitorize.Application.Interfaces;
-using Vitorize.Domain.Enums;
+using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
 

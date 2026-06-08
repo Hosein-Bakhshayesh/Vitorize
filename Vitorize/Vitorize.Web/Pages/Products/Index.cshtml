@@ -1,0 +1,169 @@
+@page
+@model Vitorize.Web.Pages.Products.IndexModel
+@{
+    ViewData["Title"] = $"{Model.PageTitle} | Vitorize";
+}
+
+<section class="vt-products-hero">
+    <div>
+        <span>فروشگاه ویتورایز</span>
+        <h1>@Model.PageTitle</h1>
+        <p>خرید گیفت کارت، اکانت بازی، سرویس‌های پلی‌استیشن، ایکس‌باکس، تلگرام و ChatGPT با تحویل سریع و پشتیبانی واقعی.</p>
+    </div>
+</section>
+
+<section class="vt-products-layout">
+    <aside class="vt-products-filter">
+        <div class="vt-filter-head">
+            <b>فیلتر محصولات</b>
+            <a asp-page="/Products/Index">حذف فیلترها</a>
+        </div>
+
+        <form method="get" class="vt-filter-form">
+            <div class="vt-filter-group">
+                <label>جستجو</label>
+                <input name="Search"
+                       value="@Model.Search"
+                       placeholder="مثلاً PlayStation، Telegram، ChatGPT..." />
+            </div>
+
+            <div class="vt-filter-group">
+                <label>دسته‌بندی</label>
+                <select name="CategoryId">
+                    <option value="">همه دسته‌بندی‌ها</option>
+                    @foreach (var item in Model.Categories)
+                    {
+                        <option value="@item.Id" selected="@(Model.CategoryId == item.Id)">
+                            @item.Title
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="vt-filter-group">
+                <label>برند</label>
+                <select name="BrandId">
+                    <option value="">همه برندها</option>
+                    @foreach (var item in Model.Brands)
+                    {
+                        <option value="@item.Id" selected="@(Model.BrandId == item.Id)">
+                            @item.Title
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="vt-filter-group">
+                <label>مرتب‌سازی</label>
+                <select name="Sort">
+                    <option value="">جدیدترین</option>
+                    <option value="featured" selected="@(Model.Sort == "featured")">پیشنهادهای ویژه</option>
+                    <option value="price-asc" selected="@(Model.Sort == "price-asc")">ارزان‌ترین</option>
+                    <option value="price-desc" selected="@(Model.Sort == "price-desc")">گران‌ترین</option>
+                    <option value="stock" selected="@(Model.Sort == "stock")">بیشترین موجودی</option>
+                </select>
+            </div>
+
+            <div class="vt-filter-switches">
+                <label>
+                    <input type="checkbox"
+                           name="IsFeatured"
+                           value="true"
+                           checked="@(Model.IsFeatured == true)" />
+                    <span>فقط پیشنهادهای ویژه</span>
+                </label>
+
+                <label>
+                    <input type="checkbox"
+                           name="OnlyAvailable"
+                           value="true"
+                           checked="@Model.OnlyAvailable" />
+                    <span>فقط محصولات موجود</span>
+                </label>
+            </div>
+
+            <button type="submit" class="vt-filter-submit">
+                اعمال فیلتر
+            </button>
+        </form>
+
+        <div class="vt-filter-fast">
+            <b>جستجوی سریع</b>
+            <div>
+                <a asp-page="/Products/Index" asp-route-Search="PlayStation">پلی‌استیشن</a>
+                <a asp-page="/Products/Index" asp-route-Search="Xbox">ایکس‌باکس</a>
+                <a asp-page="/Products/Index" asp-route-Search="Gift Card">گیفت کارت</a>
+                <a asp-page="/Products/Index" asp-route-Search="Telegram">تلگرام</a>
+                <a asp-page="/Products/Index" asp-route-Search="ChatGPT">ChatGPT</a>
+            </div>
+        </div>
+    </aside>
+
+    <section class="vt-products-content">
+        <div class="vt-products-toolbar">
+            <div>
+                <h2>@Model.PageTitle</h2>
+                <p>
+                    @StorefrontFormat.Number(Model.Products.Count)
+                    محصول در این صفحه
+                </p>
+            </div>
+
+            <div class="vt-products-toolbar-actions">
+                <a asp-page="/Products/Index" asp-route-IsFeatured="true">ویژه‌ها</a>
+                <a asp-page="/Products/Index" asp-route-OnlyAvailable="true">موجودها</a>
+            </div>
+        </div>
+
+        @if (!Model.Products.Any())
+        {
+            <div class="vt-products-empty">
+                <div>🛒</div>
+                <b>محصولی پیدا نشد</b>
+                <p>فیلترها را تغییر بده یا دوباره جستجو کن.</p>
+                <a asp-page="/Products/Index">نمایش همه محصولات</a>
+            </div>
+        }
+        else
+        {
+            <div class="vt-products-grid">
+                @foreach (var product in Model.Products)
+                {
+                    <partial name="Shared/_ProductCard" model="product" />
+                }
+            </div>
+
+            <div class="vt-products-pagination">
+                @if (Model.PageNumber > 1)
+                {
+                    <a asp-page="/Products/Index"
+                       asp-route-Search="@Model.Search"
+                       asp-route-CategoryId="@Model.CategoryId"
+                       asp-route-BrandId="@Model.BrandId"
+                       asp-route-IsFeatured="@Model.IsFeatured"
+                       asp-route-OnlyAvailable="@Model.OnlyAvailable"
+                       asp-route-Sort="@Model.Sort"
+                       asp-route-PageNumber="@(Model.PageNumber - 1)">
+                        قبلی
+                    </a>
+                }
+
+                <span>صفحه @StorefrontFormat.Number(Model.PageNumber)</span>
+
+                @if (Model.Products.Count >= Model.PageSize)
+                {
+                    <a asp-page="/Products/Index"
+                       asp-route-Search="@Model.Search"
+                       asp-route-CategoryId="@Model.CategoryId"
+                       asp-route-BrandId="@Model.BrandId"
+                       asp-route-IsFeatured="@Model.IsFeatured"
+                       asp-route-OnlyAvailable="@Model.OnlyAvailable"
+                       asp-route-Sort="@Model.Sort"
+                       asp-route-PageNumber="@(Model.PageNumber + 1)">
+                        بعدی
+                    </a>
+                }
+            </div>
+        }
+    </section>
+</section>

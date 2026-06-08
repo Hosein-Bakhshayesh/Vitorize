@@ -1,0 +1,172 @@
+@page
+@model Vitorize.Web.Pages.Checkout.IndexModel
+@{
+    ViewData["Title"] = "تکمیل سفارش | Vitorize";
+    var cart = Model.Cart;
+}
+
+<nav class="vt-product-breadcrumb">
+    <a asp-page="/Index">خانه</a>
+    <span>/</span>
+    <a asp-page="/Cart/Index">سبد خرید</a>
+    <span>/</span>
+    <b>تکمیل سفارش</b>
+</nav>
+
+<section class="vt-checkout-hero">
+    <div>
+        <span>تکمیل خرید ویتورایز</span>
+        <h1>ثبت سفارش و پرداخت</h1>
+        <p>اطلاعات سفارش را بررسی کنید و برای پرداخت امن به مرحله بعد بروید.</p>
+    </div>
+</section>
+
+<div class="vt-checkout-steps">
+    <div class="done">
+        <span>1</span>
+        <b>سبد خرید</b>
+    </div>
+
+    <div class="active">
+        <span>2</span>
+        <b>ثبت سفارش</b>
+    </div>
+
+    <div>
+        <span>3</span>
+        <b>پرداخت</b>
+    </div>
+
+    <div>
+        <span>4</span>
+        <b>تحویل</b>
+    </div>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="vt-checkout-error" asp-validation-summary="All"></div>
+}
+
+<section class="vt-checkout-layout">
+    <form method="post" class="vt-checkout-form">
+        <div class="vt-checkout-card">
+            <div class="vt-checkout-card-head">
+                <div>
+                    <span>اطلاعات سفارش</span>
+                    <h2>جزئیات و توضیحات</h2>
+                </div>
+            </div>
+
+            <div class="vt-checkout-info-grid">
+                <div class="vt-checkout-info-box">
+                    <span>👤</span>
+                    <div>
+                        <b>حساب کاربری</b>
+                        <small>سفارش با حساب فعلی شما ثبت می‌شود.</small>
+                    </div>
+                </div>
+
+                <div class="vt-checkout-info-box">
+                    <span>⚡</span>
+                    <div>
+                        <b>تحویل دیجیتال</b>
+                        <small>کدها بعد از پرداخت از بخش سفارش‌ها قابل مشاهده هستند.</small>
+                    </div>
+                </div>
+
+                <div class="vt-checkout-info-box">
+                    <span>🔒</span>
+                    <div>
+                        <b>پرداخت امن</b>
+                        <small>پرداخت از طریق درگاه متصل به ویتورایز انجام می‌شود.</small>
+                    </div>
+                </div>
+
+                <div class="vt-checkout-info-box">
+                    <span>🎧</span>
+                    <div>
+                        <b>پشتیبانی سفارش</b>
+                        <small>در صورت نیاز، تیم پشتیبانی سفارش را بررسی می‌کند.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vt-checkout-field">
+                <label asp-for="RequestModel.CouponCode">کد تخفیف</label>
+                <input asp-for="RequestModel.CouponCode"
+                       placeholder="اگر کد تخفیف دارید وارد کنید" />
+                <small>تخفیف در زمان ثبت سفارش توسط API بررسی و اعمال می‌شود.</small>
+            </div>
+
+            <div class="vt-checkout-field">
+                <label asp-for="RequestModel.Description">توضیحات سفارش</label>
+                <textarea asp-for="RequestModel.Description"
+                          rows="6"
+                          placeholder="اگر توضیح خاصی برای سفارش دارید اینجا بنویسید..."></textarea>
+            </div>
+        </div>
+
+        <div class="vt-checkout-actions">
+            <a asp-page="/Cart/Index">بازگشت به سبد خرید</a>
+            <button type="submit">
+                ثبت سفارش و ادامه پرداخت
+            </button>
+        </div>
+    </form>
+
+    <aside class="vt-checkout-summary">
+        <h2>خلاصه سفارش</h2>
+
+        <div class="vt-checkout-items">
+            @foreach (var item in cart.Items)
+            {
+                <div class="vt-checkout-item">
+                    <img src="@StorefrontFormat.ProductImage(item.ThumbnailImagePath)" alt="@item.ProductTitle" />
+
+                    <div>
+                        <b>@item.ProductTitle</b>
+
+                        @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
+                        {
+                            <span>@item.VariantTitle</span>
+                        }
+
+                        <small>تعداد: @StorefrontFormat.Number(item.Quantity)</small>
+                    </div>
+
+                    <strong>@StorefrontFormat.Money(item.TotalPrice)</strong>
+                </div>
+            }
+        </div>
+
+        <div class="vt-checkout-lines">
+            <div>
+                <span>تعداد محصولات</span>
+                <b>@StorefrontFormat.Number(cart.TotalQuantity)</b>
+            </div>
+
+            <div>
+                <span>جمع جزء</span>
+                <b>@StorefrontFormat.Money(cart.SubtotalAmount)</b>
+            </div>
+
+            <div>
+                <span>تخفیف</span>
+                <b>بعد از ثبت سفارش</b>
+            </div>
+        </div>
+
+        <div class="vt-checkout-total">
+            <span>مبلغ قابل پرداخت</span>
+            <b>@StorefrontFormat.Money(cart.SubtotalAmount)</b>
+        </div>
+
+        <div class="vt-checkout-trust">
+            <span>🛡 ضمانت اصالت محصول</span>
+            <span>⚡ تحویل سریع و دیجیتال</span>
+            <span>🔒 پرداخت امن</span>
+            <span>🎧 پشتیبانی بعد از خرید</span>
+        </div>
+    </aside>
+</section>

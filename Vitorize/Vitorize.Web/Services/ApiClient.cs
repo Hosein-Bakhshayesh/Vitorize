@@ -92,9 +92,10 @@ namespace Vitorize.Web.Services
         {
             var httpContext = _httpContextAccessor.HttpContext;
 
-            var token = httpContext?
-                .Request
-                .Cookies["Vitorize.AccessToken"];
+            var token =
+                httpContext?.Request.Cookies["Vitorize.Admin.AccessToken"] ??
+                httpContext?.Request.Cookies["Vitorize.Customer.AccessToken"] ??
+                httpContext?.Request.Cookies["Vitorize.AccessToken"];
 
             if (string.IsNullOrWhiteSpace(token))
             {

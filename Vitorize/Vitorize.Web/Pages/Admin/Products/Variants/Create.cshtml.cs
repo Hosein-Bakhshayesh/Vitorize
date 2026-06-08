@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Vitorize.Web.Models.Admin.Products;
 using Vitorize.Web.Models.Admin.ProductVariants;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Admin.Products.Variants
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = VitorizeAuthSchemes.AdminScheme)]
     public class CreateModel : PageModel
     {
         private readonly ApiClient _apiClient;

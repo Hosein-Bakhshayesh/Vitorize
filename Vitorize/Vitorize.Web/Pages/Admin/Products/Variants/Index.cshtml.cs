@@ -1,13 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Vitorize.Shared.Enums;
 using Vitorize.Web.Models.Admin.Products;
 using Vitorize.Web.Models.Admin.ProductVariants;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Admin.Products.Variants
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = VitorizeAuthSchemes.AdminScheme)]
     public class IndexModel : PageModel
     {
         private readonly ApiClient _apiClient;
@@ -95,11 +97,11 @@ namespace Vitorize.Web.Pages.Admin.Products.Variants
 
         public string GetStockMode(byte stockMode)
         {
-            return stockMode switch
+            return ((ProductVariantStockMode)stockMode) switch
             {
-                1 => "کد گیفت کارت",
-                2 => "موجودی دستی",
-                3 => "بدون محدودیت",
+                ProductVariantStockMode.GiftCode => "بر اساس کد گیفت",
+                ProductVariantStockMode.Manual => "موجودی دستی",
+                ProductVariantStockMode.Unlimited => "بدون محدودیت",
                 _ => "نامشخص"
             };
         }

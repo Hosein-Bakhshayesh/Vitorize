@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Vitorize.Shared.Enums;
 using Vitorize.Web.Models.Admin.Products;
 using Vitorize.Web.Services;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Pages.Admin.Products
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = VitorizeAuthSchemes.AdminScheme)]
     public class IndexModel : PageModel
     {
         private readonly ApiClient _apiClient;
@@ -83,22 +85,33 @@ namespace Vitorize.Web.Pages.Admin.Products
             };
         }
 
-        public string FormatMoney(decimal amount) => amount.ToString("N0") + " تومان";
-
-        public string GetProductType(byte type) => type switch
+        public string FormatMoney(decimal amount)
         {
-            1 => "گیفت کارت",
-            2 => "اکانت بازی",
-            3 => "سرویس دیجیتال",
-            _ => "نامشخص"
-        };
+            return amount.ToString("N0") + " تومان";
+        }
 
-        public string GetDeliveryType(byte type) => type switch
+        public string GetProductType(byte type)
         {
-            1 => "تحویل آنی",
-            2 => "تحویل دستی",
-            3 => "تیکتی",
-            _ => "نامشخص"
-        };
+            return ((ProductType)type) switch
+            {
+                ProductType.GiftCard => "گیفت کارت",
+                ProductType.GameAccount => "اکانت بازی",
+                ProductType.GameService => "سرویس بازی",
+                ProductType.Subscription => "اشتراک",
+                ProductType.Other => "سایر",
+                _ => "نامشخص"
+            };
+        }
+
+        public string GetDeliveryType(byte type)
+        {
+            return ((DeliveryType)type) switch
+            {
+                DeliveryType.Instant => "تحویل آنی",
+                DeliveryType.Manual => "تحویل دستی",
+                DeliveryType.SupportRequired => "نیازمند پشتیبانی",
+                _ => "نامشخص"
+            };
+        }
     }
 }
