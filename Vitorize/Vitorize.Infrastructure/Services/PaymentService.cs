@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
+using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
@@ -12,15 +13,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
         private readonly ICouponService _couponService;
+        private readonly IWalletService _walletService;
 
         public PaymentService(
             VitorizeDbContext dbContext,
             IGiftCodeDeliveryService giftCodeDeliveryService,
-            ICouponService couponService)
+            ICouponService couponService,
+            IWalletService walletService)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
             _couponService = couponService;
+            _walletService = walletService;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(
@@ -99,15 +103,7 @@ namespace Vitorize.Infrastructure.Services
                 {
                     await transaction.CommitAsync();
 
-                    return new PaymentVerifyResultDto
-                    {
-                        PaymentId = payment.Id,
-                        OrderId = order.Id,
-                        IsPaid = true,
-                        ReferenceNumber = payment.ReferenceNumber,
-                        PaymentStatus = payment.Status,
-                        OrderStatus = order.Status
-                    };
+                    return CreateVerifyResult(payment, order);
                 }
 
                 if (payment.Status != (byte)PaymentStatus.Pending)
@@ -124,66 +120,151 @@ namespace Vitorize.Infrastructure.Services
                 payment.UpdatedAt = now;
                 payment.ReferenceNumber = $"MOCK-REF-{now:yyyyMMddHHmmss}";
 
-                order.PaymentStatus = (byte)PaymentStatus.Paid;
-                order.Status = (byte)OrderStatus.Processing;
-                order.PaidAt = now;
-                order.UpdatedAt = now;
-
-                if (order.CouponId.HasValue)
-                {
-                    await _couponService.MarkCouponAsUsedAsync(
-                        userId,
-                        order.Id,
-                        order.CouponId.Value);
-                }
-
-                var activeReservations = order.GiftCodeReservations
-                    .Where(x => x.Status == (byte)GiftCodeReservationStatus.Active)
-                    .ToList();
-
-                if (!activeReservations.Any())
-                    throw new BusinessException("رزرو فعالی برای این سفارش یافت نشد.");
-
-                foreach (var reservation in activeReservations)
-                {
-                    reservation.Status = (byte)GiftCodeReservationStatus.Sold;
-                    reservation.SoldAt = now;
-
-                    var giftCode = await _dbContext.GiftCodes
-                        .FirstOrDefaultAsync(x => x.Id == reservation.GiftCodeId);
-
-                    if (giftCode == null)
-                        throw new BusinessException("کد رزرو شده یافت نشد.");
-
-                    giftCode.Status = (byte)GiftCodeStatus.Sold;
-                    giftCode.SoldAt = now;
-                    giftCode.ReservationExpiresAt = null;
-                    giftCode.UpdatedAt = now;
-                }
-
-                await _dbContext.SaveChangesAsync();
-
-                await _giftCodeDeliveryService.DeliverOrderAsync(
-                    order.Id,
-                    userId);
+                await CompletePaidOrderAsync(order, userId, now);
 
                 await transaction.CommitAsync();
 
-                return new PaymentVerifyResultDto
-                {
-                    PaymentId = payment.Id,
-                    OrderId = order.Id,
-                    IsPaid = true,
-                    ReferenceNumber = payment.ReferenceNumber,
-                    PaymentStatus = payment.Status,
-                    OrderStatus = order.Status
-                };
+                return CreateVerifyResult(payment, order);
             }
             catch
             {
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        public async Task<PaymentVerifyResultDto> PayWithWalletAsync(
+            Guid userId,
+            Guid orderId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            await using var transaction =
+                await _dbContext.Database.BeginTransactionAsync();
+
+            try
+            {
+                var order = await _dbContext.Orders
+                    .Include(x => x.GiftCodeReservations)
+                    .Include(x => x.OrderItems)
+                    .Include(x => x.Payments)
+                    .FirstOrDefaultAsync(x =>
+                        x.Id == orderId &&
+                        x.UserId == userId);
+
+                if (order == null)
+                    throw new NotFoundException("سفارش یافت نشد.");
+
+                if (order.PaymentStatus == (byte)PaymentStatus.Paid)
+                    throw new BusinessException("این سفارش قبلاً پرداخت شده است.");
+
+                if (order.FinalAmount <= 0)
+                    throw new BusinessException("مبلغ سفارش معتبر نیست.");
+
+                var now = DateTime.UtcNow;
+
+                await _walletService.DebitAsync(
+                    userId,
+                    order.FinalAmount,
+                    (byte)WalletReferenceType.OrderPayment,
+                    order.Id,
+                    $"پرداخت سفارش {order.OrderNumber} از کیف پول");
+
+                var payment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = order.Id,
+                    UserId = userId,
+                    Amount = order.FinalAmount,
+                    Gateway = "Wallet",
+                    Authority = $"WALLET-{Guid.NewGuid():N}",
+                    ReferenceNumber = $"WALLET-REF-{now:yyyyMMddHHmmss}",
+                    TransactionId = $"WALLET-TX-{Guid.NewGuid():N}",
+                    Status = (byte)PaymentStatus.Paid,
+                    CallbackVerified = true,
+                    RequestedAt = now,
+                    VerifiedAt = now,
+                    UpdatedAt = now
+                };
+
+                await _dbContext.Payments.AddAsync(payment);
+
+                await CompletePaidOrderAsync(order, userId, now);
+
+                await transaction.CommitAsync();
+
+                return CreateVerifyResult(payment, order);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        private async Task CompletePaidOrderAsync(
+            Order order,
+            Guid userId,
+            DateTime now)
+        {
+            order.PaymentStatus = (byte)PaymentStatus.Paid;
+            order.Status = (byte)OrderStatus.Processing;
+            order.PaidAt = now;
+            order.UpdatedAt = now;
+
+            if (order.CouponId.HasValue)
+            {
+                await _couponService.MarkCouponAsUsedAsync(
+                    userId,
+                    order.Id,
+                    order.CouponId.Value);
+            }
+
+            var activeReservations = order.GiftCodeReservations
+                .Where(x => x.Status == (byte)GiftCodeReservationStatus.Active)
+                .ToList();
+
+            if (!activeReservations.Any())
+                throw new BusinessException("رزرو فعالی برای این سفارش یافت نشد.");
+
+            foreach (var reservation in activeReservations)
+            {
+                reservation.Status = (byte)GiftCodeReservationStatus.Sold;
+                reservation.SoldAt = now;
+
+                var giftCode = await _dbContext.GiftCodes
+                    .FirstOrDefaultAsync(x => x.Id == reservation.GiftCodeId);
+
+                if (giftCode == null)
+                    throw new BusinessException("کد رزرو شده یافت نشد.");
+
+                giftCode.Status = (byte)GiftCodeStatus.Sold;
+                giftCode.SoldAt = now;
+                giftCode.ReservationExpiresAt = null;
+                giftCode.UpdatedAt = now;
+            }
+
+            await _dbContext.SaveChangesAsync();
+
+            await _giftCodeDeliveryService.DeliverOrderAsync(
+                order.Id,
+                userId);
+        }
+
+        private static PaymentVerifyResultDto CreateVerifyResult(
+            Payment payment,
+            Order order)
+        {
+            return new PaymentVerifyResultDto
+            {
+                PaymentId = payment.Id,
+                OrderId = order.Id,
+                IsPaid = true,
+                ReferenceNumber = payment.ReferenceNumber,
+                PaymentStatus = payment.Status,
+                OrderStatus = order.Status
+            };
         }
     }
 }

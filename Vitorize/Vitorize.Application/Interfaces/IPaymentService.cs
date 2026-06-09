@@ -11,5 +11,9 @@ namespace Vitorize.Application.Interfaces
         Task<PaymentVerifyResultDto> VerifyMockPaymentAsync(
             Guid userId,
             Guid paymentId);
+
+        Task<PaymentVerifyResultDto> PayWithWalletAsync(
+            Guid userId,
+            Guid orderId);
     }
 }
