@@ -689,7 +689,7 @@ public partial class VitorizeDbContext : DbContext
 
         modelBuilder.Entity<ProductReview>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC073BEB79AA");
+            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC0714BE216C");
 
             entity.HasIndex(e => e.IsApproved, "IX_ProductReviews_IsApproved");
 
@@ -722,7 +722,7 @@ public partial class VitorizeDbContext : DbContext
 
         modelBuilder.Entity<ProductReviewVote>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC07CAE63E98");
+            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC074C014909");
 
             entity.HasIndex(e => new { e.ReviewId, e.UserId }, "UQ_ProductReviewVotes_Review_User").IsUnique();
 
@@ -1012,7 +1012,7 @@ public partial class VitorizeDbContext : DbContext
 
         modelBuilder.Entity<WishList>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__WishList__3214EC07E79ABA03");
+            entity.HasKey(e => e.Id).HasName("PK__WishList__3214EC07E1172761");
 
             entity.ToTable("WishList");
 

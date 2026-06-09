@@ -41,6 +41,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
             services.AddScoped<IAdminProductImageService, AdminProductImageService>();
             services.AddScoped<IWalletService, WalletService>();
+            services.AddScoped<IVerificationService, VerificationService>();
+            services.AddScoped<ITicketService, TicketService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
