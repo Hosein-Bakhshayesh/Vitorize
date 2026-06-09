@@ -7,25 +7,27 @@ using Vitorize.Shared.Common;
 namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
-    [Authorize(Policy = "AdminOnly")]
     [Route("api/admin/dashboard")]
+    [Authorize(Roles = "Admin")]
     public class AdminDashboardController : ControllerBase
     {
         private readonly IAdminDashboardService _dashboardService;
 
-        public AdminDashboardController(IAdminDashboardService dashboardService)
+        public AdminDashboardController(
+            IAdminDashboardService dashboardService)
         {
             _dashboardService = dashboardService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResult<AdminDashboardDto>>> Get()
+        public async Task<ApiResult<DashboardDto>> Get()
         {
-            var result = await _dashboardService.GetDashboardAsync();
+            var result =
+                await _dashboardService
+                    .GetDashboardAsync();
 
-            return Ok(ApiResult<AdminDashboardDto>.Success(
-                result,
-                "اطلاعات داشبورد با موفقیت دریافت شد."));
+            return ApiResult<DashboardDto>
+                .Success(result);
         }
     }
 }

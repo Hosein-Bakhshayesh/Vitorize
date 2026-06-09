@@ -4,6 +4,6 @@ namespace Vitorize.Application.Interfaces
 {
     public interface IAdminDashboardService
     {
-        Task<AdminDashboardDto> GetDashboardAsync();
+        Task<DashboardDto> GetDashboardAsync();
     }
 }

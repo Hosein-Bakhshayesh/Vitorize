@@ -2,71 +2,115 @@
 using Vitorize.Application.DTOs.Admin.Dashboard;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
     public class AdminDashboardService : IAdminDashboardService
     {
-        private readonly VitorizeDbContext _context;
+        private readonly VitorizeDbContext _dbContext;
 
-        public AdminDashboardService(VitorizeDbContext context)
+        public AdminDashboardService(
+            VitorizeDbContext dbContext)
         {
-            _context = context;
+            _dbContext = dbContext;
         }
 
-        public async Task<AdminDashboardDto> GetDashboardAsync()
+        public async Task<DashboardDto> GetDashboardAsync()
         {
-            var totalUsers = await _context.Users
-                .CountAsync(x => !x.IsDeleted);
+            var today = DateTime.UtcNow.Date;
 
-            var totalProducts = await _context.Products
-                .CountAsync(x => x.IsActive);
+            var monthStart =
+                new DateTime(
+                    DateTime.UtcNow.Year,
+                    DateTime.UtcNow.Month,
+                    1);
 
-            var totalOrders = await _context.Orders.CountAsync();
-
-            var pendingOrders = await _context.Orders
-                .CountAsync(x => x.Status == 1);
-
-            var completedOrders = await _context.Orders
-                .CountAsync(x => x.Status == 3);
-
-            var totalRevenue = await _context.Orders
-                .Where(x => x.PaymentStatus == 2)
-                .SumAsync(x => (decimal?)x.FinalAmount) ?? 0;
-
-            var activeCoupons = await _context.Coupons
-                .CountAsync(x => x.IsActive);
-
-            var availableGiftCodes = await _context.GiftCodes
-                .CountAsync(x => x.Status == 0);
-
-            var recentOrders = await _context.Orders
-                .Include(x => x.User)
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(5)
-                .Select(x => new DashboardRecentOrderDto
-                {
-                    Id = x.Id,
-                    OrderNumber = x.OrderNumber,
-                    CustomerName = x.User.FullName,
-                    FinalAmount = x.FinalAmount,
-                    Status = x.Status,
-                    PaymentStatus = x.PaymentStatus,
-                    CreatedAt = x.CreatedAt
-                })
-                .ToListAsync();
-
-            return new AdminDashboardDto
+            var summary = new DashboardSummaryDto
             {
-                TotalUsers = totalUsers,
-                TotalProducts = totalProducts,
-                TotalOrders = totalOrders,
-                PendingOrders = pendingOrders,
-                CompletedOrders = completedOrders,
-                TotalRevenue = totalRevenue,
-                ActiveCoupons = activeCoupons,
-                AvailableGiftCodes = availableGiftCodes,
-                RecentOrders = recentOrders
+                TotalUsers =
+                    await _dbContext.Users.CountAsync(),
+
+                NewUsersToday =
+                    await _dbContext.Users
+                        .CountAsync(x =>
+                            x.CreatedAt >= today),
+
+                TotalOrders =
+                    await _dbContext.Orders.CountAsync(),
+
+                OrdersToday =
+                    await _dbContext.Orders
+                        .CountAsync(x =>
+                            x.CreatedAt >= today),
+
+                RevenueToday =
+                    await _dbContext.Orders
+                        .Where(x =>
+                            x.PaidAt != null &&
+                            x.PaidAt >= today)
+                        .SumAsync(x =>
+                            (decimal?)x.FinalAmount)
+                        ?? 0,
+
+                RevenueThisMonth =
+                    await _dbContext.Orders
+                        .Where(x =>
+                            x.PaidAt != null &&
+                            x.PaidAt >= monthStart)
+                        .SumAsync(x =>
+                            (decimal?)x.FinalAmount)
+                        ?? 0,
+
+                PendingTickets =
+                    await _dbContext.Tickets
+                        .CountAsync(x =>
+                            x.Status != (byte)TicketStatus.Closed),
+
+                PendingVerifications =
+                    await _dbContext.Users
+                        .CountAsync(x =>
+                            x.VerificationStatus ==
+                            (byte)VerificationStatus.Pending),
+
+                UnreadNotifications =
+                    await _dbContext.Notifications
+                        .CountAsync(x =>
+                            !x.IsRead),
+
+                AvailableGiftCodes =
+                    await _dbContext.GiftCodes
+                        .CountAsync(x =>
+                            x.Status ==
+                            (byte)GiftCodeStatus.Available),
+                            };
+
+            var topProducts =
+                await _dbContext.OrderItems
+                    .GroupBy(x => new
+                    {
+                        x.ProductId,
+                        x.ProductTitle
+                    })
+                    .Select(x => new TopProductDto
+                    {
+                        ProductId = x.Key.ProductId,
+                        ProductTitle = x.Key.ProductTitle,
+
+                        TotalSold =
+                            x.Sum(i => i.Quantity),
+
+                        Revenue =
+                            x.Sum(i => i.TotalPrice)
+                    })
+                    .OrderByDescending(x => x.TotalSold)
+                    .Take(10)
+                    .ToListAsync();
+
+            return new DashboardDto
+            {
+                Summary = summary,
+                TopProducts = topProducts
             };
         }
     }
