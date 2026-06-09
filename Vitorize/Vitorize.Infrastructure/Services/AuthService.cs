@@ -17,15 +17,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly JwtSettings _jwtSettings;
+        private readonly ISecurityLogService _securityLogService;
 
         public AuthService(
             VitorizeDbContext dbContext,
             IJwtTokenService jwtTokenService,
-            IOptions<JwtSettings> jwtSettings)
+            IOptions<JwtSettings> jwtSettings,
+            ISecurityLogService securityLogService)
         {
             _dbContext = dbContext;
             _jwtTokenService = jwtTokenService;
             _jwtSettings = jwtSettings.Value;
+            _securityLogService = securityLogService;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
@@ -79,6 +82,12 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
             await _dbContext.SaveChangesAsync();
 
+            await _securityLogService.LogAsync(
+                user.Id,
+                "REGISTER",
+                true,
+                "User registration successful");
+
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
             return new AuthResponseDto
@@ -101,6 +110,12 @@ namespace Vitorize.Infrastructure.Services
 
             if (user == null)
             {
+                await _securityLogService.LogAsync(
+                    null,
+                    "LOGIN",
+                    false,
+                    $"Failed login for mobile {request.Mobile}");
+
                 throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
             }
 
@@ -108,6 +123,12 @@ namespace Vitorize.Infrastructure.Services
 
             if (!isPasswordValid)
             {
+                await _securityLogService.LogAsync(
+                    user.Id,
+                    "LOGIN",
+                    false,
+                    $"Invalid password for user {user.Mobile}");
+
                 throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
             }
 
@@ -115,6 +136,12 @@ namespace Vitorize.Infrastructure.Services
             {
                 throw new BusinessException("حساب کاربری شما فعال نیست.");
             }
+
+            // TODO: Enable after SMS provider integration
+            // if (!user.IsMobileConfirmed)
+            // {
+            //     throw new BusinessException("شماره موبایل شما تایید نشده است.");
+            // }
 
             user.LastLoginAt = DateTime.UtcNow;
 
@@ -132,6 +159,12 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "LOGIN",
+                true,
+                "User login successful");
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
@@ -160,6 +193,12 @@ namespace Vitorize.Infrastructure.Services
 
             if (userRefreshToken == null)
             {
+                await _securityLogService.LogAsync(
+                    null,
+                    "REFRESH_TOKEN",
+                    false,
+                    "Invalid refresh token");
+
                 throw new UnauthorizedException("Refresh Token نامعتبر است.");
             }
 
@@ -193,6 +232,12 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.UserRefreshTokens.AddAsync(newUserRefreshToken);
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "REFRESH_TOKEN",
+                true,
+                "Refresh token rotated");
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
@@ -255,6 +300,12 @@ namespace Vitorize.Infrastructure.Services
             userRefreshToken.RevocationReason = "Logout";
 
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                userRefreshToken.UserId,
+                "LOGOUT",
+                true,
+                "User logout");
         }
 
         public async Task ChangePasswordAsync(
@@ -301,6 +352,12 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "CHANGE_PASSWORD",
+                true,
+                "Password changed");
         }
 
         public async Task ForgotPasswordAsync(ForgotPasswordRequestDto request)
@@ -367,6 +424,12 @@ namespace Vitorize.Infrastructure.Services
 
                 await _dbContext.SaveChangesAsync();
 
+                await _securityLogService.LogAsync(
+                    otp.UserId,
+                    "OTP_VERIFY",
+                    false,
+                    "Invalid OTP code");
+
                 throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
             }
 
@@ -389,6 +452,12 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "RESET_PASSWORD",
+                true,
+                "Password reset successful");
         }
 
         public async Task SendOtpAsync(SendOtpRequestDto request)
@@ -443,6 +512,12 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.OtpCodes.AddAsync(otp);
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "OTP_SEND",
+                true,
+                $"OTP sent for purpose {request.Purpose}");
 
             Console.WriteLine($"Vitorize OTP Code: {code}");
         }
@@ -504,6 +579,12 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                otp.UserId,
+                "OTP_VERIFY",
+                true,
+                $"OTP verified for purpose {request.Purpose}");
         }
 
         private static string HashToken(string token)

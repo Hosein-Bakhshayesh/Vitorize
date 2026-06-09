@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
 
@@ -18,7 +19,9 @@ namespace Vitorize.Api.Middlewares
             _logger = logger;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(
+            HttpContext context,
+            IErrorLogService errorLogService)
         {
             try
             {
@@ -26,11 +29,17 @@ namespace Vitorize.Api.Middlewares
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, ex);
+                await HandleExceptionAsync(
+                    context,
+                    ex,
+                    errorLogService);
             }
         }
 
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private async Task HandleExceptionAsync(
+            HttpContext context,
+            Exception exception,
+            IErrorLogService errorLogService)
         {
             var statusCode = exception switch
             {
@@ -42,7 +51,11 @@ namespace Vitorize.Api.Middlewares
 
             if (statusCode == HttpStatusCode.InternalServerError)
             {
-                _logger.LogError(exception, exception.Message);
+                _logger.LogError(
+                    exception,
+                    exception.Message);
+
+                await errorLogService.LogAsync(exception);
             }
 
             var response = ApiResult.Failure(
@@ -53,10 +66,13 @@ namespace Vitorize.Api.Middlewares
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)statusCode;
 
-            var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
+            var json = JsonSerializer.Serialize(
+                response,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy =
+                        JsonNamingPolicy.CamelCase
+                });
 
             await context.Response.WriteAsync(json);
         }

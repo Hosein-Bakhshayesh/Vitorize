@@ -44,6 +44,9 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IVerificationService, VerificationService>();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IAuditService, AuditService>();
+            services.AddScoped<ISecurityLogService, SecurityLogService>();
+            services.AddScoped<IErrorLogService, ErrorLogService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
