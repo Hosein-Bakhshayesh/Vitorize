@@ -10,7 +10,7 @@
 
     <div class="vt-hero-content">
         <h1>گیفت کارت‌های جهانی را<br />سریع، امن و مطمئن بخرید</h1>
-        <p>به بهترین تجربه خرید گیفت کارت</p>
+        <p>بهترین تجربه خرید گیفت کارت</p>
 
         <div class="mt-7 flex flex-wrap items-center justify-center gap-4 md:justify-start">
             <a asp-page="/Products/Index" class="vt-hero-primary">مشاهده محصولات</a>
@@ -77,41 +77,45 @@
 
 <section class="vt-section">
     <div class="vt-section-head">
-        <a asp-page="/Products/Index" class="vt-outline-link">مشاهده همه</a>
         <h2>دسته‌بندی فروشگاه</h2>
+        <a asp-page="/Products/Index" class="vt-outline-link">مشاهده همه</a>
     </div>
 
     <div class="vt-category-strip">
-        @foreach (var category in Model.Categories.Take(10))
+        @if (Model.Categories.Any())
         {
-            <a asp-page="/Products/Index"
-               asp-route-CategoryId="@category.Id"
-               class="vt-category-item">
-                <img src="@StorefrontFormat.ProductImage(category.ImagePath)" alt="@category.Title" />
-                <b>@category.Title</b>
-            </a>
+            @foreach (var category in Model.Categories.Take(10))
+            {
+                <a asp-page="/Products/Index"
+                   asp-route-CategoryId="@category.Id"
+                   class="vt-category-item">
+                    <img src="@StorefrontFormat.ProductImage(category.ImagePath)" alt="@category.Title" />
+                    <b>@category.Title</b>
+                </a>
+            }
         }
-
-        @if (!Model.Categories.Any())
+        else
         {
-            <div class="vt-empty-state">دسته‌بندی فعالی برای نمایش وجود ندارد.</div>
+            <div class="vt-empty-state w-full">دسته‌بندی فعالی برای نمایش وجود ندارد.</div>
         }
     </div>
 </section>
 
 <section class="vt-section">
     <div class="vt-section-head">
-        <a asp-page="/Products/Index" asp-route-IsFeatured="true" class="vt-outline-link">مشاهده همه</a>
         <h2>محبوب‌ترین گیفت‌کارت‌ها</h2>
+        <a asp-page="/Products/Index" asp-route-IsFeatured="true" class="vt-outline-link">مشاهده همه</a>
     </div>
 
     <div class="vt-product-grid">
-        @foreach (var product in Model.FeaturedProducts.Take(6))
+        @if (Model.FeaturedProducts.Any())
         {
-            <partial name="Shared/_ProductCard" model="product" />
+            @foreach (var product in Model.FeaturedProducts.Take(6))
+            {
+                <partial name="Shared/_ProductCard" model="product" />
+            }
         }
-
-        @if (!Model.FeaturedProducts.Any())
+        else
         {
             <div class="vt-empty-state col-span-full">محصول ویژه‌ای برای نمایش وجود ندارد.</div>
         }
@@ -146,23 +150,25 @@
 
 <section class="vt-section">
     <div class="vt-section-head">
-        <a asp-page="/Products/Index" class="vt-outline-link">مشاهده همه</a>
         <h2>خدمات پرطرفدار</h2>
+        <a asp-page="/Products/Index" class="vt-outline-link">مشاهده همه</a>
     </div>
 
     <div class="vt-service-grid">
-        @foreach (var product in Model.ServiceProducts.Take(5))
+        @if (Model.ServiceProducts.Any())
         {
-            <a asp-page="/Products/Details"
-               asp-route-slug="@product.Slug"
-               class="vt-service-card">
-                <img src="@StorefrontFormat.ProductImage(product.ThumbnailImagePath)" alt="@product.Title" />
-                <b>@product.Title</b>
-                <span>@(product.ShortDescription ?? product.BrandTitle ?? product.CategoryTitle)</span>
-            </a>
+            @foreach (var product in Model.ServiceProducts.Take(5))
+            {
+                <a asp-page="/Products/Details"
+                   asp-route-slug="@product.Slug"
+                   class="vt-service-card">
+                    <img src="@StorefrontFormat.ProductImage(product.ThumbnailImagePath)" alt="@product.Title" />
+                    <b>@product.Title</b>
+                    <span>@(product.ShortDescription ?? product.BrandTitle ?? product.CategoryTitle)</span>
+                </a>
+            }
         }
-
-        @if (!Model.ServiceProducts.Any())
+        else
         {
             <div class="vt-empty-state col-span-full">خدمتی برای نمایش وجود ندارد.</div>
         }
@@ -171,8 +177,8 @@
 
 <section id="why-vitorize" class="vt-section">
     <div class="vt-section-head">
-        <span></span>
         <h2>چرا ویتورایز را انتخاب کنید؟</h2>
+        <span></span>
     </div>
 
     <div class="vt-why-grid">

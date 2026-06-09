@@ -3668,3 +3668,19 @@ img {
         background: #f1f5f9;
         color: #475569;
     }
+.vt-section-head {
+    direction: rtl;
+}
+
+    .vt-section-head h2 {
+        text-align: right;
+    }
+
+    .vt-section-head .vt-outline-link {
+        margin-right: auto;
+    }
+
+.vt-empty-state {
+    width: 100%;
+    text-align: center;
+}
