@@ -164,26 +164,6 @@ namespace Vitorize.Infrastructure.Services
                     }
                 }
 
-                if (couponId.HasValue)
-                {
-                    var coupon = await _dbContext.Coupons
-                        .FirstOrDefaultAsync(x => x.Id == couponId.Value);
-
-                    if (coupon == null)
-                        throw new BusinessException("کد تخفیف معتبر نیست.");
-
-                    coupon.UsedCount += 1;
-
-                    await _dbContext.CouponUsages.AddAsync(new CouponUsage
-                    {
-                        Id = Guid.NewGuid(),
-                        CouponId = coupon.Id,
-                        UserId = userId,
-                        OrderId = order.Id,
-                        UsedAt = now
-                    });
-                }
-
                 var payment = new Payment
                 {
                     Id = Guid.NewGuid(),

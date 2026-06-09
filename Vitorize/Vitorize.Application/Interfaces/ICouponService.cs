@@ -7,5 +7,10 @@ namespace Vitorize.Application.Interfaces
         Task<ValidateCouponResultDto> ValidateAsync(
             Guid userId,
             ValidateCouponRequestDto request);
+
+        Task MarkCouponAsUsedAsync(
+            Guid userId,
+            Guid orderId,
+            Guid couponId);
     }
 }

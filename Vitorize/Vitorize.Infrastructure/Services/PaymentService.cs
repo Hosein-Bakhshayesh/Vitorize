@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
-using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services
@@ -11,13 +11,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
+        private readonly ICouponService _couponService;
 
         public PaymentService(
             VitorizeDbContext dbContext,
-            IGiftCodeDeliveryService giftCodeDeliveryService)
+            IGiftCodeDeliveryService giftCodeDeliveryService,
+            ICouponService couponService)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
+            _couponService = couponService;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(
@@ -94,6 +97,8 @@ namespace Vitorize.Infrastructure.Services
 
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
+                    await transaction.CommitAsync();
+
                     return new PaymentVerifyResultDto
                     {
                         PaymentId = payment.Id,
@@ -117,12 +122,20 @@ namespace Vitorize.Infrastructure.Services
                 payment.CallbackVerified = true;
                 payment.VerifiedAt = now;
                 payment.UpdatedAt = now;
-                payment.ReferenceNumber = $"MOCK-REF-{DateTime.UtcNow:yyyyMMddHHmmss}";
+                payment.ReferenceNumber = $"MOCK-REF-{now:yyyyMMddHHmmss}";
 
                 order.PaymentStatus = (byte)PaymentStatus.Paid;
                 order.Status = (byte)OrderStatus.Processing;
                 order.PaidAt = now;
                 order.UpdatedAt = now;
+
+                if (order.CouponId.HasValue)
+                {
+                    await _couponService.MarkCouponAsUsedAsync(
+                        userId,
+                        order.Id,
+                        order.CouponId.Value);
+                }
 
                 var activeReservations = order.GiftCodeReservations
                     .Where(x => x.Status == (byte)GiftCodeReservationStatus.Active)
