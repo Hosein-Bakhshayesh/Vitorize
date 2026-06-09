@@ -43,6 +43,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IWalletService, WalletService>();
             services.AddScoped<IVerificationService, VerificationService>();
             services.AddScoped<ITicketService, TicketService>();
+            services.AddScoped<INotificationService, NotificationService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
