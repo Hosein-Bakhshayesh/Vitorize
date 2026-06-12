@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Vitorize.Api.BackgroundServices;
 using Vitorize.Api.Middlewares;
 using Vitorize.Application;
 using Vitorize.Application.Common;
@@ -111,6 +112,8 @@ namespace Vitorize.Api
                 options.AddPolicy("SupportOnly", policy =>
                     policy.RequireRole("Support", "Admin", "SuperAdmin"));
             });
+
+            builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
 
             var app = builder.Build();
 

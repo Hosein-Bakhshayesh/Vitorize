@@ -69,4 +69,3 @@ namespace Vitorize.Api.Controllers
         }
     }
 }
-}

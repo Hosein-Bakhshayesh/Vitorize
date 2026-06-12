@@ -49,6 +49,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IErrorLogService, ErrorLogService>();
             services.AddScoped<IAdminUserService, AdminUserService>();
             services.AddScoped<IIdempotencyService, IdempotencyService>();
+            services.AddScoped<IOutboxService, OutboxService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
