@@ -11,10 +11,14 @@ namespace Vitorize.Infrastructure.Services
     public class VerificationService : IVerificationService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly INotificationService _notificationService;
 
-        public VerificationService(VitorizeDbContext dbContext)
+        public VerificationService(
+            VitorizeDbContext dbContext,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
+            _notificationService = notificationService;
         }
 
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
@@ -83,6 +87,12 @@ namespace Vitorize.Infrastructure.Services
             user.VerificationStatus = (byte)VerificationStatus.Pending;
             user.NationalCode = profile.NationalCode;
             user.UpdatedAt = now;
+
+            await _notificationService.CreateAsync(
+                userId,
+                (byte)NotificationType.VerificationSubmitted,
+                "درخواست احراز هویت ثبت شد",
+                "درخواست احراز هویت شما ثبت شد و در انتظار بررسی ادمین است.");
 
             await _dbContext.SaveChangesAsync();
 
@@ -192,6 +202,25 @@ namespace Vitorize.Infrastructure.Services
                 document.ReviewedByAdminId = adminUserId;
                 document.ReviewedAt = now;
                 document.AdminNote = request.AdminNote;
+            }
+
+            if (request.Approve)
+            {
+                await _notificationService.CreateAsync(
+                    user.Id,
+                    (byte)NotificationType.VerificationApproved,
+                    "احراز هویت تایید شد",
+                    "احراز هویت شما با موفقیت تایید شد.");
+            }
+            else
+            {
+                await _notificationService.CreateAsync(
+                    user.Id,
+                    (byte)NotificationType.VerificationRejected,
+                    "احراز هویت رد شد",
+                    string.IsNullOrWhiteSpace(request.AdminNote)
+                        ? "درخواست احراز هویت شما رد شد."
+                        : $"درخواست احراز هویت شما رد شد. علت: {request.AdminNote}");
             }
 
             await _dbContext.SaveChangesAsync();

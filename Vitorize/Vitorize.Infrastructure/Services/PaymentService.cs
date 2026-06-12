@@ -14,17 +14,20 @@ namespace Vitorize.Infrastructure.Services
         private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
         private readonly ICouponService _couponService;
         private readonly IWalletService _walletService;
+        private readonly INotificationService _notificationService;
 
         public PaymentService(
             VitorizeDbContext dbContext,
             IGiftCodeDeliveryService giftCodeDeliveryService,
             ICouponService couponService,
-            IWalletService walletService)
+            IWalletService walletService,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
             _couponService = couponService;
             _walletService = walletService;
+            _notificationService = notificationService;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(
@@ -245,11 +248,23 @@ namespace Vitorize.Infrastructure.Services
                 giftCode.UpdatedAt = now;
             }
 
+            await _notificationService.CreateAsync(
+                userId,
+                (byte)NotificationType.PaymentSucceeded,
+                "پرداخت موفق",
+                $"پرداخت سفارش {order.OrderNumber} با موفقیت انجام شد.");
+
             await _dbContext.SaveChangesAsync();
 
             await _giftCodeDeliveryService.DeliverOrderAsync(
                 order.Id,
                 userId);
+
+            await _notificationService.CreateAsync(
+                userId,
+                (byte)NotificationType.GiftCodeDelivered,
+                "تحویل سفارش",
+                $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
         }
 
         private static PaymentVerifyResultDto CreateVerifyResult(

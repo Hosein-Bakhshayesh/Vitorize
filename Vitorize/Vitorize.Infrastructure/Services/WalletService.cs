@@ -12,10 +12,14 @@ namespace Vitorize.Infrastructure.Services
     public class WalletService : IWalletService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly INotificationService _notificationService;
 
-        public WalletService(VitorizeDbContext dbContext)
+        public WalletService(
+            VitorizeDbContext dbContext,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
+            _notificationService = notificationService;
         }
 
         public async Task<WalletDto> GetMyWalletAsync(Guid userId)
@@ -186,7 +190,8 @@ namespace Vitorize.Infrastructure.Services
                     throw new BusinessException("نوع تراکنش کیف پول معتبر نیست.");
                 }
 
-                wallet.UpdatedAt = DateTime.UtcNow;
+                var now = DateTime.UtcNow;
+                wallet.UpdatedAt = now;
 
                 await _dbContext.WalletTransactions.AddAsync(new WalletTransaction
                 {
@@ -199,8 +204,25 @@ namespace Vitorize.Infrastructure.Services
                     ReferenceType = referenceType,
                     ReferenceId = referenceId,
                     Description = description,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = now
                 });
+
+                if (transactionType == (byte)WalletTransactionType.Credit)
+                {
+                    await _notificationService.CreateAsync(
+                        userId,
+                        (byte)NotificationType.WalletCharged,
+                        "شارژ کیف پول",
+                        $"کیف پول شما به مبلغ {amount:N0} شارژ شد.");
+                }
+                else if (transactionType == (byte)WalletTransactionType.Debit)
+                {
+                    await _notificationService.CreateAsync(
+                        userId,
+                        (byte)NotificationType.WalletDebited,
+                        "برداشت از کیف پول",
+                        $"مبلغ {amount:N0} از کیف پول شما کسر شد.");
+                }
 
                 await _dbContext.SaveChangesAsync();
 

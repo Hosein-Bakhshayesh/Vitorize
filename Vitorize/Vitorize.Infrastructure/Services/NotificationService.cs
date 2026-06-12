@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Vitorize.Application.DTOs.Notifications;
+using Vitorize.Application.DTOs.Outbox;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -10,10 +12,14 @@ namespace Vitorize.Infrastructure.Services
     public class NotificationService : INotificationService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IOutboxService _outboxService;
 
-        public NotificationService(VitorizeDbContext dbContext)
+        public NotificationService(
+            VitorizeDbContext dbContext,
+            IOutboxService outboxService)
         {
             _dbContext = dbContext;
+            _outboxService = outboxService;
         }
 
         public async Task CreateAsync(
@@ -25,7 +31,9 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 return;
 
-            await _dbContext.Notifications.AddAsync(new Notification
+            var now = DateTime.UtcNow;
+
+            var notification = new Notification
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
@@ -33,8 +41,27 @@ namespace Vitorize.Infrastructure.Services
                 Title = title,
                 Message = message,
                 IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
+                CreatedAt = now
+            };
+
+            await _dbContext.Notifications.AddAsync(notification);
+
+            var payload = JsonSerializer.Serialize(
+                new NotificationCreatedEventDto
+                {
+                    NotificationId = notification.Id,
+                    UserId = userId,
+                    Type = type,
+                    Title = title,
+                    Message = message,
+                    CreatedAt = now
+                });
+
+            await _outboxService.AddAsync(
+                messageType: "NotificationCreated",
+                payload: payload,
+                aggregateId: notification.Id,
+                aggregateType: "Notification");
 
             await _dbContext.SaveChangesAsync();
         }

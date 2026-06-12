@@ -11,10 +11,14 @@ namespace Vitorize.Infrastructure.Services
     public class TicketService : ITicketService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly INotificationService _notificationService;
 
-        public TicketService(VitorizeDbContext dbContext)
+        public TicketService(
+            VitorizeDbContext dbContext,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
+            _notificationService = notificationService;
         }
 
         public async Task<List<TicketDto>> GetMyTicketsAsync(Guid userId)
@@ -115,6 +119,12 @@ namespace Vitorize.Infrastructure.Services
 
             if (orderItem != null)
                 orderItem.SupportTicketId = ticket.Id;
+
+            await _notificationService.CreateAsync(
+                userId,
+                (byte)NotificationType.TicketCreated,
+                "تیکت ثبت شد",
+                $"تیکت «{ticket.Subject}» با موفقیت ثبت شد و در انتظار پاسخ پشتیبانی است.");
 
             await _dbContext.SaveChangesAsync();
 
@@ -221,6 +231,15 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = now
             });
 
+            if (!request.IsInternalNote)
+            {
+                await _notificationService.CreateAsync(
+                    ticket.UserId,
+                    (byte)NotificationType.TicketReply,
+                    "پاسخ پشتیبانی",
+                    $"برای تیکت «{ticket.Subject}» پاسخ جدید ثبت شد.");
+            }
+
             await _dbContext.SaveChangesAsync();
 
             return MapTicket(ticket, true);
@@ -241,6 +260,12 @@ namespace Vitorize.Infrastructure.Services
             ticket.ClosedAt = now;
             ticket.UpdatedAt = now;
 
+            await _notificationService.CreateAsync(
+                ticket.UserId,
+                (byte)NotificationType.TicketClosed,
+                "تیکت بسته شد",
+                $"تیکت «{ticket.Subject}» بسته شد.");
+
             await _dbContext.SaveChangesAsync();
 
             return MapTicket(ticket, true);
@@ -260,6 +285,12 @@ namespace Vitorize.Infrastructure.Services
             ticket.Status = (byte)TicketStatus.WaitingForAdmin;
             ticket.ClosedAt = null;
             ticket.UpdatedAt = now;
+
+            await _notificationService.CreateAsync(
+                ticket.UserId,
+                (byte)NotificationType.TicketReply,
+                "تیکت باز شد",
+                $"تیکت «{ticket.Subject}» دوباره باز شد.");
 
             await _dbContext.SaveChangesAsync();
 
