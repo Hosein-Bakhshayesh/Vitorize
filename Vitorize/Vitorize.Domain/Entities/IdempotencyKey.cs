@@ -21,5 +21,13 @@ public partial class IdempotencyKey
 
     public DateTime ExpiresAt { get; set; }
 
+    public byte Status { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? FailedAt { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
     public virtual User? User { get; set; }
 }

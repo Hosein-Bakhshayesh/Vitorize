@@ -104,6 +104,10 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<WishList> WishLists { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=.;Database=VitorizeDb;Trusted_Connection=True;TrustServerCertificate=True");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AuditLog>(entity =>
@@ -404,8 +408,10 @@ public partial class VitorizeDbContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
             entity.Property(e => e.Key).HasMaxLength(200);
             entity.Property(e => e.RequestHash).HasMaxLength(500);
+            entity.Property(e => e.Status).HasDefaultValue((byte)1);
 
             entity.HasOne(d => d.User).WithMany(p => p.IdempotencyKeys)
                 .HasForeignKey(d => d.UserId)

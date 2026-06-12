@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Helpers;
@@ -87,15 +88,23 @@ namespace Vitorize.Api.Controllers
                     userId,
                     orderId);
 
-                await _idempotencyService.CompleteAsync(idempotencyKey);
-
-                return Ok(ApiResult<PaymentVerifyResultDto>.Success(
+                var response = ApiResult<PaymentVerifyResultDto>.Success(
                     result,
-                    "پرداخت با کیف پول با موفقیت انجام شد."));
+                    "پرداخت با کیف پول با موفقیت انجام شد.");
+
+                await _idempotencyService.CompleteAsync(
+                    idempotencyKey,
+                    JsonSerializer.Serialize(response),
+                    StatusCodes.Status200OK);
+
+                return Ok(response);
             }
-            catch
+            catch (Exception ex)
             {
-                await _idempotencyService.FailAsync(idempotencyKey);
+                await _idempotencyService.FailAsync(
+                    idempotencyKey,
+                    ex.Message);
+
                 throw;
             }
         }

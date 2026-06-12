@@ -30,9 +30,23 @@ namespace Vitorize.Infrastructure.Services
             if (existing != null)
             {
                 if (existing.RequestHash != requestHash)
-                    throw new BusinessException("این Idempotency-Key قبلاً برای درخواست دیگری استفاده شده است.");
+                    throw new BusinessException(
+                        "این Idempotency-Key قبلاً برای درخواست دیگری استفاده شده است.");
 
-                throw new BusinessException("این درخواست قبلاً ثبت شده است.");
+                if (existing.Status == (byte)IdempotencyStatus.Processing)
+                    throw new BusinessException(
+                        "درخواست قبلاً در حال پردازش است.");
+
+                if (existing.Status == (byte)IdempotencyStatus.Completed)
+                    throw new BusinessException(
+                        "این درخواست قبلاً با موفقیت انجام شده است.");
+
+                if (existing.Status == (byte)IdempotencyStatus.Failed)
+                {
+                    _dbContext.IdempotencyKeys.Remove(existing);
+                    await _dbContext.SaveChangesAsync();
+                    existing = null;
+                }
             }
 
             await _dbContext.IdempotencyKeys.AddAsync(new IdempotencyKey
@@ -41,20 +55,48 @@ namespace Vitorize.Infrastructure.Services
                 UserId = userId,
                 Key = key,
                 RequestHash = requestHash,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Status = (byte)IdempotencyStatus.Processing,
+                ExpiresAt = DateTime.UtcNow.AddHours(24)
             });
 
             await _dbContext.SaveChangesAsync();
         }
 
-        public Task CompleteAsync(string key)
+        public async Task CompleteAsync(
+            string key,
+            string? responseJson = null,
+            int? statusCode = null)
         {
-            return Task.CompletedTask;
+            var record = await _dbContext.IdempotencyKeys
+                .FirstOrDefaultAsync(x => x.Key == key);
+
+            if (record == null)
+                return;
+
+            record.Status = (byte)IdempotencyStatus.Completed;
+            record.CompletedAt = DateTime.UtcNow;
+            record.ResponseJson = responseJson;
+            record.StatusCode = statusCode;
+
+            await _dbContext.SaveChangesAsync();
         }
 
-        public Task FailAsync(string key)
+        public async Task FailAsync(
+            string key,
+            string? errorMessage = null)
         {
-            return Task.CompletedTask;
+            var record = await _dbContext.IdempotencyKeys
+                .FirstOrDefaultAsync(x => x.Key == key);
+
+            if (record == null)
+                return;
+
+            record.Status = (byte)IdempotencyStatus.Failed;
+            record.FailedAt = DateTime.UtcNow;
+            record.ErrorMessage = errorMessage;
+
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

@@ -26,43 +26,38 @@ namespace Vitorize.Api.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<ApiResult<VerificationProfileDto?>>> GetMyProfile()
         {
-            var userId = GetUserId();
-
-            var result = await _verificationService.GetMyProfileAsync(userId);
+            var result = await _verificationService.GetMyProfileAsync(GetUserId());
 
             return Ok(ApiResult<VerificationProfileDto?>.Success(
                 result,
-                "وضعیت احراز هویت با موفقیت دریافت شد."));
+                "وضعیت احراز هویت دریافت شد."));
         }
 
         [HttpPost("submit")]
         public async Task<ActionResult<ApiResult<VerificationProfileDto>>> Submit(
             SubmitVerificationRequestDto request)
         {
-            var userId = GetUserId();
-
-            var result = await _verificationService.SubmitAsync(userId, request);
+            var result = await _verificationService.SubmitAsync(
+                GetUserId(),
+                request);
 
             return Ok(ApiResult<VerificationProfileDto>.Success(
                 result,
-                "درخواست احراز هویت با موفقیت ثبت شد."));
+                "درخواست احراز هویت ثبت شد."));
         }
 
         [HttpPost("documents")]
         public async Task<ActionResult<ApiResult<VerificationDocumentDto>>> AddDocument(
-            [FromQuery] byte documentType,
-            [FromQuery] string filePath)
+            AddVerificationDocumentRequestDto request)
         {
-            var userId = GetUserId();
-
             var result = await _verificationService.AddDocumentAsync(
-                userId,
-                documentType,
-                filePath);
+                GetUserId(),
+                request.DocumentType,
+                request.FilePath);
 
             return Ok(ApiResult<VerificationDocumentDto>.Success(
                 result,
-                "مدرک احراز هویت با موفقیت ثبت شد."));
+                "مدرک احراز هویت ثبت شد."));
         }
 
         private Guid GetUserId()
