@@ -13,5 +13,7 @@ namespace Vitorize.Application.Interfaces
         Task<PaymentVerifyResultDto> VerifyZarinpalPaymentAsync(
             string authority,
             string status);
+
+        Task<int> ReconcilePendingZarinpalPaymentsAsync();
     }
 }

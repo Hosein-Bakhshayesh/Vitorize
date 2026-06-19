@@ -96,9 +96,20 @@ namespace Vitorize.Api.Controllers
         [AllowAnonymous]
         [HttpGet("zarinpal/callback")]
         public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> ZarinpalCallback(
-            [FromQuery] string authority,
-            [FromQuery] string status)
+            [FromQuery(Name = "Authority")] string? authority1,
+            [FromQuery(Name = "authority")] string? authority2,
+            [FromQuery(Name = "Status")] string? status1,
+            [FromQuery(Name = "status")] string? status2)
         {
+            var authority = authority1 ?? authority2;
+            var status = status1 ?? status2;
+
+            if (string.IsNullOrWhiteSpace(authority))
+                throw new BusinessException("Authority معتبر نیست.");
+
+            if (string.IsNullOrWhiteSpace(status))
+                status = "NOK";
+
             var result = await _paymentService.VerifyZarinpalPaymentAsync(
                 authority,
                 status);
@@ -108,6 +119,17 @@ namespace Vitorize.Api.Controllers
                 result.IsPaid
                     ? "پرداخت با موفقیت تایید شد."
                     : "پرداخت تایید نشد."));
+        }
+
+        [Authorize(Policy = "AdminOnly")]
+        [HttpPost("zarinpal/reconcile")]
+        public async Task<ActionResult<ApiResult<int>>> ReconcileZarinpal()
+        {
+            var count = await _paymentService.ReconcilePendingZarinpalPaymentsAsync();
+
+            return Ok(ApiResult<int>.Success(
+                count,
+                "بررسی پرداخت‌های معلق زرین‌پال انجام شد."));
         }
 
         private Guid GetUserId()

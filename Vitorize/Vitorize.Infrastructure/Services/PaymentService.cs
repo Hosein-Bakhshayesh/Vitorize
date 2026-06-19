@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -10,6 +11,8 @@ namespace Vitorize.Infrastructure.Services
 {
     public class PaymentService : IPaymentService
     {
+        private const string ZarinpalGatewayName = "Zarinpal";
+
         private readonly VitorizeDbContext _dbContext;
         private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
         private readonly ICouponService _couponService;
@@ -33,18 +36,14 @@ namespace Vitorize.Infrastructure.Services
             _zarinpalGatewayService = zarinpalGatewayService;
         }
 
-        public async Task<PaymentStartResultDto> StartPaymentAsync(
-            Guid userId,
-            Guid orderId)
+        public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
         {
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
             var order = await _dbContext.Orders
                 .Include(x => x.Payments)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == orderId &&
-                    x.UserId == userId);
+                .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId);
 
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
@@ -66,13 +65,25 @@ namespace Vitorize.Infrastructure.Services
             if (payment.Amount != order.FinalAmount)
                 throw new BusinessException("مبلغ پرداخت با مبلغ سفارش همخوانی ندارد.");
 
-            var description =
-                $"پرداخت سفارش {order.OrderNumber} در Vitorize";
+            if (payment.Gateway == ZarinpalGatewayName &&
+                !string.IsNullOrWhiteSpace(payment.Authority))
+            {
+                return new PaymentStartResultDto
+                {
+                    PaymentId = payment.Id,
+                    OrderId = order.Id,
+                    Amount = payment.Amount,
+                    Gateway = payment.Gateway,
+                    Authority = payment.Authority,
+                    PaymentUrl = $"/payments/redirect?authority={payment.Authority}"
+                };
+            }
 
-            var gatewayResult =
-                await _zarinpalGatewayService.CreatePaymentAsync(
-                    payment.Amount,
-                    description);
+            var description = $"پرداخت سفارش {order.OrderNumber} در Vitorize";
+
+            var gatewayResult = await _zarinpalGatewayService.CreatePaymentAsync(
+                payment.Amount,
+                description);
 
             if (!gatewayResult.Success)
             {
@@ -85,8 +96,16 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("امکان اتصال به درگاه پرداخت وجود ندارد.");
             }
 
-            payment.Gateway = "Zarinpal";
+            payment.Gateway = ZarinpalGatewayName;
             payment.Authority = gatewayResult.Authority;
+            payment.RawRequestData = JsonSerializer.Serialize(new
+            {
+                order.Id,
+                order.OrderNumber,
+                payment.Amount,
+                description
+            });
+            payment.RawResponseData = JsonSerializer.Serialize(gatewayResult);
             payment.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
@@ -102,66 +121,6 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
-        public async Task<PaymentVerifyResultDto> VerifyMockPaymentAsync(
-            Guid userId,
-            Guid paymentId)
-        {
-            if (userId == Guid.Empty)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            await using var transaction =
-                await _dbContext.Database.BeginTransactionAsync();
-
-            try
-            {
-                var payment = await _dbContext.Payments
-                    .Include(x => x.Order)
-                        .ThenInclude(x => x.GiftCodeReservations)
-                    .Include(x => x.Order)
-                        .ThenInclude(x => x.OrderItems)
-                    .FirstOrDefaultAsync(x =>
-                        x.Id == paymentId &&
-                        x.UserId == userId);
-
-                if (payment == null)
-                    throw new NotFoundException("پرداخت یافت نشد.");
-
-                var order = payment.Order;
-
-                if (payment.Status == (byte)PaymentStatus.Paid)
-                {
-                    await transaction.CommitAsync();
-
-                    return CreateVerifyResult(payment, order);
-                }
-
-                if (payment.Status != (byte)PaymentStatus.Pending)
-                    throw new BusinessException("وضعیت پرداخت قابل تایید نیست.");
-
-                if (payment.Amount != order.FinalAmount)
-                    throw new BusinessException("مبلغ پرداخت معتبر نیست.");
-
-                var now = DateTime.UtcNow;
-
-                payment.Status = (byte)PaymentStatus.Paid;
-                payment.CallbackVerified = true;
-                payment.VerifiedAt = now;
-                payment.UpdatedAt = now;
-                payment.ReferenceNumber = $"MOCK-REF-{now:yyyyMMddHHmmss}";
-
-                await CompletePaidOrderAsync(order, userId, now);
-
-                await transaction.CommitAsync();
-
-                return CreateVerifyResult(payment, order);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
         public async Task<PaymentVerifyResultDto> VerifyZarinpalPaymentAsync(
             string authority,
             string status)
@@ -169,33 +128,30 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(authority))
                 throw new BusinessException("Authority معتبر نیست.");
 
-            await using var transaction =
-                await _dbContext.Database.BeginTransactionAsync();
+            var normalizedStatus = string.IsNullOrWhiteSpace(status)
+                ? "NOK"
+                : status.Trim();
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
             try
             {
                 var payment = await _dbContext.Payments
+                    .Include(x => x.PaymentCallbacks)
                     .Include(x => x.Order)
                         .ThenInclude(x => x.GiftCodeReservations)
                     .Include(x => x.Order)
                         .ThenInclude(x => x.OrderItems)
                     .FirstOrDefaultAsync(x =>
                         x.Authority == authority &&
-                        x.Gateway == "Zarinpal");
+                        x.Gateway == ZarinpalGatewayName);
 
                 if (payment == null)
                     throw new NotFoundException("پرداخت یافت نشد.");
 
-                await _dbContext.PaymentCallbacks.AddAsync(new PaymentCallback
-                {
-                    Id = Guid.NewGuid(),
-                    PaymentId = payment.Id,
-                    CallbackData =
-                        $"Authority={authority};Status={status}",
-                    CreatedAt = DateTime.UtcNow
-                });
-
                 var order = payment.Order;
+
+                await AddCallbackIfNotExistsAsync(payment, authority, normalizedStatus);
 
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
@@ -205,11 +161,12 @@ namespace Vitorize.Infrastructure.Services
                     return CreateVerifyResult(payment, order);
                 }
 
-                if (!string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(normalizedStatus, "OK", StringComparison.OrdinalIgnoreCase))
                 {
-                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.Status = (byte)PaymentStatus.Cancelled;
+                    payment.CallbackVerified = false;
+                    payment.ProviderStatusCode = normalizedStatus;
                     payment.ErrorMessage = "پرداخت توسط کاربر لغو شد یا ناموفق بود.";
-                    payment.ProviderStatusCode = status;
                     payment.UpdatedAt = DateTime.UtcNow;
 
                     await _dbContext.SaveChangesAsync();
@@ -224,10 +181,18 @@ namespace Vitorize.Infrastructure.Services
                 if (payment.Amount != order.FinalAmount)
                     throw new BusinessException("مبلغ پرداخت معتبر نیست.");
 
-                var verifyResult =
-                    await _zarinpalGatewayService.VerifyPaymentAsync(
-                        authority,
-                        payment.Amount);
+                var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
+                    authority,
+                    payment.Amount);
+
+                payment.RawResponseData = JsonSerializer.Serialize(new
+                {
+                    Type = "ZarinpalVerify",
+                    Authority = authority,
+                    Amount = payment.Amount,
+                    Result = verifyResult,
+                    VerifiedAt = DateTime.UtcNow
+                });
 
                 if (!verifyResult.Success)
                 {
@@ -267,15 +232,143 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
-        public async Task<PaymentVerifyResultDto> PayWithWalletAsync(
-            Guid userId,
-            Guid orderId)
+        public async Task<int> ReconcilePendingZarinpalPaymentsAsync()
+        {
+            var threshold = DateTime.UtcNow.AddMinutes(-30);
+
+            var payments = await _dbContext.Payments
+                .Include(x => x.Order)
+                    .ThenInclude(x => x.GiftCodeReservations)
+                .Include(x => x.Order)
+                    .ThenInclude(x => x.OrderItems)
+                .Where(x =>
+                    x.Gateway == ZarinpalGatewayName &&
+                    x.Status == (byte)PaymentStatus.Pending &&
+                    x.Authority != null &&
+                    x.RequestedAt <= threshold)
+                .OrderBy(x => x.RequestedAt)
+                .Take(50)
+                .ToListAsync();
+
+            var processed = 0;
+
+            foreach (var payment in payments)
+            {
+                try
+                {
+                    var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
+                        payment.Authority!,
+                        payment.Amount);
+
+                    payment.RawResponseData = JsonSerializer.Serialize(new
+                    {
+                        Type = "ZarinpalReconcile",
+                        payment.Authority,
+                        payment.Amount,
+                        Result = verifyResult,
+                        CheckedAt = DateTime.UtcNow
+                    });
+
+                    if (verifyResult.Success)
+                    {
+                        var now = DateTime.UtcNow;
+
+                        payment.Status = (byte)PaymentStatus.Paid;
+                        payment.CallbackVerified = true;
+                        payment.VerifiedAt = now;
+                        payment.UpdatedAt = now;
+                        payment.ReferenceNumber = verifyResult.RefId.ToString();
+                        payment.TransactionId = payment.Authority;
+                        payment.GatewayTrackingCode = verifyResult.RefId.ToString();
+                        payment.ProviderStatusCode = "100";
+
+                        await CompletePaidOrderAsync(payment.Order, payment.UserId, now);
+                    }
+                    else
+                    {
+                        payment.Status = (byte)PaymentStatus.Failed;
+                        payment.CallbackVerified = false;
+                        payment.ProviderStatusCode = "RECONCILE_FAILED";
+                        payment.ErrorMessage = "پرداخت معلق پس از بررسی مجدد تایید نشد.";
+                        payment.UpdatedAt = DateTime.UtcNow;
+
+                        await _dbContext.SaveChangesAsync();
+                    }
+
+                    processed++;
+                }
+                catch (Exception ex)
+                {
+                    payment.ErrorMessage = $"Reconcile error: {ex.Message}";
+                    payment.UpdatedAt = DateTime.UtcNow;
+
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+
+            return processed;
+        }
+
+        public async Task<PaymentVerifyResultDto> VerifyMockPaymentAsync(Guid userId, Guid paymentId)
         {
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            await using var transaction =
-                await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            try
+            {
+                var payment = await _dbContext.Payments
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.GiftCodeReservations)
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.OrderItems)
+                    .FirstOrDefaultAsync(x => x.Id == paymentId && x.UserId == userId);
+
+                if (payment == null)
+                    throw new NotFoundException("پرداخت یافت نشد.");
+
+                var order = payment.Order;
+
+                if (payment.Status == (byte)PaymentStatus.Paid)
+                {
+                    await transaction.CommitAsync();
+                    return CreateVerifyResult(payment, order);
+                }
+
+                if (payment.Status != (byte)PaymentStatus.Pending)
+                    throw new BusinessException("وضعیت پرداخت قابل تایید نیست.");
+
+                if (payment.Amount != order.FinalAmount)
+                    throw new BusinessException("مبلغ پرداخت معتبر نیست.");
+
+                var now = DateTime.UtcNow;
+
+                payment.Status = (byte)PaymentStatus.Paid;
+                payment.CallbackVerified = true;
+                payment.VerifiedAt = now;
+                payment.UpdatedAt = now;
+                payment.ReferenceNumber = $"MOCK-REF-{now:yyyyMMddHHmmss}";
+
+                await CompletePaidOrderAsync(order, userId, now);
+
+                await transaction.CommitAsync();
+
+                return CreateVerifyResult(payment, order);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<PaymentVerifyResultDto> PayWithWalletAsync(Guid userId, Guid orderId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
             try
             {
@@ -283,9 +376,7 @@ namespace Vitorize.Infrastructure.Services
                     .Include(x => x.GiftCodeReservations)
                     .Include(x => x.OrderItems)
                     .Include(x => x.Payments)
-                    .FirstOrDefaultAsync(x =>
-                        x.Id == orderId &&
-                        x.UserId == userId);
+                    .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId);
 
                 if (order == null)
                     throw new NotFoundException("سفارش یافت نشد.");
@@ -337,11 +428,41 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
-        private async Task CompletePaidOrderAsync(
-            Order order,
-            Guid userId,
-            DateTime now)
+        private async Task AddCallbackIfNotExistsAsync(
+            Payment payment,
+            string authority,
+            string status)
         {
+            var alreadyExists = payment.PaymentCallbacks.Any(x =>
+                x.CallbackData.Contains($"\"authority\":\"{authority}\"") &&
+                x.CallbackData.Contains($"\"status\":\"{status}\""));
+
+            if (alreadyExists)
+                return;
+
+            var callbackJson = JsonSerializer.Serialize(new
+            {
+                authority,
+                status,
+                paymentId = payment.Id,
+                orderId = payment.OrderId,
+                receivedAt = DateTime.UtcNow
+            });
+
+            await _dbContext.PaymentCallbacks.AddAsync(new PaymentCallback
+            {
+                Id = Guid.NewGuid(),
+                PaymentId = payment.Id,
+                CallbackData = callbackJson,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        private async Task CompletePaidOrderAsync(Order order, Guid userId, DateTime now)
+        {
+            if (order.PaymentStatus == (byte)PaymentStatus.Paid)
+                return;
+
             order.PaymentStatus = (byte)PaymentStatus.Paid;
             order.Status = (byte)OrderStatus.Processing;
             order.PaidAt = now;
@@ -387,9 +508,7 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
-            await _giftCodeDeliveryService.DeliverOrderAsync(
-                order.Id,
-                userId);
+            await _giftCodeDeliveryService.DeliverOrderAsync(order.Id, userId);
 
             await _notificationService.CreateAsync(
                 userId,
@@ -398,9 +517,7 @@ namespace Vitorize.Infrastructure.Services
                 $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
         }
 
-        private static PaymentVerifyResultDto CreateVerifyResult(
-            Payment payment,
-            Order order)
+        private static PaymentVerifyResultDto CreateVerifyResult(Payment payment, Order order)
         {
             return new PaymentVerifyResultDto
             {
@@ -413,9 +530,7 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
-        private static PaymentVerifyResultDto CreateFailedVerifyResult(
-            Payment payment,
-            Order order)
+        private static PaymentVerifyResultDto CreateFailedVerifyResult(Payment payment, Order order)
         {
             return new PaymentVerifyResultDto
             {
