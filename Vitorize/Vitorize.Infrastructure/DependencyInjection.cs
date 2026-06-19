@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
+using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
 
@@ -50,9 +51,15 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminUserService, AdminUserService>();
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
+            services.AddScoped<IZarinpalGatewayService, ZarinpalGatewayService>();
+            services.AddHttpClient<IZarinpalGatewayService, ZarinpalGatewayService>();
 
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
+
+            services.Configure<ZarinpalSettings>(
+                configuration.GetSection("Zarinpal"));
+
 
             // Framework Services
             services.AddHttpContextAccessor();

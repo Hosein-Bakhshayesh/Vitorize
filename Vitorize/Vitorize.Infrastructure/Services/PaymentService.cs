@@ -15,19 +15,22 @@ namespace Vitorize.Infrastructure.Services
         private readonly ICouponService _couponService;
         private readonly IWalletService _walletService;
         private readonly INotificationService _notificationService;
+        private readonly IZarinpalGatewayService _zarinpalGatewayService;
 
         public PaymentService(
             VitorizeDbContext dbContext,
             IGiftCodeDeliveryService giftCodeDeliveryService,
             ICouponService couponService,
             IWalletService walletService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IZarinpalGatewayService zarinpalGatewayService)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
             _couponService = couponService;
             _walletService = walletService;
             _notificationService = notificationService;
+            _zarinpalGatewayService = zarinpalGatewayService;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(
@@ -49,6 +52,9 @@ namespace Vitorize.Infrastructure.Services
             if (order.PaymentStatus == (byte)PaymentStatus.Paid)
                 throw new BusinessException("این سفارش قبلاً پرداخت شده است.");
 
+            if (order.FinalAmount <= 0)
+                throw new BusinessException("مبلغ سفارش معتبر نیست.");
+
             var payment = order.Payments
                 .Where(x => x.Status == (byte)PaymentStatus.Pending)
                 .OrderByDescending(x => x.RequestedAt)
@@ -60,7 +66,27 @@ namespace Vitorize.Infrastructure.Services
             if (payment.Amount != order.FinalAmount)
                 throw new BusinessException("مبلغ پرداخت با مبلغ سفارش همخوانی ندارد.");
 
-            payment.Authority ??= $"MOCK-{Guid.NewGuid():N}";
+            var description =
+                $"پرداخت سفارش {order.OrderNumber} در Vitorize";
+
+            var gatewayResult =
+                await _zarinpalGatewayService.CreatePaymentAsync(
+                    payment.Amount,
+                    description);
+
+            if (!gatewayResult.Success)
+            {
+                payment.Status = (byte)PaymentStatus.Failed;
+                payment.ErrorMessage = "خطا در ایجاد درخواست پرداخت زرین‌پال.";
+                payment.UpdatedAt = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+
+                throw new BusinessException("امکان اتصال به درگاه پرداخت وجود ندارد.");
+            }
+
+            payment.Gateway = "Zarinpal";
+            payment.Authority = gatewayResult.Authority;
             payment.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
@@ -72,7 +98,7 @@ namespace Vitorize.Infrastructure.Services
                 Amount = payment.Amount,
                 Gateway = payment.Gateway,
                 Authority = payment.Authority,
-                PaymentUrl = $"/mock-payment/pay?paymentId={payment.Id}"
+                PaymentUrl = gatewayResult.PaymentUrl
             };
         }
 
@@ -124,6 +150,111 @@ namespace Vitorize.Infrastructure.Services
                 payment.ReferenceNumber = $"MOCK-REF-{now:yyyyMMddHHmmss}";
 
                 await CompletePaidOrderAsync(order, userId, now);
+
+                await transaction.CommitAsync();
+
+                return CreateVerifyResult(payment, order);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<PaymentVerifyResultDto> VerifyZarinpalPaymentAsync(
+            string authority,
+            string status)
+        {
+            if (string.IsNullOrWhiteSpace(authority))
+                throw new BusinessException("Authority معتبر نیست.");
+
+            await using var transaction =
+                await _dbContext.Database.BeginTransactionAsync();
+
+            try
+            {
+                var payment = await _dbContext.Payments
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.GiftCodeReservations)
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.OrderItems)
+                    .FirstOrDefaultAsync(x =>
+                        x.Authority == authority &&
+                        x.Gateway == "Zarinpal");
+
+                if (payment == null)
+                    throw new NotFoundException("پرداخت یافت نشد.");
+
+                await _dbContext.PaymentCallbacks.AddAsync(new PaymentCallback
+                {
+                    Id = Guid.NewGuid(),
+                    PaymentId = payment.Id,
+                    CallbackData =
+                        $"Authority={authority};Status={status}",
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                var order = payment.Order;
+
+                if (payment.Status == (byte)PaymentStatus.Paid)
+                {
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return CreateVerifyResult(payment, order);
+                }
+
+                if (!string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                {
+                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.ErrorMessage = "پرداخت توسط کاربر لغو شد یا ناموفق بود.";
+                    payment.ProviderStatusCode = status;
+                    payment.UpdatedAt = DateTime.UtcNow;
+
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return CreateFailedVerifyResult(payment, order);
+                }
+
+                if (payment.Status != (byte)PaymentStatus.Pending)
+                    throw new BusinessException("وضعیت پرداخت قابل تایید نیست.");
+
+                if (payment.Amount != order.FinalAmount)
+                    throw new BusinessException("مبلغ پرداخت معتبر نیست.");
+
+                var verifyResult =
+                    await _zarinpalGatewayService.VerifyPaymentAsync(
+                        authority,
+                        payment.Amount);
+
+                if (!verifyResult.Success)
+                {
+                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.CallbackVerified = false;
+                    payment.ProviderStatusCode = "VERIFY_FAILED";
+                    payment.ErrorMessage = "تایید پرداخت زرین‌پال ناموفق بود.";
+                    payment.UpdatedAt = DateTime.UtcNow;
+
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return CreateFailedVerifyResult(payment, order);
+                }
+
+                var now = DateTime.UtcNow;
+
+                payment.Status = (byte)PaymentStatus.Paid;
+                payment.CallbackVerified = true;
+                payment.VerifiedAt = now;
+                payment.UpdatedAt = now;
+                payment.ReferenceNumber = verifyResult.RefId.ToString();
+                payment.TransactionId = authority;
+                payment.GatewayTrackingCode = verifyResult.RefId.ToString();
+                payment.ProviderStatusCode = "100";
+
+                await CompletePaidOrderAsync(order, payment.UserId, now);
 
                 await transaction.CommitAsync();
 
@@ -276,6 +407,21 @@ namespace Vitorize.Infrastructure.Services
                 PaymentId = payment.Id,
                 OrderId = order.Id,
                 IsPaid = true,
+                ReferenceNumber = payment.ReferenceNumber,
+                PaymentStatus = payment.Status,
+                OrderStatus = order.Status
+            };
+        }
+
+        private static PaymentVerifyResultDto CreateFailedVerifyResult(
+            Payment payment,
+            Order order)
+        {
+            return new PaymentVerifyResultDto
+            {
+                PaymentId = payment.Id,
+                OrderId = order.Id,
+                IsPaid = false,
                 ReferenceNumber = payment.ReferenceNumber,
                 PaymentStatus = payment.Status,
                 OrderStatus = order.Status

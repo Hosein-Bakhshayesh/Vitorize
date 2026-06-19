@@ -29,14 +29,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("start/{orderId:guid}")]
-        public async Task<ActionResult<ApiResult<PaymentStartResultDto>>> Start(
-            Guid orderId)
+        public async Task<ActionResult<ApiResult<PaymentStartResultDto>>> Start(Guid orderId)
         {
             var userId = GetUserId();
 
-            var result = await _paymentService.StartPaymentAsync(
-                userId,
-                orderId);
+            var result = await _paymentService.StartPaymentAsync(userId, orderId);
 
             return Ok(ApiResult<PaymentStartResultDto>.Success(
                 result,
@@ -44,14 +41,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("mock/verify/{paymentId:guid}")]
-        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> VerifyMock(
-            Guid paymentId)
+        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> VerifyMock(Guid paymentId)
         {
             var userId = GetUserId();
 
-            var result = await _paymentService.VerifyMockPaymentAsync(
-                userId,
-                paymentId);
+            var result = await _paymentService.VerifyMockPaymentAsync(userId, paymentId);
 
             return Ok(ApiResult<PaymentVerifyResultDto>.Success(
                 result,
@@ -59,13 +53,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("wallet/pay/{orderId:guid}")]
-        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> PayWithWallet(
-            Guid orderId)
+        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> PayWithWallet(Guid orderId)
         {
             var userId = GetUserId();
 
-            var idempotencyKey =
-                Request.Headers["Idempotency-Key"].FirstOrDefault();
+            var idempotencyKey = Request.Headers["Idempotency-Key"].FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(idempotencyKey))
                 throw new BusinessException("Idempotency-Key الزامی است.");
@@ -77,16 +69,11 @@ namespace Vitorize.Api.Controllers
                 Action = "WalletPay"
             });
 
-            await _idempotencyService.StartAsync(
-                userId,
-                idempotencyKey,
-                requestHash);
+            await _idempotencyService.StartAsync(userId, idempotencyKey, requestHash);
 
             try
             {
-                var result = await _paymentService.PayWithWalletAsync(
-                    userId,
-                    orderId);
+                var result = await _paymentService.PayWithWalletAsync(userId, orderId);
 
                 var response = ApiResult<PaymentVerifyResultDto>.Success(
                     result,
@@ -101,12 +88,26 @@ namespace Vitorize.Api.Controllers
             }
             catch (Exception ex)
             {
-                await _idempotencyService.FailAsync(
-                    idempotencyKey,
-                    ex.Message);
-
+                await _idempotencyService.FailAsync(idempotencyKey, ex.Message);
                 throw;
             }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("zarinpal/callback")]
+        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> ZarinpalCallback(
+            [FromQuery] string authority,
+            [FromQuery] string status)
+        {
+            var result = await _paymentService.VerifyZarinpalPaymentAsync(
+                authority,
+                status);
+
+            return Ok(ApiResult<PaymentVerifyResultDto>.Success(
+                result,
+                result.IsPaid
+                    ? "پرداخت با موفقیت تایید شد."
+                    : "پرداخت تایید نشد."));
         }
 
         private Guid GetUserId()
