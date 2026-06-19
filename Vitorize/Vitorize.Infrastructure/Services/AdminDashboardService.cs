@@ -10,107 +10,186 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
 
-        public AdminDashboardService(
-            VitorizeDbContext dbContext)
+        public AdminDashboardService(VitorizeDbContext dbContext)
         {
             _dbContext = dbContext;
         }
 
         public async Task<DashboardDto> GetDashboardAsync()
         {
-            var today = DateTime.UtcNow.Date;
-
-            var monthStart =
-                new DateTime(
-                    DateTime.UtcNow.Year,
-                    DateTime.UtcNow.Month,
-                    1);
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            var tomorrow = today.AddDays(1);
+            var monthStart = new DateTime(now.Year, now.Month, 1);
+            var last7DaysStart = today.AddDays(-6);
 
             var summary = new DashboardSummaryDto
             {
-                TotalUsers =
-                    await _dbContext.Users.CountAsync(),
+                TotalUsers = await _dbContext.Users
+                    .CountAsync(x => !x.IsDeleted),
 
-                NewUsersToday =
-                    await _dbContext.Users
-                        .CountAsync(x =>
-                            x.CreatedAt >= today),
+                NewUsersToday = await _dbContext.Users
+                    .CountAsync(x =>
+                        !x.IsDeleted &&
+                        x.CreatedAt >= today &&
+                        x.CreatedAt < tomorrow),
 
-                TotalOrders =
-                    await _dbContext.Orders.CountAsync(),
+                TotalOrders = await _dbContext.Orders
+                    .CountAsync(),
 
-                OrdersToday =
-                    await _dbContext.Orders
-                        .CountAsync(x =>
-                            x.CreatedAt >= today),
+                OrdersToday = await _dbContext.Orders
+                    .CountAsync(x =>
+                        x.CreatedAt >= today &&
+                        x.CreatedAt < tomorrow),
 
-                RevenueToday =
-                    await _dbContext.Orders
-                        .Where(x =>
-                            x.PaidAt != null &&
-                            x.PaidAt >= today)
-                        .SumAsync(x =>
-                            (decimal?)x.FinalAmount)
-                        ?? 0,
+                RevenueToday = await _dbContext.Orders
+                    .Where(x =>
+                        x.PaidAt != null &&
+                        x.PaidAt >= today &&
+                        x.PaidAt < tomorrow)
+                    .SumAsync(x => (decimal?)x.FinalAmount) ?? 0,
 
-                RevenueThisMonth =
-                    await _dbContext.Orders
-                        .Where(x =>
-                            x.PaidAt != null &&
-                            x.PaidAt >= monthStart)
-                        .SumAsync(x =>
-                            (decimal?)x.FinalAmount)
-                        ?? 0,
+                RevenueThisMonth = await _dbContext.Orders
+                    .Where(x =>
+                        x.PaidAt != null &&
+                        x.PaidAt >= monthStart)
+                    .SumAsync(x => (decimal?)x.FinalAmount) ?? 0,
 
-                PendingTickets =
-                    await _dbContext.Tickets
-                        .CountAsync(x =>
-                            x.Status != (byte)TicketStatus.Closed),
+                TotalWalletBalance = await _dbContext.Wallets
+                    .SumAsync(x => (decimal?)x.Balance) ?? 0,
 
-                PendingVerifications =
-                    await _dbContext.Users
-                        .CountAsync(x =>
-                            x.VerificationStatus ==
-                            (byte)VerificationStatus.Pending),
+                PendingTickets = await _dbContext.Tickets
+                    .CountAsync(x =>
+                        x.Status != (byte)TicketStatus.Closed),
 
-                UnreadNotifications =
-                    await _dbContext.Notifications
-                        .CountAsync(x =>
-                            !x.IsRead),
+                PendingVerifications = await _dbContext.UserVerificationProfiles
+                    .CountAsync(x =>
+                        x.Status == (byte)VerificationStatus.Pending),
 
-                AvailableGiftCodes =
-                    await _dbContext.GiftCodes
-                        .CountAsync(x =>
-                            x.Status ==
-                            (byte)GiftCodeStatus.Available),
-                            };
+                UnreadNotifications = await _dbContext.Notifications
+                    .CountAsync(x => !x.IsRead),
 
-            var topProducts =
-                await _dbContext.OrderItems
-                    .GroupBy(x => new
+                AvailableGiftCodes = await _dbContext.GiftCodes
+                    .CountAsync(x =>
+                        x.Status == (byte)GiftCodeStatus.Available),
+
+                ReservedGiftCodes = await _dbContext.GiftCodes
+                    .CountAsync(x =>
+                        x.Status == (byte)GiftCodeStatus.Reserved),
+
+                SoldGiftCodes = await _dbContext.GiftCodes
+                    .CountAsync(x =>
+                        x.Status == (byte)GiftCodeStatus.Sold ||
+                        x.Status == (byte)GiftCodeStatus.Delivered)
+            };
+
+            var topProducts = await _dbContext.OrderItems
+                .Where(x =>
+                    x.Order.PaymentStatus == (byte)PaymentStatus.Paid)
+                .GroupBy(x => new
+                {
+                    x.ProductId,
+                    x.ProductTitle
+                })
+                .Select(x => new TopProductDto
+                {
+                    ProductId = x.Key.ProductId,
+                    ProductTitle = x.Key.ProductTitle,
+                    TotalSold = x.Sum(i => i.Quantity),
+                    Revenue = x.Sum(i => i.TotalPrice)
+                })
+                .OrderByDescending(x => x.Revenue)
+                .Take(10)
+                .ToListAsync();
+
+            var salesRaw = await _dbContext.Orders
+                .Where(x =>
+                    x.PaidAt != null &&
+                    x.PaidAt >= last7DaysStart)
+                .GroupBy(x => x.PaidAt!.Value.Date)
+                .Select(x => new
+                {
+                    Date = x.Key,
+                    Value = x.Sum(i => i.FinalAmount)
+                })
+                .ToListAsync();
+
+            var ordersRaw = await _dbContext.Orders
+                .Where(x => x.CreatedAt >= last7DaysStart)
+                .GroupBy(x => x.CreatedAt.Date)
+                .Select(x => new
+                {
+                    Date = x.Key,
+                    Count = x.Count()
+                })
+                .ToListAsync();
+
+            var salesLast7Days = Enumerable.Range(0, 7)
+                .Select(i =>
+                {
+                    var date = last7DaysStart.AddDays(i);
+
+                    return new DashboardChartPointDto
                     {
-                        x.ProductId,
-                        x.ProductTitle
-                    })
-                    .Select(x => new TopProductDto
+                        Date = date,
+                        Value = salesRaw
+                            .FirstOrDefault(x => x.Date == date)
+                            ?.Value ?? 0
+                    };
+                })
+                .ToList();
+
+            var ordersLast7Days = Enumerable.Range(0, 7)
+                .Select(i =>
+                {
+                    var date = last7DaysStart.AddDays(i);
+
+                    return new DashboardChartPointDto
                     {
-                        ProductId = x.Key.ProductId,
-                        ProductTitle = x.Key.ProductTitle,
+                        Date = date,
+                        Value = ordersRaw
+                            .FirstOrDefault(x => x.Date == date)
+                            ?.Count ?? 0
+                    };
+                })
+                .ToList();
 
-                        TotalSold =
-                            x.Sum(i => i.Quantity),
+            var orderStatusCounts = await _dbContext.Orders
+                .GroupBy(x => x.Status)
+                .Select(x => new DashboardStatusCountDto
+                {
+                    Status = x.Key,
+                    Count = x.Count()
+                })
+                .ToListAsync();
 
-                        Revenue =
-                            x.Sum(i => i.TotalPrice)
-                    })
-                    .OrderByDescending(x => x.TotalSold)
-                    .Take(10)
-                    .ToListAsync();
+            var paymentStatusCounts = await _dbContext.Payments
+                .GroupBy(x => x.Status)
+                .Select(x => new DashboardStatusCountDto
+                {
+                    Status = x.Key,
+                    Count = x.Count()
+                })
+                .ToListAsync();
+
+            var giftCodeStatusCounts = await _dbContext.GiftCodes
+                .GroupBy(x => x.Status)
+                .Select(x => new DashboardStatusCountDto
+                {
+                    Status = x.Key,
+                    Count = x.Count()
+                })
+                .ToListAsync();
 
             return new DashboardDto
             {
                 Summary = summary,
-                TopProducts = topProducts
+                TopProducts = topProducts,
+                SalesLast7Days = salesLast7Days,
+                OrdersLast7Days = ordersLast7Days,
+                OrderStatusCounts = orderStatusCounts,
+                PaymentStatusCounts = paymentStatusCounts,
+                GiftCodeStatusCounts = giftCodeStatusCounts
             };
         }
     }

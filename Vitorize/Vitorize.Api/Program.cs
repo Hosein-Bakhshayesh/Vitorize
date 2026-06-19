@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -114,6 +115,8 @@ namespace Vitorize.Api
             });
 
             builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
+
+            builder.Services.AddApplication();
 
             var app = builder.Build();
 
