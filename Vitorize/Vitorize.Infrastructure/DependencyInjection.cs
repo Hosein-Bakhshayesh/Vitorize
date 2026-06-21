@@ -53,6 +53,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<IZarinpalGatewayService, ZarinpalGatewayService>();
             services.AddScoped<ISettingService, SettingService>();
+            services.AddScoped<IAdminReportService, AdminReportService>();
+            services.AddScoped<IStorefrontService, StorefrontService>();
 
             services.AddHttpClient<IZarinpalGatewayService, ZarinpalGatewayService>();
 
