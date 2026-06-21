@@ -52,6 +52,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<IZarinpalGatewayService, ZarinpalGatewayService>();
+            services.AddScoped<ISettingService, SettingService>();
+
             services.AddHttpClient<IZarinpalGatewayService, ZarinpalGatewayService>();
 
             services.Configure<EncryptionSettings>(
