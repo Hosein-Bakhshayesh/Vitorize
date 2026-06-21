@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -114,6 +115,31 @@ namespace Vitorize.Api
                     policy.RequireRole("Support", "Admin", "SuperAdmin"));
             });
 
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.AddFixedWindowLimiter("login", opt =>
+                {
+                    opt.PermitLimit = 5;
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                    opt.QueueLimit = 0;
+                });
+
+                options.AddFixedWindowLimiter("otp", opt =>
+                {
+                    opt.PermitLimit = 3;
+                    opt.Window = TimeSpan.FromMinutes(1);
+                });
+
+                options.AddFixedWindowLimiter("register", opt =>
+                {
+                    opt.PermitLimit = 3;
+                    opt.Window = TimeSpan.FromMinutes(5);
+                });
+            });
+
             builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
             builder.Services.AddHostedService<BackgroundJobProcessor>();
 
@@ -136,6 +162,8 @@ namespace Vitorize.Api
             app.UseAuthentication();
 
             app.UseAuthorization();
+
+            app.UseRateLimiter();
 
             app.MapControllers();
 

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Vitorize.Application.DTOs.Auth;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
@@ -22,6 +23,7 @@ namespace Vitorize.Api.Controllers
             _currentUserService = currentUserService;
         }
 
+        [EnableRateLimiting("register")]
         [HttpPost("register")]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> Register(RegisterRequestDto request)
         {
@@ -32,6 +34,7 @@ namespace Vitorize.Api.Controllers
                 "ثبت‌نام با موفقیت انجام شد."));
         }
 
+        [EnableRateLimiting("login")]
         [HttpPost("login")]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> Login(LoginRequestDto request)
         {
@@ -111,6 +114,7 @@ namespace Vitorize.Api.Controllers
             return Ok(ApiResult.Success("رمز عبور با موفقیت بازیابی شد."));
         }
 
+        [EnableRateLimiting("otp")]
         [HttpPost("send-otp")]
         public async Task<ActionResult<ApiResult>> SendOtp(SendOtpRequestDto request)
         {
