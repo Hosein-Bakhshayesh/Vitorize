@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal;
+using Vitorize.Infrastructure.Interceptors;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
 
@@ -15,9 +16,12 @@ namespace Vitorize.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            services.AddDbContext<VitorizeDbContext>(options =>
+            services.AddDbContext<VitorizeDbContext>((serviceProvider, options) =>
             {
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
+
+                options.AddInterceptors(
+                    serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>());
             });
 
             // Authentication
@@ -54,6 +58,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<ISettingService, SettingService>();
             services.AddScoped<IAdminReportService, AdminReportService>();
             services.AddScoped<IStorefrontService, StorefrontService>();
+            services.AddScoped<AuditSaveChangesInterceptor>();
 
             services.AddHttpClient<IZarinpalGatewayService, ZarinpalGatewayService>();
 

@@ -42,6 +42,8 @@ namespace Vitorize.Infrastructure.Interceptors
                     x.Entity is not ErrorLog &&
                     x.Entity is not SecurityLog &&
                     x.Entity is not OutboxMessage &&
+                    x.Entity is not IdempotencyKey &&
+                    x.Entity is not PaymentCallback &&
                     x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
                 .ToList();
 
