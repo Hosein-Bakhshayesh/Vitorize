@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
 
@@ -7,6 +8,7 @@ namespace Vitorize.Api.Controllers
 {
     [ApiController]
     [Route("api/health")]
+    [SwaggerTag("Health check APIs for monitoring API, database, settings and payment configuration.")]
     public class HealthController : ControllerBase
     {
         private readonly VitorizeDbContext _dbContext;
@@ -21,6 +23,10 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpGet]
+        [SwaggerOperation(
+            Summary = "وضعیت کلی سیستم",
+            Description = "بررسی سلامت API، دیتابیس، تنظیمات اصلی و پیکربندی پرداخت.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Check()
         {
             var result = new
@@ -42,6 +48,10 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpGet("db")]
+        [SwaggerOperation(
+            Summary = "وضعیت دیتابیس",
+            Description = "بررسی اتصال به SQL Server و دریافت یک آمار ساده از محصولات.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> CheckDatabaseOnly()
         {
             return Ok(await CheckDatabase());
@@ -104,7 +114,7 @@ namespace Vitorize.Api.Controllers
                     await _settingService.GetValueAsync("ZarinpalMerchantId");
 
                 var sandbox =
-                    await _settingService.GetValueAsync("ZarinpalSandbox");
+                    await _settingService.GetValueAsync("ZarinpalIsSandbox");
 
                 return new
                 {

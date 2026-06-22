@@ -38,6 +38,8 @@ namespace Vitorize.Api
                     Version = "v1"
                 });
 
+                options.EnableAnnotations();
+
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",

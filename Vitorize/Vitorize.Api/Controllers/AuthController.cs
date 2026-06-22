@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.DTOs.Auth;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
@@ -10,6 +11,7 @@ namespace Vitorize.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [SwaggerTag("Authentication APIs for register, login, token refresh, OTP and password management.")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -25,6 +27,12 @@ namespace Vitorize.Api.Controllers
 
         [EnableRateLimiting("register")]
         [HttpPost("register")]
+        [SwaggerOperation(
+            Summary = "ثبت‌نام کاربر",
+            Description = "ایجاد حساب کاربری جدید برای مشتری و دریافت AccessToken و RefreshToken.")]
+        [ProducesResponseType(typeof(ApiResult<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> Register(RegisterRequestDto request)
         {
             var result = await _authService.RegisterAsync(request);
@@ -36,6 +44,12 @@ namespace Vitorize.Api.Controllers
 
         [EnableRateLimiting("login")]
         [HttpPost("login")]
+        [SwaggerOperation(
+            Summary = "ورود کاربر",
+            Description = "ورود با شماره موبایل و رمز عبور و دریافت AccessToken و RefreshToken.")]
+        [ProducesResponseType(typeof(ApiResult<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> Login(LoginRequestDto request)
         {
             var result = await _authService.LoginAsync(request);
@@ -46,6 +60,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("refresh-token")]
+        [SwaggerOperation(
+            Summary = "تمدید توکن",
+            Description = "دریافت AccessToken جدید با استفاده از RefreshToken معتبر.")]
+        [ProducesResponseType(typeof(ApiResult<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> RefreshToken(RefreshTokenRequestDto request)
         {
             var result = await _authService.RefreshTokenAsync(request);
@@ -57,12 +76,15 @@ namespace Vitorize.Api.Controllers
 
         [Authorize]
         [HttpGet("me")]
+        [SwaggerOperation(
+            Summary = "اطلاعات کاربر فعلی",
+            Description = "دریافت پروفایل و وضعیت احراز هویت کاربر لاگین‌شده.")]
+        [ProducesResponseType(typeof(ApiResult<CurrentUserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<CurrentUserDto>>> Me()
         {
             if (!_currentUserService.UserId.HasValue)
-            {
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-            }
 
             var result = await _authService.GetCurrentUserAsync(
                 _currentUserService.UserId.Value);
@@ -74,6 +96,11 @@ namespace Vitorize.Api.Controllers
 
         [Authorize]
         [HttpPost("logout")]
+        [SwaggerOperation(
+            Summary = "خروج از حساب",
+            Description = "باطل کردن RefreshToken کاربر و خروج از حساب.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult>> Logout(LogoutRequestDto request)
         {
             await _authService.LogoutAsync(request);
@@ -83,12 +110,16 @@ namespace Vitorize.Api.Controllers
 
         [Authorize]
         [HttpPost("change-password")]
+        [SwaggerOperation(
+            Summary = "تغییر رمز عبور",
+            Description = "تغییر رمز عبور کاربر لاگین‌شده و باطل کردن RefreshTokenهای فعال.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult>> ChangePassword(ChangePasswordRequestDto request)
         {
             if (!_currentUserService.UserId.HasValue)
-            {
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-            }
 
             await _authService.ChangePasswordAsync(
                 _currentUserService.UserId.Value,
@@ -98,6 +129,10 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("forgot-password")]
+        [SwaggerOperation(
+            Summary = "درخواست بازیابی رمز عبور",
+            Description = "ارسال کد بازیابی رمز عبور برای شماره موبایل ثبت‌شده.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResult>> ForgotPassword(ForgotPasswordRequestDto request)
         {
             await _authService.ForgotPasswordAsync(request);
@@ -107,6 +142,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("reset-password")]
+        [SwaggerOperation(
+            Summary = "بازیابی رمز عبور",
+            Description = "تغییر رمز عبور با استفاده از کد تایید بازیابی.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<ApiResult>> ResetPassword(ResetPasswordRequestDto request)
         {
             await _authService.ResetPasswordAsync(request);
@@ -116,6 +156,11 @@ namespace Vitorize.Api.Controllers
 
         [EnableRateLimiting("otp")]
         [HttpPost("send-otp")]
+        [SwaggerOperation(
+            Summary = "ارسال کد تایید",
+            Description = "ارسال OTP برای تایید موبایل یا بازیابی رمز عبور. فعلاً در حالت تست کد در Console چاپ می‌شود.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResult>> SendOtp(SendOtpRequestDto request)
         {
             await _authService.SendOtpAsync(request);
@@ -124,6 +169,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("verify-otp")]
+        [SwaggerOperation(
+            Summary = "تایید کد OTP",
+            Description = "بررسی کد تایید و انجام عملیات مربوط به Purpose مانند تایید موبایل.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<ApiResult>> VerifyOtp(VerifyOtpRequestDto request)
         {
             await _authService.VerifyOtpAsync(request);

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Checkout;
 using Vitorize.Application.Interfaces;
@@ -12,6 +13,7 @@ namespace Vitorize.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [SwaggerTag("Checkout APIs for creating orders from cart and reserving gift codes.")]
     public class CheckoutController : ControllerBase
     {
         private readonly ICheckoutService _checkoutService;
@@ -29,6 +31,12 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost]
+        [SwaggerOperation(
+            Summary = "ثبت سفارش",
+            Description = "ایجاد سفارش از روی سبد خرید کاربر، اعمال کد تخفیف در صورت وجود، رزرو GiftCode و ایجاد پرداخت Pending. ارسال Header با نام Idempotency-Key الزامی است.")]
+        [ProducesResponseType(typeof(ApiResult<CheckoutResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<CheckoutResultDto>>> Checkout(
             CheckoutRequestDto request)
         {

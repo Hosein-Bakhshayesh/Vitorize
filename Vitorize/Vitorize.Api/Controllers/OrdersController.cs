@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
@@ -10,6 +11,7 @@ namespace Vitorize.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [SwaggerTag("Customer order APIs for listing and viewing purchased orders.")]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
@@ -24,6 +26,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpGet]
+        [SwaggerOperation(
+            Summary = "لیست سفارش‌های من",
+            Description = "دریافت لیست سفارش‌های کاربر لاگین‌شده.")]
+        [ProducesResponseType(typeof(ApiResult<List<OrderDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<List<OrderDto>>>> GetMyOrders()
         {
             var userId = GetUserId();
@@ -36,6 +43,12 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpGet("{orderId:guid}")]
+        [SwaggerOperation(
+            Summary = "جزئیات سفارش من",
+            Description = "دریافت جزئیات یک سفارش متعلق به کاربر لاگین‌شده، شامل آیتم‌ها و کدهای تحویل‌شده در صورت مجاز بودن.")]
+        [ProducesResponseType(typeof(ApiResult<OrderDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<OrderDto>>> GetMyOrderDetails(
             Guid orderId)
         {

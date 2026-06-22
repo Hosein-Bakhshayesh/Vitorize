@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
@@ -12,6 +13,7 @@ namespace Vitorize.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [SwaggerTag("Payment APIs for Zarinpal, mock payment, wallet payment and payment reconciliation.")]
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
@@ -29,6 +31,13 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("start/{orderId:guid}")]
+        [SwaggerOperation(
+            Summary = "شروع پرداخت زرین‌پال",
+            Description = "ایجاد درخواست پرداخت برای سفارش و دریافت PaymentUrl جهت انتقال کاربر به درگاه زرین‌پال.")]
+        [ProducesResponseType(typeof(ApiResult<PaymentStartResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<PaymentStartResultDto>>> Start(Guid orderId)
         {
             var userId = GetUserId();
@@ -41,6 +50,13 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("mock/verify/{paymentId:guid}")]
+        [SwaggerOperation(
+            Summary = "تایید پرداخت تستی",
+            Description = "تایید Mock Payment برای تست داخلی بدون اتصال به درگاه واقعی.")]
+        [ProducesResponseType(typeof(ApiResult<PaymentVerifyResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> VerifyMock(Guid paymentId)
         {
             var userId = GetUserId();
@@ -53,6 +69,13 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("wallet/pay/{orderId:guid}")]
+        [SwaggerOperation(
+            Summary = "پرداخت با کیف پول",
+            Description = "پرداخت سفارش از موجودی کیف پول کاربر. ارسال Header با نام Idempotency-Key الزامی است.")]
+        [ProducesResponseType(typeof(ApiResult<PaymentVerifyResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> PayWithWallet(Guid orderId)
         {
             var userId = GetUserId();
@@ -95,6 +118,12 @@ namespace Vitorize.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("zarinpal/callback")]
+        [SwaggerOperation(
+            Summary = "Callback زرین‌پال",
+            Description = "آدرس برگشت زرین‌پال پس از پرداخت. این Endpoint عمومی است و پس از دریافت Authority و Status، Verify سمت سرور انجام می‌دهد.")]
+        [ProducesResponseType(typeof(ApiResult<PaymentVerifyResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> ZarinpalCallback(
             [FromQuery(Name = "Authority")] string? authority1,
             [FromQuery(Name = "authority")] string? authority2,
@@ -123,6 +152,12 @@ namespace Vitorize.Api.Controllers
 
         [Authorize(Policy = "AdminOnly")]
         [HttpPost("zarinpal/reconcile")]
+        [SwaggerOperation(
+            Summary = "بررسی پرداخت‌های معلق زرین‌پال",
+            Description = "بررسی مجدد پرداخت‌های Pending قدیمی زرین‌پال و تلاش برای تایید یا Fail کردن آن‌ها. فقط Admin.")]
+        [ProducesResponseType(typeof(ApiResult<int>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<ApiResult<int>>> ReconcileZarinpal()
         {
             var count = await _paymentService.ReconcilePendingZarinpalPaymentsAsync();
