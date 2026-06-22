@@ -1,7 +1,5 @@
 ﻿using System.Net.Http.Json;
-using Microsoft.Extensions.Options;
 using Vitorize.Application.Interfaces;
-using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 
 namespace Vitorize.Infrastructure.Services
@@ -9,42 +7,49 @@ namespace Vitorize.Infrastructure.Services
     public class ZarinpalGatewayService : IZarinpalGatewayService
     {
         private readonly HttpClient _httpClient;
-        private readonly ZarinpalSettings _settings;
+        private readonly ISettingService _settingService;
 
         public ZarinpalGatewayService(
             HttpClient httpClient,
-            IOptions<ZarinpalSettings> settings)
+            ISettingService settingService)
         {
             _httpClient = httpClient;
-            _settings = settings.Value;
+            _settingService = settingService;
         }
 
-        public async Task<(bool Success,
-            string Authority,
-            string PaymentUrl)>
-            CreatePaymentAsync(
-                decimal amount,
-                string description)
+        public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
+            decimal amount,
+            string description)
         {
+            var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
+            var callbackUrl = await GetRequiredSettingAsync("ZarinpalCallbackUrl");
+            var baseUrl = await GetSettingOrDefaultAsync(
+                "ZarinpalBaseUrl",
+                "https://sandbox.zarinpal.com/pg/v4/payment");
+
+            var startPayUrl = await GetSettingOrDefaultAsync(
+                "ZarinpalStartPayUrl",
+                "https://sandbox.zarinpal.com/pg/StartPay");
+
             var request = new ZarinpalRequestDto
             {
-                merchant_id = _settings.MerchantId,
+                merchant_id = merchantId,
                 amount = amount,
-                callback_url = _settings.CallbackUrl,
+                callback_url = callbackUrl,
                 description = description
             };
 
-            var response =
-                await _httpClient.PostAsJsonAsync(
-                    $"{_settings.BaseUrl}/request.json",
-                    request);
+            var response = await _httpClient.PostAsJsonAsync(
+                $"{baseUrl}/request.json",
+                request);
 
-            var result =
-                await response.Content
-                    .ReadFromJsonAsync<ZarinpalRequestResultDto>();
+            var result = await response.Content
+                .ReadFromJsonAsync<ZarinpalRequestResultDto>();
 
-            if (result?.data == null ||
-                result.data.code != 100)
+            if (!response.IsSuccessStatusCode ||
+                result?.data == null ||
+                result.data.code != 100 ||
+                string.IsNullOrWhiteSpace(result.data.authority))
             {
                 return (false, string.Empty, string.Empty);
             }
@@ -52,45 +57,60 @@ namespace Vitorize.Infrastructure.Services
             return (
                 true,
                 result.data.authority,
-                $"{_settings.StartPayUrl}/{result.data.authority}"
+                $"{startPayUrl}/{result.data.authority}"
             );
         }
 
-        public async Task<(bool Success,
-            long RefId)>
-            VerifyPaymentAsync(
-                string authority,
-                decimal amount)
+        public async Task<(bool Success, long RefId)> VerifyPaymentAsync(
+            string authority,
+            decimal amount)
         {
+            var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
+
+            var baseUrl = await GetSettingOrDefaultAsync(
+                "ZarinpalBaseUrl",
+                "https://sandbox.zarinpal.com/pg/v4/payment");
+
             var request = new ZarinpalVerifyRequestDto
             {
-                merchant_id = _settings.MerchantId,
+                merchant_id = merchantId,
                 amount = amount,
                 authority = authority
             };
 
-            var response =
-                await _httpClient.PostAsJsonAsync(
-                    $"{_settings.BaseUrl}/verify.json",
-                    request);
+            var response = await _httpClient.PostAsJsonAsync(
+                $"{baseUrl}/verify.json",
+                request);
 
-            var result =
-                await response.Content
-                    .ReadFromJsonAsync<ZarinpalVerifyResultDto>();
+            var result = await response.Content
+                .ReadFromJsonAsync<ZarinpalVerifyResultDto>();
 
-            if (result?.data == null)
+            if (!response.IsSuccessStatusCode || result?.data == null)
                 return (false, 0);
 
-            if (result.data.code != 100 &&
-                result.data.code != 101)
-            {
+            if (result.data.code != 100 && result.data.code != 101)
                 return (false, 0);
-            }
 
-            return (
-                true,
-                result.data.ref_id
-            );
+            return (true, result.data.ref_id);
+        }
+
+        private async Task<string> GetRequiredSettingAsync(string key)
+        {
+            var value = await _settingService.GetValueAsync(key);
+
+            if (string.IsNullOrWhiteSpace(value))
+                throw new InvalidOperationException($"Setting '{key}' is not configured.");
+
+            return value.Trim();
+        }
+
+        private async Task<string> GetSettingOrDefaultAsync(string key, string defaultValue)
+        {
+            var value = await _settingService.GetValueAsync(key);
+
+            return string.IsNullOrWhiteSpace(value)
+                ? defaultValue
+                : value.Trim();
         }
     }
 }
