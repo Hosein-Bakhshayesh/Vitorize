@@ -14,16 +14,17 @@ namespace Vitorize.Infrastructure.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
+        private ClaimsPrincipal? User =>
+            _httpContextAccessor.HttpContext?.User;
+
         public Guid? UserId
         {
             get
             {
-                var user = _httpContextAccessor.HttpContext?.User;
-
                 var userId =
-                    user?.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
-                    user?.FindFirstValue(ClaimTypes.NameIdentifier) ??
-                    user?.FindFirstValue("sub");
+                    User?.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
+                    User?.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                    User?.FindFirstValue("sub");
 
                 return Guid.TryParse(userId, out var id)
                     ? id
@@ -32,12 +33,44 @@ namespace Vitorize.Infrastructure.Services
         }
 
         public string? Mobile =>
-            _httpContextAccessor.HttpContext?.User.FindFirstValue("mobile");
+            User?.FindFirstValue("mobile");
 
         public string? FullName =>
-            _httpContextAccessor.HttpContext?.User.FindFirstValue("fullname");
+            User?.FindFirstValue("fullname");
 
         public bool IsAuthenticated =>
-            _httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
+            User?.Identity?.IsAuthenticated ?? false;
+
+        public string? IpAddress
+        {
+            get
+            {
+                var context = _httpContextAccessor.HttpContext;
+
+                if (context == null)
+                    return null;
+
+                var forwardedFor = context.Request.Headers["X-Forwarded-For"]
+                    .FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(forwardedFor))
+                    return forwardedFor.Split(',').FirstOrDefault()?.Trim();
+
+                return context.Connection.RemoteIpAddress?.ToString();
+            }
+        }
+
+        public string? UserAgent
+        {
+            get
+            {
+                var context = _httpContextAccessor.HttpContext;
+
+                if (context == null)
+                    return null;
+
+                return context.Request.Headers.UserAgent.ToString();
+            }
+        }
     }
 }

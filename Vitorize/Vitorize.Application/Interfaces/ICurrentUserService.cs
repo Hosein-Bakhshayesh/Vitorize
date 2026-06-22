@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Vitorize.Application.Interfaces
+﻿namespace Vitorize.Application.Interfaces
 {
     public interface ICurrentUserService
     {
@@ -15,5 +9,9 @@ namespace Vitorize.Application.Interfaces
         string? FullName { get; }
 
         bool IsAuthenticated { get; }
+
+        string? IpAddress { get; }
+
+        string? UserAgent { get; }
     }
 }

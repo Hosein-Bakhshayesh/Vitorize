@@ -143,8 +143,6 @@ namespace Vitorize.Api
             builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
             builder.Services.AddHostedService<BackgroundJobProcessor>();
 
-            builder.Services.AddApplication();
-
             var app = builder.Build();
 
             app.UseMiddleware<GlobalExceptionMiddleware>();
