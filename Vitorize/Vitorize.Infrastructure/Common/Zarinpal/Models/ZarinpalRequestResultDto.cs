@@ -1,20 +1,24 @@
-﻿namespace Vitorize.Infrastructure.Common.Zarinpal.Models
+﻿using System.Text.Json;
+
+namespace Vitorize.Infrastructure.Common.Zarinpal.Models
 {
     public class ZarinpalRequestResultDto
     {
-        public ZarinpalRequestData? data { get; set; }
+        public ZarinpalRequestDataDto? data { get; set; }
 
-        public List<object>? errors { get; set; }
+        public JsonElement errors { get; set; }
     }
 
-    public class ZarinpalRequestData
+    public class ZarinpalRequestDataDto
     {
-        public string authority { get; set; } = string.Empty;
-
         public int code { get; set; }
+
+        public string? message { get; set; }
+
+        public string? authority { get; set; }
 
         public string? fee_type { get; set; }
 
-        public decimal? fee { get; set; }
+        public int? fee { get; set; }
     }
 }

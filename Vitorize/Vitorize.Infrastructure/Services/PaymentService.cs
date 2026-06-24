@@ -42,8 +42,11 @@ namespace Vitorize.Infrastructure.Services
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
             var order = await _dbContext.Orders
+                .Include(x => x.User)
                 .Include(x => x.Payments)
-                .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId);
+                .FirstOrDefaultAsync(x =>
+                    x.Id == orderId &&
+                    x.UserId == userId);
 
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
@@ -68,6 +71,9 @@ namespace Vitorize.Infrastructure.Services
             if (payment.Gateway == ZarinpalGatewayName &&
                 !string.IsNullOrWhiteSpace(payment.Authority))
             {
+                var existingPaymentUrl =
+                    await _zarinpalGatewayService.BuildPaymentUrlAsync(payment.Authority);
+
                 return new PaymentStartResultDto
                 {
                     PaymentId = payment.Id,
@@ -75,15 +81,19 @@ namespace Vitorize.Infrastructure.Services
                     Amount = payment.Amount,
                     Gateway = payment.Gateway,
                     Authority = payment.Authority,
-                    PaymentUrl = $"/payments/redirect?authority={payment.Authority}"
+                    PaymentUrl = existingPaymentUrl
                 };
             }
 
-            var description = $"پرداخت سفارش {order.OrderNumber} در Vitorize";
+            var description =
+                $"پرداخت سفارش {order.OrderNumber} در Vitorize";
 
             var gatewayResult = await _zarinpalGatewayService.CreatePaymentAsync(
                 payment.Amount,
-                description);
+                description,
+                order.User?.Mobile,
+                order.User?.Email,
+                order.OrderNumber);
 
             if (!gatewayResult.Success)
             {
@@ -103,8 +113,11 @@ namespace Vitorize.Infrastructure.Services
                 order.Id,
                 order.OrderNumber,
                 payment.Amount,
-                description
+                description,
+                mobile = order.User?.Mobile,
+                email = order.User?.Email
             });
+
             payment.RawResponseData = JsonSerializer.Serialize(gatewayResult);
             payment.UpdatedAt = DateTime.UtcNow;
 
@@ -120,7 +133,6 @@ namespace Vitorize.Infrastructure.Services
                 PaymentUrl = gatewayResult.PaymentUrl
             };
         }
-
         public async Task<PaymentVerifyResultDto> VerifyZarinpalPaymentAsync(
             string authority,
             string status)

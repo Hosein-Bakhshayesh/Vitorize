@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text.Json;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 
@@ -19,10 +20,14 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
             decimal amount,
-            string description)
+            string description,
+            string? mobile = null,
+            string? email = null,
+            string? orderId = null)
         {
             var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
             var callbackUrl = await GetRequiredSettingAsync("ZarinpalCallbackUrl");
+
             var baseUrl = await GetSettingOrDefaultAsync(
                 "ZarinpalBaseUrl",
                 "https://sandbox.zarinpal.com/pg/v4/payment");
@@ -31,23 +36,36 @@ namespace Vitorize.Infrastructure.Services
                 "ZarinpalStartPayUrl",
                 "https://sandbox.zarinpal.com/pg/StartPay");
 
+            baseUrl = baseUrl.TrimEnd('/');
+            startPayUrl = startPayUrl.TrimEnd('/');
+
             var request = new ZarinpalRequestDto
             {
                 merchant_id = merchantId,
                 amount = amount,
+                currency = "IRT",
+                description = description,
                 callback_url = callbackUrl,
-                description = description
+                metadata = new ZarinpalMetadataDto
+                {
+                    mobile = mobile,
+                    email = email,
+                    order_id = orderId
+                }
             };
 
             var response = await _httpClient.PostAsJsonAsync(
                 $"{baseUrl}/request.json",
                 request);
 
-            var result = await response.Content
-                .ReadFromJsonAsync<ZarinpalRequestResultDto>();
+            var responseText = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode ||
-                result?.data == null ||
+            if (!response.IsSuccessStatusCode)
+                return (false, string.Empty, string.Empty);
+
+            var result = Deserialize<ZarinpalRequestResultDto>(responseText);
+
+            if (result?.data == null ||
                 result.data.code != 100 ||
                 string.IsNullOrWhiteSpace(result.data.authority))
             {
@@ -71,6 +89,8 @@ namespace Vitorize.Infrastructure.Services
                 "ZarinpalBaseUrl",
                 "https://sandbox.zarinpal.com/pg/v4/payment");
 
+            baseUrl = baseUrl.TrimEnd('/');
+
             var request = new ZarinpalVerifyRequestDto
             {
                 merchant_id = merchantId,
@@ -82,16 +102,38 @@ namespace Vitorize.Infrastructure.Services
                 $"{baseUrl}/verify.json",
                 request);
 
-            var result = await response.Content
-                .ReadFromJsonAsync<ZarinpalVerifyResultDto>();
+            var responseText = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode || result?.data == null)
+            if (!response.IsSuccessStatusCode)
                 return (false, 0);
 
-            if (result.data.code != 100 && result.data.code != 101)
+            var result = Deserialize<ZarinpalVerifyResultDto>(responseText);
+
+            if (result?.data == null)
+                return (false, 0);
+
+            if (result.data.code != 100 &&
+                result.data.code != 101)
                 return (false, 0);
 
             return (true, result.data.ref_id);
+        }
+
+        private static T? Deserialize<T>(string json)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<T>(
+                    json,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+            }
+            catch
+            {
+                return default;
+            }
         }
 
         private async Task<string> GetRequiredSettingAsync(string key)
@@ -111,6 +153,17 @@ namespace Vitorize.Infrastructure.Services
             return string.IsNullOrWhiteSpace(value)
                 ? defaultValue
                 : value.Trim();
+        }
+
+        public async Task<string> BuildPaymentUrlAsync(string authority)
+        {
+            var startPayUrl = await GetSettingOrDefaultAsync(
+                "ZarinpalStartPayUrl",
+                "https://sandbox.zarinpal.com/pg/StartPay");
+
+            startPayUrl = startPayUrl.TrimEnd('/');
+
+            return $"{startPayUrl}/{authority}";
         }
     }
 }

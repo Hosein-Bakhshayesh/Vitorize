@@ -32,8 +32,8 @@ namespace Vitorize.Api.Controllers
 
         [HttpPost("start/{orderId:guid}")]
         [SwaggerOperation(
-            Summary = "شروع پرداخت زرین‌پال",
-            Description = "ایجاد درخواست پرداخت برای سفارش و دریافت PaymentUrl جهت انتقال کاربر به درگاه زرین‌پال.")]
+    Summary = "شروع پرداخت زرین‌پال",
+    Description = "ایجاد درخواست پرداخت برای سفارش و دریافت PaymentUrl جهت انتقال کاربر به درگاه زرین‌پال.")]
         [ProducesResponseType(typeof(ApiResult<PaymentStartResultDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
@@ -70,17 +70,16 @@ namespace Vitorize.Api.Controllers
 
         [HttpPost("wallet/pay/{orderId:guid}")]
         [SwaggerOperation(
-            Summary = "پرداخت با کیف پول",
-            Description = "پرداخت سفارش از موجودی کیف پول کاربر. ارسال Header با نام Idempotency-Key الزامی است.")]
+    Summary = "پرداخت با کیف پول",
+    Description = "پرداخت سفارش از موجودی کیف پول کاربر. ارسال Header با نام Idempotency-Key الزامی است.")]
         [ProducesResponseType(typeof(ApiResult<PaymentVerifyResultDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> PayWithWallet(Guid orderId)
+        public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> PayWithWallet(Guid orderId,
+    [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey)
         {
             var userId = GetUserId();
-
-            var idempotencyKey = Request.Headers["Idempotency-Key"].FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(idempotencyKey))
                 throw new BusinessException("Idempotency-Key الزامی است.");
@@ -92,11 +91,16 @@ namespace Vitorize.Api.Controllers
                 Action = "WalletPay"
             });
 
-            await _idempotencyService.StartAsync(userId, idempotencyKey, requestHash);
+            await _idempotencyService.StartAsync(
+                userId,
+                idempotencyKey,
+                requestHash);
 
             try
             {
-                var result = await _paymentService.PayWithWalletAsync(userId, orderId);
+                var result = await _paymentService.PayWithWalletAsync(
+                    userId,
+                    orderId);
 
                 var response = ApiResult<PaymentVerifyResultDto>.Success(
                     result,
@@ -111,7 +115,10 @@ namespace Vitorize.Api.Controllers
             }
             catch (Exception ex)
             {
-                await _idempotencyService.FailAsync(idempotencyKey, ex.Message);
+                await _idempotencyService.FailAsync(
+                    idempotencyKey,
+                    ex.Message);
+
                 throw;
             }
         }

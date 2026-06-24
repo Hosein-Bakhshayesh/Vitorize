@@ -32,24 +32,22 @@ namespace Vitorize.Api.Controllers
 
         [HttpPost]
         [SwaggerOperation(
-            Summary = "ثبت سفارش",
-            Description = "ایجاد سفارش از روی سبد خرید کاربر، اعمال کد تخفیف در صورت وجود، رزرو GiftCode و ایجاد پرداخت Pending. ارسال Header با نام Idempotency-Key الزامی است.")]
+     Summary = "ثبت سفارش",
+     Description = "ایجاد سفارش از روی سبد خرید کاربر، اعمال کد تخفیف در صورت وجود، رزرو GiftCode و ایجاد پرداخت Pending. ارسال Header با نام Idempotency-Key الزامی است.")]
         [ProducesResponseType(typeof(ApiResult<CheckoutResultDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<CheckoutResultDto>>> Checkout(
-            CheckoutRequestDto request)
+     [FromBody] CheckoutRequestDto request,
+     [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey)
         {
             if (!_currentUserService.UserId.HasValue)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            var userId = _currentUserService.UserId.Value;
-
-            var idempotencyKey =
-                Request.Headers["Idempotency-Key"].FirstOrDefault();
-
             if (string.IsNullOrWhiteSpace(idempotencyKey))
                 throw new BusinessException("Idempotency-Key الزامی است.");
+
+            var userId = _currentUserService.UserId.Value;
 
             var requestHash = RequestHashHelper.ComputeHash(request);
 
