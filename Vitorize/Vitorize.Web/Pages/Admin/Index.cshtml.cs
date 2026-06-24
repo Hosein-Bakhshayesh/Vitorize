@@ -5,7 +5,7 @@ using Vitorize.Web.Services;
 
 namespace Vitorize.Web.Pages.Admin
 {
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     public class IndexModel : PageModel
     {
         private readonly ApiClient _apiClient;
@@ -47,6 +47,18 @@ namespace Vitorize.Web.Pages.Admin
                 3 => "تکمیل شده",
                 4 => "لغو شده",
                 _ => "نامشخص"
+            };
+        }
+
+        public string GetStatusCss(byte status)
+        {
+            return status switch
+            {
+                1 => "status-process",
+                2 => "status-process",
+                3 => "status-success",
+                4 => "status-danger",
+                _ => "status-process"
             };
         }
     }

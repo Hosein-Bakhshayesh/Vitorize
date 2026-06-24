@@ -12,21 +12,27 @@ namespace Vitorize.Web
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.Services.AddRazorPages();
+            builder.Services.AddRazorPages(options =>
+            {
+                options.Conventions.AuthorizeFolder("/Admin", "AdminOnly");
+
+                options.Conventions.AllowAnonymousToPage("/Admin/Auth/Login");
+                options.Conventions.AllowAnonymousToPage("/Admin/Auth/AccessDenied");
+            });
+
             builder.Services.AddHttpContextAccessor();
 
             builder.Services
                 .AddAuthentication(options =>
                 {
-                    // Default is Admin so your existing Admin pages with [Authorize] keep working.
                     options.DefaultScheme = VitorizeAuthSchemes.AdminScheme;
                     options.DefaultChallengeScheme = VitorizeAuthSchemes.AdminScheme;
                 })
                 .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
                 {
-                    options.LoginPath = "/Account/Login";
-                    options.LogoutPath = "/Account/Logout";
-                    options.AccessDeniedPath = "/Account/AccessDenied";
+                    options.LoginPath = "/Admin/Auth/Login";
+                    options.LogoutPath = "/Admin/Auth/Logout";
+                    options.AccessDeniedPath = "/Admin/Auth/AccessDenied";
                     options.Cookie.Name = "Vitorize.Admin.Auth";
                     options.Cookie.HttpOnly = true;
                     options.Cookie.SameSite = SameSiteMode.Lax;

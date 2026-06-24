@@ -1,251 +1,140 @@
-﻿@using Microsoft.AspNetCore.Html
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <title>@ViewData["Title"] | Vitorize Admin</title>
 
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        vito: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            500: '#14b8a6',
-                            600: '#0d9488',
-                            700: '#0f766e',
-                            900: '#0f172a'
-                        }
-                    },
-                    boxShadow: {
-                        soft: '0 22px 70px rgba(15, 23, 42, .055)',
-                        innerSoft: 'inset 0 1px 0 rgba(255,255,255,.65)',
-                        glow: '0 18px 45px rgba(20,184,166,.10)'
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
-<body class="min-h-screen bg-[#f8fafb] text-slate-800 antialiased">
+<body class="admin-body">
+    <div class="admin-shell">
 
-    <div class="pointer-events-none fixed inset-0 overflow-hidden">
-        <div class="absolute -right-40 top-10 h-[430px] w-[430px] rounded-full bg-teal-100/45 blur-3xl"></div>
-        <div class="absolute -left-48 bottom-10 h-[520px] w-[520px] rounded-full bg-cyan-100/35 blur-3xl"></div>
-        <div class="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/70 blur-3xl"></div>
-    </div>
-
-    <div class="relative min-h-screen">
-
-        <div id="mobileSidebarOverlay"
-             onclick="closeMobileSidebar()"
-             class="fixed inset-0 z-40 hidden bg-slate-950/35 backdrop-blur-sm lg:hidden">
+        <div id="adminMobileOverlay"
+             class="admin-mobile-overlay"
+             onclick="closeAdminSidebar()">
         </div>
 
-        <aside id="mobileSidebar"
-               class="fixed right-0 top-0 z-50 flex h-screen w-72 translate-x-full flex-col border-l border-white/70 bg-white/85 shadow-soft backdrop-blur-2xl transition-transform duration-300 lg:hidden">
+        <aside id="adminSidebar" class="admin-sidebar">
+            <div class="admin-sidebar-header">
+                <a href="/Admin" class="admin-brand">
+                    <div class="admin-brand-logo">
+                        <span>V</span>
+                    </div>
 
-            <div class="flex h-20 items-center justify-between px-5">
-                @RenderBrand()
+                    <div>
+                        <div class="admin-brand-title">Vitorize</div>
+                        <div class="admin-brand-subtitle">پنل مدیریت</div>
+                    </div>
+                </a>
 
                 <button type="button"
-                        onclick="closeMobileSidebar()"
-                        class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                    ✕
+                        class="admin-icon-btn"
+                        onclick="closeAdminSidebar()">
+                    <i data-lucide="x"></i>
                 </button>
             </div>
 
-            <nav class="flex-1 space-y-1 px-4">
-                @RenderNavLinks()
+            <nav class="admin-sidebar-scroll">
+                <partial name="_AdminNav" />
             </nav>
 
-            @RenderUserBox()
-        </aside>
-
-        <aside class="fixed right-6 top-6 z-30 hidden h-[calc(100vh-48px)] w-72 flex-col rounded-[2.2rem] border border-white/80 bg-white/70 shadow-soft shadow-slate-200/60 backdrop-blur-2xl lg:flex">
-
-            <div class="px-5 pt-5">
-                <div class="rounded-[1.7rem] border border-white/75 bg-white/70 p-4 shadow-innerSoft">
-                    @RenderBrand()
-                </div>
+            <div class="admin-sidebar-footer">
+                <a href="/Admin/Auth/Logout" class="admin-logout">
+                    <span class="admin-nav-link-content">
+                        <i data-lucide="log-out"></i>
+                        <span>خروج</span>
+                    </span>
+                </a>
             </div>
-
-            <nav class="mt-6 flex-1 space-y-1 px-4">
-                @RenderNavLinks()
-            </nav>
-
-            @RenderUserBox()
         </aside>
 
-        <main class="min-h-screen w-full lg:pr-[21.5rem]">
+        <main class="admin-main">
+            <header class="admin-topbar">
 
-            <header class="sticky top-0 z-20 px-4 pt-4 lg:px-8 lg:pt-6">
-                <div class="rounded-[1.8rem] border border-white/80 bg-white/68 shadow-soft backdrop-blur-2xl">
-                    <div class="flex h-20 items-center justify-between px-5 lg:px-7">
+                <div class="admin-toolbar-left">
+                    <div class="admin-user desktop-only">
+                        <div class="admin-avatar">V</div>
 
-                        <div class="flex items-center gap-3">
-                            <button type="button"
-                                    onclick="openMobileSidebar()"
-                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 lg:hidden">
-                                ☰
-                            </button>
-
-                            <div>
-                                <h2 class="text-xl font-black text-slate-900 lg:text-2xl">
-                                    @ViewData["Title"]
-                                </h2>
-                                <p class="mt-1 hidden text-xs font-bold text-slate-400 sm:block">
-                                    Vitorize Admin Workspace
-                                </p>
+                        <div>
+                            <div class="admin-user-name">
+                                @(User.Identity?.Name ?? "مدیر سیستم")
                             </div>
+                            <div class="admin-user-role">مدیر کل</div>
                         </div>
-
-                        <div class="flex items-center gap-3">
-                            <div class="hidden items-center gap-2 rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-xs font-black text-slate-500 md:flex">
-                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                                Online
-                            </div>
-
-                            <a href="/Admin/Orders"
-                               class="hidden rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black text-slate-600 transition hover:bg-teal-50 hover:text-vito-700 md:block">
-                                سفارش‌ها
-                            </a>
-
-                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-soft">
-                                <img src="/images/logo.png" alt="Vitorize" class="h-7 w-7" />
-                            </div>
-                        </div>
-
                     </div>
+
+                    <button type="button" class="admin-icon-btn">
+                        <i data-lucide="bell"></i>
+                        <span class="admin-notify-badge">5</span>
+                    </button>
+
+                    <button type="button" class="admin-icon-btn">
+                        <i data-lucide="mail"></i>
+                    </button>
+
+                    <button type="button" class="admin-icon-btn desktop-only">
+                        <i data-lucide="moon"></i>
+                    </button>
+
+                    <button type="button" class="admin-icon-btn desktop-only">
+                        <i data-lucide="maximize"></i>
+                    </button>
                 </div>
+
+                <div class="admin-search">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="جستجو کنید..." />
+                </div>
+
+                <div class="admin-toolbar-right">
+                    <div class="admin-page-title">
+                        <h1>@(ViewData["Title"] ?? "داشبورد")</h1>
+                        <p>خوش آمدید در پنل مدیریت ویتورایز</p>
+                    </div>
+
+                    <button type="button" class="admin-grid-btn desktop-only">
+                        <i data-lucide="layout-grid"></i>
+                    </button>
+
+                    <button type="button"
+                            class="admin-icon-btn"
+                            onclick="openAdminSidebar()">
+                        <i data-lucide="menu"></i>
+                    </button>
+                </div>
+
             </header>
 
-            <section class="p-4 pt-6 lg:p-8 lg:pt-7">
+            <section class="admin-content">
                 @RenderBody()
             </section>
-
         </main>
     </div>
 
     <script>
-        function openMobileSidebar() {
-            document.getElementById('mobileSidebarOverlay').classList.remove('hidden');
-            document.getElementById('mobileSidebar').classList.remove('translate-x-full');
+        function openAdminSidebar() {
+        document.getElementById('adminSidebar').classList.add('open');
+        document.getElementById('adminMobileOverlay').classList.add('show');
         }
 
-        function closeMobileSidebar() {
-            document.getElementById('mobileSidebarOverlay').classList.add('hidden');
-            document.getElementById('mobileSidebar').classList.add('translate-x-full');
+        function closeAdminSidebar() {
+        document.getElementById('adminSidebar').classList.remove('open');
+        document.getElementById('adminMobileOverlay').classList.remove('show');
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+        if (window.lucide) {
+        lucide.createIcons();
+        }
+        });
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
-
-@functions {
-    private IHtmlContent RenderBrand()
-    {
-        var html = @"
-<div class=""flex items-center gap-3"">
-    <div class=""flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 shadow-glow"">
-        <img src=""/images/logo.png"" alt=""Vitorize"" class=""h-8 w-8 rounded-xl bg-white p-1"" />
-    </div>
-
-    <div>
-        <h1 class=""text-xl font-black tracking-tight text-slate-900"">Vitorize</h1>
-        <p class=""mt-0.5 text-[11px] font-bold text-slate-400"">Admin Console</p>
-    </div>
-</div>";
-
-        return new HtmlString(html);
-    }
-
-    private IHtmlContent RenderNavLinks()
-    {
-        var currentPath = (Context.Request.Path.Value ?? "").TrimEnd('/').ToLower();
-
-        string Link(string href, string title, string icon, bool exact = false)
-        {
-            var hrefLower = href.TrimEnd('/').ToLower();
-
-            var isActive = exact
-                ? currentPath == hrefLower
-                : currentPath == hrefLower || currentPath.StartsWith(hrefLower + "/");
-
-            var activeClass = isActive
-                ? "bg-slate-900 text-white shadow-soft"
-                : "text-slate-600 hover:bg-white/85 hover:text-vito-700";
-
-            var iconClass = isActive
-                ? "bg-white/15 text-white"
-                : "bg-slate-100 text-slate-500 group-hover:bg-teal-50 group-hover:text-vito-700";
-
-            var dotClass = isActive
-                ? "bg-teal-400"
-                : "bg-slate-200";
-
-            return $@"
-<a href=""{href}"" class=""group flex items-center justify-between rounded-2xl px-4 py-3.5 text-sm font-black transition {activeClass}"">
-    <span class=""flex items-center gap-3"">
-        <span class=""flex h-8 w-8 items-center justify-center rounded-xl text-sm transition {iconClass}"">{icon}</span>
-        <span>{title}</span>
-    </span>
-    <span class=""h-2 w-2 rounded-full {dotClass}""></span>
-</a>";
-        }
-
-        var html = string.Join("", new[]
-        {
-            Link("/Admin", "داشبورد", "⌁", exact: true),
-            Link("/Admin/Products", "محصولات", "◈"),
-            Link("/Admin/Categories", "دسته‌بندی‌ها", "▦"),
-            Link("/Admin/Brands", "برندها", "◇"),
-            Link("/Admin/GiftCodes", "گیفت‌کارت‌ها", "✦"),
-            Link("/Admin/Coupons", "تخفیف‌ها", "%"),
-            Link("/Admin/Orders", "سفارش‌ها", "◎")
-        });
-
-        return new HtmlString(html);
-    }
-
-    private IHtmlContent RenderUserBox()
-    {
-        var name = User.Identity?.Name;
-
-        if (string.IsNullOrWhiteSpace(name))
-            name = "مدیر سیستم";
-
-        var html = $@"
-<div class=""p-4"">
-    <div class=""rounded-[1.7rem] border border-white/80 bg-white/70 p-4 shadow-innerSoft backdrop-blur-xl"">
-        <div class=""flex items-center gap-3"">
-            <div class=""flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white"">
-                V
-            </div>
-
-            <div class=""min-w-0"">
-                <p class=""truncate text-sm font-black text-slate-900"">{name}</p>
-                <p class=""mt-0.5 text-[11px] font-bold text-slate-400"">مدیر سیستم</p>
-            </div>
-        </div>
-
-        <a href=""/Account/Logout""
-           class=""mt-4 block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-600"">
-            خروج از پنل
-        </a>
-    </div>
-</div>";
-
-        return new HtmlString(html);
-    }
-}

@@ -1,0 +1,206 @@
+﻿@page
+@model Vitorize.Web.Pages.Admin.Auth.LoginModel
+
+@{
+    Layout = "_AdminLoginLayout";
+    ViewData["Title"] = "ورود ادمین";
+}
+
+<div class="login-page">
+
+    <header class="login-topbar">
+        <div class="login-portal-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                <path d="m9 12 2 2 4-5" />
+            </svg>
+            <span>Admin Portal</span>
+        </div>
+
+        <div class="login-lang">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20" />
+                <path d="M12 2a15.3 15.3 0 0 1 0 20" />
+                <path d="M12 2a15.3 15.3 0 0 0 0 20" />
+            </svg>
+            <span>فارسی</span>
+        </div>
+    </header>
+
+    <main class="login-shell">
+
+        <section class="login-hero">
+            <div class="login-hero-content">
+                <h1 class="login-brand-word">Vitorize</h1>
+
+                <h2 class="login-hero-title">
+                    به پنل مدیریت ویتورایز خوش آمدید
+                </h2>
+
+                <p class="login-hero-text">
+                    مدیریت یکپارچه، ابزارهای قدرتمند و تجربه‌ای حرفه‌ای
+                    برای مدیریت فروش، سفارش‌ها، کاربران و سیستم.
+                </p>
+
+                <div class="login-divider"></div>
+
+                <img src="/images/admin-login-hero.svg"
+                     class="login-hero-image"
+                     alt="Vitorize Admin Security" />
+
+                <div class="login-features">
+                    <div class="login-feature">
+                        <svg class="login-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                            <path d="m9 12 2 2 4-5" />
+                        </svg>
+                        <div class="login-feature-title">امن و مطمئن</div>
+                        <div class="login-feature-text">حفاظت از اطلاعات و دسترسی‌ها</div>
+                    </div>
+
+                    <div class="login-feature">
+                        <svg class="login-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
+                        </svg>
+                        <div class="login-feature-title">عملکرد بالا</div>
+                        <div class="login-feature-text">سرعت و پایداری در مدیریت</div>
+                    </div>
+
+                    <div class="login-feature">
+                        <svg class="login-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 16V9" />
+                            <path d="M12 16V5" />
+                            <path d="M17 16v-3" />
+                        </svg>
+                        <div class="login-feature-title">کنترل کامل</div>
+                        <div class="login-feature-text">مدیریت جامع و گزارش‌گیری دقیق</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="login-form-zone">
+            <div class="login-card">
+
+                <img src="/images/logo.png"
+                     class="login-logo"
+                     alt="Vitorize Logo" />
+
+                <h1 class="login-card-brand">Vitorize</h1>
+                <h2 class="login-card-title">ورود به پنل مدیریت</h2>
+                <p class="login-card-subtitle">برای ادامه وارد حساب ادمین خود شوید</p>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="login-alert">
+                        @Model.ErrorMessage
+                    </div>
+                }
+
+                <form method="post" class="login-form" autocomplete="off">
+                    <input type="hidden" asp-for="ReturnUrl" />
+
+                    <div asp-validation-summary="ModelOnly"></div>
+
+                    <div class="login-field">
+                        <label asp-for="Input.Mobile" class="login-label"></label>
+
+                        <div class="login-input-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21a8 8 0 0 0-16 0" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+
+                            <input asp-for="Input.Mobile"
+                                   class="login-input"
+                                   placeholder="شماره موبایل ادمین را وارد کنید"
+                                   autocomplete="username"
+                                   inputmode="tel" />
+                        </div>
+
+                        <span asp-validation-for="Input.Mobile"></span>
+                    </div>
+
+                    <div class="login-field">
+                        <label asp-for="Input.Password" class="login-label"></label>
+
+                        <div class="login-input-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+
+                            <input asp-for="Input.Password"
+                                   id="adminPassword"
+                                   class="login-input"
+                                   placeholder="رمز عبور خود را وارد کنید"
+                                   autocomplete="current-password" />
+
+                            <button type="button"
+                                    class="login-password-toggle"
+                                    onclick="toggleAdminPassword()"
+                                    aria-label="نمایش رمز عبور">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <span asp-validation-for="Input.Password"></span>
+                    </div>
+
+                    <div class="login-row">
+                        <a href="#" class="login-forgot">رمز عبور را فراموش کرده‌اید؟</a>
+
+                        <label class="login-check">
+                            <span>مرا به خاطر بسپار</span>
+                            <input asp-for="Input.RememberMe" />
+                        </label>
+                    </div>
+
+                    <button type="submit" class="login-submit">
+                        <span class="login-submit-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 12H5" />
+                                <path d="m12 19-7-7 7-7" />
+                            </svg>
+                        </span>
+
+                        ورود به پنل
+                    </button>
+                </form>
+
+                <div class="login-secure-note">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                        <path d="m9 12 2 2 4-5" />
+                    </svg>
+
+                    <span>فقط کاربران دارای دسترسی ادمین مجاز هستند</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        function toggleAdminPassword() {
+            const input = document.getElementById('adminPassword');
+
+            if (!input) {
+                return;
+            }
+
+            input.type = input.type === 'password'
+                ? 'text'
+                : 'password';
+        }
+    </script>
+}

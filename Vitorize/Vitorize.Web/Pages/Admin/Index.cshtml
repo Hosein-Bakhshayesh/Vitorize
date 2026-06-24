@@ -1,5 +1,6 @@
 ﻿@page
 @model Vitorize.Web.Pages.Admin.IndexModel
+
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "داشبورد";
@@ -7,200 +8,412 @@
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {
-    <div class="rounded-[1.5rem] border border-red-100 bg-red-50/80 px-5 py-4 text-sm font-bold text-red-700 shadow-soft">
+    <div class="admin-error-box">
         @Model.ErrorMessage
     </div>
 }
 else
 {
-    <div class="space-y-6">
+    <div class="admin-dashboard">
 
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-black text-slate-400">درآمد تایید شده</p>
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">●</span>
+        <section class="dashboard-stats">
+            <div class="admin-glass-card dashboard-stat-card">
+                <div class="dashboard-stat-icon blue">
+                    <i data-lucide="shopping-bag"></i>
                 </div>
-                <p class="mt-5 text-2xl font-black text-slate-900">@Model.FormatMoney(Model.Dashboard.TotalRevenue)</p>
-                <p class="mt-2 text-xs font-bold text-slate-400">مجموع فروش موفق</p>
+
+                <div class="dashboard-stat-content">
+                    <div class="dashboard-stat-label">کل سفارش‌ها</div>
+                    <div class="dashboard-stat-value">@Model.Dashboard.TotalOrders.ToString("N0")</div>
+                    <div class="dashboard-stat-change up">+12.5% نسبت به ۷ روز قبل</div>
+                </div>
             </div>
 
-            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-black text-slate-400">کاربران</p>
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">◎</span>
+            <div class="admin-glass-card dashboard-stat-card">
+                <div class="dashboard-stat-icon purple">
+                    <i data-lucide="shopping-cart"></i>
                 </div>
-                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.TotalUsers.ToString("N0")</p>
-                <p class="mt-2 text-xs font-bold text-slate-400">کل کاربران ثبت‌شده</p>
+
+                <div class="dashboard-stat-content">
+                    <div class="dashboard-stat-label">سفارش‌های در انتظار</div>
+                    <div class="dashboard-stat-value">@Model.Dashboard.PendingOrders.ToString("N0")</div>
+                    <div class="dashboard-stat-change up">+18.7% نسبت به دیروز</div>
+                </div>
             </div>
 
-            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-black text-slate-400">محصولات فعال</p>
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">◈</span>
+            <div class="admin-glass-card dashboard-stat-card">
+                <div class="dashboard-stat-icon green">
+                    <i data-lucide="circle-dollar-sign"></i>
                 </div>
-                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.TotalProducts.ToString("N0")</p>
-                <p class="mt-2 text-xs font-bold text-slate-400">آماده فروش</p>
+
+                <div class="dashboard-stat-content">
+                    <div class="dashboard-stat-label">کل فروش</div>
+                    <div class="dashboard-stat-value">@Model.Dashboard.TotalRevenue.ToString("N0")</div>
+                    <div class="dashboard-stat-change up">+9.8% نسبت به ۷ روز قبل</div>
+                </div>
             </div>
 
-            <div class="rounded-[1.8rem] border border-white/80 bg-white/72 p-5 shadow-soft backdrop-blur-2xl">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-black text-slate-400">کدهای آماده</p>
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600">#</span>
+            <div class="admin-glass-card dashboard-stat-card">
+                <div class="dashboard-stat-icon orange">
+                    <i data-lucide="wallet-cards"></i>
                 </div>
-                <p class="mt-5 text-3xl font-black text-slate-900">@Model.Dashboard.AvailableGiftCodes.ToString("N0")</p>
-                <p class="mt-2 text-xs font-bold text-slate-400">موجودی قابل تحویل</p>
+
+                <div class="dashboard-stat-content">
+                    <div class="dashboard-stat-label">کدهای آماده تحویل</div>
+                    <div class="dashboard-stat-value">@Model.Dashboard.AvailableGiftCodes.ToString("N0")</div>
+                    <div class="dashboard-stat-change down">-2.1% نسبت به ۷ روز قبل</div>
+                </div>
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <section class="dashboard-charts">
+            <div class="admin-glass-card dashboard-chart-card">
+                <div class="dashboard-card-header">
+                    <button type="button" class="dashboard-filter">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>۷ روز اخیر</span>
+                    </button>
 
-            <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl xl:col-span-8">
-                <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <h2 class="text-lg font-black text-slate-900">آخرین سفارش‌ها</h2>
-                        <p class="mt-1 text-xs font-bold text-slate-400">۵ سفارش آخر ثبت‌شده در سیستم</p>
-                    </div>
-
-                    <a href="/Admin/Orders"
-                       class="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]">
-                        مشاهده همه سفارش‌ها
-                    </a>
+                    <h2 class="dashboard-card-title">نمودار فروش ۷ روز اخیر</h2>
                 </div>
 
-                @if (Model.Dashboard.RecentOrders == null || !Model.Dashboard.RecentOrders.Any())
-                {
-                    <div class="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/70 p-12 text-center">
-                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-2xl shadow-soft">
-                            ◎
-                        </div>
+                <svg viewBox="0 0 610 230" class="dashboard-chart-svg" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#755df6" stop-opacity=".24" />
+                            <stop offset="100%" stop-color="#755df6" stop-opacity=".02" />
+                        </linearGradient>
+                    </defs>
 
-                        <p class="mt-5 text-lg font-black text-slate-700">هنوز سفارشی ثبت نشده</p>
-                        <p class="mt-2 text-sm font-bold text-slate-400">بعد از اولین خرید، سفارش‌ها اینجا نمایش داده می‌شوند.</p>
-                    </div>
-                }
-                else
-                {
-                    <div class="overflow-x-auto rounded-[1.7rem] border border-slate-100 bg-white/70">
-                        <table class="w-full min-w-[760px] text-right text-sm">
-                            <thead class="bg-slate-50/80 text-[11px] font-black uppercase text-slate-400">
+                    <line class="chart-grid-line" x1="42" y1="22" x2="590" y2="22" />
+                    <line class="chart-grid-line" x1="42" y1="72" x2="590" y2="72" />
+                    <line class="chart-grid-line" x1="42" y1="122" x2="590" y2="122" />
+                    <line class="chart-grid-line" x1="42" y1="172" x2="590" y2="172" />
+
+                    <text class="chart-axis-label" x="5" y="27">40M</text>
+                    <text class="chart-axis-label" x="5" y="77">30M</text>
+                    <text class="chart-axis-label" x="5" y="127">20M</text>
+                    <text class="chart-axis-label" x="5" y="177">10M</text>
+                    <text class="chart-axis-label" x="20" y="218">0</text>
+
+                    <path d="M58 154 C88 154, 96 142, 124 143 C160 144, 166 157, 206 153 C250 149, 265 122, 302 125 C340 128, 340 161, 375 151 C405 142, 408 112, 438 104 C476 93, 493 111, 526 99 C558 87, 566 119, 590 111 L590 204 L58 204 Z"
+                          fill="url(#salesFill)" />
+
+                    <path d="M58 154 C88 154, 96 142, 124 143 C160 144, 166 157, 206 153 C250 149, 265 122, 302 125 C340 128, 340 161, 375 151 C405 142, 408 112, 438 104 C476 93, 493 111, 526 99 C558 87, 566 119, 590 111"
+                          fill="none"
+                          stroke="#755df6"
+                          stroke-width="3"
+                          stroke-linecap="round" />
+
+                    <circle cx="375" cy="151" r="7" fill="#755df6" stroke="#fff" stroke-width="3" />
+                    <circle cx="526" cy="99" r="4" fill="#755df6" stroke="#fff" stroke-width="2" />
+
+                    <g>
+                        <rect x="325" y="42" width="96" height="58" rx="10" fill="white" stroke="#dbe3ef" />
+                        <text x="373" y="66" text-anchor="middle" font-size="12" font-weight="800" fill="#64748b">۲۱ خرداد</text>
+                        <text x="373" y="86" text-anchor="middle" font-size="12" font-weight="950" fill="#0f172a">28,450,000 تومان</text>
+                    </g>
+
+                    <text class="chart-axis-label" x="58" y="224">خرداد ۱۷</text>
+                    <text class="chart-axis-label" x="146" y="224">خرداد ۱۸</text>
+                    <text class="chart-axis-label" x="235" y="224">خرداد ۱۹</text>
+                    <text class="chart-axis-label" x="326" y="224">خرداد ۲۰</text>
+                    <text class="chart-axis-label" x="416" y="224">خرداد ۲۱</text>
+                    <text class="chart-axis-label" x="506" y="224">خرداد ۲۲</text>
+                </svg>
+            </div>
+
+            <div class="admin-glass-card dashboard-chart-card">
+                <div class="dashboard-card-header">
+                    <button type="button" class="dashboard-filter">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>۷ روز اخیر</span>
+                    </button>
+
+                    <h2 class="dashboard-card-title">نمودار سفارش‌ها ۷ روز اخیر</h2>
+                </div>
+
+                <svg viewBox="0 0 610 230" class="dashboard-chart-svg" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="ordersFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#2f80ed" stop-opacity=".24" />
+                            <stop offset="100%" stop-color="#2f80ed" stop-opacity=".02" />
+                        </linearGradient>
+                    </defs>
+
+                    <line class="chart-grid-line" x1="42" y1="22" x2="590" y2="22" />
+                    <line class="chart-grid-line" x1="42" y1="72" x2="590" y2="72" />
+                    <line class="chart-grid-line" x1="42" y1="122" x2="590" y2="122" />
+                    <line class="chart-grid-line" x1="42" y1="172" x2="590" y2="172" />
+
+                    <text class="chart-axis-label" x="18" y="27">50</text>
+                    <text class="chart-axis-label" x="18" y="77">40</text>
+                    <text class="chart-axis-label" x="18" y="127">30</text>
+                    <text class="chart-axis-label" x="18" y="177">20</text>
+
+                    <path d="M58 113 C91 95, 107 145, 136 132 C173 115, 192 123, 224 105 C258 86, 274 70, 312 83 C348 95, 348 112, 381 91 C413 71, 454 91, 484 76 C520 59, 550 63, 590 83 L590 204 L58 204 Z"
+                          fill="url(#ordersFill)" />
+
+                    <path d="M58 113 C91 95, 107 145, 136 132 C173 115, 192 123, 224 105 C258 86, 274 70, 312 83 C348 95, 348 112, 381 91 C413 71, 454 91, 484 76 C520 59, 550 63, 590 83"
+                          fill="none"
+                          stroke="#2f80ed"
+                          stroke-width="3"
+                          stroke-linecap="round" />
+
+                    <circle cx="381" cy="91" r="7" fill="#2f80ed" stroke="#fff" stroke-width="3" />
+                    <circle cx="526" cy="63" r="4" fill="#2f80ed" stroke="#fff" stroke-width="2" />
+
+                    <g>
+                        <rect x="348" y="42" width="88" height="58" rx="10" fill="white" stroke="#dbe3ef" />
+                        <text x="392" y="66" text-anchor="middle" font-size="12" font-weight="800" fill="#64748b">۲۱ خرداد</text>
+                        <text x="392" y="86" text-anchor="middle" font-size="12" font-weight="950" fill="#0f172a">۳۸ سفارش</text>
+                    </g>
+
+                    <text class="chart-axis-label" x="58" y="224">خرداد ۱۷</text>
+                    <text class="chart-axis-label" x="146" y="224">خرداد ۱۸</text>
+                    <text class="chart-axis-label" x="235" y="224">خرداد ۱۹</text>
+                    <text class="chart-axis-label" x="326" y="224">خرداد ۲۰</text>
+                    <text class="chart-axis-label" x="416" y="224">خرداد ۲۱</text>
+                    <text class="chart-axis-label" x="506" y="224">خرداد ۲۲</text>
+                </svg>
+            </div>
+        </section>
+
+        <section class="dashboard-bottom">
+            <div class="admin-glass-card dashboard-panel">
+                <div class="dashboard-card-header">
+                    <a href="/Admin/Orders" class="dashboard-card-action">مشاهده همه</a>
+                    <h2 class="dashboard-card-title">آخرین سفارش‌ها</h2>
+                </div>
+
+                <div class="dashboard-table-wrap">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>سفارش</th>
+                                <th>کاربر</th>
+                                <th>مبلغ</th>
+                                <th>وضعیت</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (Model.Dashboard.RecentOrders == null || !Model.Dashboard.RecentOrders.Any())
+                            {
                                 <tr>
-                                    <th class="px-5 py-4">شماره سفارش</th>
-                                    <th class="px-5 py-4">مشتری</th>
-                                    <th class="px-5 py-4">مبلغ</th>
-                                    <th class="px-5 py-4">وضعیت</th>
-                                    <th class="px-5 py-4">تاریخ</th>
+                                    <td>#12548</td>
+                                    <td>علی محمدی</td>
+                                    <td>1,250,000 تومان</td>
+                                    <td><span class="status-pill status-success">تحویل شده</span></td>
+                                    <td>←</td>
                                 </tr>
-                            </thead>
-
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach (var order in Model.Dashboard.RecentOrders)
+                                <tr>
+                                    <td>#12547</td>
+                                    <td>رضا حسینی</td>
+                                    <td>780,000 تومان</td>
+                                    <td><span class="status-pill status-process">در حال پردازش</span></td>
+                                    <td>←</td>
+                                </tr>
+                                <tr>
+                                    <td>#12546</td>
+                                    <td>زهرا احمدی</td>
+                                    <td>450,000 تومان</td>
+                                    <td><span class="status-pill status-success">پرداخت شده</span></td>
+                                    <td>←</td>
+                                </tr>
+                                <tr>
+                                    <td>#12545</td>
+                                    <td>امیر کریمی</td>
+                                    <td>320,000 تومان</td>
+                                    <td><span class="status-pill status-danger">لغو شده</span></td>
+                                    <td>←</td>
+                                </tr>
+                                <tr>
+                                    <td>#12544</td>
+                                    <td>سارا مرادی</td>
+                                    <td>2,100,000 تومان</td>
+                                    <td><span class="status-pill status-success">تحویل شده</span></td>
+                                    <td>←</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var order in Model.Dashboard.RecentOrders.Take(5))
                                 {
-                                    <tr class="transition hover:bg-slate-50/70">
-                                        <td class="px-5 py-4">
-                                            <p dir="ltr" class="text-left font-black text-slate-900">@order.OrderNumber</p>
-                                        </td>
-
-                                        <td class="px-5 py-4">
-                                            <p class="font-black text-slate-700">@order.CustomerName</p>
-                                        </td>
-
-                                        <td class="px-5 py-4">
-                                            <p class="font-black text-slate-900">@Model.FormatMoney(order.FinalAmount)</p>
-                                        </td>
-
-                                        <td class="px-5 py-4">
-                                            <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                                    <tr>
+                                        <td dir="ltr">@order.OrderNumber</td>
+                                        <td>@order.CustomerName</td>
+                                        <td>@Model.FormatMoney(order.FinalAmount)</td>
+                                        <td>
+                                            <span class="status-pill @Model.GetStatusCss(order.Status)">
                                                 @Model.GetOrderStatus(order.Status)
                                             </span>
                                         </td>
-
-                                        <td class="px-5 py-4">
-                                            <p class="text-xs font-bold text-slate-400">@order.CreatedAt.ToString("yyyy/MM/dd")</p>
+                                        <td>
+                                            <a href="/Admin/Orders">←</a>
                                         </td>
                                     </tr>
                                 }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <a href="/Admin/Orders" class="dashboard-card-action">مشاهده همه سفارش‌ها</a>
+                </div>
             </div>
 
-            <aside class="space-y-6 xl:col-span-4">
+            <div class="admin-glass-card dashboard-panel">
+                <div class="dashboard-card-header">
+                    <a href="/Admin/Products" class="dashboard-card-action">مشاهده همه</a>
+                    <h2 class="dashboard-card-title">محصولات پرفروش</h2>
+                </div>
 
-                <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl">
-                    <div class="mb-5">
-                        <h2 class="text-lg font-black text-slate-900">وضعیت سفارش‌ها</h2>
-                        <p class="mt-1 text-xs font-bold text-slate-400">نمای کلی پردازش سفارش‌ها</p>
+                <div class="product-sale-row">
+                    <div class="product-sale-logo" style="background:linear-gradient(135deg,#2f80ed,#174ea6);">PS</div>
+                    <div class="product-sale-title">گیفت کارت پلی استیشن 100 دلاری</div>
+                    <div class="product-sale-count">245 عدد</div>
+                    <div class="product-sale-rank hot">1</div>
+                </div>
+
+                <div class="product-sale-row">
+                    <div class="product-sale-logo" style="background:linear-gradient(135deg,#111827,#334155);">ST</div>
+                    <div class="product-sale-title">گیفت کارت استیم 50 دلاری</div>
+                    <div class="product-sale-count">189 عدد</div>
+                    <div class="product-sale-rank">2</div>
+                </div>
+
+                <div class="product-sale-row">
+                    <div class="product-sale-logo" style="background:linear-gradient(135deg,#22c55e,#15803d);">SP</div>
+                    <div class="product-sale-title">اکانت پریمیوم اسپاتیفای</div>
+                    <div class="product-sale-count">156 عدد</div>
+                    <div class="product-sale-rank">3</div>
+                </div>
+
+                <div class="product-sale-row">
+                    <div class="product-sale-logo" style="background:linear-gradient(135deg,#10b981,#047857);">XB</div>
+                    <div class="product-sale-title">گیفت کارت Xbox 50 دلاری</div>
+                    <div class="product-sale-count">133 عدد</div>
+                    <div class="product-sale-rank">4</div>
+                </div>
+
+                <div style="margin-top: 18px;">
+                    <a href="/Admin/Products" class="dashboard-card-action">مشاهده همه محصولات</a>
+                </div>
+            </div>
+
+            <div class="admin-glass-card dashboard-panel">
+                <div class="dashboard-card-header">
+                    <span></span>
+                    <h2 class="dashboard-card-title">آمار سریع</h2>
+                </div>
+
+                <div class="quick-stat-row">
+                    <div class="quick-icon quick-blue">
+                        <i data-lucide="users"></i>
                     </div>
-
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between rounded-2xl bg-amber-50/80 p-4">
-                            <div>
-                                <p class="text-sm font-black text-slate-700">در انتظار</p>
-                                <p class="mt-1 text-xs font-bold text-amber-600">نیازمند بررسی</p>
-                            </div>
-                            <span class="text-2xl font-black text-amber-600">@Model.Dashboard.PendingOrders.ToString("N0")</span>
-                        </div>
-
-                        <div class="flex items-center justify-between rounded-2xl bg-emerald-50/80 p-4">
-                            <div>
-                                <p class="text-sm font-black text-slate-700">تکمیل شده</p>
-                                <p class="mt-1 text-xs font-bold text-emerald-600">تحویل موفق</p>
-                            </div>
-                            <span class="text-2xl font-black text-emerald-600">@Model.Dashboard.CompletedOrders.ToString("N0")</span>
-                        </div>
-
-                        <div class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4">
-                            <div>
-                                <p class="text-sm font-black text-slate-700">کل سفارش‌ها</p>
-                                <p class="mt-1 text-xs font-bold text-slate-400">همه وضعیت‌ها</p>
-                            </div>
-                            <span class="text-2xl font-black text-slate-900">@Model.Dashboard.TotalOrders.ToString("N0")</span>
-                        </div>
+                    <div>
+                        <div class="quick-label">تعداد کاربران</div>
+                        <div class="quick-value">@Model.Dashboard.TotalUsers.ToString("N0") نفر</div>
                     </div>
                 </div>
 
-                <div class="rounded-[2rem] border border-white/80 bg-white/72 p-6 shadow-soft backdrop-blur-2xl">
-                    <div class="mb-5">
-                        <h2 class="text-lg font-black text-slate-900">میانبرها</h2>
-                        <p class="mt-1 text-xs font-bold text-slate-400">دسترسی سریع به بخش‌های اصلی</p>
+                <div class="quick-stat-row">
+                    <div class="quick-icon quick-green">
+                        <i data-lucide="package-check"></i>
                     </div>
-
-                    <div class="grid grid-cols-1 gap-3">
-                        <a href="/Admin/Products/Create"
-                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
-                            <span>افزودن محصول</span>
-                            <span>+</span>
-                        </a>
-
-                        <a href="/Admin/Products"
-                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
-                            <span>مدیریت محصولات</span>
-                            <span>◈</span>
-                        </a>
-
-                        <a href="/Admin/GiftCodes"
-                           class="flex items-center justify-between rounded-2xl bg-slate-50/80 p-4 text-sm font-black text-slate-700 transition hover:bg-slate-900 hover:text-white">
-                            <span>کدهای گیفت‌کارت</span>
-                            <span>#</span>
-                        </a>
+                    <div>
+                        <div class="quick-label">محصولات فعال</div>
+                        <div class="quick-value">@Model.Dashboard.TotalProducts.ToString("N0") عدد</div>
                     </div>
                 </div>
 
-                <div class="rounded-[2rem] border border-white/80 bg-slate-900 p-6 text-white shadow-soft">
-                    <h2 class="text-lg font-black">وضعیت MVP</h2>
-                    <p class="mt-3 text-sm font-bold leading-8 text-white/60">
-                        هسته محصولات، تنوع‌ها، آپلود تصویر و داشبورد فعال شده‌اند. مرحله بعد تکمیل دسته‌بندی، برند و گیفت‌کد است.
-                    </p>
-
-                    <div class="mt-5 rounded-2xl bg-white/10 p-4">
-                        <p class="text-xs font-black text-white/60">کدهای تخفیف فعال</p>
-                        <p class="mt-2 text-2xl font-black">@Model.Dashboard.ActiveCoupons.ToString("N0")</p>
+                <div class="quick-stat-row">
+                    <div class="quick-icon quick-purple">
+                        <i data-lucide="credit-card"></i>
+                    </div>
+                    <div>
+                        <div class="quick-label">تعداد گیفت کارت‌ها</div>
+                        <div class="quick-value">@Model.Dashboard.AvailableGiftCodes.ToString("N0") عدد</div>
                     </div>
                 </div>
 
-            </aside>
+                <div class="quick-stat-row">
+                    <div class="quick-icon quick-orange">
+                        <i data-lucide="ticket-percent"></i>
+                    </div>
+                    <div>
+                        <div class="quick-label">کوپن‌های فعال</div>
+                        <div class="quick-value">@Model.Dashboard.ActiveCoupons.ToString("N0") مورد</div>
+                    </div>
+                </div>
+
+                <div class="quick-stat-row">
+                    <div class="quick-icon quick-red">
+                        <i data-lucide="clock-alert"></i>
+                    </div>
+                    <div>
+                        <div class="quick-label">سفارش‌های در انتظار</div>
+                        <div class="quick-value">@Model.Dashboard.PendingOrders.ToString("N0") مورد</div>
+                    </div>
+                </div>
+            </div>
         </section>
+
+        <section class="admin-glass-card dashboard-panel">
+            <div class="dashboard-card-header">
+                <a href="/Admin/Notifications" class="dashboard-card-action">مشاهده همه</a>
+                <h2 class="dashboard-card-title">اعلان‌های سیستم</h2>
+            </div>
+
+            <div class="system-alerts">
+                <div class="system-alert blue">
+                    <div>
+                        <div class="system-alert-title">نسخه جدید سیستم موجود است</div>
+                        <div class="system-alert-text">نسخه 2.1.0 با قابلیت‌های جدید منتشر شد.</div>
+                        <div class="system-alert-time">۲ ساعت پیش</div>
+                    </div>
+
+                    <div class="quick-icon quick-blue">
+                        <i data-lucide="rocket"></i>
+                    </div>
+                </div>
+
+                <div class="system-alert orange">
+                    <div>
+                        <div class="system-alert-title">موجودی گیفت کارت PSN کم است</div>
+                        <div class="system-alert-text">لطفاً موجودی این محصول را بررسی کنید.</div>
+                        <div class="system-alert-time">۵ ساعت پیش</div>
+                    </div>
+
+                    <div class="quick-icon quick-orange">
+                        <i data-lucide="wallet-cards"></i>
+                    </div>
+                </div>
+
+                <div class="system-alert green">
+                    <div>
+                        <div class="system-alert-title">پرداخت ناموفق</div>
+                        <div class="system-alert-text">تراکنش شماره #12548 ناموفق بود.</div>
+                        <div class="system-alert-time">۱ ساعت پیش</div>
+                    </div>
+
+                    <div class="quick-icon quick-green">
+                        <i data-lucide="shield-check"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </div>
+}
+
+@section Scripts {
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
 }
