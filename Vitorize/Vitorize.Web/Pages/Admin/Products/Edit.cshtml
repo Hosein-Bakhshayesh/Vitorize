@@ -1,222 +1,391 @@
 ﻿@page "{id:guid}"
 @model Vitorize.Web.Pages.Admin.Products.EditModel
+
 @{
     ViewData["Title"] = "ویرایش محصول";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
 
-<div class="space-y-6" dir="rtl">
-    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex items-center gap-4">
-                <div class="h-20 w-20 overflow-hidden rounded-3xl bg-slate-100 ring-1 ring-slate-200">
-                    @if (!string.IsNullOrWhiteSpace(Model.Product.ThumbnailImagePath))
+<div class="product-form-page" dir="rtl">
+
+    <section class="pf-hero">
+        <div class="pf-hero-content">
+            <div class="pf-hero-title-with-image">
+                <div class="pf-preview-thumb">
+                    @if (!string.IsNullOrWhiteSpace(Model.GetImagePath()))
                     {
-                        <img src="@Model.Product.ThumbnailImagePath" class="h-full w-full object-cover" />
+                        <img src="@Model.GetImagePath()" alt="@Model.Product.Title" />
                     }
                     else
                     {
-                        <div class="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">No Image</div>
+                        <span>@Model.GetProductInitial()</span>
                     }
                 </div>
 
                 <div>
-                    <p class="text-sm font-black text-indigo-600">Edit Product</p>
-                    <h1 class="mt-2 text-3xl font-black text-slate-900">@Model.Product.Title</h1>
-                    <p class="mt-1 text-xs text-slate-400">@Model.Product.Slug</p>
+                    <div class="pf-eyebrow">
+                        <i data-lucide="pencil"></i>
+                        ویرایش محصول
+                    </div>
+
+                    <h1>@(string.IsNullOrWhiteSpace(Model.Product.Title) ? "ویرایش محصول" : Model.Product.Title)</h1>
+
+                    <p>
+                        اطلاعات محصول، قیمت، وضعیت فروش، تنظیمات تحویل و سئو را مدیریت کن.
+                    </p>
                 </div>
             </div>
 
-            <div class="flex flex-wrap gap-2">
-                <a asp-page="/Admin/Products/Details" asp-route-id="@Model.ProductId"
-                   class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700">جزئیات</a>
+            <div class="pf-hero-actions">
+                <a asp-page="/Admin/Products/Details"
+                   asp-route-id="@Model.ProductId"
+                   class="pf-btn pf-btn-soft">
+                    <i data-lucide="eye"></i>
+                    جزئیات
+                </a>
 
-                <a asp-page="/Admin/Products/Images/Index" asp-route-productId="@Model.ProductId"
-                   class="rounded-2xl bg-fuchsia-50 px-5 py-3 text-sm font-black text-fuchsia-700">تصاویر</a>
-
-                <a asp-page="/Admin/Products/Variants/Index" asp-route-productId="@Model.ProductId"
-                   class="rounded-2xl bg-cyan-50 px-5 py-3 text-sm font-black text-cyan-700">تنوع‌ها</a>
+                <a asp-page="/Admin/Products/Index" class="pf-btn pf-btn-soft">
+                    <i data-lucide="arrow-right"></i>
+                    بازگشت
+                </a>
             </div>
         </div>
-    </div>
+    </section>
 
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
-            @Model.ErrorMessage
+        <div class="pf-alert danger">
+            <i data-lucide="triangle-alert"></i>
+            <span>@Model.ErrorMessage</span>
         </div>
     }
 
-    <form method="post" class="grid gap-6 xl:grid-cols-12">
-        <div class="space-y-6 xl:col-span-8">
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">اطلاعات اصلی</h2>
+    <form method="post" class="pf-layout" novalidate>
+        <input asp-for="Product.ThumbnailImagePath" type="hidden" />
 
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <div class="pf-main">
+
+            <div asp-validation-summary="ModelOnly" class="pf-validation-summary"></div>
+
+            <section class="pf-card">
+                <div class="pf-card-header">
                     <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">عنوان محصول</label>
-                        <input asp-for="Product.Title" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                        <span asp-validation-for="Product.Title" class="text-xs text-rose-600"></span>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">Slug</label>
-                        <input asp-for="Product.Slug" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-left ltr" />
-                        <span asp-validation-for="Product.Slug" class="text-xs text-rose-600"></span>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">دسته‌بندی</label>
-                        <select asp-for="Product.CategoryId" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                            @foreach (var category in Model.Categories)
-                            {
-                                <option value="@category.Id">@category.Title</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">برند</label>
-                        <select asp-for="Product.BrandId" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                            <option value="">بدون برند</option>
-                            @foreach (var brand in Model.Brands)
-                            {
-                                <option value="@brand.Id">@brand.Title</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <label class="mb-2 block text-xs font-black text-slate-500">توضیح کوتاه</label>
-                    <textarea asp-for="Product.ShortDescription" rows="3" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
-                </div>
-
-                <div class="mt-4">
-                    <label class="mb-2 block text-xs font-black text-slate-500">توضیح کامل</label>
-                    <textarea asp-for="Product.FullDescription" rows="8" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
-                </div>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">قیمت و محدودیت خرید</h2>
-
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت پایه</label>
-                        <input asp-for="Product.BasePrice" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت تخفیف</label>
-                        <input asp-for="Product.DiscountPrice" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">حداقل سفارش</label>
-                        <input asp-for="Product.MinOrderQuantity" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">حداکثر سفارش</label>
-                        <input asp-for="Product.MaxOrderQuantity" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="space-y-6 xl:col-span-4">
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">تنظیمات فروش</h2>
-
-                <div class="mt-5 space-y-4">
-                    <select asp-for="Product.ProductType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                        <option value="1">گیفت کارت</option>
-                        <option value="2">اکانت بازی</option>
-                        <option value="3">سرویس بازی</option>
-                        <option value="4">اشتراک</option>
-                        <option value="5">سایر</option>
-                    </select>
-
-                    <select asp-for="Product.DeliveryType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                        <option value="1">تحویل آنی</option>
-                        <option value="2">تحویل دستی</option>
-                        <option value="3">نیازمند پشتیبانی</option>
-                    </select>
-
-                    <select asp-for="Product.CurrencyType" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                        <option value="1">ریال</option>
-                        <option value="2">تومان</option>
-                        <option value="3">دلار</option>
-                    </select>
-
-                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
-                        <span>فعال</span>
-                        <input asp-for="Product.IsActive" class="h-5 w-5" />
-                    </label>
-
-                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
-                        <span>ویژه</span>
-                        <input asp-for="Product.IsFeatured" class="h-5 w-5" />
-                    </label>
-
-                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
-                        <span>نیازمند احراز هویت</span>
-                        <input asp-for="Product.RequiresVerification" class="h-5 w-5" />
-                    </label>
-
-                    <label class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold">
-                        <span>نیازمند پیام پشتیبانی</span>
-                        <input asp-for="Product.RequiresSupportMessage" class="h-5 w-5" />
-                    </label>
-                </div>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">تصویر اصلی و SEO</h2>
-
-                <div class="mt-5 space-y-4">
-                    <div class="overflow-hidden rounded-3xl border border-slate-100 bg-slate-50">
-                        <div class="aspect-video bg-white">
-                            @if (!string.IsNullOrWhiteSpace(Model.Product.ThumbnailImagePath))
-                            {
-                                <img src="@Model.Product.ThumbnailImagePath" class="h-full w-full object-cover" />
-                            }
-                            else
-                            {
-                                <div class="flex h-full w-full items-center justify-center text-sm font-bold text-slate-400">
-                                    تصویر اصلی انتخاب نشده
-                                </div>
-                            }
+                        <div class="pf-card-kicker">
+                            <i data-lucide="info"></i>
+                            اطلاعات اصلی
                         </div>
 
-                        <div class="p-4">
-                            <p class="text-xs font-bold text-slate-500">تصویر اصلی محصول از بخش تصاویر انتخاب می‌شود.</p>
+                        <h2>مشخصات پایه محصول</h2>
 
-                            <a asp-page="/Admin/Products/Images/Index"
-                               asp-route-productId="@Model.ProductId"
-                               class="mt-3 inline-flex w-full justify-center rounded-2xl bg-fuchsia-50 px-4 py-3 text-sm font-black text-fuchsia-700">
-                                مدیریت تصاویر و انتخاب Thumbnail
-                            </a>
+                        <p>
+                            تغییر عنوان، اسلاگ، دسته‌بندی و توضیحات محصول روی نمایش عمومی فروشگاه اثر می‌گذارد.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pf-form-grid two">
+                    <div class="pf-field">
+                        <label asp-for="Product.Title">عنوان محصول</label>
+                        <input asp-for="Product.Title"
+                               class="pf-control"
+                               autocomplete="off" />
+                        <span asp-validation-for="Product.Title" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.Slug">اسلاگ محصول</label>
+                        <input asp-for="Product.Slug"
+                               class="pf-control ltr"
+                               autocomplete="off" />
+                        <span asp-validation-for="Product.Slug" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.CategoryId">دسته‌بندی</label>
+
+                        <div class="pf-select-shell">
+                            <i data-lucide="folder"></i>
+
+                            <select asp-for="Product.CategoryId" class="pf-select-control">
+                                <option value="">انتخاب دسته‌بندی</option>
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category.Id">@category.Title</option>
+                                }
+                            </select>
+
+                            <i data-lucide="chevron-down" class="pf-select-chevron"></i>
+                        </div>
+
+                        <span asp-validation-for="Product.CategoryId" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.BrandId">برند</label>
+
+                        <div class="pf-select-shell">
+                            <i data-lucide="badge-check"></i>
+
+                            <select asp-for="Product.BrandId" class="pf-select-control">
+                                <option value="">بدون برند</option>
+                                @foreach (var brand in Model.Brands)
+                                {
+                                    <option value="@brand.Id">@brand.Title</option>
+                                }
+                            </select>
+
+                            <i data-lucide="chevron-down" class="pf-select-chevron"></i>
+                        </div>
+
+                        <span asp-validation-for="Product.BrandId" class="pf-validation"></span>
+                    </div>
+                </div>
+
+                <div class="pf-field pf-field-gap">
+                    <label asp-for="Product.ShortDescription">توضیح کوتاه</label>
+                    <textarea asp-for="Product.ShortDescription"
+                              class="pf-textarea"
+                              rows="3"></textarea>
+                    <span asp-validation-for="Product.ShortDescription" class="pf-validation"></span>
+                </div>
+
+                <div class="pf-field pf-field-gap">
+                    <label asp-for="Product.FullDescription">توضیح کامل</label>
+                    <textarea asp-for="Product.FullDescription"
+                              class="pf-textarea"
+                              rows="8"></textarea>
+                    <span asp-validation-for="Product.FullDescription" class="pf-validation"></span>
+                </div>
+            </section>
+
+            <section class="pf-card">
+                <div class="pf-card-header">
+                    <div>
+                        <div class="pf-card-kicker">
+                            <i data-lucide="wallet"></i>
+                            قیمت و خرید
+                        </div>
+
+                        <h2>قیمت‌گذاری و محدودیت سفارش</h2>
+
+                        <p>
+                            قیمت نهایی محصول و محدودیت تعداد خرید کاربر از این بخش کنترل می‌شود.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pf-form-grid two">
+                    <div class="pf-field">
+                        <label asp-for="Product.BasePrice">قیمت پایه</label>
+                        <input asp-for="Product.BasePrice"
+                               class="pf-control ltr"
+                               inputmode="decimal" />
+                        <span asp-validation-for="Product.BasePrice" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.DiscountPrice">قیمت تخفیف</label>
+                        <input asp-for="Product.DiscountPrice"
+                               class="pf-control ltr"
+                               inputmode="decimal" />
+                        <span asp-validation-for="Product.DiscountPrice" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.MinOrderQuantity">حداقل تعداد سفارش</label>
+                        <input asp-for="Product.MinOrderQuantity"
+                               class="pf-control ltr"
+                               inputmode="numeric" />
+                        <span asp-validation-for="Product.MinOrderQuantity" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.MaxOrderQuantity">حداکثر تعداد سفارش</label>
+                        <input asp-for="Product.MaxOrderQuantity"
+                               class="pf-control ltr"
+                               inputmode="numeric" />
+                        <span asp-validation-for="Product.MaxOrderQuantity" class="pf-validation"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pf-card">
+                <div class="pf-card-header">
+                    <div>
+                        <div class="pf-card-kicker">
+                            <i data-lucide="search-check"></i>
+                            SEO
+                        </div>
+
+                        <h2>تنظیمات سئو</h2>
+                    </div>
+                </div>
+
+                <div class="pf-form-grid">
+                    <div class="pf-field">
+                        <label asp-for="Product.SeoTitle">SEO Title</label>
+                        <input asp-for="Product.SeoTitle" class="pf-control" />
+                        <span asp-validation-for="Product.SeoTitle" class="pf-validation"></span>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.SeoDescription">SEO Description</label>
+                        <textarea asp-for="Product.SeoDescription"
+                                  class="pf-textarea"
+                                  rows="4"></textarea>
+                        <span asp-validation-for="Product.SeoDescription" class="pf-validation"></span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="pf-side">
+
+            <section class="pf-card pf-sticky-card">
+                <div class="pf-card-header compact">
+                    <div>
+                        <div class="pf-card-kicker">
+                            <i data-lucide="settings-2"></i>
+                            تنظیمات فروش
+                        </div>
+
+                        <h2>وضعیت و نوع محصول</h2>
+                    </div>
+                </div>
+
+                <div class="pf-side-fields">
+                    <div class="pf-image-box">
+                        @if (!string.IsNullOrWhiteSpace(Model.GetImagePath()))
+                        {
+                            <img src="@Model.GetImagePath()" alt="@Model.Product.Title" />
+                        }
+                        else
+                        {
+                            <div>
+                                <i data-lucide="image"></i>
+                                <span>تصویر اصلی انتخاب نشده</span>
+                            </div>
+                        }
+
+                        <a asp-page="/Admin/ProductImages/Index"
+                           asp-route-productId="@Model.ProductId"
+                           class="pf-btn pf-btn-soft">
+                            <i data-lucide="image-plus"></i>
+                            مدیریت تصاویر
+                        </a>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.ProductType">نوع محصول</label>
+
+                        <div class="pf-select-shell">
+                            <i data-lucide="box"></i>
+
+                            <select asp-for="Product.ProductType" class="pf-select-control">
+                                <option value="1">گیفت کارت</option>
+                                <option value="2">اکانت بازی</option>
+                                <option value="3">سرویس بازی</option>
+                                <option value="4">اشتراک</option>
+                                <option value="5">سایر</option>
+                            </select>
+
+                            <i data-lucide="chevron-down" class="pf-select-chevron"></i>
                         </div>
                     </div>
 
-                    <input asp-for="Product.ThumbnailImagePath" type="hidden" />
-                    <input asp-for="Product.SeoTitle" placeholder="SEO Title"
-                           class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
+                    <div class="pf-field">
+                        <label asp-for="Product.DeliveryType">نوع تحویل</label>
 
-                    <textarea asp-for="Product.SeoDescription" placeholder="SEO Description" rows="4"
-                              class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"></textarea>
+                        <div class="pf-select-shell">
+                            <i data-lucide="truck"></i>
+
+                            <select asp-for="Product.DeliveryType" class="pf-select-control">
+                                <option value="1">تحویل آنی</option>
+                                <option value="2">تحویل دستی</option>
+                                <option value="3">نیازمند پشتیبانی</option>
+                            </select>
+
+                            <i data-lucide="chevron-down" class="pf-select-chevron"></i>
+                        </div>
+                    </div>
+
+                    <div class="pf-field">
+                        <label asp-for="Product.CurrencyType">واحد پول</label>
+
+                        <div class="pf-select-shell">
+                            <i data-lucide="coins"></i>
+
+                            <select asp-for="Product.CurrencyType" class="pf-select-control">
+                                <option value="1">ریال</option>
+                                <option value="2">تومان</option>
+                                <option value="3">دلار</option>
+                            </select>
+
+                            <i data-lucide="chevron-down" class="pf-select-chevron"></i>
+                        </div>
+                    </div>
+
+                    <label class="pf-switch">
+                        <span>
+                            <strong>فعال باشد</strong>
+                            <small>محصول در فروشگاه نمایش داده شود.</small>
+                        </span>
+                        <input asp-for="Product.IsActive" class="pf-switch-input" />
+                        <i class="pf-switch-ui"></i>
+                    </label>
+
+                    <label class="pf-switch">
+                        <span>
+                            <strong>محصول ویژه</strong>
+                            <small>در بخش‌های پیشنهادی قابل استفاده است.</small>
+                        </span>
+                        <input asp-for="Product.IsFeatured" class="pf-switch-input" />
+                        <i class="pf-switch-ui"></i>
+                    </label>
+
+                    <label class="pf-switch">
+                        <span>
+                            <strong>نیازمند احراز هویت</strong>
+                            <small>برای محصولات حساس فعال شود.</small>
+                        </span>
+                        <input asp-for="Product.RequiresVerification" class="pf-switch-input" />
+                        <i class="pf-switch-ui"></i>
+                    </label>
+
+                    <label class="pf-switch">
+                        <span>
+                            <strong>نیازمند پیام پشتیبانی</strong>
+                            <small>قبل یا بعد از خرید نیاز به ارتباط با پشتیبانی دارد.</small>
+                        </span>
+                        <input asp-for="Product.RequiresSupportMessage" class="pf-switch-input" />
+                        <i class="pf-switch-ui"></i>
+                    </label>
                 </div>
-            </div>
 
-            <button class="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg">
-                ذخیره تغییرات
-            </button>
-        </div>
+                <div class="pf-submit-box">
+                    <button type="submit" class="pf-btn pf-btn-primary pf-submit-btn">
+                        <i data-lucide="save"></i>
+                        ذخیره تغییرات
+                    </button>
+
+                    <a asp-page="/Admin/ProductVariants/Index"
+                       asp-route-productId="@Model.ProductId"
+                       class="pf-btn pf-btn-soft pf-submit-btn">
+                        <i data-lucide="layers-3"></i>
+                        مدیریت واریانت‌ها
+                    </a>
+                </div>
+            </section>
+        </aside>
     </form>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
 }
