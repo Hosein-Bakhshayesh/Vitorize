@@ -2,26 +2,18 @@
 {
     public class AdminDashboardModel
     {
-        public int TotalUsers { get; set; }
-        public int TotalProducts { get; set; }
-        public int TotalOrders { get; set; }
-        public int PendingOrders { get; set; }
-        public int CompletedOrders { get; set; }
-        public decimal TotalRevenue { get; set; }
-        public int ActiveCoupons { get; set; }
-        public int AvailableGiftCodes { get; set; }
+        public DashboardSummaryModel Summary { get; set; } = new();
 
-        public List<DashboardRecentOrderModel> RecentOrders { get; set; } = new();
-    }
+        public List<TopProductModel> TopProducts { get; set; } = new();
 
-    public class DashboardRecentOrderModel
-    {
-        public Guid Id { get; set; }
-        public string OrderNumber { get; set; } = string.Empty;
-        public string CustomerName { get; set; } = string.Empty;
-        public decimal FinalAmount { get; set; }
-        public byte Status { get; set; }
-        public byte PaymentStatus { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public List<DashboardChartPointModel> SalesLast7Days { get; set; } = new();
+
+        public List<DashboardChartPointModel> OrdersLast7Days { get; set; } = new();
+
+        public List<DashboardStatusCountModel> OrderStatusCounts { get; set; } = new();
+
+        public List<DashboardStatusCountModel> PaymentStatusCounts { get; set; } = new();
+
+        public List<DashboardStatusCountModel> GiftCodeStatusCounts { get; set; } = new();
     }
 }

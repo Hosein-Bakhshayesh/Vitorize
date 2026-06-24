@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Vitorize.Web.Filters;
 using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.Storage;
@@ -18,6 +19,8 @@ namespace Vitorize.Web
 
                 options.Conventions.AllowAnonymousToPage("/Admin/Auth/Login");
                 options.Conventions.AllowAnonymousToPage("/Admin/Auth/AccessDenied");
+
+                options.Conventions.ConfigureFilter(new AdminApiAuthorizationFilter());
             });
 
             builder.Services.AddHttpContextAccessor();

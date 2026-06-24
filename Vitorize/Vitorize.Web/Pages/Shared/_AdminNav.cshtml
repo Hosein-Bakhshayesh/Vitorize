@@ -1,4 +1,110 @@
-﻿@functions {
+﻿@{
+    var groups = new List<AdminNavGroup>
+    {
+        new AdminNavGroup
+        {
+            Title = "داشبورد",
+            Icon = "layout-grid",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin", "داشبورد", "home", true)
+            }
+        },
+
+        new AdminNavGroup
+        {
+            Title = "فروش",
+            Icon = "shopping-cart",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin/Orders", "سفارش‌ها", "shopping-cart"),
+                new AdminNavItem("/Admin/Payments", "تراکنش‌ها", "repeat-2"),
+                new AdminNavItem("/Admin/Reports/Sales", "گزارش فروش", "line-chart")
+            }
+        },
+
+        new AdminNavGroup
+        {
+            Title = "کاتالوگ",
+            Icon = "package",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin/Products", "محصولات", "package"),
+                new AdminNavItem("/Admin/Categories", "دسته‌بندی‌ها", "grid-2x2"),
+                new AdminNavItem("/Admin/Brands", "برندها", "badge-check"),
+                new AdminNavItem("/Admin/GiftCodes", "گیفت‌کارت‌ها", "credit-card"),
+                new AdminNavItem("/Admin/Coupons", "کوپن‌ها", "ticket-percent"),
+                new AdminNavItem("/Admin/ProductImages", "تصاویر محصول", "image"),
+                new AdminNavItem("/Admin/ProductVariants", "واریانت‌های محصول", "layers-3")
+            }
+        },
+
+        new AdminNavGroup
+        {
+            Title = "مشتریان",
+            Icon = "users",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin/Users", "کاربران", "users"),
+                new AdminNavItem("/Admin/Verifications", "احراز هویت", "shield-check"),
+                new AdminNavItem("/Admin/Wallets", "کیف پول‌ها", "wallet")
+            }
+        },
+
+        new AdminNavGroup
+        {
+            Title = "پشتیبانی",
+            Icon = "headphones",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin/Tickets", "تیکت‌ها", "headphones"),
+                new AdminNavItem("/Admin/Notifications", "اطلاعیه‌ها", "bell")
+            }
+        },
+
+        new AdminNavGroup
+        {
+            Title = "سیستم",
+            Icon = "settings",
+            Items = new List<AdminNavItem>
+            {
+                new AdminNavItem("/Admin/Settings", "تنظیمات", "settings"),
+                new AdminNavItem("/Admin/AuditLogs", "لاگ‌ها", "file-text"),
+                new AdminNavItem("/Admin/SecurityLogs", "لاگ امنیتی", "history"),
+                new AdminNavItem("/Admin/ErrorLogs", "خطاها", "triangle-alert")
+            }
+        }
+    };
+}
+
+<nav class="admin-nav">
+    @foreach (var group in groups)
+    {
+        <div class="admin-menu-section">
+            <i data-lucide="@group.Icon"></i>
+            <span>@group.Title</span>
+        </div>
+
+        foreach (var item in group.Items)
+        {
+            var activeClass = IsActive(item.Href, item.Exact) ? "active" : string.Empty;
+
+            <a href="@item.Href"
+               class="admin-nav-link @activeClass"
+               title="@item.Title">
+                <span class="admin-nav-link-content">
+                    <span class="admin-nav-icon">
+                        <i data-lucide="@item.Icon"></i>
+                    </span>
+
+                    <span class="admin-nav-text">@item.Title</span>
+                </span>
+            </a>
+        }
+    }
+</nav>
+
+@functions {
     private bool IsActive(string href, bool exact = false)
     {
         var currentPath = Context.Request.Path.Value ?? "/";
@@ -13,160 +119,44 @@
             targetPath = "/";
 
         if (exact)
-            return currentPath == targetPath;
+        {
+            return currentPath == targetPath ||
+                   currentPath == "/admin/index";
+        }
 
-        return currentPath == targetPath || currentPath.StartsWith(targetPath + "/");
+        return currentPath == targetPath ||
+               currentPath.StartsWith(targetPath + "/");
+    }
+
+    private sealed class AdminNavGroup
+    {
+        public string Title { get; set; } = string.Empty;
+
+        public string Icon { get; set; } = string.Empty;
+
+        public List<AdminNavItem> Items { get; set; } = new();
+    }
+
+    private sealed class AdminNavItem
+    {
+        public AdminNavItem(
+            string href,
+            string title,
+            string icon,
+            bool exact = false)
+        {
+            Href = href;
+            Title = title;
+            Icon = icon;
+            Exact = exact;
+        }
+
+        public string Href { get; }
+
+        public string Title { get; }
+
+        public string Icon { get; }
+
+        public bool Exact { get; }
     }
 }
-
-<div class="admin-nav-section">داشبورد</div>
-
-<a href="/Admin" class="admin-nav-link @(IsActive("/Admin", true) ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="home"></i>
-        <span>داشبورد</span>
-    </span>
-</a>
-
-<div class="admin-nav-section">فروش</div>
-
-<a href="/Admin/Orders" class="admin-nav-link @(IsActive("/Admin/Orders") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="shopping-cart"></i>
-        <span>سفارش‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Payments" class="admin-nav-link @(IsActive("/Admin/Payments") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="repeat-2"></i>
-        <span>تراکنش‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Reports/Sales" class="admin-nav-link @(IsActive("/Admin/Reports") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="line-chart"></i>
-        <span>گزارش فروش</span>
-    </span>
-</a>
-
-<div class="admin-nav-section">کاتالوگ</div>
-
-<a href="/Admin/Products" class="admin-nav-link @(IsActive("/Admin/Products") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="package"></i>
-        <span>محصولات</span>
-    </span>
-</a>
-
-<a href="/Admin/Categories" class="admin-nav-link @(IsActive("/Admin/Categories") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="grid-2x2"></i>
-        <span>دسته‌بندی‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Brands" class="admin-nav-link @(IsActive("/Admin/Brands") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="badge-check"></i>
-        <span>برندها</span>
-    </span>
-</a>
-
-<a href="/Admin/GiftCodes" class="admin-nav-link @(IsActive("/Admin/GiftCodes") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="credit-card"></i>
-        <span>گیفت‌کارت‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Coupons" class="admin-nav-link @(IsActive("/Admin/Coupons") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="ticket-percent"></i>
-        <span>کوپن‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Products/Images" class="admin-nav-link @(IsActive("/Admin/Products/Images") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="image"></i>
-        <span>تصاویر محصول</span>
-    </span>
-</a>
-
-<a href="/Admin/Products/Variants" class="admin-nav-link @(IsActive("/Admin/Products/Variants") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="layers-3"></i>
-        <span>واریانت‌های محصول</span>
-    </span>
-</a>
-
-<div class="admin-nav-section">مشتریان</div>
-
-<a href="/Admin/Users" class="admin-nav-link @(IsActive("/Admin/Users") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="users"></i>
-        <span>کاربران</span>
-    </span>
-</a>
-
-<a href="/Admin/Verifications" class="admin-nav-link @(IsActive("/Admin/Verifications") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="shield-check"></i>
-        <span>احراز هویت</span>
-    </span>
-</a>
-
-<a href="/Admin/Wallets" class="admin-nav-link @(IsActive("/Admin/Wallets") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="wallet"></i>
-        <span>کیف پول‌ها</span>
-    </span>
-</a>
-
-<div class="admin-nav-section">پشتیبانی</div>
-
-<a href="/Admin/Tickets" class="admin-nav-link @(IsActive("/Admin/Tickets") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="headphones"></i>
-        <span>تیکت‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/Notifications" class="admin-nav-link @(IsActive("/Admin/Notifications") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="bell"></i>
-        <span>اطلاعیه‌ها</span>
-    </span>
-</a>
-
-<div class="admin-nav-section">سیستم</div>
-
-<a href="/Admin/Settings" class="admin-nav-link @(IsActive("/Admin/Settings") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="settings"></i>
-        <span>تنظیمات</span>
-    </span>
-</a>
-
-<a href="/Admin/AuditLogs" class="admin-nav-link @(IsActive("/Admin/AuditLogs") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="file-text"></i>
-        <span>لاگ‌ها</span>
-    </span>
-</a>
-
-<a href="/Admin/SecurityLogs" class="admin-nav-link @(IsActive("/Admin/SecurityLogs") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="history"></i>
-        <span>لاگ امنیتی</span>
-    </span>
-</a>
-
-<a href="/Admin/ErrorLogs" class="admin-nav-link @(IsActive("/Admin/ErrorLogs") ? "active" : "")">
-    <span class="admin-nav-link-content">
-        <i data-lucide="triangle-alert"></i>
-        <span>خطاها</span>
-    </span>
-</a>

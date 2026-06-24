@@ -1,7 +1,9 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Vitorize.Shared.Common;
+using Vitorize.Web.Constants;
 
 namespace Vitorize.Web.Services
 {
@@ -28,6 +30,9 @@ namespace Vitorize.Web.Services
             AddBearerToken();
 
             var response = await _httpClient.GetAsync(url);
+
+            TrackAdminApiAuthFailure(response);
+
             var json = await response.Content.ReadAsStringAsync();
 
             return Deserialize<ApiResult<T>>(json, response);
@@ -39,6 +44,9 @@ namespace Vitorize.Web.Services
 
             var content = CreateJsonContent(data);
             var response = await _httpClient.PostAsync(url, content);
+
+            TrackAdminApiAuthFailure(response);
+
             var json = await response.Content.ReadAsStringAsync();
 
             return Deserialize<ApiResult<T>>(json, response);
@@ -50,6 +58,9 @@ namespace Vitorize.Web.Services
 
             var content = CreateJsonContent(data);
             var response = await _httpClient.PutAsync(url, content);
+
+            TrackAdminApiAuthFailure(response);
+
             var json = await response.Content.ReadAsStringAsync();
 
             return Deserialize<ApiResult<T>>(json, response);
@@ -60,6 +71,9 @@ namespace Vitorize.Web.Services
             AddBearerToken();
 
             var response = await _httpClient.DeleteAsync(url);
+
+            TrackAdminApiAuthFailure(response);
+
             var json = await response.Content.ReadAsStringAsync();
 
             return Deserialize<ApiResult>(json, response);
@@ -83,6 +97,9 @@ namespace Vitorize.Web.Services
             content.Add(fileContent, fieldName, file.FileName);
 
             var response = await _httpClient.PostAsync(url, content);
+
+            TrackAdminApiAuthFailure(response);
+
             var json = await response.Content.ReadAsStringAsync();
 
             return Deserialize<ApiResult<T>>(json, response);
@@ -114,10 +131,49 @@ namespace Vitorize.Web.Services
             }
         }
 
+        private void TrackAdminApiAuthFailure(HttpResponseMessage response)
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+
+            if (httpContext == null)
+                return;
+
+            if (!ShouldTrackAdminApiAuth(httpContext))
+                return;
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                httpContext.Items[AdminApiAuthItems.Unauthorized] = true;
+                return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                httpContext.Items[AdminApiAuthItems.Forbidden] = true;
+            }
+        }
+
+        private static bool ShouldTrackAdminApiAuth(HttpContext httpContext)
+        {
+            var path = httpContext.Request.Path.Value ?? string.Empty;
+
+            if (!path.StartsWith("/Admin", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (path.StartsWith("/Admin/Auth", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
+        }
+
         private static StringContent CreateJsonContent(object? data)
         {
             var json = JsonSerializer.Serialize(data ?? new { });
-            return new StringContent(json, Encoding.UTF8, "application/json");
+
+            return new StringContent(
+                json,
+                Encoding.UTF8,
+                "application/json");
         }
 
         private static T Deserialize<T>(
