@@ -1,393 +1,438 @@
 ﻿@page
 @model Vitorize.Web.Pages.Admin.Brands.IndexModel
+
 @{
     ViewData["Title"] = "مدیریت برندها";
-    Layout = "_AdminLayout";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
 
-<div class="space-y-6">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+<div class="brands-page" dir="rtl">
+
+    <section class="brand-hero">
         <div>
-            <div class="inline-flex rounded-full bg-teal-50 px-4 py-2 text-xs font-black text-teal-700 ring-1 ring-teal-100">
-                مدیریت فروشگاه
+            <div class="brand-eyebrow">
+                <i data-lucide="badge-check"></i>
+                برندهای فروشگاه
             </div>
 
-            <h1 class="mt-3 text-3xl font-black text-slate-900">
-                برندها
-            </h1>
+            <h1>مدیریت برندها</h1>
 
-            <p class="mt-2 text-sm font-medium text-slate-500">
-                مدیریت برندهای فروشگاه مثل PlayStation، Xbox، Steam، Telegram و ChatGPT
+            <p>
+                برندهای فروشگاه مثل Steam، PlayStation، Xbox، Nintendo، Telegram و ChatGPT را مدیریت کن.
+                برندها در فرم ساخت محصول، فیلترها و نمایش حرفه‌ای محصول استفاده می‌شوند.
             </p>
         </div>
 
-        <button type="button"
-                onclick="openCreateBrandModal()"
-                class="inline-flex h-12 items-center justify-center rounded-2xl bg-teal-700 px-5 text-sm font-black text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-800">
-            + برند جدید
-        </button>
-    </div>
+        <div class="brand-hero-actions">
+            <button type="button"
+                    class="brand-btn brand-btn-primary"
+                    onclick="openCreateBrandModal()">
+                <i data-lucide="plus"></i>
+                برند جدید
+            </button>
+        </div>
+    </section>
 
     @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
     {
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
-            @Model.SuccessMessage
+        <div class="brand-alert success">
+            <i data-lucide="check-circle-2"></i>
+            <span>@Model.SuccessMessage</span>
         </div>
     }
 
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
-        <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
-            @Model.ErrorMessage
+        <div class="brand-alert danger">
+            <i data-lucide="triangle-alert"></i>
+            <span>@Model.ErrorMessage</span>
         </div>
     }
 
-    <section class="grid gap-4 md:grid-cols-4">
-        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p class="text-xs font-bold text-slate-400">کل برندها</p>
-            <b class="mt-2 block text-3xl font-black text-slate-900">@Model.Brands.Count</b>
-        </div>
+    <section class="brand-stats">
+        <div class="brand-stat">
+            <div class="brand-stat-icon blue">
+                <i data-lucide="badge-check"></i>
+            </div>
 
-        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p class="text-xs font-bold text-slate-400">فعال</p>
-            <b class="mt-2 block text-3xl font-black text-emerald-600">@Model.Brands.Count(x => x.IsActive)</b>
-        </div>
-
-        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p class="text-xs font-bold text-slate-400">غیرفعال</p>
-            <b class="mt-2 block text-3xl font-black text-red-500">@Model.Brands.Count(x => !x.IsActive)</b>
-        </div>
-
-        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p class="text-xs font-bold text-slate-400">دارای تصویر</p>
-            <b class="mt-2 block text-3xl font-black text-teal-700">@Model.Brands.Count(x => !string.IsNullOrWhiteSpace(x.ImagePath))</b>
-        </div>
-    </section>
-
-    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
             <div>
-                <h2 class="text-lg font-black text-slate-900">
-                    لیست برندها
-                </h2>
-                <p class="mt-1 text-xs font-medium text-slate-500">
-                    برندهای فعال در سایت عمومی قابل استفاده خواهند بود.
-                </p>
-            </div>
-
-            <div class="relative w-full md:w-80">
-                <input id="brandSearch"
-                       onkeyup="filterBrands()"
-                       class="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-10 text-sm font-bold outline-none transition focus:border-teal-300 focus:bg-white focus:ring-4 focus:ring-teal-50"
-                       placeholder="جستجوی برند..." />
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                <span>کل برندها</span>
+                <strong>@Model.FormatNumber(Model.TotalBrands)</strong>
+                <small>تمام برندهای ثبت‌شده</small>
             </div>
         </div>
 
-        @if (!Model.Brands.Any())
-        {
-            <div class="grid place-items-center p-16 text-center">
-                <div class="text-5xl">🏷️</div>
-                <h3 class="mt-4 text-xl font-black text-slate-900">هنوز برندی ثبت نشده است</h3>
-                <p class="mt-2 text-sm font-medium text-slate-500">اولین برند فروشگاه را ایجاد کنید.</p>
-                <button type="button"
-                        onclick="openCreateBrandModal()"
-                        class="mt-5 inline-flex h-11 items-center justify-center rounded-2xl bg-teal-700 px-5 text-sm font-black text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-800">
-                    ایجاد برند
-                </button>
+        <div class="brand-stat">
+            <div class="brand-stat-icon green">
+                <i data-lucide="check-circle-2"></i>
             </div>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-right text-sm">
-                    <thead class="bg-slate-50 text-xs font-black text-slate-500">
-                        <tr>
-                            <th class="px-5 py-4">برند</th>
-                            <th class="px-5 py-4">Slug</th>
-                            <th class="px-5 py-4">وضعیت</th>
-                            <th class="px-5 py-4">تصویر</th>
-                            <th class="px-5 py-4 text-left">عملیات</th>
-                        </tr>
-                    </thead>
 
-                    <tbody id="brandsTable" class="divide-y divide-slate-100">
-                        @foreach (var brand in Model.Brands.OrderBy(x => x.Title))
-                        {
-                            var encodedTitle = System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(brand.Title ?? string.Empty);
-                            var encodedSlug = System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(brand.Slug ?? string.Empty);
-                            var encodedImagePath = System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(brand.ImagePath ?? string.Empty);
-
-                            <tr class="brand-row transition hover:bg-slate-50"
-                                data-title="@((brand.Title ?? string.Empty).ToLowerInvariant())"
-                                data-slug="@((brand.Slug ?? string.Empty).ToLowerInvariant())">
-                                <td class="px-5 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl bg-teal-50 ring-1 ring-teal-100">
-                                            @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                                            {
-                                                <img src="@brand.ImagePath"
-                                                     class="h-full w-full object-cover"
-                                                     alt="@brand.Title" />
-                                            }
-                                            else
-                                            {
-                                                <span class="text-lg font-black text-teal-700">
-                                                    @(string.IsNullOrWhiteSpace(brand.Title) ? "B" : brand.Title.Substring(0, 1))
-                                                </span>
-                                            }
-                                        </div>
-
-                                        <div>
-                                            <b class="block font-black text-slate-900">@brand.Title</b>
-                                            <span class="text-xs font-medium text-slate-400">@brand.Id</span>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td class="px-5 py-4">
-                                    <code class="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                                        @brand.Slug
-                                    </code>
-                                </td>
-
-                                <td class="px-5 py-4">
-                                    @if (brand.IsActive)
-                                    {
-                                        <span class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
-                                            فعال
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-600 ring-1 ring-red-100">
-                                            غیرفعال
-                                        </span>
-                                    }
-                                </td>
-
-                                <td class="px-5 py-4">
-                                    @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                                    {
-                                        <span class="text-xs font-bold text-slate-500">دارد</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-xs font-bold text-slate-400">ندارد</span>
-                                    }
-                                </td>
-
-                                <td class="px-5 py-4">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button type="button"
-                                                onclick="openEditBrandModal('@brand.Id', '@Html.Raw(encodedTitle)', '@Html.Raw(encodedSlug)', '@Html.Raw(encodedImagePath)', '@brand.IsActive.ToString().ToLowerInvariant()')"
-                                                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-100">
-                                            ویرایش
-                                        </button>
-
-                                        <form method="post"
-                                              asp-page-handler="Delete"
-                                              asp-route-id="@brand.Id"
-                                              onsubmit="return confirm('برند «@brand.Title» حذف شود؟');">
-                                            <button type="submit"
-                                                    class="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-100">
-                                                حذف
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+            <div>
+                <span>فعال</span>
+                <strong>@Model.FormatNumber(Model.ActiveBrandCount)</strong>
+                <small>قابل استفاده در محصول</small>
             </div>
-        }
+        </div>
+
+        <div class="brand-stat">
+            <div class="brand-stat-icon orange">
+                <i data-lucide="pause-circle"></i>
+            </div>
+
+            <div>
+                <span>غیرفعال</span>
+                <strong>@Model.FormatNumber(Model.InactiveBrandCount)</strong>
+                <small>در فرم محصول بهتر است نمایش داده نشوند</small>
+            </div>
+        </div>
+
+        <div class="brand-stat">
+            <div class="brand-stat-icon purple">
+                <i data-lucide="image"></i>
+            </div>
+
+            <div>
+                <span>دارای لوگو</span>
+                <strong>@Model.FormatNumber(Model.BrandsWithImageCount)</strong>
+                <small>برای نمایش حرفه‌ای در سایت</small>
+            </div>
+        </div>
     </section>
+
+    <section class="brand-toolbar">
+        <div>
+            <div class="brand-card-kicker">
+                <i data-lucide="search"></i>
+                جستجو و مدیریت
+            </div>
+
+            <h2>لیست برندها</h2>
+
+            <p>
+                برندهای فعال در فرم ساخت محصول قابل انتخاب هستند.
+            </p>
+        </div>
+
+        <div class="brand-search-box">
+            <i data-lucide="search"></i>
+            <input id="brandSearch"
+                   type="search"
+                   autocomplete="off"
+                   placeholder="جستجوی عنوان یا اسلاگ..."
+                   oninput="filterBrands()" />
+        </div>
+    </section>
+
+    @if (!Model.Brands.Any())
+    {
+        <section class="brand-empty">
+            <div class="brand-empty-icon">
+                <i data-lucide="badge"></i>
+            </div>
+
+            <h2>هنوز برندی ثبت نشده</h2>
+
+            <p>
+                برای تست Product بهتر است حداقل یک برند مثل Steam یا PlayStation ایجاد کنی.
+            </p>
+
+            <button type="button"
+                    class="brand-btn brand-btn-primary"
+                    onclick="openCreateBrandModal()">
+                <i data-lucide="plus"></i>
+                ایجاد اولین برند
+            </button>
+        </section>
+    }
+    else
+    {
+        <section class="brand-grid-card">
+            <div class="brand-grid">
+                @foreach (var brand in Model.Brands.OrderBy(x => x.Title))
+                {
+                    <article class="brand-card brand-row"
+                             data-title="@brand.Title.ToLowerInvariant()"
+                             data-slug="@brand.Slug.ToLowerInvariant()">
+
+                        <div class="brand-logo-frame">
+                            @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
+                            {
+                                <img src="@Model.GetImagePath(brand.ImagePath)" alt="@brand.Title" />
+                            }
+                            else
+                            {
+                                <span>@Model.GetBrandInitial(brand)</span>
+                            }
+
+                            <div class="brand-card-status">
+                                <span class="@Model.GetStatusCss(brand)">
+                                    @(brand.IsActive ? "فعال" : "غیرفعال")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="brand-card-body">
+                            <h3>@brand.Title</h3>
+
+                            <div class="brand-slug">
+                                @brand.Slug
+                            </div>
+
+                            <div class="brand-path-box">
+                                <span>مسیر لوگو</span>
+                                <code>@(string.IsNullOrWhiteSpace(brand.ImagePath) ? "-" : brand.ImagePath)</code>
+                            </div>
+
+                            <div class="brand-card-actions">
+                                <button type="button"
+                                        class="brand-action edit"
+                                        title="ویرایش"
+                                        data-id="@brand.Id"
+                                        data-title="@brand.Title"
+                                        data-slug="@brand.Slug"
+                                        data-image-path="@brand.ImagePath"
+                                        data-is-active="@brand.IsActive.ToString().ToLowerInvariant()"
+                                        onclick="openEditBrandModal(this)">
+                                    <i data-lucide="pencil"></i>
+                                </button>
+
+                                @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
+                                {
+                                    <a href="@Model.GetImagePath(brand.ImagePath)"
+                                       target="_blank"
+                                       class="brand-action view"
+                                       title="مشاهده لوگو">
+                                        <i data-lucide="external-link"></i>
+                                    </a>
+                                }
+
+                                <form method="post"
+                                      asp-page-handler="Delete"
+                                      asp-route-id="@brand.Id"
+                                      onsubmit="return confirm('آیا از حذف برند «@brand.Title» مطمئن هستید؟ اگر محصولی به این برند وصل باشد، حذف ممکن است توسط API محدود شود.');">
+                                    <button type="submit"
+                                            class="brand-action delete"
+                                            title="حذف">
+                                        <i data-lucide="trash-2"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
 </div>
 
-<div id="brandModal"
-     class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-    <div class="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-        <div class="flex items-center justify-between">
+<div id="brandModal" class="brand-modal-backdrop" aria-hidden="true">
+    <div class="brand-modal">
+        <div class="brand-modal-header">
             <div>
-                <h3 id="brandModalTitle" class="text-xl font-black text-slate-900">
-                    برند جدید
-                </h3>
-                <p class="mt-1 text-xs font-medium text-slate-500">
-                    اطلاعات برند را وارد کنید.
+                <div class="brand-card-kicker">
+                    <i data-lucide="badge-plus"></i>
+                    فرم برند
+                </div>
+
+                <h2 id="brandModalTitle">برند جدید</h2>
+
+                <p>
+                    عنوان، اسلاگ، وضعیت و لوگوی برند را وارد کن.
+                    فایل لوگو روی سرور ذخیره می‌شود و فقط مسیر آن در دیتابیس ثبت می‌شود.
                 </p>
             </div>
 
             <button type="button"
+                    class="brand-modal-close"
                     onclick="closeBrandModal()"
-                    class="grid h-10 w-10 place-items-center rounded-2xl bg-slate-100 text-xl font-black text-slate-500">
-                ×
+                    aria-label="بستن">
+                <i data-lucide="x"></i>
             </button>
         </div>
 
         <form method="post"
-              asp-page-handler="Save"
               enctype="multipart/form-data"
-              class="mt-6 space-y-4">
-            <input type="hidden" asp-for="Input.Id" id="brandId" />
-            <input type="hidden" asp-for="Input.ImagePath" id="brandImagePath" />
+              asp-page-handler="Save"
+              class="brand-modal-form">
 
-            <div>
-                <label class="mb-2 block text-sm font-black text-slate-700">عنوان برند</label>
-                <input asp-for="Input.Title"
-                       id="brandTitle"
-                       oninput="syncBrandSlug()"
-                       class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold outline-none transition focus:border-teal-300 focus:bg-white focus:ring-4 focus:ring-teal-50"
-                       placeholder="مثلاً PlayStation" />
-            </div>
+            <input asp-for="Input.Id" type="hidden" id="brandId" />
+            <input asp-for="Input.ImagePath" type="hidden" id="brandImagePath" />
 
-            <div>
-                <label class="mb-2 block text-sm font-black text-slate-700">Slug</label>
-                <input asp-for="Input.Slug"
-                       id="brandSlug"
-                       dir="ltr"
-                       class="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-left text-sm font-bold outline-none transition focus:border-teal-300 focus:bg-white focus:ring-4 focus:ring-teal-50"
-                       placeholder="playstation" />
-            </div>
+            <div class="brand-modal-grid">
+                <div class="brand-modal-main">
+                    <div asp-validation-summary="ModelOnly" class="brand-validation-summary"></div>
 
-            <div>
-                <label class="mb-2 block text-sm font-black text-slate-700">تصویر برند</label>
+                    <div class="brand-form-grid">
+                        <div class="brand-field">
+                            <label asp-for="Input.Title">عنوان برند</label>
+                            <input asp-for="Input.Title"
+                                   id="brandTitle"
+                                   class="brand-control"
+                                   autocomplete="off"
+                                   placeholder="مثلاً Steam" />
+                            <span asp-validation-for="Input.Title" class="brand-validation"></span>
+                        </div>
 
-                <div class="flex items-center gap-4">
-                    <div class="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
-                        <img id="brandImagePreview"
-                             src=""
-                             class="hidden h-full w-full object-cover"
-                             alt="Preview" />
-                        <span id="brandImagePlaceholder" class="text-xl">🏷️</span>
-                    </div>
+                        <div class="brand-field">
+                            <label asp-for="Input.Slug">اسلاگ</label>
+                            <input asp-for="Input.Slug"
+                                   id="brandSlug"
+                                   class="brand-control ltr"
+                                   autocomplete="off"
+                                   placeholder="steam" />
+                            <span asp-validation-for="Input.Slug" class="brand-validation"></span>
+                            <small>اگر خالی باشد، از عنوان برند ساخته می‌شود.</small>
+                        </div>
 
-                    <div class="min-w-0 flex-1">
-                        <input name="ImageFile"
-                               id="brandImageFile"
-                               type="file"
-                               accept=".jpg,.jpeg,.png,.webp"
-                               onchange="previewBrandImage(event)"
-                               class="block h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition file:ml-4 file:rounded-xl file:border-0 file:bg-teal-50 file:px-3 file:py-1 file:text-xs file:font-black file:text-teal-700 focus:border-teal-300 focus:bg-white focus:ring-4 focus:ring-teal-50" />
+                        <label class="brand-switch">
+                            <span>
+                                <strong>فعال باشد</strong>
+                                <small>برند در فرم ساخت محصول قابل انتخاب باشد.</small>
+                            </span>
 
-                        <p class="mt-2 text-xs font-medium text-slate-400">
-                            فرمت‌های مجاز: jpg, jpeg, png, webp
-                        </p>
+                            <input asp-for="Input.IsActive"
+                                   id="brandIsActive"
+                                   class="brand-switch-input" />
+
+                            <i class="brand-switch-ui"></i>
+                        </label>
                     </div>
                 </div>
-            </div>
 
-            <label class="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <span class="text-sm font-black text-slate-700">برند فعال باشد</span>
-                <input asp-for="Input.IsActive"
-                       id="brandIsActive"
-                       class="h-5 w-5 accent-teal-700" />
-            </label>
+                <aside class="brand-modal-side">
+                    <div class="brand-image-upload">
+                        <div class="brand-image-preview">
+                            <img id="brandImagePreview" src="" alt="Brand Logo" hidden />
 
-            <div class="flex gap-3 pt-2">
-                <button type="button"
-                        onclick="closeBrandModal()"
-                        class="h-12 flex-1 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-600">
-                    انصراف
-                </button>
+                            <div id="brandImagePlaceholder">
+                                <i data-lucide="image-plus"></i>
+                                <strong>لوگوی برند</strong>
+                                <small>JPG / PNG / WEBP تا ۵MB</small>
+                            </div>
+                        </div>
 
-                <button type="submit"
-                        class="h-12 flex-1 rounded-2xl bg-teal-700 text-sm font-black text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-800">
-                    ذخیره برند
-                </button>
+                        <label class="brand-file-zone">
+                            <i data-lucide="upload-cloud"></i>
+                            <span>انتخاب لوگو</span>
+                            <input asp-for="ImageFile"
+                                   id="brandImageFile"
+                                   type="file"
+                                   accept="image/jpeg,image/png,image/webp"
+                                   onchange="previewBrandImage(event)" />
+                        </label>
+
+                        <label class="brand-remove-image">
+                            <input asp-for="RemoveImage" id="brandRemoveImage" />
+                            <span>حذف لوگوی فعلی</span>
+                        </label>
+                    </div>
+
+                    <div class="brand-submit-box">
+                        <button type="submit" class="brand-btn brand-btn-primary brand-submit-btn">
+                            <i data-lucide="save"></i>
+                            ذخیره برند
+                        </button>
+
+                        <button type="button"
+                                class="brand-btn brand-btn-soft brand-submit-btn"
+                                onclick="closeBrandModal()">
+                            انصراف
+                        </button>
+                    </div>
+                </aside>
             </div>
         </form>
     </div>
 </div>
 
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
     <script>
         const modal = document.getElementById('brandModal');
-        const modalTitle = document.getElementById('brandModalTitle');
+
+        const brandModalTitle = document.getElementById('brandModalTitle');
         const brandId = document.getElementById('brandId');
         const brandTitle = document.getElementById('brandTitle');
         const brandSlug = document.getElementById('brandSlug');
         const brandImagePath = document.getElementById('brandImagePath');
+        const brandIsActive = document.getElementById('brandIsActive');
         const brandImageFile = document.getElementById('brandImageFile');
+        const brandRemoveImage = document.getElementById('brandRemoveImage');
         const brandImagePreview = document.getElementById('brandImagePreview');
         const brandImagePlaceholder = document.getElementById('brandImagePlaceholder');
-        const brandIsActive = document.getElementById('brandIsActive');
 
         function openCreateBrandModal() {
-            modalTitle.innerText = 'برند جدید';
+            resetBrandForm();
 
+            brandModalTitle.innerText = 'برند جدید';
+            brandIsActive.checked = true;
+
+            openBrandModal();
+        }
+
+        function openEditBrandModal(button) {
+            resetBrandForm();
+
+            brandModalTitle.innerText = 'ویرایش برند';
+
+            brandId.value = button.dataset.id || '';
+            brandTitle.value = button.dataset.title || '';
+            brandSlug.value = button.dataset.slug || '';
+            brandImagePath.value = button.dataset.imagePath || '';
+            brandIsActive.checked = (button.dataset.isActive || 'true') === 'true';
+
+            if (brandImagePath.value) {
+                setBrandImagePreview(resolveImagePath(brandImagePath.value));
+            }
+
+            openBrandModal();
+        }
+
+        function openBrandModal() {
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+
+            setTimeout(() => brandTitle.focus(), 80);
+        }
+
+        function closeBrandModal() {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function resetBrandForm() {
             brandId.value = '';
             brandTitle.value = '';
             brandSlug.value = '';
             brandImagePath.value = '';
-            brandImageFile.value = '';
             brandIsActive.checked = true;
+            brandImageFile.value = '';
+            brandRemoveImage.checked = false;
 
             resetBrandImagePreview();
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function openEditBrandModal(id, title, slug, imagePath, isActive) {
-            modalTitle.innerText = 'ویرایش برند';
-
-            brandId.value = id;
-            brandTitle.value = title;
-            brandSlug.value = slug;
-            brandImagePath.value = imagePath;
-            brandImageFile.value = '';
-            brandIsActive.checked = isActive === 'true';
-
-            setBrandImagePreview(imagePath);
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeBrandModal() {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function syncBrandSlug() {
-            if (brandId.value) return;
-
-            brandSlug.value = brandTitle.value
-                .trim()
-                .toLowerCase()
-                .replaceAll(' ', '-')
-                .replaceAll('/', '-')
-                .replaceAll('\\', '-');
-        }
-
-        function filterBrands() {
-            const search = document.getElementById('brandSearch').value.toLowerCase();
-            const rows = document.querySelectorAll('.brand-row');
-
-            rows.forEach(row => {
-                const title = row.getAttribute('data-title') || '';
-                const slug = row.getAttribute('data-slug') || '';
-
-                row.style.display =
-                    title.includes(search) || slug.includes(search)
-                        ? ''
-                        : 'none';
-            });
         }
 
         function previewBrandImage(event) {
-            const file = event.target.files[0];
+            const file = event.target.files && event.target.files.length > 0
+                ? event.target.files[0]
+                : null;
 
             if (!file) {
                 if (brandImagePath.value) {
-                    setBrandImagePreview(brandImagePath.value);
+                    setBrandImagePreview(resolveImagePath(brandImagePath.value));
                 } else {
                     resetBrandImagePreview();
                 }
 
                 return;
             }
+
+            brandRemoveImage.checked = false;
 
             const reader = new FileReader();
 
@@ -405,20 +450,84 @@
             }
 
             brandImagePreview.src = src;
-            brandImagePreview.classList.remove('hidden');
-            brandImagePlaceholder.classList.add('hidden');
+            brandImagePreview.hidden = false;
+            brandImagePlaceholder.hidden = true;
         }
 
         function resetBrandImagePreview() {
             brandImagePreview.src = '';
-            brandImagePreview.classList.add('hidden');
-            brandImagePlaceholder.classList.remove('hidden');
+            brandImagePreview.hidden = true;
+            brandImagePlaceholder.hidden = false;
         }
+
+        function resolveImagePath(path) {
+            if (!path) {
+                return '';
+            }
+
+            if (path.startsWith('http') || path.startsWith('/')) {
+                return path;
+            }
+
+            return '/' + path.replace(/^~?\//, '');
+        }
+
+        function filterBrands() {
+            const search = document.getElementById('brandSearch').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.brand-row');
+
+            rows.forEach(row => {
+                const title = row.getAttribute('data-title') || '';
+                const slug = row.getAttribute('data-slug') || '';
+
+                row.style.display =
+                    title.includes(search) || slug.includes(search)
+                        ? ''
+                        : 'none';
+            });
+        }
+
+        brandTitle.addEventListener('blur', function () {
+            if (!brandSlug.value.trim()) {
+                brandSlug.value = brandTitle.value
+                    .trim()
+                    .toLowerCase()
+                    .replaceAll(' ', '-')
+                    .replaceAll('/', '-')
+                    .replaceAll('\\', '-');
+            }
+        });
+
+        brandRemoveImage.addEventListener('change', function () {
+            if (brandRemoveImage.checked) {
+                brandImageFile.value = '';
+                resetBrandImagePreview();
+            } else if (brandImagePath.value) {
+                setBrandImagePreview(resolveImagePath(brandImagePath.value));
+            }
+        });
 
         modal.addEventListener('click', function (event) {
             if (event.target === modal) {
                 closeBrandModal();
             }
         });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal.classList.contains('show')) {
+                closeBrandModal();
+            }
+        });
+
+        @if (Model.OpenModalOnLoad)
+        {
+                <text>
+                        openBrandModal();
+                </text>
+        }
+
+        if (window.lucide) {
+            lucide.createIcons();
+        }
     </script>
 }

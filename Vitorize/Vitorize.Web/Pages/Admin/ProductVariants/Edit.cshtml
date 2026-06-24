@@ -1,0 +1,225 @@
+﻿@page "{productId:guid}/{id:guid}"
+@model Vitorize.Web.Pages.Admin.ProductVariants.EditModel
+
+@{
+    ViewData["Title"] = "ویرایش واریانت";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="variant-form-page" dir="rtl">
+
+    <section class="vf-hero">
+        <div class="vf-hero-content">
+            <div>
+                <div class="vf-eyebrow">
+                    <i data-lucide="pencil"></i>
+                    ویرایش واریانت
+                </div>
+
+                <h1>@(string.IsNullOrWhiteSpace(Model.Variant.Title) ? "ویرایش واریانت" : Model.Variant.Title)</h1>
+
+                <p>
+                    قیمت، SKU، مقدار، Stock Mode، وضعیت فروش و پیش‌فرض بودن این واریانت را مدیریت کن.
+                </p>
+            </div>
+
+            <div class="vf-hero-actions">
+                <a asp-page="/Admin/ProductVariants/Index"
+                   asp-route-productId="@Model.ProductId"
+                   class="vf-btn vf-btn-soft">
+                    <i data-lucide="arrow-right"></i>
+                    بازگشت به واریانت‌ها
+                </a>
+
+                <a asp-page="/Admin/Products/Details"
+                   asp-route-id="@Model.ProductId"
+                   class="vf-btn vf-btn-soft">
+                    <i data-lucide="eye"></i>
+                    جزئیات محصول
+                </a>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="vf-alert danger">
+            <i data-lucide="triangle-alert"></i>
+            <span>@Model.ErrorMessage</span>
+        </div>
+    }
+
+    <form method="post" class="vf-layout" novalidate>
+        <div class="vf-main">
+
+            <div asp-validation-summary="ModelOnly" class="vf-validation-summary"></div>
+
+            <section class="vf-card">
+                <div class="vf-card-header">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="info"></i>
+                            اطلاعات واریانت
+                        </div>
+
+                        <h2>مشخصات اصلی</h2>
+
+                        <p>
+                            این اطلاعات در انتخاب واریانت و مدیریت کدها استفاده می‌شود.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="vf-form-grid two">
+                    <div class="vf-field">
+                        <label asp-for="Variant.Title">عنوان واریانت</label>
+                        <input asp-for="Variant.Title"
+                               class="vf-control"
+                               autocomplete="off" />
+                        <span asp-validation-for="Variant.Title" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.Sku">SKU</label>
+                        <input asp-for="Variant.Sku"
+                               class="vf-control ltr"
+                               autocomplete="off" />
+                        <span asp-validation-for="Variant.Sku" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.Value">مقدار / ریجن / توضیح</label>
+                        <input asp-for="Variant.Value"
+                               class="vf-control"
+                               autocomplete="off" />
+                        <span asp-validation-for="Variant.Value" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.SortOrder">ترتیب نمایش</label>
+                        <input asp-for="Variant.SortOrder"
+                               class="vf-control ltr"
+                               type="number"
+                               inputmode="numeric" />
+                        <span asp-validation-for="Variant.SortOrder" class="vf-validation"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="vf-card">
+                <div class="vf-card-header">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="circle-dollar-sign"></i>
+                            قیمت‌گذاری
+                        </div>
+
+                        <h2>قیمت و تخفیف</h2>
+                    </div>
+                </div>
+
+                <div class="vf-form-grid two">
+                    <div class="vf-field">
+                        <label asp-for="Variant.Price">قیمت اصلی</label>
+                        <input asp-for="Variant.Price"
+                               class="vf-control ltr"
+                               inputmode="decimal" />
+                        <span asp-validation-for="Variant.Price" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.DiscountPrice">قیمت تخفیف</label>
+                        <input asp-for="Variant.DiscountPrice"
+                               class="vf-control ltr"
+                               inputmode="decimal" />
+                        <span asp-validation-for="Variant.DiscountPrice" class="vf-validation"></span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="vf-side">
+            <section class="vf-card vf-sticky-card">
+                <div class="vf-card-header compact">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="settings-2"></i>
+                            تنظیمات فروش
+                        </div>
+
+                        <h2>موجودی و وضعیت</h2>
+                    </div>
+                </div>
+
+                <div class="vf-side-fields">
+                    <div class="vf-current-stock">
+                        <span>موجودی فعلی</span>
+                        <strong>@Model.FormatNumber(Model.CurrentVariant?.AvailableStock ?? 0)</strong>
+                        <small>این مقدار از وضعیت کدها یا Stock Mode محاسبه می‌شود.</small>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.StockMode">Stock Mode</label>
+
+                        <div class="vf-select-shell">
+                            <i data-lucide="warehouse"></i>
+
+                            <select asp-for="Variant.StockMode" class="vf-select-control">
+                                <option value="1">بر اساس گیفت‌کد</option>
+                                <option value="2">موجودی دستی</option>
+                                <option value="3">بدون محدودیت</option>
+                            </select>
+
+                            <i data-lucide="chevron-down" class="vf-select-chevron"></i>
+                        </div>
+
+                        <span asp-validation-for="Variant.StockMode" class="vf-validation"></span>
+                    </div>
+
+                    <label class="vf-switch">
+                        <span>
+                            <strong>فعال باشد</strong>
+                            <small>این واریانت قابل انتخاب و فروش باشد.</small>
+                        </span>
+                        <input asp-for="Variant.IsActive" class="vf-switch-input" />
+                        <i class="vf-switch-ui"></i>
+                    </label>
+
+                    <label class="vf-switch">
+                        <span>
+                            <strong>واریانت پیش‌فرض</strong>
+                            <small>به عنوان انتخاب اولیه محصول نمایش داده شود.</small>
+                        </span>
+                        <input asp-for="Variant.IsDefault" class="vf-switch-input" />
+                        <i class="vf-switch-ui"></i>
+                    </label>
+                </div>
+
+                <div class="vf-submit-box">
+                    <button type="submit" class="vf-btn vf-btn-primary vf-submit-btn">
+                        <i data-lucide="save"></i>
+                        ذخیره تغییرات
+                    </button>
+
+                    <a asp-page="/Admin/GiftCodes/Import"
+                       asp-route-productId="@Model.ProductId"
+                       asp-route-variantId="@Model.VariantId"
+                       class="vf-btn vf-btn-soft vf-submit-btn">
+                        <i data-lucide="upload-cloud"></i>
+                        ورود گیفت‌کارت
+                    </a>
+                </div>
+            </section>
+        </aside>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+}

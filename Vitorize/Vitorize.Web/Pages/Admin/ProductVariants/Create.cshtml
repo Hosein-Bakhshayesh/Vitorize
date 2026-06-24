@@ -1,0 +1,220 @@
+﻿@page "{productId:guid}"
+@model Vitorize.Web.Pages.Admin.ProductVariants.CreateModel
+
+@{
+    ViewData["Title"] = "ایجاد واریانت";
+    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+
+<div class="variant-form-page" dir="rtl">
+
+    <section class="vf-hero">
+        <div class="vf-hero-content">
+            <div>
+                <div class="vf-eyebrow">
+                    <i data-lucide="plus-circle"></i>
+                    ایجاد واریانت جدید
+                </div>
+
+                <h1>تعریف تنوع قابل خرید</h1>
+
+                <p>
+                    برای محصول @(Model.Product?.Title ?? "") یک واریانت جدید تعریف کن. هر واریانت می‌تواند قیمت، SKU، مقدار، نوع موجودی و وضعیت فروش مستقل داشته باشد.
+                </p>
+            </div>
+
+            <div class="vf-hero-actions">
+                <a asp-page="/Admin/ProductVariants/Index"
+                   asp-route-productId="@Model.ProductId"
+                   class="vf-btn vf-btn-soft">
+                    <i data-lucide="arrow-right"></i>
+                    بازگشت به واریانت‌ها
+                </a>
+            </div>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="vf-alert danger">
+            <i data-lucide="triangle-alert"></i>
+            <span>@Model.ErrorMessage</span>
+        </div>
+    }
+
+    <form method="post" class="vf-layout" novalidate>
+        <div class="vf-main">
+
+            <div asp-validation-summary="ModelOnly" class="vf-validation-summary"></div>
+
+            <section class="vf-card">
+                <div class="vf-card-header">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="info"></i>
+                            اطلاعات واریانت
+                        </div>
+
+                        <h2>مشخصات اصلی</h2>
+
+                        <p>
+                            عنوان واریانت باید برای ادمین و کاربر قابل فهم باشد؛ مثل Steam 10 USD Global یا PS Plus 3 Month TR.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="vf-form-grid two">
+                    <div class="vf-field">
+                        <label asp-for="Variant.Title">عنوان واریانت</label>
+                        <input asp-for="Variant.Title"
+                               class="vf-control"
+                               autocomplete="off"
+                               placeholder="مثلاً Steam 10 USD Global" />
+                        <span asp-validation-for="Variant.Title" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.Sku">SKU</label>
+                        <input asp-for="Variant.Sku"
+                               class="vf-control ltr"
+                               autocomplete="off"
+                               placeholder="STEAM-10-GLOBAL" />
+                        <span asp-validation-for="Variant.Sku" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.Value">مقدار / ریجن / توضیح</label>
+                        <input asp-for="Variant.Value"
+                               class="vf-control"
+                               autocomplete="off"
+                               placeholder="10 USD / Global / Turkey / 1 Month" />
+                        <span asp-validation-for="Variant.Value" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.SortOrder">ترتیب نمایش</label>
+                        <input asp-for="Variant.SortOrder"
+                               class="vf-control ltr"
+                               type="number"
+                               inputmode="numeric" />
+                        <span asp-validation-for="Variant.SortOrder" class="vf-validation"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="vf-card">
+                <div class="vf-card-header">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="circle-dollar-sign"></i>
+                            قیمت‌گذاری
+                        </div>
+
+                        <h2>قیمت و تخفیف</h2>
+
+                        <p>
+                            اگر قیمت تخفیف وارد شود، قیمت نهایی واریانت همان قیمت تخفیف خواهد بود.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="vf-form-grid two">
+                    <div class="vf-field">
+                        <label asp-for="Variant.Price">قیمت اصلی</label>
+                        <input asp-for="Variant.Price"
+                               class="vf-control ltr"
+                               inputmode="decimal"
+                               placeholder="0" />
+                        <span asp-validation-for="Variant.Price" class="vf-validation"></span>
+                    </div>
+
+                    <div class="vf-field">
+                        <label asp-for="Variant.DiscountPrice">قیمت تخفیف</label>
+                        <input asp-for="Variant.DiscountPrice"
+                               class="vf-control ltr"
+                               inputmode="decimal"
+                               placeholder="اختیاری" />
+                        <span asp-validation-for="Variant.DiscountPrice" class="vf-validation"></span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="vf-side">
+            <section class="vf-card vf-sticky-card">
+                <div class="vf-card-header compact">
+                    <div>
+                        <div class="vf-card-kicker">
+                            <i data-lucide="settings-2"></i>
+                            تنظیمات فروش
+                        </div>
+
+                        <h2>موجودی و وضعیت</h2>
+                    </div>
+                </div>
+
+                <div class="vf-side-fields">
+                    <div class="vf-field">
+                        <label asp-for="Variant.StockMode">Stock Mode</label>
+
+                        <div class="vf-select-shell">
+                            <i data-lucide="warehouse"></i>
+
+                            <select asp-for="Variant.StockMode" class="vf-select-control">
+                                <option value="1">بر اساس گیفت‌کد</option>
+                                <option value="2">موجودی دستی</option>
+                                <option value="3">بدون محدودیت</option>
+                            </select>
+
+                            <i data-lucide="chevron-down" class="vf-select-chevron"></i>
+                        </div>
+
+                        <span asp-validation-for="Variant.StockMode" class="vf-validation"></span>
+                    </div>
+
+                    <label class="vf-switch">
+                        <span>
+                            <strong>فعال باشد</strong>
+                            <small>این واریانت قابل انتخاب و فروش باشد.</small>
+                        </span>
+                        <input asp-for="Variant.IsActive" class="vf-switch-input" />
+                        <i class="vf-switch-ui"></i>
+                    </label>
+
+                    <label class="vf-switch">
+                        <span>
+                            <strong>واریانت پیش‌فرض</strong>
+                            <small>به عنوان انتخاب اولیه محصول نمایش داده شود.</small>
+                        </span>
+                        <input asp-for="Variant.IsDefault" class="vf-switch-input" />
+                        <i class="vf-switch-ui"></i>
+                    </label>
+                </div>
+
+                <div class="vf-help-box">
+                    <i data-lucide="info"></i>
+                    <p>
+                        برای فروش گیفت‌کارت واقعی، حالت «بر اساس گیفت‌کد» بهترین انتخاب است؛ موجودی از کدهای آماده محاسبه می‌شود.
+                    </p>
+                </div>
+
+                <div class="vf-submit-box">
+                    <button type="submit" class="vf-btn vf-btn-primary vf-submit-btn">
+                        <i data-lucide="check-circle-2"></i>
+                        ایجاد واریانت
+                    </button>
+                </div>
+            </section>
+        </aside>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+}
