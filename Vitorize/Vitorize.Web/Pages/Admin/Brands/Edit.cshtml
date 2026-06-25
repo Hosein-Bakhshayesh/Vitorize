@@ -1,0 +1,296 @@
+@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.Brands.EditModel
+@{
+    ViewData["Title"] = "ویرایش برند"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="badge-check">
+</i>برندها</div>
+
+<h1 class="vz-title">ویرایش برند</h1>
+<p class="vz-desc">اطلاعات را با دقت تکمیل کن تا در فروشگاه به شکل منظم نمایش داده شود.</p>
+</div>
+
+        <div class="vz-actions">
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+ }
+    <form method="post" enctype="multipart/form-data" class="vz-form-layout">
+        <input type="hidden" asp-for="Input.Id" />
+        <input type="hidden" asp-for="Input.ImagePath" />
+        <div class="vz-main-col">
+            <section class="vz-form-card">
+                <div class="vz-card-head">
+<div>
+<h2>اطلاعات اصلی</h2>
+<p>عنوان و شناسه نمایشی را وارد کن.</p>
+</div>
+
+</div>
+
+                <div asp-validation-summary="ModelOnly">
+</div>
+
+                <div class="vz-form-grid two">
+                    <div class="vz-field">
+<label asp-for="Input.Title">عنوان</label>
+<div class="vz-input-shell">
+<i data-lucide="type">
+</i>
+<input asp-for="Input.Title" class="vz-input" />
+</div>
+
+<span asp-validation-for="Input.Title" class="vz-validation">
+</span>
+</div>
+
+                    <div class="vz-field">
+<label asp-for="Input.Slug">اسلاگ</label>
+<div class="vz-input-shell">
+<i data-lucide="link">
+</i>
+<input asp-for="Input.Slug" class="vz-input ltr" />
+</div>
+
+<span asp-validation-for="Input.Slug" class="vz-validation">
+</span>
+</div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+        <div class="vz-side-col">
+            <section class="vz-side-card vz-side-sticky">
+                <div class="vz-card-head">
+<div>
+<h2>تصویر و وضعیت</h2>
+<p>تصویر شاخص و وضعیت نمایش را تنظیم کن.</p>
+</div>
+
+</div>
+
+                <div class="vz-upload-card">
+                    <label class="vz-dropzone js-upload-zone" data-target="imagePreview" data-placeholder="imagePlaceholder" data-info="fileInfo" data-input="ImageFile">
+                        <img id="imagePreview" class="vz-preview-img" src="@Model.Image(Model.Input.ImagePath)" alt="preview" @(string.IsNullOrWhiteSpace(Model.Input.ImagePath) ? "hidden" : "") />
+                        <span id="imagePlaceholder" class="vz-upload-placeholder" @(string.IsNullOrWhiteSpace(Model.Input.ImagePath) ? "" : "hidden")>
+                            <img src="~/images/admin/upload-placeholder.svg" asp-append-version="true" alt="" />
+                            <strong>انتخاب تصویر</strong>
+<span>تصویر را انتخاب کن یا فایل را روی این بخش رها کن.</span>
+<small>JPG / PNG / WEBP</small>
+                        </span>
+                        <input id="ImageFile" name="ImageFile" type="file" accept=".jpg,.jpeg,.png,.webp" class="vz-file-input js-upload-input" />
+                    </label>
+                    <div id="fileInfo" class="vz-file-info" hidden>
+<div class="vz-file-info-icon">
+<i data-lucide="file-image">
+</i>
+</div>
+
+<section>
+<strong class="js-file-name">-</strong>
+<span class="js-file-size">-</span>
+</section>
+
+<button type="button" class="vz-clear-file js-clear-file">
+<i data-lucide="x">
+</i>
+</button>
+</div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Input.ImagePath)) { <label class="vz-check-row">
+<input asp-for="RemoveImage" /> حذف تصویر فعلی</label> }
+                </div>
+
+                <div style="height:16px">
+</div>
+
+                <div class="vz-switch-card">
+<div>
+<strong>فعال باشد</strong>
+<span>در بخش‌های مدیریتی و فروشگاه نمایش داده شود.</span>
+</div>
+
+<label class="vz-switch">
+<input asp-for="Input.IsActive" />
+<span class="vz-switch-ui">
+</span>
+</label>
+</div>
+
+                <div style="height:16px">
+</div>
+
+                <button type="submit" class="vz-btn vz-btn-primary vz-btn-full">
+<i data-lucide="save">
+</i>ذخیره</button>
+            </section>
+
+        </div>
+
+    </form>
+
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" />
+
+<script>
+    function formatFileSize(bytes) {
+        if (!bytes) {
+            return '0 KB';
+        }
+
+        const kb = bytes / 1024;
+
+        if (kb < 1024) {
+            return kb.toFixed(1) + ' KB';
+        }
+
+        return (kb / 1024).toFixed(2) + ' MB';
+    }
+
+    function initUploadZones() {
+        document.querySelectorAll('.js-upload-zone').forEach(function (zone) {
+            const input = document.getElementById(zone.dataset.input);
+            const preview = document.getElementById(zone.dataset.target);
+            const placeholder = document.getElementById(zone.dataset.placeholder);
+            const info = document.getElementById(zone.dataset.info);
+
+            if (!input) {
+                return;
+            }
+
+            function show(file) {
+                if (!file) {
+                    return;
+                }
+
+                const allowedTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp'
+                ];
+
+                if (!allowedTypes.includes(file.type)) {
+                    alert('فرمت تصویر مجاز نیست.');
+                    input.value = '';
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('حجم فایل بیش از حد مجاز است.');
+                    input.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function (event) {
+                    if (preview) {
+                        preview.src = event.target.result;
+                        preview.hidden = false;
+                    }
+
+                    if (placeholder) {
+                        placeholder.hidden = true;
+                    }
+
+                    if (info) {
+                        info.hidden = false;
+
+                        const fileName = info.querySelector('.js-file-name');
+                        const fileSize = info.querySelector('.js-file-size');
+
+                        if (fileName) {
+                            fileName.textContent = file.name;
+                        }
+
+                        if (fileSize) {
+                            fileSize.textContent = formatFileSize(file.size);
+                        }
+                    }
+
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                };
+
+                reader.readAsDataURL(file);
+            }
+
+            input.addEventListener('change', function (event) {
+                show(event.target.files && event.target.files[0]);
+            });
+
+            zone.addEventListener('dragover', function (event) {
+                event.preventDefault();
+                zone.classList.add('is-dragover');
+            });
+
+            zone.addEventListener('dragleave', function () {
+                zone.classList.remove('is-dragover');
+            });
+
+            zone.addEventListener('drop', function (event) {
+                event.preventDefault();
+                zone.classList.remove('is-dragover');
+
+                const file = event.dataTransfer.files && event.dataTransfer.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+
+                show(file);
+            });
+
+            if (info) {
+                const clear = info.querySelector('.js-clear-file');
+
+                if (clear) {
+                    clear.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        input.value = '';
+
+                        if (preview) {
+                            preview.src = '';
+                            preview.hidden = true;
+                        }
+
+                        if (placeholder) {
+                            placeholder.hidden = false;
+                        }
+
+                        info.hidden = true;
+                    });
+                }
+            }
+        });
+
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initUploadZones);
+</script>
+ }

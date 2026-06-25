@@ -1,365 +1,385 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.ProductImages.IndexModel
-
 @{
     ViewData["Title"] = "تصاویر محصول";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="image">
+</i>تصاویر محصول</div>
 
-<div class="product-images-page" dir="rtl">
+<h1 class="vz-title">مدیریت تصاویر محصول</h1>
+<p class="vz-desc">تصاویر محصول را اضافه، مرتب و به عنوان تصویر اصلی انتخاب کن.</p>
+</div>
 
-    <section class="pi-hero">
-        <div class="pi-hero-main">
-            <div class="pi-product-preview">
-                @if (!string.IsNullOrWhiteSpace(Model.GetProductImagePath()))
-                {
-                    <img src="@Model.GetProductImagePath()" alt="@Model.Product?.Title" />
-                }
-                else
-                {
-                    <span>@Model.GetProductInitial()</span>
-                }
-            </div>
+<div class="vz-actions">@if (Model.Product != null) { <a asp-page="/Admin/Products/Details" asp-route-id="@Model.Product.Id" class="vz-btn vz-btn-light">
+<i data-lucide="package">
+</i>بازگشت به محصول</a> }
+</div>
 
-            <div>
-                <div class="pi-eyebrow">
-                    <i data-lucide="image"></i>
-                    مدیریت گالری محصول
-                </div>
+</section>
 
-                <h1>@(Model.Product?.Title ?? "تصاویر محصول")</h1>
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage)) { <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+ }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+ }
+    <section class="vz-form-card">
+<form method="get" class="vz-form-grid two">
+<div class="vz-field">
+<label>محصول</label>
+<div class="vz-input-shell">
+<i data-lucide="package">
+</i>
+<select asp-for="ProductId" class="vz-select" onchange="this.form.submit()">
+<option value="">انتخاب محصول</option>@foreach (var p in Model.Products) { <option value="@p.Id">@p.Title</option> }
+</select>
+</div>
 
-                <p>
-                    تصاویر محصول را آپلود کن، تصویر اصلی را انتخاب کن، متن جایگزین و ترتیب نمایش را مدیریت کن.
-                    فایل روی سرور ذخیره می‌شود و فقط مسیر آن در دیتابیس ثبت می‌شود.
-                </p>
+</div>
 
-                @if (Model.Product != null)
-                {
-                    <div class="pi-hero-meta">
-                        <span>
-                            <i data-lucide="folder"></i>
-                            @Model.Product.CategoryTitle
-                        </span>
+</form>
 
-                        <span>
-                            <i data-lucide="badge-check"></i>
-                            @(Model.Product.BrandTitle ?? "بدون برند")
-                        </span>
+</section>
 
-                        <span>
-                            <i data-lucide="images"></i>
-                            @Model.FormatNumber(Model.Images.Count)
-                            تصویر
-                        </span>
-                    </div>
-                }
-            </div>
-        </div>
+    @if (Model.Product != null) {
+    <section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>آپلود تصویر جدید</h2>
+<p>قبل از ثبت، پیش‌نمایش تصویر را همینجا می‌بینی.</p>
+</div>
 
-        <div class="pi-hero-actions">
-            <a asp-page="/Admin/Products/Details"
-               asp-route-id="@Model.ProductId"
-               class="pi-btn pi-btn-soft">
-                <i data-lucide="eye"></i>
-                جزئیات محصول
-            </a>
+</div>
 
-            <a asp-page="/Admin/Products/Edit"
-               asp-route-id="@Model.ProductId"
-               class="pi-btn pi-btn-soft">
-                <i data-lucide="pencil"></i>
-                ویرایش محصول
-            </a>
+<form method="post" enctype="multipart/form-data" asp-page-handler="Upload" asp-route-productId="@Model.Product.Id" class="vz-form-layout">
+<input type="hidden" name="productId" value="@Model.Product.Id" />
+<div class="vz-main-col">
+<div class="vz-upload-card">
+<label class="vz-dropzone js-upload-zone" data-target="productImagePreview" data-placeholder="productImagePlaceholder" data-info="productFileInfo" data-input="ImageFile">
+<img id="productImagePreview" class="vz-preview-img" hidden alt="preview" />
+<span id="productImagePlaceholder" class="vz-upload-placeholder">
+<img src="~/images/admin/upload-placeholder.svg" asp-append-version="true" alt="" />
+<strong>انتخاب تصویر محصول</strong>
+<span>فایل تصویر را انتخاب کن یا روی این بخش رها کن.</span>
+<small>JPG / PNG / WEBP</small>
+</span>
+<input id="ImageFile" name="ImageFile" type="file" accept=".jpg,.jpeg,.png,.webp" class="vz-file-input js-upload-input" />
+</label>
+<div id="productFileInfo" class="vz-file-info" hidden>
+<div class="vz-file-info-icon">
+<i data-lucide="file-image">
+</i>
+</div>
 
-            <a asp-page="/Admin/Products/Index"
-               class="pi-btn pi-btn-soft">
-                <i data-lucide="arrow-right"></i>
-                بازگشت
-            </a>
-        </div>
-    </section>
+<section>
+<strong class="js-file-name">-</strong>
+<span class="js-file-size">-</span>
+</section>
 
-    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-    {
-        <div class="pi-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
+<button type="button" class="vz-clear-file js-clear-file">
+<i data-lucide="x">
+</i>
+</button>
+</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="pi-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
+</div>
 
-    <section class="pi-upload-card">
-        <div class="pi-upload-header">
-            <div>
-                <div class="pi-card-kicker">
-                    <i data-lucide="upload-cloud"></i>
-                    آپلود تصویر جدید
-                </div>
+</div>
 
-                <h2>افزودن تصویر به گالری</h2>
+<div class="vz-side-col">
+<section class="vz-side-card">
+<div class="vz-field">
+<label asp-for="AltText">متن جایگزین</label>
+<div class="vz-input-shell">
+<i data-lucide="type">
+</i>
+<input asp-for="AltText" class="vz-input" />
+</div>
 
-                <p>
-                    فرمت‌های مجاز: JPG، JPEG، PNG، WEBP. حجم پیشنهادی کمتر از ۵ مگابایت.
-                </p>
-            </div>
+</div>
 
-            <div class="pi-upload-badge">
-                <span>Storage</span>
-                <small>/uploads/products</small>
-            </div>
-        </div>
+<div class="vz-field" style="margin-top:14px">
+<label asp-for="SortOrder">ترتیب نمایش</label>
+<div class="vz-input-shell">
+<i data-lucide="arrow-down-up">
+</i>
+<input asp-for="SortOrder" type="number" class="vz-input ltr" />
+</div>
 
-        <form method="post"
-              enctype="multipart/form-data"
-              asp-page-handler="Upload"
-              asp-route-productId="@Model.ProductId"
-              class="pi-upload-form">
+</div>
 
-            <div class="pi-upload-preview">
-                <img id="imagePreview" src="" alt="Preview" hidden />
+<div style="height:14px">
+</div>
 
-                <div id="imagePreviewPlaceholder" class="pi-upload-placeholder">
-                    <i data-lucide="image-plus"></i>
-                    <strong>Preview</strong>
-                    <small>تصویر انتخاب‌شده اینجا نمایش داده می‌شود</small>
-                </div>
-            </div>
+<div class="vz-switch-card">
+<div>
+<strong>تصویر اصلی</strong>
+<span>به عنوان تصویر شاخص محصول استفاده شود.</span>
+</div>
 
-            <div class="pi-upload-fields">
-                <div class="pi-file-zone">
-                    <i data-lucide="upload"></i>
+<label class="vz-switch">
+<input asp-for="SetAsThumbnail" />
+<span class="vz-switch-ui">
+</span>
+</label>
+</div>
 
-                    <div>
-                        <strong>انتخاب فایل تصویر</strong>
-                        <small>فایل را انتخاب کن تا قبل از آپلود پیش‌نمایش داده شود.</small>
-                    </div>
+<div style="height:14px">
+</div>
 
-                    <input asp-for="ImageFile"
-                           type="file"
-                           class="pi-file-input"
-                           accept="image/jpeg,image/png,image/webp"
-                           onchange="previewProductImage(event)" />
-                </div>
+<button type="submit" class="vz-btn vz-btn-primary vz-btn-full">
+<i data-lucide="save">
+</i>ثبت تصویر</button>
+</section>
 
-                <div class="pi-form-grid">
-                    <div class="pi-field">
-                        <label asp-for="AltText">Alt Text</label>
-                        <input asp-for="AltText"
-                               class="pi-control"
-                               autocomplete="off"
-                               placeholder="مثلاً تصویر گیفت کارت پلی استیشن" />
-                        <span asp-validation-for="AltText" class="pi-validation"></span>
-                    </div>
+</div>
 
-                    <div class="pi-field">
-                        <label asp-for="SortOrder">ترتیب نمایش</label>
-                        <input asp-for="SortOrder"
-                               class="pi-control ltr"
-                               type="number"
-                               inputmode="numeric"
-                               placeholder="مثلاً 10" />
-                        <span asp-validation-for="SortOrder" class="pi-validation"></span>
-                    </div>
+</form>
 
-                    <label class="pi-switch">
-                        <span>
-                            <strong>تصویر اصلی محصول</strong>
-                            <small>این تصویر به عنوان Thumbnail محصول ثبت شود.</small>
-                        </span>
+</section>
 
-                        <input asp-for="SetAsThumbnail" class="pi-switch-input" />
-                        <i class="pi-switch-ui"></i>
-                    </label>
+    <section class="vz-table-card">
+<div class="vz-card-head">
+<div>
+<h2>گالری تصاویر</h2>
+<p>@Model.Images.Count تصویر ثبت شده است.</p>
+</div>
 
-                    <button type="submit" class="pi-btn pi-btn-primary pi-upload-submit">
-                        <i data-lucide="upload-cloud"></i>
-                        آپلود و ثبت مسیر
-                    </button>
-                </div>
-            </div>
-        </form>
-    </section>
+</div>
+@if (!Model.Images.Any()) { <div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="image-off">
+</i>
+</div>
 
-    @if (!Model.Images.Any())
-    {
-        <section class="pi-empty">
-            <div class="pi-empty-icon">
-                <i data-lucide="image-off"></i>
-            </div>
+<h3>هنوز تصویری ثبت نشده است</h3>
+<p>اولین تصویر محصول را از بخش بالا ثبت کن.</p>
+</div>
+ } else { <div class="vz-gallery">@foreach (var img in Model.Images) { <article class="vz-gallery-card">
+<div class="vz-gallery-img">
+<img src="@Model.Image(img.ImagePath)" alt="@img.AltText" />
+</div>
 
-            <h2>هنوز تصویری برای این محصول ثبت نشده</h2>
+<div class="vz-gallery-body">
+<span class="vz-code">@img.ImagePath</span>
+<form method="post" asp-page-handler="Update" asp-route-productId="@Model.Product.Id" asp-route-imageId="@img.Id">
+<input type="hidden" name="productId" value="@Model.Product.Id" />
+<input type="hidden" name="imageId" value="@img.Id" />
+<input type="hidden" name="imagePath" value="@img.ImagePath" />
+<div class="vz-form-grid">
+<div class="vz-field">
+<label>متن جایگزین</label>
+<div class="vz-input-shell">
+<i data-lucide="type">
+</i>
+<input name="altText" value="@img.AltText" class="vz-input" />
+</div>
 
-            <p>
-                اولین تصویر را از بخش بالا آپلود کن. بعد از آپلود، مسیر تصویر در دیتابیس ذخیره می‌شود.
-            </p>
-        </section>
-    }
-    else
-    {
-        <section class="pi-gallery-card">
-            <div class="pi-gallery-header">
-                <div>
-                    <div class="pi-card-kicker">
-                        <i data-lucide="gallery-horizontal"></i>
-                        گالری محصول
-                    </div>
+</div>
 
-                    <h2>تصاویر ثبت‌شده</h2>
+<div class="vz-field">
+<label>ترتیب</label>
+<div class="vz-input-shell">
+<i data-lucide="arrow-down-up">
+</i>
+<input name="sortOrder" value="@img.SortOrder" type="number" class="vz-input ltr" />
+</div>
 
-                    <p>
-                        تصویر اصلی، Alt Text و ترتیب نمایش تصاویر محصول را مدیریت کن.
-                    </p>
-                </div>
+</div>
 
-                <span>
-                    @Model.FormatNumber(Model.Images.Count)
-                    تصویر
-                </span>
-            </div>
+<button class="vz-btn vz-btn-light" type="submit">
+<i data-lucide="save">
+</i>ذخیره</button>
+</div>
 
-            <div class="pi-gallery-grid">
-                @foreach (var image in Model.Images)
-                {
-                    <article class="pi-image-card">
-                        <div class="pi-image-frame">
-                            <img src="@Model.GetImagePath(image.ImagePath)"
-                                 alt="@image.AltText" />
+</form>
 
-                            <div class="pi-image-badges">
-                                @if (image.IsThumbnail)
-                                {
-                                    <span class="pi-badge success">
-                                        <i data-lucide="star"></i>
-                                        تصویر اصلی
-                                    </span>
-                                }
+<div class="vz-actions">
+<form method="post" asp-page-handler="SetThumbnail" asp-route-productId="@Model.Product.Id" asp-route-imageId="@img.Id">
+<button class="vz-icon-btn success" type="submit">
+<i data-lucide="star">
+</i>
+</button>
+</form>
 
-                                <span class="pi-badge dark">
-                                    #@image.SortOrder
-                                </span>
-                            </div>
-                        </div>
+<a href="@Model.Image(img.ImagePath)" target="_blank" class="vz-icon-btn info">
+<i data-lucide="external-link">
+</i>
+</a>
+<form method="post" asp-page-handler="Delete" asp-route-productId="@Model.Product.Id" asp-route-imageId="@img.Id" onsubmit="return confirm('تصویر حذف شود؟');">
+<button class="vz-icon-btn danger" type="submit">
+<i data-lucide="trash-2">
+</i>
+</button>
+</form>
 
-                        <div class="pi-image-body">
-                            <form method="post"
-                                  asp-page-handler="Update"
-                                  asp-route-productId="@Model.ProductId"
-                                  asp-route-imageId="@image.Id"
-                                  class="pi-image-edit-form">
+</div>
 
-                                <div class="pi-field">
-                                    <label>Alt Text</label>
-                                    <input name="altText"
-                                           value="@image.AltText"
-                                           class="pi-control"
-                                           autocomplete="off"
-                                           placeholder="Alt Text تصویر" />
-                                </div>
+</div>
 
-                                <div class="pi-field">
-                                    <label>Sort Order</label>
-                                    <input name="sortOrder"
-                                           value="@image.SortOrder"
-                                           type="number"
-                                           class="pi-control ltr"
-                                           inputmode="numeric" />
-                                </div>
+</article> }
+</div>
+ }
+</section>
 
-                                <button type="submit" class="pi-mini-btn primary">
-                                    <i data-lucide="save"></i>
-                                    ذخیره اطلاعات
-                                </button>
-                            </form>
-
-                            <div class="pi-path-box">
-                                <span>مسیر ذخیره‌شده در دیتابیس</span>
-                                <code>@image.ImagePath</code>
-                            </div>
-
-                            <div class="pi-image-actions">
-                                <form method="post"
-                                      asp-page-handler="SetThumbnail"
-                                      asp-route-productId="@Model.ProductId"
-                                      asp-route-imageId="@image.Id">
-                                    <button type="submit"
-                                            class="pi-mini-icon success"
-                                            title="انتخاب تصویر اصلی"
-                                            disabled="@image.IsThumbnail">
-                                        <i data-lucide="star"></i>
-                                    </button>
-                                </form>
-
-                                <a href="@Model.GetImagePath(image.ImagePath)"
-                                   target="_blank"
-                                   class="pi-mini-icon view"
-                                   title="نمایش تصویر">
-                                    <i data-lucide="external-link"></i>
-                                </a>
-
-                                <form method="post"
-                                      asp-page-handler="Delete"
-                                      asp-route-productId="@Model.ProductId"
-                                      asp-route-imageId="@image.Id"
-                                      onsubmit="return confirm('آیا از حذف این تصویر مطمئن هستید؟ فایل از سرور و رکورد از دیتابیس حذف می‌شود.');">
-                                    <button type="submit"
-                                            class="pi-mini-icon danger"
-                                            title="حذف تصویر">
-                                        <i data-lucide="trash-2"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </article>
-                }
-            </div>
-        </section>
     }
 </div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+@section Scripts { <partial name="_ValidationScriptsPartial" />
 
-    <script>
-        function previewProductImage(event) {
-            const file = event.target.files && event.target.files.length > 0
-                ? event.target.files[0]
-                : null;
-
-            const preview = document.getElementById('imagePreview');
-            const placeholder = document.getElementById('imagePreviewPlaceholder');
-
-            if (!preview || !placeholder) {
-                return;
-            }
-
-            if (!file) {
-                preview.src = '';
-                preview.hidden = true;
-                placeholder.hidden = false;
-                return;
-            }
-
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                preview.src = e.target.result;
-                preview.hidden = false;
-                placeholder.hidden = true;
-            };
-
-            reader.readAsDataURL(file);
+<script>
+    function formatFileSize(bytes) {
+        if (!bytes) {
+            return '0 KB';
         }
+
+        const kb = bytes / 1024;
+
+        if (kb < 1024) {
+            return kb.toFixed(1) + ' KB';
+        }
+
+        return (kb / 1024).toFixed(2) + ' MB';
+    }
+
+    function initUploadZones() {
+        document.querySelectorAll('.js-upload-zone').forEach(function (zone) {
+            const input = document.getElementById(zone.dataset.input);
+            const preview = document.getElementById(zone.dataset.target);
+            const placeholder = document.getElementById(zone.dataset.placeholder);
+            const info = document.getElementById(zone.dataset.info);
+
+            if (!input) {
+                return;
+            }
+
+            function show(file) {
+                if (!file) {
+                    return;
+                }
+
+                const allowedTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp'
+                ];
+
+                if (!allowedTypes.includes(file.type)) {
+                    alert('فرمت تصویر مجاز نیست.');
+                    input.value = '';
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('حجم فایل بیش از حد مجاز است.');
+                    input.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function (event) {
+                    if (preview) {
+                        preview.src = event.target.result;
+                        preview.hidden = false;
+                    }
+
+                    if (placeholder) {
+                        placeholder.hidden = true;
+                    }
+
+                    if (info) {
+                        info.hidden = false;
+
+                        const fileName = info.querySelector('.js-file-name');
+                        const fileSize = info.querySelector('.js-file-size');
+
+                        if (fileName) {
+                            fileName.textContent = file.name;
+                        }
+
+                        if (fileSize) {
+                            fileSize.textContent = formatFileSize(file.size);
+                        }
+                    }
+
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                };
+
+                reader.readAsDataURL(file);
+            }
+
+            input.addEventListener('change', function (event) {
+                show(event.target.files && event.target.files[0]);
+            });
+
+            zone.addEventListener('dragover', function (event) {
+                event.preventDefault();
+                zone.classList.add('is-dragover');
+            });
+
+            zone.addEventListener('dragleave', function () {
+                zone.classList.remove('is-dragover');
+            });
+
+            zone.addEventListener('drop', function (event) {
+                event.preventDefault();
+                zone.classList.remove('is-dragover');
+
+                const file = event.dataTransfer.files && event.dataTransfer.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+
+                show(file);
+            });
+
+            if (info) {
+                const clear = info.querySelector('.js-clear-file');
+
+                if (clear) {
+                    clear.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        input.value = '';
+
+                        if (preview) {
+                            preview.src = '';
+                            preview.hidden = true;
+                        }
+
+                        if (placeholder) {
+                            placeholder.hidden = false;
+                        }
+
+                        info.hidden = true;
+                    });
+                }
+            }
+        });
 
         if (window.lucide) {
             lucide.createIcons();
         }
-    </script>
-}
+    }
+
+    document.addEventListener('DOMContentLoaded', initUploadZones);
+</script>
+ }

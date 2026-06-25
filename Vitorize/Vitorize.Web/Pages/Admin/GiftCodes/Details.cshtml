@@ -1,0 +1,105 @@
+@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.GiftCodes.DetailsModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"] = "جزئیات بچ"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="archive">
+</i>بچ کد</div>
+
+<h1 class="vz-title">@Model.Batch.BatchTitle</h1>
+<p class="vz-desc">@(Model.Batch.ProductTitle ?? "-")</p>
+</div>
+
+<div class="vz-actions">
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+</section>
+
+<section class="vz-stats">
+<article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="credit-card">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">کل کدها</span>
+<strong class="vz-stat-value">@Model.Batch.TotalCodes</strong>
+</div>
+
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="check">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">آماده فروش</span>
+<strong class="vz-stat-value">@Model.Batch.AvailableCodes</strong>
+</div>
+
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="shopping-bag">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">فروخته شده</span>
+<strong class="vz-stat-value">@Model.Batch.SoldCodes</strong>
+</div>
+
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="calendar">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">تاریخ ورود</span>
+<strong class="vz-stat-value">@AdminUiHelper.ShortDate(Model.Batch.ImportedAt)</strong>
+</div>
+
+</article>
+</section>
+
+<section class="vz-form-card">
+<div class="vz-kv">
+<div class="vz-kv-item">
+<span>تامین‌کننده</span>
+<strong>@(Model.Batch.SourceName ?? "-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>قیمت خرید</span>
+<strong>@(Model.Batch.PurchasePrice.HasValue ? AdminUiHelper.Money(Model.Batch.PurchasePrice.Value) : "-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>یادداشت</span>
+<strong>@(Model.Batch.Notes ?? "-")</strong>
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+@section Scripts {
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

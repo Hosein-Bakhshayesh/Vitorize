@@ -1,467 +1,245 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.Products.IndexModel
-
+@using Vitorize.Web.Helpers
+@using Vitorize.Shared.Enums
 @{
-    ViewData["Title"] = "مدیریت محصولات";
+    ViewData["Title"] = "محصولات";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="package">
+</i>محصولات</div>
 
-<div class="products-page" dir="rtl">
+<h1 class="vz-title">مدیریت محصولات</h1>
+<p class="vz-desc">محصولات، قیمت‌ها، وضعیت فروش و مسیرهای مدیریت تصویر و واریانت را کنترل کن.</p>
+</div>
 
-    <section class="products-hero">
-        <div class="products-hero-text">
-            <div class="products-eyebrow">
-                <i data-lucide="package-search"></i>
-                مرکز مدیریت محصولات
-            </div>
+        <div class="vz-actions">
+<a asp-page="Create" class="vz-btn vz-btn-primary">
+<i data-lucide="plus">
+</i>محصول جدید</a>
+</div>
 
-            <h1>کاتالوگ محصولات ویتورایز</h1>
-
-            <p>
-                وضعیت فروش، قیمت، موجودی، تصاویر و تنوع‌های محصول را از این صفحه مدیریت کن.
-            </p>
-        </div>
-
-        <div class="products-hero-actions">
-            <a asp-page="/Admin/Products/Create" class="products-btn products-btn-primary">
-                <i data-lucide="plus"></i>
-                محصول جدید
-            </a>
-
-            <a asp-page="/Admin/ProductImages/Index" class="products-btn products-btn-soft">
-                <i data-lucide="image"></i>
-                تصاویر محصولات
-            </a>
-
-            <a asp-page="/Admin/ProductVariants/Index" class="products-btn products-btn-soft">
-                <i data-lucide="layers-3"></i>
-                واریانت‌ها
-            </a>
-        </div>
     </section>
 
-    <section class="products-stats">
-        <div class="products-stat">
-            <div class="products-stat-icon blue">
-                <i data-lucide="boxes"></i>
-            </div>
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage)) { <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+ }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+ }
+    <section class="vz-stats">
+        <article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="package">
+</i>
+</div>
 
-            <div>
-                <span>کل محصولات</span>
-                <strong>@Model.FormatNumber(Model.TotalProducts)</strong>
-                <small>@Model.FormatNumber(Model.Products.Count) مورد در نمایش فعلی</small>
-            </div>
-        </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">کل محصولات</span>
+<strong class="vz-stat-value">@Model.TotalCount</strong>
+</div>
 
-        <div class="products-stat">
-            <div class="products-stat-icon green">
-                <i data-lucide="check-circle-2"></i>
-            </div>
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="check-circle-2">
+</i>
+</div>
 
-            <div>
-                <span>فعال و قابل فروش</span>
-                <strong>@Model.FormatNumber(Model.ActiveProducts)</strong>
-                <small>در فروشگاه نمایش داده می‌شوند</small>
-            </div>
-        </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">فعال</span>
+<strong class="vz-stat-value">@Model.ActiveCount</strong>
+</div>
 
-        <div class="products-stat">
-            <div class="products-stat-icon purple">
-                <i data-lucide="sparkles"></i>
-            </div>
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="star">
+</i>
+</div>
 
-            <div>
-                <span>محصولات ویژه</span>
-                <strong>@Model.FormatNumber(Model.FeaturedProducts)</strong>
-                <small>مناسب نمایش در بخش‌های پیشنهادی</small>
-            </div>
-        </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">ویژه</span>
+<strong class="vz-stat-value">@Model.FeaturedCount</strong>
+</div>
 
-        <div class="products-stat">
-            <div class="products-stat-icon orange">
-                <i data-lucide="badge-alert"></i>
-            </div>
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="credit-card">
+</i>
+</div>
 
-            <div>
-                <span>نیازمند تامین</span>
-                <strong>@Model.FormatNumber(Model.OutOfStockProducts)</strong>
-                <small>@Model.FormatNumber(Model.TotalAvailableStock) کد آماده در کل محصولات</small>
-            </div>
-        </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">کد آماده</span>
+<strong class="vz-stat-value">@Model.GiftCodeStock</strong>
+</div>
+
+</article>
     </section>
 
-    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-    {
-        <div class="products-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
+    <section class="vz-table-card">
+        <form method="get" class="vz-filter-grid" style="margin-bottom:18px">
+            <div class="vz-field">
+<label>جستجو</label>
+<div class="vz-input-shell">
+<i data-lucide="search">
+</i>
+<input asp-for="Search" class="vz-input" placeholder="عنوان، دسته‌بندی یا برند" />
+</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="products-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
+</div>
 
-    <section class="products-toolbar">
-        <div class="products-toolbar-header">
-            <div>
-                <div class="products-toolbar-eyebrow">
-                    <i data-lucide="sliders-horizontal"></i>
-                    جستجو و فیلتر
-                </div>
+            <div class="vz-field">
+<label>نوع محصول</label>
+<div class="vz-input-shell">
+<i data-lucide="filter">
+</i>
+<select asp-for="ProductType" class="vz-select">
+<option value="">همه</option>
+<option value="1">گیفت کارت</option>
+<option value="2">اکانت بازی</option>
+<option value="3">سرویس بازی</option>
+<option value="4">اشتراک</option>
+<option value="99">سایر</option>
+</select>
+</div>
 
-                <h2>فیلتر محصولات</h2>
+</div>
 
-                <p>
-                    محصولات را بر اساس وضعیت، موجودی، قیمت، برند، دسته‌بندی یا نام جستجو کن.
-                </p>
-            </div>
+            <div class="vz-field">
+<label>وضعیت</label>
+<div class="vz-input-shell">
+<i data-lucide="toggle-left">
+</i>
+<select asp-for="IsActive" class="vz-select">
+<option value="">همه</option>
+<option value="true">فعال</option>
+<option value="false">غیرفعال</option>
+</select>
+</div>
 
-            <div class="products-result-badge">
-                <span>@Model.FormatNumber(Model.Products.Count)</span>
-                <small>نتیجه</small>
-            </div>
-        </div>
+</div>
 
-        <form method="get" class="products-filter-form">
-            <div class="products-filter-grid">
+            <div class="vz-actions">
+<button class="vz-btn vz-btn-light">
+<i data-lucide="filter">
+</i>فیلتر</button>
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="rotate-ccw">
+</i>پاک کردن</a>
+</div>
 
-                <div class="products-filter-field products-filter-search">
-                    <label>جستجوی سریع</label>
-
-                    <div class="products-search">
-                        <i data-lucide="search"></i>
-
-                        <input asp-for="Search"
-                               class="products-search-input"
-                               type="search"
-                               autocomplete="off"
-                               placeholder="نام محصول، اسلاگ، برند یا دسته‌بندی را وارد کنید..." />
-                    </div>
-                </div>
-
-                <div class="products-filter-field">
-                    <label>وضعیت محصول</label>
-
-                    <div class="products-select-shell">
-                        <i data-lucide="filter"></i>
-
-                        <select asp-for="Status" class="products-select-control">
-                            <option value="">همه وضعیت‌ها</option>
-                            <option value="active">فقط فعال</option>
-                            <option value="inactive">فقط غیرفعال</option>
-                            <option value="featured">محصولات ویژه</option>
-                            <option value="out-stock">ناموجود / نیازمند تامین</option>
-                            <option value="discounted">دارای تخفیف</option>
-                            <option value="instant">تحویل آنی</option>
-                            <option value="verification">نیازمند احراز هویت</option>
-                        </select>
-
-                        <i data-lucide="chevron-down" class="select-chevron"></i>
-                    </div>
-                </div>
-
-                <div class="products-filter-field">
-                    <label>مرتب‌سازی</label>
-
-                    <div class="products-select-shell">
-                        <i data-lucide="arrow-up-down"></i>
-
-                        <select asp-for="Sort" class="products-select-control">
-                            <option value="">جدیدترین</option>
-                            <option value="oldest">قدیمی‌ترین</option>
-                            <option value="title">عنوان محصول</option>
-                            <option value="price-desc">گران‌ترین</option>
-                            <option value="price-asc">ارزان‌ترین</option>
-                            <option value="stock-desc">بیشترین موجودی</option>
-                            <option value="stock-asc">کمترین موجودی</option>
-                        </select>
-
-                        <i data-lucide="chevron-down" class="select-chevron"></i>
-                    </div>
-                </div>
-
-                <div class="products-filter-actions">
-                    <button type="submit" class="products-btn products-btn-primary">
-                        <i data-lucide="search-check"></i>
-                        اعمال فیلتر
-                    </button>
-
-                    @if (Model.HasFilters)
-                    {
-                        <a asp-page="/Admin/Products/Index" class="products-btn products-btn-soft">
-                            <i data-lucide="rotate-ccw"></i>
-                            پاک کردن
-                        </a>
-                    }
-                </div>
-            </div>
         </form>
 
-        <div class="products-quick-filters">
-            <span class="quick-filter-label">فیلتر سریع:</span>
+        @if (!Model.Products.Any()) { <div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="inbox">
+</i>
+</div>
 
-            <a asp-page="/Admin/Products/Index"
-               asp-route-search="@Model.Search"
-               asp-route-status=""
-               asp-route-sort="@Model.Sort"
-               class="filter-chip @(string.IsNullOrWhiteSpace(Model.Status) ? "active" : "")">
-                همه
-            </a>
+<h3>محصولی پیدا نشد</h3>
+<p>برای شروع، محصول جدید اضافه کن.</p>
+</div>
+ }
+        else { <div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>محصول</th>
+<th>نوع</th>
+<th>قیمت</th>
+<th>موجودی</th>
+<th>وضعیت</th>
+<th>عملیات</th>
+</tr>
 
-            <a asp-page="/Admin/Products/Index"
-               asp-route-search="@Model.Search"
-               asp-route-status="active"
-               asp-route-sort="@Model.Sort"
-               class="filter-chip @(Model.Status == "active" ? "active" : "")">
-                فعال
-                <small>@Model.FormatNumber(Model.ActiveProducts)</small>
-            </a>
+</thead>
 
-            <a asp-page="/Admin/Products/Index"
-               asp-route-search="@Model.Search"
-               asp-route-status="out-stock"
-               asp-route-sort="@Model.Sort"
-               class="filter-chip @(Model.Status == "out-stock" ? "active danger" : "")">
-                نیازمند تامین
-                <small>@Model.FormatNumber(Model.OutOfStockProducts)</small>
-            </a>
+<tbody>
+        @foreach (var item in Model.Products) {
+            <tr>
+                <td>
+<div class="vz-item">@if (!string.IsNullOrWhiteSpace(item.ThumbnailImagePath)) { <div class="vz-thumb">
+<img src="@Model.Image(item.ThumbnailImagePath)" alt="@item.Title" />
+</div>
+ } else { <div class="vz-thumb-fallback">
+<i data-lucide="package">
+</i>
+</div>
+ }
+<div class="vz-item-text">
+<strong>@item.Title</strong>
+<span>@item.CategoryTitle · @(item.BrandTitle ?? "بدون برند")</span>
+<small>@item.Slug</small>
+</div>
 
-            <a asp-page="/Admin/Products/Index"
-               asp-route-search="@Model.Search"
-               asp-route-status="featured"
-               asp-route-sort="@Model.Sort"
-               class="filter-chip @(Model.Status == "featured" ? "active" : "")">
-                ویژه
-                <small>@Model.FormatNumber(Model.FeaturedProducts)</small>
-            </a>
+</div>
 
-            <a asp-page="/Admin/Products/Index"
-               asp-route-search="@Model.Search"
-               asp-route-status="discounted"
-               asp-route-sort="@Model.Sort"
-               class="filter-chip @(Model.Status == "discounted" ? "active" : "")">
-                تخفیف‌دار
-                <small>@Model.FormatNumber(Model.DiscountedProducts)</small>
-            </a>
-        </div>
+</td>
+                <td>
+<span class="vz-badge vz-badge-primary">@AdminUiHelper.ProductType(item.ProductType)</span>
+</td>
+                <td>
+<strong>@AdminUiHelper.Money(item.FinalPrice, item.CurrencyType)</strong>@if (item.DiscountPrice.HasValue && item.DiscountPrice.Value > 0) { <small style="display:block;color:#94a3b8;text-decoration:line-through">@AdminUiHelper.Money(item.BasePrice, item.CurrencyType)</small> }
+</td>
+                <td>@item.AvailableStock</td>
+                <td>@if (item.IsActive) { <span class="vz-badge vz-badge-success">فعال</span> } else { <span class="vz-badge vz-badge-muted">غیرفعال</span> } @if (item.IsFeatured) { <span class="vz-badge vz-badge-warning">ویژه</span> }
+</td>
+                <td>
+<div class="vz-actions">
+<a asp-page="Details" asp-route-id="@item.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+<a asp-page="Edit" asp-route-id="@item.Id" class="vz-icon-btn">
+<i data-lucide="pencil">
+</i>
+</a>
+<a asp-page="/Admin/ProductImages/Index" asp-route-productId="@item.Id" class="vz-icon-btn success">
+<i data-lucide="image">
+</i>
+</a>
+<a asp-page="/Admin/ProductVariants/Index" asp-route-productId="@item.Id" class="vz-icon-btn success">
+<i data-lucide="layers-3">
+</i>
+</a>
+<form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" onsubmit="return confirm('آیا از حذف این محصول مطمئن هستید؟');">
+<button class="vz-icon-btn danger" type="submit">
+<i data-lucide="trash-2">
+</i>
+</button>
+</form>
+
+</div>
+
+</td>
+            </tr>
+
+        }
+        </tbody>
+
+</table>
+
+</div>
+ }
     </section>
 
-    @if (!Model.Products.Any())
-    {
-        <section class="products-empty">
-            <div class="products-empty-icon">
-                <i data-lucide="package-open"></i>
-            </div>
-
-            <h2>محصولی برای نمایش وجود ندارد</h2>
-
-            <p>
-                اگر فیلتر فعال است، فیلترها را حذف کن. در غیر این صورت اولین محصول فروشگاه را ایجاد کن.
-            </p>
-
-            <a asp-page="/Admin/Products/Create" class="products-btn products-btn-primary">
-                <i data-lucide="plus"></i>
-                ایجاد محصول جدید
-            </a>
-        </section>
-    }
-    else
-    {
-        <section class="products-table-card">
-            <div class="products-table-header">
-                <div>
-                    <h2>لیست محصولات</h2>
-                    <p>مدیریت قیمت، موجودی، وضعیت نمایش و عملیات‌های مرتبط با هر محصول</p>
-                </div>
-
-                <span>
-                    @Model.FormatNumber(Model.Products.Count)
-                    محصول
-                </span>
-            </div>
-
-            <div class="products-table-head">
-                <div>محصول</div>
-                <div>قیمت</div>
-                <div>موجودی</div>
-                <div>وضعیت</div>
-                <div>نوع تحویل</div>
-                <div>عملیات</div>
-            </div>
-
-            <div class="products-rows">
-                @foreach (var product in Model.Products)
-                {
-                    <article class="product-row">
-
-                        <div class="product-identity">
-                            <div class="product-thumb">
-                                @if (!string.IsNullOrWhiteSpace(Model.GetImagePath(product)))
-                                {
-                                    <img src="@Model.GetImagePath(product)" alt="@product.Title" />
-                                }
-                                else
-                                {
-                                    <div class="product-thumb-placeholder">
-                                        @Model.GetProductInitial(product)
-                                    </div>
-                                }
-
-                                @if (Model.HasDiscount(product))
-                                {
-                                    <span class="product-discount">
-                                        %@Model.GetDiscountPercent(product)
-                                    </span>
-                                }
-                            </div>
-
-                            <div class="product-main">
-                                <div class="product-title-line">
-                                    <h3>@product.Title</h3>
-
-                                    @if (product.IsFeatured)
-                                    {
-                                        <span class="product-pill featured">
-                                            ویژه
-                                        </span>
-                                    }
-                                </div>
-
-                                <div class="product-slug">
-                                    @product.Slug
-                                </div>
-
-                                <p>
-                                    @(string.IsNullOrWhiteSpace(product.ShortDescription)
-                                        ? "توضیح کوتاه برای این محصول ثبت نشده است."
-                                        : product.ShortDescription)
-                                </p>
-
-                                <div class="product-tags">
-                                    <span>
-                                        <i data-lucide="folder"></i>
-                                        @product.CategoryTitle
-                                    </span>
-
-                                    <span>
-                                        <i data-lucide="badge-check"></i>
-                                        @(product.BrandTitle ?? "بدون برند")
-                                    </span>
-
-                                    <span>
-                                        <i data-lucide="box"></i>
-                                        @Model.GetProductType(product.ProductType)
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="product-cell product-price">
-                            <span>قیمت نهایی</span>
-                            <strong>@Model.FormatMoney(product.FinalPrice)</strong>
-
-                            @if (Model.HasDiscount(product))
-                            {
-                                <small>@Model.FormatMoney(product.BasePrice)</small>
-                            }
-                            else
-                            {
-                                <small>@Model.GetCurrencyType(product.CurrencyType)</small>
-                            }
-                        </div>
-
-                        <div class="product-cell">
-                            <span>موجودی</span>
-                            <strong class="@Model.GetStockCss(product)">
-                                @Model.FormatNumber(product.AvailableStock)
-                            </strong>
-                            <small>@Model.GetStockText(product)</small>
-                        </div>
-
-                        <div class="product-cell">
-                            <span>وضعیت</span>
-                            <strong>
-                                <span class="@Model.GetStatusCss(product)">
-                                    @Model.GetStatusText(product)
-                                </span>
-                            </strong>
-                            <small>@Model.FormatDate(product.CreatedAt)</small>
-                        </div>
-
-                        <div class="product-cell">
-                            <span>تحویل</span>
-                            <strong>
-                                <span class="@Model.GetDeliveryCss(product)">
-                                    @Model.GetDeliveryType(product.DeliveryType)
-                                </span>
-                            </strong>
-                            <small>@(product.HasVariants ? "دارای واریانت" : "بدون واریانت")</small>
-                        </div>
-
-                        <div class="product-actions">
-                            <a asp-page="/Admin/Products/Details"
-                               asp-route-id="@product.Id"
-                               class="product-action details"
-                               title="جزئیات">
-                                <i data-lucide="eye"></i>
-                            </a>
-
-                            <a asp-page="/Admin/Products/Edit"
-                               asp-route-id="@product.Id"
-                               class="product-action edit"
-                               title="ویرایش">
-                                <i data-lucide="pencil"></i>
-                            </a>
-
-                            <a asp-page="/Admin/ProductImages/Index"
-                               asp-route-productId="@product.Id"
-                               class="product-action image"
-                               title="تصاویر محصول">
-                                <i data-lucide="image"></i>
-                            </a>
-
-                            <a asp-page="/Admin/ProductVariants/Index"
-                               asp-route-productId="@product.Id"
-                               class="product-action variant"
-                               title="واریانت‌ها">
-                                <i data-lucide="layers-3"></i>
-                            </a>
-
-                            <a asp-page="/Admin/GiftCodes/Import"
-                               asp-route-productId="@product.Id"
-                               class="product-action code"
-                               title="ورود کد">
-                                <i data-lucide="upload-cloud"></i>
-                            </a>
-
-                            <form method="post"
-                                  asp-page-handler="Delete"
-                                  asp-route-id="@product.Id"
-                                  asp-route-search="@Model.Search"
-                                  asp-route-status="@Model.Status"
-                                  asp-route-sort="@Model.Sort"
-                                  onsubmit="return confirm('آیا از حذف این محصول مطمئن هستید؟ این عملیات قابل بازگشت نیست.');">
-                                <button type="submit" class="product-action delete" title="حذف">
-                                    <i data-lucide="trash-2"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </article>
-                }
-            </div>
-        </section>
-    }
 </div>
 
 @section Scripts {
-    <script>
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
-}
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

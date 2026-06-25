@@ -1,79 +1,48 @@
-﻿@{
+@{
     var groups = new List<AdminNavGroup>
     {
-        new AdminNavGroup
+        new("داشبورد", "layout-grid", new List<AdminNavItem>
         {
-            Title = "داشبورد",
-            Icon = "layout-grid",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin", "داشبورد", "home", true)
-            }
-        },
-
-        new AdminNavGroup
+            new("/Admin", "داشبورد", "home", true)
+        }),
+        new("فروش", "shopping-cart", new List<AdminNavItem>
         {
-            Title = "فروش",
-            Icon = "shopping-cart",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin/Orders", "سفارش‌ها", "shopping-cart"),
-                new AdminNavItem("/Admin/Payments", "تراکنش‌ها", "repeat-2"),
-                new AdminNavItem("/Admin/Reports/Sales", "گزارش فروش", "line-chart")
-            }
-        },
-
-        new AdminNavGroup
+            new("/Admin/Orders", "سفارش‌ها", "shopping-cart"),
+            new("/Admin/Payments", "پرداخت‌ها", "repeat-2"),
+            new("/Admin/Reports/Sales", "گزارش فروش", "line-chart")
+        }),
+        new("کاتالوگ", "package", new List<AdminNavItem>
         {
-            Title = "کاتالوگ",
-            Icon = "package",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin/Products", "محصولات", "package"),
-                new AdminNavItem("/Admin/Categories", "دسته‌بندی‌ها", "grid-2x2"),
-                new AdminNavItem("/Admin/Brands", "برندها", "badge-check"),
-                new AdminNavItem("/Admin/GiftCodes", "گیفت‌کارت‌ها", "credit-card"),
-                new AdminNavItem("/Admin/Coupons", "کوپن‌ها", "ticket-percent"),
-                new AdminNavItem("/Admin/ProductImages", "تصاویر محصول", "image"),
-                new AdminNavItem("/Admin/ProductVariants", "واریانت‌های محصول", "layers-3")
-            }
-        },
-
-        new AdminNavGroup
+            new("/Admin/Products", "محصولات", "package"),
+            new("/Admin/Categories", "دسته‌بندی‌ها", "grid-2x2"),
+            new("/Admin/Brands", "برندها", "badge-check"),
+            new("/Admin/GiftCodes", "گیفت‌کارت‌ها", "credit-card"),
+            new("/Admin/Coupons", "کوپن‌ها", "ticket-percent")
+        }),
+        new("نمایش سایت", "monitor", new List<AdminNavItem>
         {
-            Title = "مشتریان",
-            Icon = "users",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin/Users", "کاربران", "users"),
-                new AdminNavItem("/Admin/Verifications", "احراز هویت", "shield-check"),
-                new AdminNavItem("/Admin/Wallets", "کیف پول‌ها", "wallet")
-            }
-        },
-
-        new AdminNavGroup
+            new("/Admin/Banners", "بنرها", "image-plus")
+        }),
+        new("مشتریان", "users", new List<AdminNavItem>
         {
-            Title = "پشتیبانی",
-            Icon = "headphones",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin/Tickets", "تیکت‌ها", "headphones"),
-                new AdminNavItem("/Admin/Notifications", "اطلاعیه‌ها", "bell")
-            }
-        },
-
-        new AdminNavGroup
+            new("/Admin/Users", "کاربران", "users"),
+            new("/Admin/Roles", "نقش‌ها", "shield"),
+            new("/Admin/Verifications", "احراز هویت", "shield-check"),
+            new("/Admin/Wallets", "کیف پول‌ها", "wallet")
+        }),
+        new("پشتیبانی", "headphones", new List<AdminNavItem>
         {
-            Title = "سیستم",
-            Icon = "settings",
-            Items = new List<AdminNavItem>
-            {
-                new AdminNavItem("/Admin/Settings", "تنظیمات", "settings"),
-                new AdminNavItem("/Admin/AuditLogs", "لاگ‌ها", "file-text"),
-                new AdminNavItem("/Admin/SecurityLogs", "لاگ امنیتی", "history"),
-                new AdminNavItem("/Admin/ErrorLogs", "خطاها", "triangle-alert")
-            }
-        }
+            new("/Admin/Tickets", "تیکت‌ها", "headphones"),
+            new("/Admin/Notifications", "اطلاعیه‌ها", "bell")
+        }),
+        new("سیستم", "settings", new List<AdminNavItem>
+        {
+            new("/Admin/Settings", "تنظیمات", "settings"),
+            new("/Admin/Reports", "گزارش‌ها", "bar-chart-3"),
+            new("/Admin/AuditLogs", "فعالیت‌ها", "file-text"),
+            new("/Admin/SecurityLogs", "امنیت", "history"),
+            new("/Admin/ErrorLogs", "خطاها", "triangle-alert")
+        })
     };
 }
 
@@ -81,22 +50,20 @@
     @foreach (var group in groups)
     {
         <div class="admin-menu-section">
-            <i data-lucide="@group.Icon"></i>
-            <span>@group.Title</span>
-        </div>
+<i data-lucide="@group.Icon">
+</i>
+<span>@group.Title</span>
+</div>
 
         foreach (var item in group.Items)
         {
             var activeClass = IsActive(item.Href, item.Exact) ? "active" : string.Empty;
-
-            <a href="@item.Href"
-               class="admin-nav-link @activeClass"
-               title="@item.Title">
+            <a href="@item.Href" class="admin-nav-link @activeClass" title="@item.Title">
                 <span class="admin-nav-link-content">
                     <span class="admin-nav-icon">
-                        <i data-lucide="@item.Icon"></i>
-                    </span>
-
+<i data-lucide="@item.Icon">
+</i>
+</span>
                     <span class="admin-nav-text">@item.Title</span>
                 </span>
             </a>
@@ -107,56 +74,13 @@
 @functions {
     private bool IsActive(string href, bool exact = false)
     {
-        var currentPath = Context.Request.Path.Value ?? "/";
-        currentPath = currentPath.TrimEnd('/').ToLowerInvariant();
-
-        if (string.IsNullOrWhiteSpace(currentPath))
-            currentPath = "/";
-
+        var currentPath = (Context.Request.Path.Value ?? "/").TrimEnd('/').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(currentPath)) currentPath = "/";
         var targetPath = href.TrimEnd('/').ToLowerInvariant();
-
-        if (string.IsNullOrWhiteSpace(targetPath))
-            targetPath = "/";
-
-        if (exact)
-        {
-            return currentPath == targetPath ||
-                   currentPath == "/admin/index";
-        }
-
-        return currentPath == targetPath ||
-               currentPath.StartsWith(targetPath + "/");
+        if (string.IsNullOrWhiteSpace(targetPath)) targetPath = "/";
+        if (exact) return currentPath == targetPath || currentPath == "/admin/index";
+        return currentPath == targetPath || currentPath.StartsWith(targetPath + "/");
     }
-
-    private sealed class AdminNavGroup
-    {
-        public string Title { get; set; } = string.Empty;
-
-        public string Icon { get; set; } = string.Empty;
-
-        public List<AdminNavItem> Items { get; set; } = new();
-    }
-
-    private sealed class AdminNavItem
-    {
-        public AdminNavItem(
-            string href,
-            string title,
-            string icon,
-            bool exact = false)
-        {
-            Href = href;
-            Title = title;
-            Icon = icon;
-            Exact = exact;
-        }
-
-        public string Href { get; }
-
-        public string Title { get; }
-
-        public string Icon { get; }
-
-        public bool Exact { get; }
-    }
+    private sealed class AdminNavGroup { public AdminNavGroup(string title,string icon,List<AdminNavItem> items){Title=title;Icon=icon;Items=items;} public string Title{get;} public string Icon{get;} public List<AdminNavItem> Items{get;} }
+    private sealed class AdminNavItem { public AdminNavItem(string href,string title,string icon,bool exact=false){Href=href;Title=title;Icon=icon;Exact=exact;} public string Href{get;} public string Title{get;} public string Icon{get;} public bool Exact{get;} }
 }

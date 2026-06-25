@@ -1,439 +1,207 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.IndexModel
-
+@using Vitorize.Web.Helpers
 @{
-    Layout = "_AdminLayout";
-    ViewData["Title"] = "داشبورد";
-
-    var summary = Model.Dashboard.Summary;
-
-    var completedPercent = Model.GetCompletedOrderPercent();
-    var pendingPercent = Model.GetPendingOrderPercent();
-    var giftCodePercent = Model.GetGiftCodeStockPercent();
-
-    var salesPoints = Model.GetSalesPoints();
-    var orderPoints = Model.GetOrderPoints();
-
-    var maxSales = Model.GetMaxSalesValue();
-    var maxOrders = Model.GetMaxOrdersValue();
+    ViewData["Title"]="داشبورد";
+    Layout="~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+    @if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+    <section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="layout-grid">
+</i>داشبورد</div>
 
-@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-{
-    <div class="vd-error">
-        @Model.ErrorMessage
+<h1 class="vz-title">نمای کلی فروشگاه</h1>
+<p class="vz-desc">وضعیت فروش، کاربران، سفارش‌ها، کدها و درخواست‌های مهم را یکجا ببین.</p>
+</div>
+
+<div class="vz-actions">
+<a href="/Admin/Orders" class="vz-btn vz-btn-light">
+<i data-lucide="shopping-cart">
+</i>سفارش‌ها</a>
+<a href="/Admin/Reports/Sales" class="vz-btn vz-btn-primary">
+<i data-lucide="line-chart">
+</i>گزارش فروش</a>
+</div>
+
+</section>
+
+    <section class="vz-stats">
+        <article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="circle-dollar-sign">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">فروش امروز</span>
+<strong class="vz-stat-value">@AdminUiHelper.Money(Model.Dashboard.Summary.RevenueToday)</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="shopping-bag">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">سفارش‌های امروز</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.OrdersToday</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="users">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">کاربران</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.TotalUsers</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="headphones">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">تیکت‌های باز</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.PendingTickets</strong>
+</div>
+
+</article>
+    </section>
+
+    <section class="vz-stats">
+        <article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="wallet">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">موجودی کیف پول‌ها</span>
+<strong class="vz-stat-value">@AdminUiHelper.Money(Model.Dashboard.Summary.TotalWalletBalance)</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="badge-check">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">احراز هویت در انتظار</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.PendingVerifications</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="credit-card">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">کد آماده فروش</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.AvailableGiftCodes</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="bell">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">اعلان خوانده‌نشده</span>
+<strong class="vz-stat-value">@Model.Dashboard.Summary.UnreadNotifications</strong>
+</div>
+
+</article>
+    </section>
+
+    <div class="vz-dashboard-grid">
+        <section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>روند ۷ روز اخیر</h2>
+<p>مقایسه فروش و سفارش‌ها در روزهای اخیر.</p>
+</div>
+
+</div>
+
+<div class="vz-chart-list">@foreach(var p in Model.Dashboard.SalesLast7Days){var w=(int)Math.Round((p.Value/Model.MaxSales)*100);<div class="vz-chart-row">
+<span class="vz-chart-label">@p.Date.ToString("MM/dd")</span>
+<div class="vz-chart-track">
+<div class="vz-chart-fill" style="width:@w%">
+</div>
+
+</div>
+
+<span class="vz-chart-value">@p.Value.ToString("N0")</span>
+</div>
+}
+</div>
+
+</section>
+
+        <section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>محصولات پرفروش</h2>
+<p>بر اساس سفارش‌های پرداخت‌شده.</p>
+</div>
+
+</div>
+
+<div class="vz-timeline">@foreach(var item in Model.Dashboard.TopProducts.Take(8)){
+<div class="vz-timeline-item">
+<div class="vz-timeline-icon">
+<i data-lucide="package">
+</i>
+</div>
+
+<div>
+<div class="vz-timeline-title">@item.ProductTitle</div>
+
+<div class="vz-timeline-sub">@item.TotalSold فروش - @AdminUiHelper.Money(item.Revenue)</div>
+
+</div>
+
+</div>
+} @if(!Model.Dashboard.TopProducts.Any()){
+<div class="vz-empty">
+<h3>هنوز فروشی ثبت نشده</h3>
+</div>
+}
+</div>
+
+</section>
+
     </div>
-}
-else
-{
-    <div class="vd-page">
 
-        <section class="vd-card vd-hero">
-            <div class="vd-hero-inner">
-                <div>
-                    <h1 class="vd-title">مدیریت فروشگاه ویتورایز</h1>
-                    <p class="vd-subtitle">
-                        وضعیت فروش، سفارش‌ها، کاربران، تیکت‌ها، احراز هویت و موجودی کدهای آماده تحویل را در یک نگاه بررسی کن.
-                    </p>
-                </div>
-
-                <div class="vd-actions">
-                    <a href="/Admin/Products/Create" class="vd-btn vd-btn-primary">
-                        <i data-lucide="plus"></i>
-                        محصول جدید
-                    </a>
-
-                    <a href="/Admin/GiftCodes/Import" class="vd-btn vd-btn-soft">
-                        <i data-lucide="upload-cloud"></i>
-                        ورود گیفت‌کارت
-                    </a>
-
-                    <a href="/Admin/Orders" class="vd-btn vd-btn-soft">
-                        <i data-lucide="shopping-cart"></i>
-                        سفارش‌ها
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        @if (Model.IsDashboardEmpty)
-        {
-            <section class="vd-card">
-                <div class="vd-empty">
-                    <div class="vd-empty-icon">
-                        <i data-lucide="database"></i>
-                    </div>
-                    <div class="vd-empty-title">هنوز فعالیتی برای نمایش ثبت نشده است</div>
-                    <div class="vd-empty-text">
-                        پس از ثبت سفارش، پرداخت، کاربر یا ورود گیفت‌کارت، اطلاعات مدیریتی این صفحه به‌روزرسانی می‌شود.
-                    </div>
-                </div>
-            </section>
-        }
-
-        <section class="vd-stats">
-            <div class="vd-card vd-stat">
-                <div class="vd-stat-icon blue">
-                    <i data-lucide="shopping-bag"></i>
-                </div>
-
-                <div class="vd-stat-body">
-                    <div class="vd-stat-label">سفارش‌های امروز</div>
-                    <div class="vd-stat-value">@Model.FormatNumber(summary.OrdersToday)</div>
-                    <div class="vd-stat-hint">@Model.FormatNumber(summary.TotalOrders) سفارش کل</div>
-                </div>
-            </div>
-
-            <div class="vd-card vd-stat">
-                <div class="vd-stat-icon green">
-                    <i data-lucide="circle-dollar-sign"></i>
-                </div>
-
-                <div class="vd-stat-body">
-                    <div class="vd-stat-label">فروش امروز</div>
-                    <div class="vd-stat-value">@Model.FormatNumber(summary.RevenueToday)</div>
-                    <div class="vd-stat-hint">درآمد ثبت‌شده امروز</div>
-                </div>
-            </div>
-
-            <div class="vd-card vd-stat">
-                <div class="vd-stat-icon purple">
-                    <i data-lucide="wallet"></i>
-                </div>
-
-                <div class="vd-stat-body">
-                    <div class="vd-stat-label">فروش ماه جاری</div>
-                    <div class="vd-stat-value">@Model.FormatNumber(summary.RevenueThisMonth)</div>
-                    <div class="vd-stat-hint">مجموع فروش پرداخت‌شده</div>
-                </div>
-            </div>
-
-            <div class="vd-card vd-stat">
-                <div class="vd-stat-icon orange">
-                    <i data-lucide="credit-card"></i>
-                </div>
-
-                <div class="vd-stat-body">
-                    <div class="vd-stat-label">کدهای آماده تحویل</div>
-                    <div class="vd-stat-value">@Model.FormatNumber(summary.AvailableGiftCodes)</div>
-                    <div class="vd-stat-hint">موجودی قابل فروش</div>
-                </div>
-            </div>
-        </section>
-
-        <section class="vd-main-grid">
-            <section class="vd-card vd-panel vd-chart-card">
-                <div class="vd-panel-header">
-                    <div class="vd-panel-heading">
-                        <h2 class="vd-panel-title">روند فروش و سفارش‌ها</h2>
-                        <div class="vd-panel-subtitle">نمای روزانه فروش و تعداد سفارش‌های ثبت‌شده</div>
-                    </div>
-
-                    <div class="vd-panel-action">
-                        <div class="vd-btn vd-btn-soft">
-                            <i data-lucide="bar-chart-3"></i>
-                            ۷ روز اخیر
-                        </div>
-                    </div>
-                </div>
-
-                @if (!Model.HasChartData)
-                {
-                    <div class="vd-empty">
-                        <div class="vd-empty-icon">
-                            <i data-lucide="bar-chart-3"></i>
-                        </div>
-                        <div class="vd-empty-title">برای نمودار هنوز داده‌ای وجود ندارد</div>
-                        <div class="vd-empty-text">
-                            بعد از ثبت فروش یا سفارش، نمودار این بخش فعال می‌شود.
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <div class="vd-chart-area">
-                        <div class="vd-chart-grid">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-
-                        <div class="vd-chart-bars">
-                            @for (var i = 0; i < 7; i++)
-                            {
-                                var salePoint = salesPoints.Count > i ? salesPoints[i] : null;
-                                var orderPoint = orderPoints.Count > i ? orderPoints[i] : null;
-
-                                var salesValue = salePoint?.Value ?? 0;
-                                var ordersValue = orderPoint?.Value ?? 0;
-
-                                var salesHeight = salePoint == null ? 0 : Model.GetChartHeight(salesValue, maxSales);
-                                var ordersHeight = orderPoint == null ? 0 : Model.GetChartHeight(ordersValue, maxOrders);
-
-                                <div class="vd-bar-group">
-                                    <div class="vd-bar-stack">
-                                        @if (salesValue > 0)
-                                        {
-                                            <span class="vd-bar-value sales-value">
-                                                @Model.FormatChartMoney(salesValue)
-                                            </span>
-                                        }
-
-                                        <div class="vd-bar sales" style="height:@salesHeight%"></div>
-                                    </div>
-
-                                    <div class="vd-bar-stack">
-                                        @if (ordersValue > 0)
-                                        {
-                                            <span class="vd-bar-value orders-value">
-                                                @Model.FormatChartCount(ordersValue)
-                                            </span>
-                                        }
-
-                                        <div class="vd-bar orders" style="height:@ordersHeight%"></div>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-
-                        <div class="vd-chart-labels">
-                            @for (var i = 0; i < 7; i++)
-                            {
-                                var labelPoint = salesPoints.Count > i ? salesPoints[i] : orderPoints.Count > i ? orderPoints[i] : null;
-
-                                <span>@(labelPoint == null ? "-" : Model.FormatShortDate(labelPoint.Date))</span>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="vd-chart-legend">
-                        <span class="vd-legend-item">
-                            <span class="vd-legend-dot sales"></span>
-                            فروش
-                        </span>
-
-                        <span class="vd-legend-item">
-                            <span class="vd-legend-dot orders"></span>
-                            سفارش‌ها
-                        </span>
-                    </div>
-                }
-            </section>
-
-            <aside class="vd-card vd-panel">
-                <div class="vd-panel-header">
-                    <div class="vd-panel-heading">
-                        <h2 class="vd-panel-title">وضعیت عملیاتی</h2>
-                        <div class="vd-panel-subtitle">شاخص‌های سریع فروشگاه</div>
-                    </div>
-                </div>
-
-                <div class="vd-help-box">
-                    <div class="vd-help-title">
-                        <i data-lucide="info"></i>
-                        راهنمای کوتاه
-                    </div>
-
-                    <div class="vd-help-text">
-                        این بخش نشان می‌دهد چه مقدار از سفارش‌ها تکمیل شده، چه مقدار نیازمند پیگیری است و چه سهمی از کدها آماده فروش هستند.
-                    </div>
-                </div>
-
-                <div class="vd-progress-list">
-                    <div class="vd-progress-item">
-                        <div class="vd-progress-head">
-                            <span>@completedPercent%</span>
-                            <span>نرخ تکمیل سفارش</span>
-                        </div>
-                        <div class="vd-progress-track">
-                            <div class="vd-progress-fill success" style="width:@completedPercent%"></div>
-                        </div>
-                        <div class="vd-progress-help">
-                            درصد سفارش‌هایی که با موفقیت تکمیل شده‌اند.
-                        </div>
-                    </div>
-
-                    <div class="vd-progress-item">
-                        <div class="vd-progress-head">
-                            <span>@pendingPercent%</span>
-                            <span>سفارش‌های نیازمند پیگیری</span>
-                        </div>
-                        <div class="vd-progress-track">
-                            <div class="vd-progress-fill warning" style="width:@pendingPercent%"></div>
-                        </div>
-                        <div class="vd-progress-help">
-                            سفارش‌هایی که هنوز در انتظار بررسی یا پردازش هستند.
-                        </div>
-                    </div>
-
-                    <div class="vd-progress-item">
-                        <div class="vd-progress-head">
-                            <span>@giftCodePercent%</span>
-                            <span>موجودی آماده فروش</span>
-                        </div>
-                        <div class="vd-progress-track">
-                            <div class="vd-progress-fill purple" style="width:@giftCodePercent%"></div>
-                        </div>
-                        <div class="vd-progress-help">
-                            سهم کدهایی که آماده تحویل فوری به مشتری هستند.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="vd-mini-list">
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon blue">
-                            <i data-lucide="users"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">کاربران</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.TotalUsers)</div>
-                        </div>
-                    </div>
-
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon green">
-                            <i data-lucide="user-plus"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">کاربران جدید امروز</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.NewUsersToday)</div>
-                        </div>
-                    </div>
-
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon orange">
-                            <i data-lucide="headphones"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">تیکت‌های باز</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.PendingTickets)</div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-        </section>
-
-        <section class="vd-bottom-grid">
-            <div class="vd-card vd-panel">
-                <div class="vd-panel-header">
-                    <div class="vd-panel-heading">
-                        <h2 class="vd-panel-title">محصولات پرفروش</h2>
-                        <div class="vd-panel-subtitle">بر اساس سفارش‌های پرداخت‌شده</div>
-                    </div>
-
-                    <div class="vd-panel-action">
-                        <a href="/Admin/Products" class="vd-btn vd-btn-soft">
-                            مشاهده محصولات
-                            <i data-lucide="arrow-left"></i>
-                        </a>
-                    </div>
-                </div>
-
-                @if (!Model.Dashboard.TopProducts.Any())
-                {
-                    <div class="vd-empty">
-                        <div class="vd-empty-icon">
-                            <i data-lucide="package"></i>
-                        </div>
-                        <div class="vd-empty-title">هنوز محصول پرفروشی ثبت نشده است</div>
-                        <div class="vd-empty-text">
-                            بعد از تکمیل خریدها، محصولات پرفروش اینجا نمایش داده می‌شوند.
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <div class="vd-table-wrap">
-                        <table class="vd-table">
-                            <thead>
-                                <tr>
-                                    <th>محصول</th>
-                                    <th>تعداد فروش</th>
-                                    <th>درآمد</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                @foreach (var product in Model.Dashboard.TopProducts.Take(8))
-                                {
-                                    <tr>
-                                        <td>@product.ProductTitle</td>
-                                        <td>@Model.FormatNumber(product.TotalSold)</td>
-                                        <td>@Model.FormatMoney(product.Revenue)</td>
-                                        <td>
-                                            <a href="/Admin/Products/Details?id=@product.ProductId" class="vd-btn vd-btn-soft">
-                                                جزئیات
-                                            </a>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </div>
-
-            <div class="vd-card vd-panel">
-                <div class="vd-panel-header">
-                    <div class="vd-panel-heading">
-                        <h2 class="vd-panel-title">پیگیری‌های مدیریتی</h2>
-                        <div class="vd-panel-subtitle">مواردی که بهتر است بررسی شوند</div>
-                    </div>
-                </div>
-
-                <div class="vd-mini-list">
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon orange">
-                            <i data-lucide="shield-check"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">درخواست‌های احراز هویت</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.PendingVerifications)</div>
-                        </div>
-                    </div>
-
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon blue">
-                            <i data-lucide="bell"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">اعلان‌های خوانده‌نشده</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.UnreadNotifications)</div>
-                        </div>
-                    </div>
-
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon green">
-                            <i data-lucide="wallet"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">موجودی کیف پول‌ها</div>
-                            <div class="vd-mini-value">@Model.FormatMoney(summary.TotalWalletBalance)</div>
-                        </div>
-                    </div>
-
-                    <div class="vd-mini-item">
-                        <div class="vd-mini-icon orange">
-                            <i data-lucide="credit-card"></i>
-                        </div>
-                        <div class="vd-mini-content">
-                            <div class="vd-mini-label">کدهای فروخته‌شده</div>
-                            <div class="vd-mini-value">@Model.FormatNumber(summary.SoldGiftCodes)</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
-}
+</div>
 
 @section Scripts {
-    <script>
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
 }

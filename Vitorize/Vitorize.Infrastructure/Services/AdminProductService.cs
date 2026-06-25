@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
-using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services
@@ -21,8 +21,6 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.Products
                 .AsNoTracking()
-                .Include(x => x.Category)
-                .Include(x => x.Brand)
                 .Where(x => !x.IsDeleted)
                 .OrderBy(x => x.SortOrder)
                 .ThenByDescending(x => x.CreatedAt)
@@ -39,6 +37,12 @@ namespace Vitorize.Infrastructure.Services
                     DeliveryType = x.DeliveryType,
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
+                    FinalPrice =
+                        x.DiscountPrice.HasValue &&
+                        x.DiscountPrice.Value > 0 &&
+                        x.DiscountPrice.Value < x.BasePrice
+                            ? x.DiscountPrice.Value
+                            : x.BasePrice,
                     CurrencyType = x.CurrencyType,
                     RequiresVerification = x.RequiresVerification,
                     RequiresSupportMessage = x.RequiresSupportMessage,
@@ -51,7 +55,11 @@ namespace Vitorize.Infrastructure.Services
                     ThumbnailImagePath = x.ThumbnailImagePath,
                     SortOrder = x.SortOrder,
                     CategoryTitle = x.Category.Title,
-                    BrandTitle = x.Brand != null ? x.Brand.Title : null
+                    BrandTitle = x.Brand != null ? x.Brand.Title : null,
+                    AvailableStock = x.GiftCodes.Count(c =>
+                        c.Status == (byte)GiftCodeStatus.Available),
+                    HasVariants = x.ProductVariants.Any(),
+                    CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
         }
@@ -74,6 +82,12 @@ namespace Vitorize.Infrastructure.Services
                     DeliveryType = x.DeliveryType,
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
+                    FinalPrice =
+                        x.DiscountPrice.HasValue &&
+                        x.DiscountPrice.Value > 0 &&
+                        x.DiscountPrice.Value < x.BasePrice
+                            ? x.DiscountPrice.Value
+                            : x.BasePrice,
                     CurrencyType = x.CurrencyType,
                     RequiresVerification = x.RequiresVerification,
                     RequiresSupportMessage = x.RequiresSupportMessage,
@@ -86,7 +100,11 @@ namespace Vitorize.Infrastructure.Services
                     ThumbnailImagePath = x.ThumbnailImagePath,
                     SortOrder = x.SortOrder,
                     CategoryTitle = x.Category.Title,
-                    BrandTitle = x.Brand != null ? x.Brand.Title : null
+                    BrandTitle = x.Brand != null ? x.Brand.Title : null,
+                    AvailableStock = x.GiftCodes.Count(c =>
+                        c.Status == (byte)GiftCodeStatus.Available),
+                    HasVariants = x.ProductVariants.Any(),
+                    CreatedAt = x.CreatedAt
                 })
                 .FirstOrDefaultAsync();
 
@@ -98,6 +116,8 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<AdminProductDto> CreateAsync(CreateProductRequestDto request)
         {
+            NormalizeRequest(request);
+
             await ValidateAsync(request, null);
 
             var product = new Product
@@ -106,13 +126,13 @@ namespace Vitorize.Infrastructure.Services
                 CategoryId = request.CategoryId,
                 BrandId = request.BrandId,
                 Title = request.Title.Trim(),
-                Slug = request.Slug.Trim().ToLower(),
-                ShortDescription = request.ShortDescription,
-                FullDescription = request.FullDescription,
+                Slug = request.Slug.Trim().ToLowerInvariant(),
+                ShortDescription = NormalizeNullable(request.ShortDescription),
+                FullDescription = NormalizeNullable(request.FullDescription),
                 ProductType = request.ProductType,
                 DeliveryType = request.DeliveryType,
                 BasePrice = request.BasePrice,
-                DiscountPrice = request.DiscountPrice,
+                DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice),
                 CurrencyType = request.CurrencyType,
                 RequiresVerification = request.RequiresVerification,
                 RequiresSupportMessage = request.RequiresSupportMessage,
@@ -120,9 +140,9 @@ namespace Vitorize.Infrastructure.Services
                 MaxOrderQuantity = request.MaxOrderQuantity,
                 IsFeatured = request.IsFeatured,
                 IsActive = request.IsActive,
-                SeoTitle = request.SeoTitle,
-                SeoDescription = request.SeoDescription,
-                ThumbnailImagePath = request.ThumbnailImagePath,
+                SeoTitle = NormalizeNullable(request.SeoTitle),
+                SeoDescription = NormalizeNullable(request.SeoDescription),
+                ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath),
                 SortOrder = request.SortOrder,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false
@@ -134,8 +154,12 @@ namespace Vitorize.Infrastructure.Services
             return await GetByIdAsync(product.Id);
         }
 
-        public async Task<AdminProductDto> UpdateAsync(Guid id, UpdateProductRequestDto request)
+        public async Task<AdminProductDto> UpdateAsync(
+            Guid id,
+            UpdateProductRequestDto request)
         {
+            NormalizeRequest(request);
+
             var product = await _dbContext.Products
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
@@ -147,13 +171,13 @@ namespace Vitorize.Infrastructure.Services
             product.CategoryId = request.CategoryId;
             product.BrandId = request.BrandId;
             product.Title = request.Title.Trim();
-            product.Slug = request.Slug.Trim().ToLower();
-            product.ShortDescription = request.ShortDescription;
-            product.FullDescription = request.FullDescription;
+            product.Slug = request.Slug.Trim().ToLowerInvariant();
+            product.ShortDescription = NormalizeNullable(request.ShortDescription);
+            product.FullDescription = NormalizeNullable(request.FullDescription);
             product.ProductType = request.ProductType;
             product.DeliveryType = request.DeliveryType;
             product.BasePrice = request.BasePrice;
-            product.DiscountPrice = request.DiscountPrice;
+            product.DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice);
             product.CurrencyType = request.CurrencyType;
             product.RequiresVerification = request.RequiresVerification;
             product.RequiresSupportMessage = request.RequiresSupportMessage;
@@ -161,9 +185,9 @@ namespace Vitorize.Infrastructure.Services
             product.MaxOrderQuantity = request.MaxOrderQuantity;
             product.IsFeatured = request.IsFeatured;
             product.IsActive = request.IsActive;
-            product.SeoTitle = request.SeoTitle;
-            product.SeoDescription = request.SeoDescription;
-            product.ThumbnailImagePath = request.ThumbnailImagePath;
+            product.SeoTitle = NormalizeNullable(request.SeoTitle);
+            product.SeoDescription = NormalizeNullable(request.SeoDescription);
+            product.ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath);
             product.SortOrder = request.SortOrder;
             product.UpdatedAt = DateTime.UtcNow;
 
@@ -195,7 +219,9 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        private async Task ValidateAsync(CreateProductRequestDto request, Guid? currentId)
+        private async Task ValidateAsync(
+            CreateProductRequestDto request,
+            Guid? currentId)
         {
             if (string.IsNullOrWhiteSpace(request.Title))
                 throw new BusinessException("عنوان محصول الزامی است.");
@@ -203,21 +229,36 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(request.Slug))
                 throw new BusinessException("اسلاگ محصول الزامی است.");
 
+            if (request.CategoryId == Guid.Empty)
+                throw new BusinessException("دسته‌بندی محصول الزامی است.");
+
+            if (request.BrandId.HasValue && request.BrandId.Value == Guid.Empty)
+                request.BrandId = null;
+
             if (request.BasePrice < 0)
                 throw new BusinessException("قیمت محصول معتبر نیست.");
 
-            if (request.DiscountPrice.HasValue && request.DiscountPrice.Value < 0)
+            if (request.DiscountPrice.HasValue &&
+                request.DiscountPrice.Value < 0)
+            {
                 throw new BusinessException("قیمت تخفیف معتبر نیست.");
+            }
 
-            if (request.DiscountPrice.HasValue && request.DiscountPrice.Value > request.BasePrice)
+            if (request.DiscountPrice.HasValue &&
+                request.DiscountPrice.Value > 0 &&
+                request.DiscountPrice.Value > request.BasePrice)
+            {
                 throw new BusinessException("قیمت تخفیف نمی‌تواند بیشتر از قیمت اصلی باشد.");
+            }
 
             if (request.MinOrderQuantity <= 0)
                 throw new BusinessException("حداقل تعداد سفارش باید بیشتر از صفر باشد.");
 
             if (request.MaxOrderQuantity.HasValue &&
                 request.MaxOrderQuantity.Value < request.MinOrderQuantity)
+            {
                 throw new BusinessException("حداکثر تعداد سفارش نمی‌تواند کمتر از حداقل تعداد باشد.");
+            }
 
             if (!Enum.IsDefined(typeof(ProductType), request.ProductType))
                 throw new BusinessException("نوع محصول معتبر نیست.");
@@ -226,12 +267,15 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("نوع تحویل معتبر نیست.");
 
             if (!Enum.IsDefined(typeof(CurrencyType), request.CurrencyType))
-                throw new BusinessException("نوع ارز معتبر نیست.");
+                throw new BusinessException("واحد پول معتبر نیست.");
 
-            if (request.CurrencyType != (byte)CurrencyType.Rial)
-                throw new BusinessException("در حال حاضر فقط قیمت ریالی پشتیبانی می‌شود.");
+            if (request.CurrencyType != (byte)CurrencyType.Rial &&
+                request.CurrencyType != (byte)CurrencyType.Toman)
+            {
+                throw new BusinessException("فقط ثبت قیمت با واحد ریال یا تومان مجاز است.");
+            }
 
-            var normalizedSlug = request.Slug.Trim().ToLower();
+            var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
 
             var slugExists = await _dbContext.Products.AnyAsync(x =>
                 x.Slug == normalizedSlug &&
@@ -258,6 +302,40 @@ namespace Vitorize.Infrastructure.Services
                 if (!brandExists)
                     throw new BusinessException("برند محصول معتبر نیست.");
             }
+        }
+
+        private static void NormalizeRequest(CreateProductRequestDto request)
+        {
+            request.Title = request.Title?.Trim() ?? string.Empty;
+            request.Slug = request.Slug?.Trim().ToLowerInvariant() ?? string.Empty;
+
+            if (request.BrandId.HasValue && request.BrandId.Value == Guid.Empty)
+                request.BrandId = null;
+
+            request.ShortDescription = NormalizeNullable(request.ShortDescription);
+            request.FullDescription = NormalizeNullable(request.FullDescription);
+            request.SeoTitle = NormalizeNullable(request.SeoTitle);
+            request.SeoDescription = NormalizeNullable(request.SeoDescription);
+            request.ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath);
+            request.DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice);
+        }
+
+        private static string? NormalizeNullable(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
+        }
+
+        private static decimal? NormalizeDiscountPrice(decimal? value)
+        {
+            if (!value.HasValue)
+                return null;
+
+            if (value.Value <= 0)
+                return null;
+
+            return value.Value;
         }
     }
 }

@@ -1,153 +1,115 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.Orders.IndexModel
+@using Vitorize.Web.Helpers
 @{
-    ViewData["Title"] = "مدیریت سفارش‌ها";
-    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "سفارش‌ها"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="shopping-cart">
+</i>سفارش‌ها</div>
 
-<div class="space-y-6" dir="rtl">
-    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-sm font-black text-indigo-600">Orders Center</p>
-                <h1 class="mt-2 text-3xl font-black text-slate-900">مدیریت سفارش‌ها</h1>
-                <p class="mt-2 text-sm text-slate-500">بررسی سفارش‌ها، وضعیت پرداخت، آیتم‌ها و تکمیل یا لغو سفارش</p>
-            </div>
-        </div>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-    {
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
-            @Model.SuccessMessage
-        </div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
-            @Model.ErrorMessage
-        </div>
-    }
-
-    <div class="grid gap-4 md:grid-cols-5">
-        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
-            <p class="text-xs font-bold text-slate-500">کل سفارش‌ها</p>
-            <p class="mt-2 text-2xl font-black text-slate-900">@Model.TotalOrders</p>
-        </div>
-
-        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
-            <p class="text-xs font-bold text-slate-500">در انتظار</p>
-            <p class="mt-2 text-2xl font-black text-amber-600">@Model.PendingOrders</p>
-        </div>
-
-        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
-            <p class="text-xs font-bold text-slate-500">تکمیل شده</p>
-            <p class="mt-2 text-2xl font-black text-emerald-600">@Model.CompletedOrders</p>
-        </div>
-
-        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
-            <p class="text-xs font-bold text-slate-500">لغو شده</p>
-            <p class="mt-2 text-2xl font-black text-rose-600">@Model.CancelledOrders</p>
-        </div>
-
-        <div class="rounded-[1.5rem] bg-white/85 p-5 shadow-sm ring-1 ring-white/70">
-            <p class="text-xs font-bold text-slate-500">مبلغ پرداخت‌شده</p>
-            <p class="mt-2 text-lg font-black text-indigo-600">@Model.FormatMoney(Model.TotalRevenue)</p>
-        </div>
-    </div>
-
-    <form method="get" class="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
-        <div class="grid gap-3 lg:grid-cols-12">
-            <input asp-for="OrderNumber"
-                   placeholder="شماره سفارش..."
-                   class="lg:col-span-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm" />
-
-            <select asp-for="Status"
-                    class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                <option value="">وضعیت سفارش</option>
-                <option value="1">در انتظار پرداخت</option>
-                <option value="2">در حال پردازش</option>
-                <option value="3">تکمیل شده</option>
-                <option value="4">لغو شده</option>
-                <option value="5">ناموفق</option>
-                <option value="6">مرجوع شده</option>
-            </select>
-
-            <select asp-for="PaymentStatus"
-                    class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                <option value="">وضعیت پرداخت</option>
-                <option value="1">در انتظار</option>
-                <option value="2">پرداخت شده</option>
-                <option value="3">ناموفق</option>
-                <option value="4">لغو شده</option>
-                <option value="5">مرجوع شده</option>
-            </select>
-
-            <input asp-for="FromDate" type="date"
-                   class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm" />
-
-            <input asp-for="ToDate" type="date"
-                   class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm" />
-
-            <button class="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
-                فیلتر
-            </button>
-        </div>
-    </form>
-
-    <div class="grid gap-5">
-        @foreach (var order in Model.Orders)
-        {
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
-                <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                    <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 class="text-xl font-black text-slate-900">سفارش #@order.OrderNumber</h2>
-
-                            <span class="rounded-full px-3 py-1 text-xs font-black @Model.GetOrderStatusClass(order.Status)">
-                                @Model.GetOrderStatus(order.Status)
-                            </span>
-
-                            <span class="rounded-full px-3 py-1 text-xs font-black @Model.GetPaymentStatusClass(order.PaymentStatus)">
-                                @Model.GetPaymentStatus(order.PaymentStatus)
-                            </span>
-                        </div>
-
-                        <p class="mt-2 text-xs text-slate-400">
-                            تاریخ ثبت: @Model.FormatDate(order.CreatedAt)
-                        </p>
-
-                        <p class="mt-1 text-xs text-slate-500">
-                            تعداد آیتم‌ها: <span class="font-black">@order.Items.Count</span>
-                        </p>
-                    </div>
-
-                    <div class="grid gap-3 sm:grid-cols-3 xl:w-[460px]">
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            <p class="text-xs font-bold text-slate-400">جمع</p>
-                            <p class="mt-1 text-sm font-black text-slate-900">@Model.FormatMoney(order.SubtotalAmount)</p>
-                        </div>
-
-                        <div class="rounded-2xl bg-rose-50 p-4">
-                            <p class="text-xs font-bold text-rose-400">تخفیف</p>
-                            <p class="mt-1 text-sm font-black text-rose-700">@Model.FormatMoney(order.DiscountAmount)</p>
-                        </div>
-
-                        <div class="rounded-2xl bg-emerald-50 p-4">
-                            <p class="text-xs font-bold text-emerald-500">نهایی</p>
-                            <p class="mt-1 text-sm font-black text-emerald-700">@Model.FormatMoney(order.FinalAmount)</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    <a asp-page="/Admin/Orders/Details" asp-route-id="@order.Id"
-                       class="rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700">
-                        جزئیات
-                    </a>
-                </div>
-            </div>
-        }
-    </div>
+<h1 class="vz-title">مدیریت سفارش‌ها</h1>
+<p class="vz-desc">سفارش‌ها، وضعیت پرداخت و روند تحویل را بررسی کن.</p>
 </div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+@if(!string.IsNullOrWhiteSpace(Model.SuccessMessage)){
+<div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+}
+<section class="vz-table-card">
+<form method="get" class="vz-filter-grid" style="margin-bottom:18px">
+<div class="vz-field">
+<label>جستجو</label>
+<div class="vz-input-shell">
+<i data-lucide="search">
+</i>
+<input asp-for="Search" class="vz-input" placeholder="شماره سفارش یا مشتری" />
+</div>
+
+</div>
+
+<div class="vz-actions">
+<button class="vz-btn vz-btn-light">
+<i data-lucide="filter">
+</i>جستجو</button>
+</div>
+
+</form>
+@if(!Model.Orders.Any()){
+<div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="shopping-cart">
+</i>
+</div>
+
+<h3>سفارشی پیدا نشد</h3>
+<p>سفارش‌های جدید در این بخش نمایش داده می‌شوند.</p>
+</div>
+}else{
+<div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>سفارش</th>
+<th>مشتری</th>
+<th>مبلغ</th>
+<th>پرداخت</th>
+<th>وضعیت</th>
+<th>تاریخ</th>
+<th>عملیات</th>
+</tr>
+
+</thead>
+
+<tbody>@foreach(var o in Model.Orders){
+<tr>
+<td>
+<strong>@o.OrderNumber</strong>
+</td>
+<td>@(o.UserFullName ?? o.UserMobile)</td>
+<td>@AdminUiHelper.Money(o.FinalAmount)</td>
+<td>
+<span class="@AdminUiHelper.StatusBadgeClass(o.PaymentStatus)">@AdminUiHelper.PaymentStatus(o.PaymentStatus)</span>
+</td>
+<td>
+<span class="@AdminUiHelper.StatusBadgeClass(o.Status)">@AdminUiHelper.OrderStatus(o.Status)</span>
+</td>
+<td>@AdminUiHelper.Date(o.CreatedAt)</td>
+<td>
+<a asp-page="Details" asp-route-id="@o.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+</td>
+</tr>
+}
+</tbody>
+
+</table>
+
+</div>
+}
+</section>
+
+</div>
+
+@section Scripts {
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

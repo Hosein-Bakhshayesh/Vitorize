@@ -1,0 +1,73 @@
+@page
+@model Vitorize.Web.Pages.Admin.Verifications.IndexModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"]="احراز هویت";
+    Layout="~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="shield-check">
+</i>احراز هویت</div>
+
+<h1 class="vz-title">درخواست‌های احراز هویت</h1>
+<p class="vz-desc">مدارک و اطلاعات کاربران را بررسی کن.</p>
+</div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+<section class="vz-table-card">
+<div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>کاربر</th>
+<th>کد ملی</th>
+<th>وضعیت</th>
+<th>ارسال</th>
+<th>عملیات</th>
+</tr>
+
+</thead>
+
+<tbody>@foreach(var x in Model.Items){
+<tr>
+<td>@x.FirstName @x.LastName</td>
+<td>@x.NationalCode</td>
+<td>
+<span class="@AdminUiHelper.StatusBadgeClass(x.Status)">@AdminUiHelper.VerificationStatus(x.Status)</span>
+</td>
+<td>@AdminUiHelper.Date(x.SubmittedAt)</td>
+<td>
+<a asp-page="Details" asp-route-id="@x.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+</td>
+</tr>
+}
+</tbody>
+
+</table>
+
+</div>
+
+</section>
+
+</div>
+
+@section Scripts {
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+}

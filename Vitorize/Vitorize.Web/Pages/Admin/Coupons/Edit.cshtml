@@ -1,0 +1,168 @@
+@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.Coupons.EditModel
+@{
+    ViewData["Title"] = "ویرایش کوپن"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="ticket-percent">
+</i>کوپن</div>
+
+<h1 class="vz-title">ویرایش کوپن</h1>
+<p class="vz-desc">شرایط استفاده و مقدار تخفیف را مشخص کن.</p>
+</div>
+
+<div class="vz-actions">
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+</section>
+
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+<form method="post" class="vz-form-layout">
+<div class="vz-main-col">
+<section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>اطلاعات کوپن</h2>
+<p>کد، مقدار و محدودیت استفاده را وارد کن.</p>
+</div>
+
+</div>
+
+<div class="vz-form-grid two">
+<div class="vz-field">
+<label asp-for="Input.Title">عنوان</label>
+<div class="vz-input-shell">
+<i data-lucide="type">
+</i>
+<input asp-for="Input.Title" class="vz-input" />
+</div>
+
+<span asp-validation-for="Input.Title" class="vz-validation">
+</span>
+</div>
+
+<div class="vz-field">
+<label asp-for="Input.Code">کد</label>
+<div class="vz-input-shell">
+<i data-lucide="ticket">
+</i>
+<input asp-for="Input.Code" class="vz-input ltr" />
+</div>
+
+<span asp-validation-for="Input.Code" class="vz-validation">
+</span>
+</div>
+
+</div>
+
+<div class="vz-form-grid three" style="margin-top:16px">
+<div class="vz-field">
+<label>نوع تخفیف</label>
+<div class="vz-input-shell">
+<i data-lucide="badge-percent">
+</i>
+<select asp-for="Input.DiscountType" class="vz-select">
+<option value="1">درصدی</option>
+<option value="2">مبلغ ثابت</option>
+</select>
+</div>
+
+</div>
+
+<div class="vz-field">
+<label asp-for="Input.DiscountValue">مقدار</label>
+<div class="vz-input-shell">
+<i data-lucide="circle-dollar-sign">
+</i>
+<input asp-for="Input.DiscountValue" type="number" class="vz-input ltr" />
+</div>
+
+</div>
+
+<div class="vz-field">
+<label asp-for="Input.MinOrderAmount">حداقل خرید</label>
+<div class="vz-input-shell">
+<i data-lucide="shopping-bag">
+</i>
+<input asp-for="Input.MinOrderAmount" type="number" class="vz-input ltr" />
+</div>
+
+</div>
+
+</div>
+
+<div class="vz-form-grid two" style="margin-top:16px">
+<div class="vz-field">
+<label asp-for="Input.MaxUsageCount">حداکثر استفاده</label>
+<div class="vz-input-shell">
+<i data-lucide="hash">
+</i>
+<input asp-for="Input.MaxUsageCount" type="number" class="vz-input ltr" />
+</div>
+
+</div>
+
+<div class="vz-field">
+<label asp-for="Input.MaxUsagePerUser">حداکثر برای هر کاربر</label>
+<div class="vz-input-shell">
+<i data-lucide="user">
+</i>
+<input asp-for="Input.MaxUsagePerUser" type="number" class="vz-input ltr" />
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+<div class="vz-side-col">
+<section class="vz-side-card vz-side-sticky">
+<div class="vz-switch-card">
+<div>
+<strong>فعال باشد</strong>
+<span>امکان استفاده از کوپن وجود داشته باشد.</span>
+</div>
+
+<label class="vz-switch">
+<input asp-for="Input.IsActive" />
+<span class="vz-switch-ui">
+</span>
+</label>
+</div>
+
+<div style="height:14px">
+</div>
+
+<button type="submit" class="vz-btn vz-btn-primary vz-btn-full">
+<i data-lucide="save">
+</i>ذخیره</button>
+</section>
+
+</div>
+
+</form>
+
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" />
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

@@ -1,0 +1,89 @@
+@page "{productId:guid}/{id:guid}"
+@model Vitorize.Web.Pages.Admin.ProductVariants.DetailsModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"] = "جزئیات واریانت"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="layers-3">
+</i>واریانت</div>
+
+<h1 class="vz-title">@Model.Variant.Title</h1>
+<p class="vz-desc">@Model.Product.Title</p>
+</div>
+
+<div class="vz-actions">
+<a asp-page="Edit" asp-route-productId="@Model.Product.Id" asp-route-id="@Model.Variant.Id" class="vz-btn vz-btn-primary">
+<i data-lucide="pencil">
+</i>ویرایش</a>
+<a asp-page="Index" asp-route-productId="@Model.Product.Id" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+</section>
+
+<section class="vz-stats">
+<article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="circle-dollar-sign">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">قیمت نهایی</span>
+<strong class="vz-stat-value">@AdminUiHelper.Money(Model.Variant.FinalPrice, Model.Variant.CurrencyType)</strong>
+</div>
+
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="boxes">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">حالت موجودی</span>
+<strong class="vz-stat-value">@AdminUiHelper.StockMode(Model.Variant.StockMode)</strong>
+</div>
+
+</article>
+</section>
+
+<section class="vz-form-card">
+<div class="vz-kv">
+<div class="vz-kv-item">
+<span>SKU</span>
+<strong>@(Model.Variant.Sku ?? "-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>مقدار</span>
+<strong>@(Model.Variant.Value ?? "-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>پیش‌فرض</span>
+<strong>@(Model.Variant.IsDefault ? "بله" : "خیر")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>وضعیت</span>
+<strong>@(Model.Variant.IsActive ? "فعال" : "غیرفعال")</strong>
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+@section Scripts {
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

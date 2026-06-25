@@ -1,295 +1,203 @@
-﻿@page "{id:guid}"
+@page "{id:guid}"
 @model Vitorize.Web.Pages.Admin.Products.DetailsModel
-
+@using Vitorize.Web.Helpers
 @{
     ViewData["Title"] = "جزئیات محصول";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage)) { <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+ }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+ }
+    <section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-detail-hero">
+<div class="vz-detail-image">@if (!string.IsNullOrWhiteSpace(Model.Image(Model.Product.ThumbnailImagePath))) { <img src="@Model.Image(Model.Product.ThumbnailImagePath)" alt="@Model.Product.Title" /> } else { <i data-lucide="package">
+</i> }
+</div>
 
-<div class="product-details-page" dir="rtl">
+<div>
+<div class="vz-eyebrow">
+<i data-lucide="package">
+</i>محصول</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-    {
-        <div class="pd-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
+<h1 class="vz-title">@Model.Product.Title</h1>
+<p class="vz-desc">@(Model.Product.ShortDescription ?? "توضیح کوتاهی ثبت نشده است.")</p>
+<div class="vz-actions" style="margin-top:12px">@if (Model.Product.IsActive) { <span class="vz-badge vz-badge-success">فعال</span> } else { <span class="vz-badge vz-badge-muted">غیرفعال</span> } @if (Model.Product.IsFeatured) { <span class="vz-badge vz-badge-warning">ویژه</span> }
+</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="pd-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
+</div>
 
-    <section class="pd-hero">
-        <div class="pd-product-head">
-            <div class="pd-thumb">
-                @if (!string.IsNullOrWhiteSpace(Model.GetImagePath()))
-                {
-                    <img src="@Model.GetImagePath()" alt="@Model.Product.Title" />
-                }
-                else
-                {
-                    <span>@Model.GetProductInitial()</span>
-                }
+</div>
 
-                @if (Model.HasDiscount())
-                {
-                    <small>%@Model.GetDiscountPercent()</small>
-                }
-            </div>
+</div>
 
-            <div class="pd-title-box">
-                <div class="pd-eyebrow">
-                    <i data-lucide="package"></i>
-                    جزئیات محصول
-                </div>
+<div class="vz-actions">
+<a asp-page="Edit" asp-route-id="@Model.Product.Id" class="vz-btn vz-btn-primary">
+<i data-lucide="pencil">
+</i>ویرایش</a>
+<a asp-page="/Admin/ProductImages/Index" asp-route-productId="@Model.Product.Id" class="vz-btn vz-btn-light">
+<i data-lucide="image">
+</i>تصاویر</a>
+<a asp-page="/Admin/ProductVariants/Index" asp-route-productId="@Model.Product.Id" class="vz-btn vz-btn-light">
+<i data-lucide="layers-3">
+</i>واریانت‌ها</a>
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
 
-                <div class="pd-title-row">
-                    <h1>@Model.Product.Title</h1>
+</section>
 
-                    <span class="@Model.GetStatusCss()">
-                        @Model.GetStatusText()
-                    </span>
+    <section class="vz-stats">
+<article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="circle-dollar-sign">
+</i>
+</div>
 
-                    @if (Model.Product.IsFeatured)
-                    {
-                        <span class="pd-pill featured">ویژه</span>
-                    }
-                </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">قیمت نهایی</span>
+<strong class="vz-stat-value">@AdminUiHelper.Money(Model.Product.FinalPrice, Model.Product.CurrencyType)</strong>@if (Model.Product.DiscountPrice.HasValue && Model.Product.DiscountPrice.Value > 0) { <small style="color:#94a3b8;text-decoration:line-through;font-weight:900">@AdminUiHelper.Money(Model.Product.BasePrice, Model.Product.CurrencyType)</small> }
+</div>
 
-                <p>
-                    @(string.IsNullOrWhiteSpace(Model.Product.ShortDescription)
-                        ? "توضیح کوتاه برای این محصول ثبت نشده است."
-                        : Model.Product.ShortDescription)
-                </p>
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="boxes">
+</i>
+</div>
 
-                <div class="pd-slug">@Model.Product.Slug</div>
-            </div>
-        </div>
+<div class="vz-stat-content">
+<span class="vz-stat-label">موجودی کد</span>
+<strong class="vz-stat-value">@Model.Product.AvailableStock</strong>
+</div>
 
-        <div class="pd-actions">
-            <a asp-page="/Admin/Products/Edit"
-               asp-route-id="@Model.Product.Id"
-               class="pd-btn pd-btn-primary">
-                <i data-lucide="pencil"></i>
-                ویرایش
-            </a>
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="folder">
+</i>
+</div>
 
-            <a asp-page="/Admin/ProductImages/Index"
-               asp-route-productId="@Model.Product.Id"
-               class="pd-btn pd-btn-soft">
-                <i data-lucide="image"></i>
-                تصاویر
-            </a>
+<div class="vz-stat-content">
+<span class="vz-stat-label">دسته‌بندی</span>
+<strong class="vz-stat-value">@Model.Product.CategoryTitle</strong>
+</div>
 
-            <a asp-page="/Admin/ProductVariants/Index"
-               asp-route-productId="@Model.Product.Id"
-               class="pd-btn pd-btn-soft">
-                <i data-lucide="layers-3"></i>
-                واریانت‌ها
-            </a>
+</article>
+<article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="badge-check">
+</i>
+</div>
 
-            <a asp-page="/Admin/Products/Index"
-               class="pd-btn pd-btn-soft">
-                <i data-lucide="arrow-right"></i>
-                بازگشت
-            </a>
-        </div>
-    </section>
+<div class="vz-stat-content">
+<span class="vz-stat-label">برند</span>
+<strong class="vz-stat-value">@(Model.Product.BrandTitle ?? "بدون برند")</strong>
+</div>
 
-    <section class="pd-stats">
-        <div class="pd-stat">
-            <div class="pd-stat-icon green">
-                <i data-lucide="circle-dollar-sign"></i>
-            </div>
-            <div>
-                <span>قیمت نهایی</span>
-                <strong>@Model.FormatMoney(Model.Product.FinalPrice)</strong>
-                @if (Model.HasDiscount())
-                {
-                    <small>قیمت پایه: @Model.FormatMoney(Model.Product.BasePrice)</small>
-                }
-                else
-                {
-                    <small>@Model.GetCurrencyType(Model.Product.CurrencyType)</small>
-                }
-            </div>
-        </div>
+</article>
+</section>
 
-        <div class="pd-stat">
-            <div class="pd-stat-icon orange">
-                <i data-lucide="credit-card"></i>
-            </div>
-            <div>
-                <span>موجودی آماده</span>
-                <strong class="@Model.GetStockCss()">@Model.FormatNumber(Model.Product.AvailableStock)</strong>
-                <small>@Model.GetStockText()</small>
-            </div>
-        </div>
+    <section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>مشخصات محصول</h2>
+<p>تنظیمات اصلی فروش و نمایش.</p>
+</div>
 
-        <div class="pd-stat">
-            <div class="pd-stat-icon blue">
-                <i data-lucide="box"></i>
-            </div>
-            <div>
-                <span>نوع محصول</span>
-                <strong>@Model.GetProductType(Model.Product.ProductType)</strong>
-                <small>@(Model.Product.HasVariants ? "دارای واریانت" : "بدون واریانت")</small>
-            </div>
-        </div>
+</div>
 
-        <div class="pd-stat">
-            <div class="pd-stat-icon purple">
-                <i data-lucide="truck"></i>
-            </div>
-            <div>
-                <span>نوع تحویل</span>
-                <strong>@Model.GetDeliveryType(Model.Product.DeliveryType)</strong>
-                <small>@Model.FormatDate(Model.Product.CreatedAt)</small>
-            </div>
-        </div>
-    </section>
+<div class="vz-kv">
+<div class="vz-kv-item">
+<span>اسلاگ</span>
+<strong>@Model.Product.Slug</strong>
+</div>
 
-    <section class="pd-grid">
-        <div class="pd-main">
+<div class="vz-kv-item">
+<span>نوع محصول</span>
+<strong>@AdminUiHelper.ProductType(Model.Product.ProductType)</strong>
+</div>
 
-            <section class="pd-card">
-                <div class="pd-card-header">
-                    <div>
-                        <div class="pd-card-kicker">
-                            <i data-lucide="file-text"></i>
-                            توضیحات
-                        </div>
+<div class="vz-kv-item">
+<span>نوع تحویل</span>
+<strong>@AdminUiHelper.DeliveryType(Model.Product.DeliveryType)</strong>
+</div>
 
-                        <h2>توضیحات کامل محصول</h2>
-                    </div>
-                </div>
+<div class="vz-kv-item">
+<span>واحد پول</span>
+<strong>@AdminUiHelper.Currency(Model.Product.CurrencyType)</strong>
+</div>
 
-                <div class="pd-description">
-                    @(string.IsNullOrWhiteSpace(Model.Product.FullDescription)
-                        ? "توضیح کاملی برای این محصول ثبت نشده است."
-                        : Model.Product.FullDescription)
-                </div>
-            </section>
+<div class="vz-kv-item">
+<span>حداقل سفارش</span>
+<strong>@Model.Product.MinOrderQuantity</strong>
+</div>
 
-            <section class="pd-card">
-                <div class="pd-card-header">
-                    <div>
-                        <div class="pd-card-kicker">
-                            <i data-lucide="search-check"></i>
-                            SEO
-                        </div>
+<div class="vz-kv-item">
+<span>حداکثر سفارش</span>
+<strong>@(Model.Product.MaxOrderQuantity?.ToString() ?? "بدون محدودیت")</strong>
+</div>
 
-                        <h2>اطلاعات سئو</h2>
-                    </div>
-                </div>
+<div class="vz-kv-item">
+<span>احراز هویت</span>
+<strong>@(Model.Product.RequiresVerification ? "نیاز دارد" : "نیاز ندارد")</strong>
+</div>
 
-                <div class="pd-info-grid">
-                    <div class="pd-info-item">
-                        <span>SEO Title</span>
-                        <strong>@(string.IsNullOrWhiteSpace(Model.Product.SeoTitle) ? "-" : Model.Product.SeoTitle)</strong>
-                    </div>
+<div class="vz-kv-item">
+<span>پیام پشتیبانی</span>
+<strong>@(Model.Product.RequiresSupportMessage ? "نیاز دارد" : "نیاز ندارد")</strong>
+</div>
 
-                    <div class="pd-info-item">
-                        <span>SEO Description</span>
-                        <strong>@(string.IsNullOrWhiteSpace(Model.Product.SeoDescription) ? "-" : Model.Product.SeoDescription)</strong>
-                    </div>
-                </div>
-            </section>
-        </div>
+</div>
 
-        <aside class="pd-side">
-            <section class="pd-card">
-                <div class="pd-card-header">
-                    <div>
-                        <div class="pd-card-kicker">
-                            <i data-lucide="settings-2"></i>
-                            تنظیمات فروش
-                        </div>
+<div class="vz-field" style="margin-top:18px">
+<label>توضیح کامل</label>
+<div class="vz-textarea" style="white-space:pre-line">@(string.IsNullOrWhiteSpace(Model.Product.FullDescription) ? "توضیح کاملی ثبت نشده است." : Model.Product.FullDescription)</div>
 
-                        <h2>وضعیت محصول</h2>
-                    </div>
-                </div>
+</div>
 
-                <div class="pd-status-list">
-                    <div>
-                        <span>دسته‌بندی</span>
-                        <strong>@Model.Product.CategoryTitle</strong>
-                    </div>
+</section>
 
-                    <div>
-                        <span>برند</span>
-                        <strong>@(Model.Product.BrandTitle ?? "بدون برند")</strong>
-                    </div>
+    <section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>سئو</h2>
+<p>اطلاعات نمایش در جستجو.</p>
+</div>
 
-                    <div>
-                        <span>واحد پول</span>
-                        <strong>@Model.GetCurrencyType(Model.Product.CurrencyType)</strong>
-                    </div>
+</div>
 
-                    <div>
-                        <span>حداقل سفارش</span>
-                        <strong>@Model.FormatNumber(Model.Product.MinOrderQuantity)</strong>
-                    </div>
+<div class="vz-kv">
+<div class="vz-kv-item">
+<span>عنوان سئو</span>
+<strong>@(Model.Product.SeoTitle ?? "-")</strong>
+</div>
 
-                    <div>
-                        <span>حداکثر سفارش</span>
-                        <strong>@(Model.Product.MaxOrderQuantity.HasValue ? Model.FormatNumber(Model.Product.MaxOrderQuantity.Value) : "بدون محدودیت")</strong>
-                    </div>
+<div class="vz-kv-item">
+<span>توضیح سئو</span>
+<strong>@(Model.Product.SeoDescription ?? "-")</strong>
+</div>
 
-                    <div>
-                        <span>احراز هویت</span>
-                        <strong>@(Model.Product.RequiresVerification ? "لازم است" : "لازم نیست")</strong>
-                    </div>
+</div>
 
-                    <div>
-                        <span>پیام پشتیبانی</span>
-                        <strong>@(Model.Product.RequiresSupportMessage ? "لازم است" : "لازم نیست")</strong>
-                    </div>
-                </div>
-            </section>
+</section>
 
-            <section class="pd-card">
-                <div class="pd-card-header">
-                    <div>
-                        <div class="pd-card-kicker">
-                            <i data-lucide="workflow"></i>
-                            عملیات سریع
-                        </div>
-
-                        <h2>مدیریت مرتبط</h2>
-                    </div>
-                </div>
-
-                <div class="pd-quick-links">
-                    <a asp-page="/Admin/ProductImages/Index" asp-route-productId="@Model.Product.Id">
-                        <i data-lucide="image"></i>
-                        مدیریت تصاویر
-                    </a>
-
-                    <a asp-page="/Admin/ProductVariants/Index" asp-route-productId="@Model.Product.Id">
-                        <i data-lucide="layers-3"></i>
-                        مدیریت واریانت‌ها
-                    </a>
-
-                    <a asp-page="/Admin/GiftCodes/Import" asp-route-productId="@Model.Product.Id">
-                        <i data-lucide="upload-cloud"></i>
-                        ورود گیفت‌کارت
-                    </a>
-                </div>
-            </section>
-        </aside>
-    </section>
 </div>
 
 @section Scripts {
-    <script>
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
-}
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

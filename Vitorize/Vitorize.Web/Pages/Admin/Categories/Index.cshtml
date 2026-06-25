@@ -1,749 +1,214 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.Categories.IndexModel
-
 @{
-    ViewData["Title"] = "مدیریت دسته‌بندی‌ها";
+    ViewData["Title"] = "دسته‌بندی‌ها";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
 
-<div class="categories-page" dir="rtl">
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+            <div class="vz-eyebrow">
+<i data-lucide="grid-2x2">
+</i>دسته‌بندی‌ها</div>
 
-    <section class="cat-hero">
-        <div>
-            <div class="cat-eyebrow">
-                <i data-lucide="folder-tree"></i>
-                ساختار فروشگاه
-            </div>
-
-            <h1>مدیریت دسته‌بندی‌ها</h1>
-
-            <p>
-                دسته‌بندی‌های اصلی و زیرمجموعه‌های فروشگاه را مدیریت کن. محصول بدون دسته‌بندی قابل ساخت نیست؛
-                پس این بخش پایه‌ی اصلی مدیریت Product است.
-            </p>
+            <h1 class="vz-title">مدیریت دسته‌بندی‌ها</h1>
+            <p class="vz-desc">ایجاد، ویرایش و مرتب‌سازی دسته‌بندی‌ها فروشگاه.</p>
         </div>
 
-        <div class="cat-hero-actions">
-            <button type="button"
-                    class="cat-btn cat-btn-primary"
-                    onclick="openCreateCategoryModal()">
-                <i data-lucide="plus"></i>
-                دسته‌بندی جدید
-            </button>
+        <div class="vz-actions">
+            <a asp-page="Create" class="vz-btn vz-btn-primary">
+<i data-lucide="plus">
+</i>افزودن دسته‌بندی</a>
         </div>
+
     </section>
 
     @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
     {
-        <div class="cat-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="cat-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
-
-    <section class="cat-stats">
-        <div class="cat-stat">
-            <div class="cat-stat-icon blue">
-                <i data-lucide="folders"></i>
-            </div>
-
-            <div>
-                <span>کل دسته‌بندی‌ها</span>
-                <strong>@Model.FormatNumber(Model.TotalCategories)</strong>
-                <small>تمام دسته‌های ثبت‌شده</small>
-            </div>
-        </div>
-
-        <div class="cat-stat">
-            <div class="cat-stat-icon purple">
-                <i data-lucide="folder"></i>
-            </div>
-
-            <div>
-                <span>دسته اصلی</span>
-                <strong>@Model.FormatNumber(Model.ParentCategoryCount)</strong>
-                <small>سطح اول ساختار فروشگاه</small>
-            </div>
-        </div>
-
-        <div class="cat-stat">
-            <div class="cat-stat-icon green">
-                <i data-lucide="check-circle-2"></i>
-            </div>
-
-            <div>
-                <span>فعال</span>
-                <strong>@Model.FormatNumber(Model.ActiveCategoryCount)</strong>
-                <small>قابل استفاده در محصول</small>
-            </div>
-        </div>
-
-        <div class="cat-stat">
-            <div class="cat-stat-icon orange">
-                <i data-lucide="image"></i>
-            </div>
-
-            <div>
-                <span>دارای تصویر</span>
-                <strong>@Model.FormatNumber(Model.CategoriesWithImageCount)</strong>
-                <small>برای نمایش حرفه‌ای در سایت</small>
-            </div>
-        </div>
-    </section>
-
-    <section class="cat-toolbar">
-        <div>
-            <div class="cat-card-kicker">
-                <i data-lucide="search"></i>
-                جستجو و مدیریت
-            </div>
-
-            <h2>درخت دسته‌بندی‌ها</h2>
-
-            <p>
-                می‌توانی دسته اصلی بسازی، برای آن زیرمجموعه تعریف کنی، تصویر و SEO تنظیم کنی.
-            </p>
-        </div>
-
-        <div class="cat-search-box">
-            <i data-lucide="search"></i>
-            <input id="categorySearch"
-                   type="search"
-                   autocomplete="off"
-                   placeholder="جستجوی عنوان یا اسلاگ..."
-                   oninput="filterCategories()" />
-        </div>
-    </section>
-
-    @if (!Model.Categories.Any())
-    {
-        <section class="cat-empty">
-            <div class="cat-empty-icon">
-                <i data-lucide="folder-open"></i>
-            </div>
-
-            <h2>هنوز دسته‌بندی ثبت نشده</h2>
-
-            <p>
-                برای تست و ساخت Product، ابتدا یک دسته‌بندی مثل «گیفت کارت» یا «استیم» ایجاد کن.
-            </p>
-
-            <button type="button"
-                    class="cat-btn cat-btn-primary"
-                    onclick="openCreateCategoryModal()">
-                <i data-lucide="plus"></i>
-                ایجاد اولین دسته‌بندی
-            </button>
-        </section>
-    }
-    else
-    {
-        <section class="cat-tree-card">
-            <div class="cat-tree-list" id="categoryTree">
-                @foreach (var parent in Model.ParentCategories)
-                {
-                    var children = Model.GetChildren(parent.Id);
-
-                    <article class="cat-parent-card category-row"
-                             data-title="@parent.Title.ToLowerInvariant()"
-                             data-slug="@parent.Slug.ToLowerInvariant()">
-
-                        <div class="cat-parent-main">
-                            <div class="cat-image">
-                                @if (!string.IsNullOrWhiteSpace(parent.ImagePath))
-                                {
-                                    <img src="@Model.GetImagePath(parent.ImagePath)" alt="@parent.Title" />
-                                }
-                                else
-                                {
-                                    <span>@Model.GetCategoryIcon(parent)</span>
-                                }
-                            </div>
-
-                            <div class="cat-info">
-                                <div class="cat-title-line">
-                                    <h3>@parent.Title</h3>
-
-                                    <span class="@Model.GetStatusCss(parent)">
-                                        @(parent.IsActive ? "فعال" : "غیرفعال")
-                                    </span>
-
-                                    <span class="cat-pill blue">
-                                        @Model.FormatNumber(children.Count)
-                                        زیرمجموعه
-                                    </span>
-                                </div>
-
-                                <p>
-                                    @(string.IsNullOrWhiteSpace(parent.Description)
-                                        ? "توضیحی برای این دسته‌بندی ثبت نشده است."
-                                        : parent.Description)
-                                </p>
-
-                                <div class="cat-meta">
-                                    <span>
-                                        <i data-lucide="link"></i>
-                                        @parent.Slug
-                                    </span>
-
-                                    <span>
-                                        <i data-lucide="sort-asc"></i>
-                                        ترتیب: @parent.SortOrder
-                                    </span>
-
-                                    @if (!string.IsNullOrWhiteSpace(parent.SeoTitle))
-                                    {
-                                        <span>
-                                            <i data-lucide="search-check"></i>
-                                            SEO
-                                        </span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="cat-actions">
-                            <button type="button"
-                                    class="cat-action child"
-                                    onclick="openCreateChildCategoryModal('@parent.Id')"
-                                    title="زیرمجموعه جدید">
-                                <i data-lucide="folder-plus"></i>
-                            </button>
-
-                            <button type="button"
-                                    class="cat-action edit"
-                                    title="ویرایش"
-                                    data-id="@parent.Id"
-                                    data-parent-id=""
-                                    data-title="@parent.Title"
-                                    data-slug="@parent.Slug"
-                                    data-description="@parent.Description"
-                                    data-image-path="@parent.ImagePath"
-                                    data-icon="@parent.Icon"
-                                    data-sort-order="@parent.SortOrder"
-                                    data-is-active="@parent.IsActive.ToString().ToLowerInvariant()"
-                                    data-seo-title="@parent.SeoTitle"
-                                    data-seo-description="@parent.SeoDescription"
-                                    onclick="openEditCategoryModal(this)">
-                                <i data-lucide="pencil"></i>
-                            </button>
-
-                            <form method="post"
-                                  asp-page-handler="Delete"
-                                  asp-route-id="@parent.Id"
-                                  onsubmit="return confirm('آیا از حذف دسته‌بندی «@parent.Title» مطمئن هستید؟ اگر محصول یا زیرمجموعه داشته باشد ممکن است حذف توسط API محدود شود.');">
-                                <button type="submit"
-                                        class="cat-action delete"
-                                        title="حذف">
-                                    <i data-lucide="trash-2"></i>
-                                </button>
-                            </form>
-                        </div>
-
-                        @if (children.Any())
-                        {
-                            <div class="cat-children">
-                                @foreach (var child in children)
-                                {
-                                    <article class="cat-child-card category-row"
-                                             data-title="@child.Title.ToLowerInvariant()"
-                                             data-slug="@child.Slug.ToLowerInvariant()">
-
-                                        <div class="cat-parent-main">
-                                            <div class="cat-image small">
-                                                @if (!string.IsNullOrWhiteSpace(child.ImagePath))
-                                                {
-                                                    <img src="@Model.GetImagePath(child.ImagePath)" alt="@child.Title" />
-                                                }
-                                                else
-                                                {
-                                                    <span>@Model.GetCategoryIcon(child)</span>
-                                                }
-                                            </div>
-
-                                            <div class="cat-info">
-                                                <div class="cat-title-line">
-                                                    <h3>@child.Title</h3>
-
-                                                    <span class="@Model.GetStatusCss(child)">
-                                                        @(child.IsActive ? "فعال" : "غیرفعال")
-                                                    </span>
-
-                                                    <span class="cat-pill muted">
-                                                        زیرمجموعه
-                                                    </span>
-                                                </div>
-
-                                                <p>
-                                                    @(string.IsNullOrWhiteSpace(child.Description)
-                                                        ? "توضیحی برای این زیرمجموعه ثبت نشده است."
-                                                        : child.Description)
-                                                </p>
-
-                                                <div class="cat-meta">
-                                                    <span>
-                                                        <i data-lucide="link"></i>
-                                                        @child.Slug
-                                                    </span>
-
-                                                    <span>
-                                                        <i data-lucide="sort-asc"></i>
-                                                        ترتیب: @child.SortOrder
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="cat-actions">
-                                            <button type="button"
-                                                    class="cat-action edit"
-                                                    title="ویرایش"
-                                                    data-id="@child.Id"
-                                                    data-parent-id="@child.ParentId"
-                                                    data-title="@child.Title"
-                                                    data-slug="@child.Slug"
-                                                    data-description="@child.Description"
-                                                    data-image-path="@child.ImagePath"
-                                                    data-icon="@child.Icon"
-                                                    data-sort-order="@child.SortOrder"
-                                                    data-is-active="@child.IsActive.ToString().ToLowerInvariant()"
-                                                    data-seo-title="@child.SeoTitle"
-                                                    data-seo-description="@child.SeoDescription"
-                                                    onclick="openEditCategoryModal(this)">
-                                                <i data-lucide="pencil"></i>
-                                            </button>
-
-                                            <form method="post"
-                                                  asp-page-handler="Delete"
-                                                  asp-route-id="@child.Id"
-                                                  onsubmit="return confirm('آیا از حذف زیرمجموعه «@child.Title» مطمئن هستید؟');">
-                                                <button type="submit"
-                                                        class="cat-action delete"
-                                                        title="حذف">
-                                                    <i data-lucide="trash-2"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </article>
-                                }
-                            </div>
-                        }
-                    </article>
-                }
-            </div>
-        </section>
-    }
+        <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
 </div>
 
-<div id="categoryModal" class="cat-modal-backdrop" aria-hidden="true">
-    <div class="cat-modal">
-        <div class="cat-modal-header">
-            <div>
-                <div class="cat-card-kicker">
-                    <i data-lucide="folder-plus"></i>
-                    فرم دسته‌بندی
-                </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
 
-                <h2 id="categoryModalTitle">دسته‌بندی جدید</h2>
+    }
 
-                <p>
-                    اطلاعات دسته‌بندی، تصویر، آیکن و تنظیمات SEO را وارد کن.
-                </p>
+    <section class="vz-stats">
+        <article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="layers">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">کل موارد</span>
+<strong class="vz-stat-value">@Model.TotalCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="check-circle-2">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">فعال</span>
+<strong class="vz-stat-value">@Model.ActiveCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="pause-circle">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">غیرفعال</span>
+<strong class="vz-stat-value">@Model.InactiveCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="image">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">دارای تصویر</span>
+<strong class="vz-stat-value">@Model.WithImageCount</strong>
+</div>
+
+</article>
+    </section>
+
+    <section class="vz-table-card">
+        <form method="get" class="vz-filter-grid" style="margin-bottom:18px">
+            <div class="vz-field">
+                <label>جستجو</label>
+                <div class="vz-input-shell">
+<i data-lucide="search">
+</i>
+<input class="vz-input" asp-for="Search" placeholder="عنوان یا اسلاگ" />
+</div>
+
             </div>
 
-            <button type="button"
-                    class="cat-modal-close"
-                    onclick="closeCategoryModal()"
-                    aria-label="بستن">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-
-        <form method="post"
-              enctype="multipart/form-data"
-              asp-page-handler="Save"
-              class="cat-modal-form">
-
-            <input asp-for="Input.Id" type="hidden" id="categoryId" />
-            <input asp-for="Input.ImagePath" type="hidden" id="categoryImagePath" />
-
-            <div class="cat-modal-grid">
-                <div class="cat-modal-main">
-                    <div asp-validation-summary="ModelOnly" class="cat-validation-summary"></div>
-
-                    <div class="cat-form-grid two">
-                        <div class="cat-field">
-                            <label asp-for="Input.Title">عنوان دسته‌بندی</label>
-                            <input asp-for="Input.Title"
-                                   id="categoryTitle"
-                                   class="cat-control"
-                                   autocomplete="off"
-                                   placeholder="مثلاً گیفت کارت" />
-                            <span asp-validation-for="Input.Title" class="cat-validation"></span>
-                        </div>
-
-                        <div class="cat-field">
-                            <label asp-for="Input.Slug">اسلاگ</label>
-                            <input asp-for="Input.Slug"
-                                   id="categorySlug"
-                                   class="cat-control ltr"
-                                   autocomplete="off"
-                                   placeholder="gift-card" />
-                            <span asp-validation-for="Input.Slug" class="cat-validation"></span>
-                            <small>اگر خالی باشد، از عنوان ساخته می‌شود.</small>
-                        </div>
-
-                        <div class="cat-field">
-                            <label asp-for="Input.ParentId">دسته والد</label>
-
-                            <div class="cat-select-shell">
-                                <i data-lucide="folder-tree"></i>
-
-                                <select asp-for="Input.ParentId"
-                                        id="categoryParentId"
-                                        class="cat-select-control">
-                                    <option value="">دسته اصلی</option>
-                                    @foreach (var parent in Model.ParentCategories)
-                                    {
-                                        <option value="@parent.Id">@parent.Title</option>
-                                    }
-                                </select>
-
-                                <i data-lucide="chevron-down" class="cat-select-chevron"></i>
-                            </div>
-
-                            <span asp-validation-for="Input.ParentId" class="cat-validation"></span>
-                        </div>
-
-                        <div class="cat-field">
-                            <label asp-for="Input.SortOrder">ترتیب نمایش</label>
-                            <input asp-for="Input.SortOrder"
-                                   id="categorySortOrder"
-                                   class="cat-control ltr"
-                                   type="number"
-                                   inputmode="numeric"
-                                   placeholder="10" />
-                            <span asp-validation-for="Input.SortOrder" class="cat-validation"></span>
-                        </div>
-
-                        <div class="cat-field">
-                            <label asp-for="Input.Icon">آیکن متنی</label>
-                            <input asp-for="Input.Icon"
-                                   id="categoryIcon"
-                                   class="cat-control"
-                                   autocomplete="off"
-                                   placeholder="🎮 یا gift-card" />
-                            <span asp-validation-for="Input.Icon" class="cat-validation"></span>
-                        </div>
-
-                        <label class="cat-switch">
-                            <span>
-                                <strong>فعال باشد</strong>
-                                <small>در فرم ساخت محصول قابل انتخاب باشد.</small>
-                            </span>
-
-                            <input asp-for="Input.IsActive"
-                                   id="categoryIsActive"
-                                   class="cat-switch-input" />
-
-                            <i class="cat-switch-ui"></i>
-                        </label>
-                    </div>
-
-                    <div class="cat-field cat-field-gap">
-                        <label asp-for="Input.Description">توضیحات</label>
-                        <textarea asp-for="Input.Description"
-                                  id="categoryDescription"
-                                  class="cat-textarea"
-                                  rows="4"
-                                  placeholder="توضیح کوتاه درباره این دسته‌بندی..."></textarea>
-                        <span asp-validation-for="Input.Description" class="cat-validation"></span>
-                    </div>
-
-                    <div class="cat-form-grid two cat-field-gap">
-                        <div class="cat-field">
-                            <label asp-for="Input.SeoTitle">SEO Title</label>
-                            <input asp-for="Input.SeoTitle"
-                                   id="categorySeoTitle"
-                                   class="cat-control"
-                                   autocomplete="off"
-                                   placeholder="عنوان مناسب برای موتورهای جستجو" />
-                            <span asp-validation-for="Input.SeoTitle" class="cat-validation"></span>
-                        </div>
-
-                        <div class="cat-field">
-                            <label asp-for="Input.SeoDescription">SEO Description</label>
-                            <input asp-for="Input.SeoDescription"
-                                   id="categorySeoDescription"
-                                   class="cat-control"
-                                   autocomplete="off"
-                                   placeholder="توضیح کوتاه سئو" />
-                            <span asp-validation-for="Input.SeoDescription" class="cat-validation"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <aside class="cat-modal-side">
-                    <div class="cat-image-upload">
-                        <div class="cat-image-preview">
-                            <img id="categoryImagePreview" src="" alt="Category Image" hidden />
-
-                            <div id="categoryImagePlaceholder">
-                                <i data-lucide="image-plus"></i>
-                                <strong>تصویر دسته‌بندی</strong>
-                                <small>JPG / PNG / WEBP تا ۵MB</small>
-                            </div>
-                        </div>
-
-                        <label class="cat-file-zone">
-                            <i data-lucide="upload-cloud"></i>
-                            <span>انتخاب تصویر</span>
-                            <input asp-for="ImageFile"
-                                   id="categoryImageFile"
-                                   type="file"
-                                   accept="image/jpeg,image/png,image/webp"
-                                   onchange="previewCategoryImage(event)" />
-                        </label>
-
-                        <label class="cat-remove-image">
-                            <input asp-for="RemoveImage" id="categoryRemoveImage" />
-                            <span>حذف تصویر فعلی</span>
-                        </label>
-                    </div>
-
-                    <div class="cat-submit-box">
-                        <button type="submit" class="cat-btn cat-btn-primary cat-submit-btn">
-                            <i data-lucide="save"></i>
-                            ذخیره دسته‌بندی
-                        </button>
-
-                        <button type="button"
-                                class="cat-btn cat-btn-soft cat-submit-btn"
-                                onclick="closeCategoryModal()">
-                            انصراف
-                        </button>
-                    </div>
-                </aside>
+            <div class="vz-actions">
+                <button type="submit" class="vz-btn vz-btn-light">
+<i data-lucide="filter">
+</i>اعمال فیلتر</button>
+                <a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="rotate-ccw">
+</i>پاک کردن</a>
             </div>
+
         </form>
-    </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="inbox">
+</i>
+</div>
+
+<h3>موردی پیدا نشد</h3>
+<p>برای شروع، یک دسته‌بندی جدید اضافه کن.</p>
+</div>
+
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+<tr>
+<th>دسته‌بندی</th>
+<th>وضعیت</th>
+<th>تاریخ ایجاد</th>
+<th>عملیات</th>
+</tr>
+
+</thead>
+
+                    <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="vz-item">
+                                    @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                                    { <div class="vz-thumb">
+<img src="@Model.Image(item.ImagePath)" alt="@item.Title" />
+</div>
+ }
+                                    else
+                                    { <div class="vz-thumb-fallback">
+<i data-lucide="grid-2x2">
+</i>
+</div>
+ }
+                                    <div class="vz-item-text">
+<strong>@item.Title</strong>
+<span>@item.Slug</span>
+</div>
+
+                                </div>
+
+                            </td>
+                            <td>@if (item.IsActive) { <span class="vz-badge vz-badge-success">فعال</span> } else { <span class="vz-badge vz-badge-muted">غیرفعال</span> }
+</td>
+                            <td>@Vitorize.Web.Helpers.AdminUiHelper.Date(item.CreatedAt)</td>
+                            <td>
+                                <div class="vz-actions">
+                                    <a asp-page="Details" asp-route-id="@item.Id" class="vz-icon-btn info" title="جزئیات">
+<i data-lucide="eye">
+</i>
+</a>
+                                    <a asp-page="Edit" asp-route-id="@item.Id" class="vz-icon-btn" title="ویرایش">
+<i data-lucide="pencil">
+</i>
+</a>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" onsubmit="return confirm('آیا از حذف این مورد مطمئن هستید؟');">
+                                        <button class="vz-icon-btn danger" type="submit" title="حذف">
+<i data-lucide="trash-2">
+</i>
+</button>
+                                    </form>
+
+                                </div>
+
+                            </td>
+                        </tr>
+
+                    }
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        }
+    </section>
+
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+<script>
+if(window.lucide){lucide.createIcons();}
 
-    <script>
-        const modal = document.getElementById('categoryModal');
-
-        const categoryModalTitle = document.getElementById('categoryModalTitle');
-        const categoryId = document.getElementById('categoryId');
-        const categoryParentId = document.getElementById('categoryParentId');
-        const categoryTitle = document.getElementById('categoryTitle');
-        const categorySlug = document.getElementById('categorySlug');
-        const categoryDescription = document.getElementById('categoryDescription');
-        const categoryImagePath = document.getElementById('categoryImagePath');
-        const categoryIcon = document.getElementById('categoryIcon');
-        const categorySortOrder = document.getElementById('categorySortOrder');
-        const categoryIsActive = document.getElementById('categoryIsActive');
-        const categorySeoTitle = document.getElementById('categorySeoTitle');
-        const categorySeoDescription = document.getElementById('categorySeoDescription');
-        const categoryImageFile = document.getElementById('categoryImageFile');
-        const categoryRemoveImage = document.getElementById('categoryRemoveImage');
-        const categoryImagePreview = document.getElementById('categoryImagePreview');
-        const categoryImagePlaceholder = document.getElementById('categoryImagePlaceholder');
-
-        function openCreateCategoryModal() {
-            resetCategoryForm();
-
-            categoryModalTitle.innerText = 'دسته‌بندی جدید';
-            categoryParentId.value = '';
-            categorySortOrder.value = '10';
-            categoryIsActive.checked = true;
-
-            openCategoryModal();
-        }
-
-        function openCreateChildCategoryModal(parentId) {
-            resetCategoryForm();
-
-            categoryModalTitle.innerText = 'زیرمجموعه جدید';
-            categoryParentId.value = parentId;
-            categorySortOrder.value = '10';
-            categoryIsActive.checked = true;
-
-            openCategoryModal();
-        }
-
-        function openEditCategoryModal(button) {
-            resetCategoryForm();
-
-            categoryModalTitle.innerText = 'ویرایش دسته‌بندی';
-
-            categoryId.value = button.dataset.id || '';
-            categoryParentId.value = button.dataset.parentId || '';
-            categoryTitle.value = button.dataset.title || '';
-            categorySlug.value = button.dataset.slug || '';
-            categoryDescription.value = button.dataset.description || '';
-            categoryImagePath.value = button.dataset.imagePath || '';
-            categoryIcon.value = button.dataset.icon || '';
-            categorySortOrder.value = button.dataset.sortOrder || '10';
-            categoryIsActive.checked = (button.dataset.isActive || 'true') === 'true';
-            categorySeoTitle.value = button.dataset.seoTitle || '';
-            categorySeoDescription.value = button.dataset.seoDescription || '';
-
-            if (categoryImagePath.value) {
-                setCategoryImagePreview(resolveImagePath(categoryImagePath.value));
-            }
-
-            openCategoryModal();
-        }
-
-        function openCategoryModal() {
-            modal.classList.add('show');
-            modal.setAttribute('aria-hidden', 'false');
-
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-
-            setTimeout(() => categoryTitle.focus(), 80);
-        }
-
-        function closeCategoryModal() {
-            modal.classList.remove('show');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function resetCategoryForm() {
-            categoryId.value = '';
-            categoryParentId.value = '';
-            categoryTitle.value = '';
-            categorySlug.value = '';
-            categoryDescription.value = '';
-            categoryImagePath.value = '';
-            categoryIcon.value = '';
-            categorySortOrder.value = '10';
-            categoryIsActive.checked = true;
-            categorySeoTitle.value = '';
-            categorySeoDescription.value = '';
-            categoryImageFile.value = '';
-            categoryRemoveImage.checked = false;
-
-            resetCategoryImagePreview();
-        }
-
-        function previewCategoryImage(event) {
-            const file = event.target.files && event.target.files.length > 0
-                ? event.target.files[0]
-                : null;
-
-            if (!file) {
-                if (categoryImagePath.value) {
-                    setCategoryImagePreview(resolveImagePath(categoryImagePath.value));
-                } else {
-                    resetCategoryImagePreview();
-                }
-
-                return;
-            }
-
-            categoryRemoveImage.checked = false;
-
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                setCategoryImagePreview(e.target.result);
-            };
-
-            reader.readAsDataURL(file);
-        }
-
-        function setCategoryImagePreview(src) {
-            if (!src) {
-                resetCategoryImagePreview();
-                return;
-            }
-
-            categoryImagePreview.src = src;
-            categoryImagePreview.hidden = false;
-            categoryImagePlaceholder.hidden = true;
-        }
-
-        function resetCategoryImagePreview() {
-            categoryImagePreview.src = '';
-            categoryImagePreview.hidden = true;
-            categoryImagePlaceholder.hidden = false;
-        }
-
-        function resolveImagePath(path) {
-            if (!path) {
-                return '';
-            }
-
-            if (path.startsWith('http') || path.startsWith('/')) {
-                return path;
-            }
-
-            return '/' + path.replace(/^~?\//, '');
-        }
-
-        function filterCategories() {
-            const search = document.getElementById('categorySearch').value.toLowerCase().trim();
-            const rows = document.querySelectorAll('.category-row');
-
-            rows.forEach(row => {
-                const title = row.getAttribute('data-title') || '';
-                const slug = row.getAttribute('data-slug') || '';
-
-                row.style.display =
-                    title.includes(search) || slug.includes(search)
-                        ? ''
-                        : 'none';
-            });
-        }
-
-        categoryTitle.addEventListener('blur', function () {
-            if (!categorySlug.value.trim()) {
-                categorySlug.value = categoryTitle.value
-                    .trim()
-                    .toLowerCase()
-                    .replaceAll(' ', '-')
-                    .replaceAll('/', '-')
-                    .replaceAll('\\', '-');
-            }
-        });
-
-        categoryRemoveImage.addEventListener('change', function () {
-            if (categoryRemoveImage.checked) {
-                categoryImageFile.value = '';
-                resetCategoryImagePreview();
-            } else if (categoryImagePath.value) {
-                setCategoryImagePreview(resolveImagePath(categoryImagePath.value));
-            }
-        });
-
-        modal.addEventListener('click', function (event) {
-            if (event.target === modal) {
-                closeCategoryModal();
-            }
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('show')) {
-                closeCategoryModal();
-            }
-        });
-
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
-}
+</script>
+ }

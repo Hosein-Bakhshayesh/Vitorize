@@ -1,0 +1,118 @@
+@page
+@model Vitorize.Web.Pages.Admin.AuditLogs.IndexModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"]="فعالیت‌ها";
+    Layout="~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="file-text">
+</i>فعالیت‌ها</div>
+
+<h1 class="vz-title">فعالیت‌های مدیریتی</h1>
+<p class="vz-desc">ردیابی عملیات مهم انجام‌شده در سیستم.</p>
+</div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+<section class="vz-form-card">
+<form method="get" class="vz-filter-grid">
+<div class="vz-field">
+<label>جستجو</label>
+<div class="vz-input-shell">
+<i data-lucide="search">
+</i>
+<input name="Filter.Search" value="@Model.Filter.Search" class="vz-input" placeholder="عملیات، بخش یا شناسه" />
+</div>
+
+</div>
+
+<div class="vz-field">
+<label>از تاریخ</label>
+<div class="vz-input-shell">
+<input type="date" name="Filter.DateFrom" value='@(Model.Filter.DateFrom?.ToString("yyyy-MM-dd"))' class="vz-input ltr" />
+</div>
+
+</div>
+
+<div class="vz-field">
+<label>تا تاریخ</label>
+<div class="vz-input-shell">
+<input type="date" name="Filter.DateTo" value='@(Model.Filter.DateTo?.ToString("yyyy-MM-dd"))' class="vz-input ltr" />
+</div>
+
+</div>
+
+<button class="vz-btn vz-btn-primary">
+<i data-lucide="filter">
+</i>اعمال</button>
+</form>
+
+</section>
+
+<section class="vz-table-card">
+<div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>عملیات</th>
+<th>بخش</th>
+<th>کاربر</th>
+<th>آدرس</th>
+<th>زمان</th>
+<th>
+</th>
+</tr>
+
+</thead>
+
+<tbody>@foreach(var item in Model.Items){
+<tr>
+<td>@item.ActionType</td>
+<td>@item.EntityName</td>
+<td>@(item.UserFullName ?? "-")</td>
+<td class="ltr">@(item.IpAddress ?? "-")</td>
+<td>@AdminUiHelper.Date(item.CreatedAt)</td>
+<td>
+<a asp-page="Details" asp-route-id="@item.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+</td>
+</tr>
+}
+</tbody>
+
+</table>
+
+</div>
+@if(!Model.Items.Any()){
+<div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="file-text">
+</i>
+</div>
+
+<h3>فعالیتی برای نمایش وجود ندارد</h3>
+</div>
+}
+</section>
+
+</div>
+
+@section Scripts {
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+}

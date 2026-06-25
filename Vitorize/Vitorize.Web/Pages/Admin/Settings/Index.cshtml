@@ -1,0 +1,123 @@
+@page
+@model Vitorize.Web.Pages.Admin.Settings.IndexModel
+@{
+    ViewData["Title"] = "تنظیمات"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="settings">
+</i>تنظیمات</div>
+
+<h1 class="vz-title">تنظیمات فروشگاه</h1>
+<p class="vz-desc">مقادیر اصلی فروشگاه را به‌صورت امن و ساده ویرایش کن.</p>
+</div>
+
+    </section>
+
+    @if(!string.IsNullOrWhiteSpace(Model.SuccessMessage)){
+<div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+}
+    @if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+    @foreach(var group in Model.Groups)
+    {
+        var settings = Model.SettingsOf(group);
+        <section class="vz-form-card">
+            <div class="vz-card-head">
+<div>
+<h2>@Model.GroupTitle(group.GroupName)</h2>
+<p>تنظیمات این بخش را ویرایش و ذخیره کن.</p>
+</div>
+
+<span class="vz-badge vz-badge-muted">@settings.Count مورد</span>
+</div>
+
+            <div class="vz-setting-grid">
+                @foreach(var item in settings.OrderBy(x => x.Key))
+                {
+                    <form method="post" asp-page-handler="Save" class="vz-setting-card">
+                        <input type="hidden" name="Input.Key" value="@item.Key" />
+                        <input type="hidden" name="Input.GroupName" value="@item.GroupName" />
+                        <input type="hidden" name="Input.ValueType" value="@item.ValueType" />
+                        <input type="hidden" name="Input.Description" value="@item.Description" />
+                        <div class="vz-setting-card-head">
+<div>
+<h3>@(item.Description ?? item.Key)</h3>
+<p>آخرین ویرایش: @(item.UpdatedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+</div>
+
+<span class="vz-setting-key">@item.Key</span>
+</div>
+
+                        @if(string.Equals(item.ValueType,"bool",StringComparison.OrdinalIgnoreCase))
+                        {
+                            var isChecked = string.Equals(item.Value,"true",StringComparison.OrdinalIgnoreCase);
+                            <label class="vz-boolean-row">
+<span>فعال باشد</span>
+<input type="checkbox" name="Input.Value" value="true" checked="@(isChecked ? "checked" : null)" />
+</label>
+                        }
+                        else if(string.Equals(item.ValueType,"decimal",StringComparison.OrdinalIgnoreCase) || string.Equals(item.ValueType,"int",StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="vz-input-shell">
+<i data-lucide="calculator">
+</i>
+<input name="Input.Value" value="@item.Value" class="vz-input ltr" inputmode="decimal" />
+</div>
+
+                        }
+                        else
+                        {
+                            <div class="vz-input-shell">
+<i data-lucide="edit-3">
+</i>
+<input name="Input.Value" value="@item.Value" class="vz-input" />
+</div>
+
+                        }
+                        <button type="submit" class="vz-btn vz-btn-primary">
+<i data-lucide="save">
+</i>ذخیره تغییرات</button>
+                    </form>
+
+                }
+            </div>
+
+        </section>
+
+    }
+    @if(!Model.Groups.Any())
+    {
+<section class="vz-card">
+<div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="settings">
+</i>
+</div>
+
+<h3>تنظیمی برای نمایش وجود ندارد</h3>
+<p>پس از آماده‌سازی اولیه، تنظیمات فروشگاه در همین بخش نمایش داده می‌شوند.</p>
+</div>
+
+</section>
+}
+</div>
+
+@section Scripts {
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+}

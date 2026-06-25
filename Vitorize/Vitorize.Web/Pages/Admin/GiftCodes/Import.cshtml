@@ -1,189 +1,144 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.GiftCodes.ImportModel
 @{
-    ViewData["Title"] = "ورود کدهای گیفت";
-    Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "ورود کدها"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="upload-cloud">
+</i>ورود کدها</div>
 
-<div class="space-y-6" dir="rtl">
-    <div class="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-sm font-black text-amber-600">Import Gift Codes</p>
-                <h1 class="mt-2 text-3xl font-black text-slate-900">ورود کدهای گیفت</h1>
-                <p class="mt-2 text-sm text-slate-500">
-                    کدها را به صورت خط‌به‌خط وارد کن؛ سیستم Duplicate داخل همین ورودی را حذف می‌کند.
-                </p>
-            </div>
-
-            <a asp-page="/Admin/GiftCodes/Index"
-               class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700">
-                بازگشت
-            </a>
-        </div>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
-            @Model.ErrorMessage
-        </div>
-    }
-
-    <form method="post" class="grid gap-6 xl:grid-cols-12">
-        <div class="space-y-6 xl:col-span-8">
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">انتخاب محصول</h2>
-
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">محصول</label>
-
-                        <select asp-for="ImportRequest.ProductId"
-                                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                                onchange="location.href='?productId=' + this.value">
-                            <option value="">انتخاب محصول</option>
-                            @foreach (var product in Model.Products)
-                            {
-                                <option value="@product.Id">
-                                    @product.Title
-                                </option>
-                            }
-                        </select>
-
-                        <span asp-validation-for="ImportRequest.ProductId" class="text-xs text-rose-600"></span>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">تنوع محصول</label>
-
-                        <select asp-for="ImportRequest.ProductVariantId"
-                                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
-                            <option value="">بدون تنوع / محصول اصلی</option>
-
-                            @foreach (var variant in Model.Variants)
-                            {
-                                <option value="@variant.Id">
-                                    @variant.Title - @Model.FormatMoney(variant.FinalPrice)
-                                </option>
-                            }
-                        </select>
-                    </div>
-                </div>
-
-                @if (Model.SelectedProduct != null)
-                {
-                    <div class="mt-5 rounded-3xl bg-slate-50 p-4">
-                        <div class="flex items-center gap-4">
-                            <div class="h-16 w-16 overflow-hidden rounded-2xl bg-white">
-                                @if (!string.IsNullOrWhiteSpace(Model.SelectedProduct.ThumbnailImagePath))
-                                {
-                                    <img src="@Model.SelectedProduct.ThumbnailImagePath" class="h-full w-full object-cover" />
-                                }
-                                else
-                                {
-                                    <div class="flex h-full w-full items-center justify-center text-xs text-slate-400">
-                                        No Image
-                                    </div>
-                                }
-                            </div>
-
-                            <div>
-                                <p class="font-black text-slate-900">@Model.SelectedProduct.Title</p>
-                                <p class="mt-1 text-xs text-slate-500">@Model.SelectedProduct.Slug</p>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <h2 class="text-lg font-black text-slate-900">اطلاعات Batch</h2>
-
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">عنوان بچ</label>
-                        <input asp-for="ImportRequest.BatchTitle"
-                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                        <span asp-validation-for="ImportRequest.BatchTitle" class="text-xs text-rose-600"></span>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">تامین‌کننده</label>
-                        <input asp-for="ImportRequest.SourceName"
-                               placeholder="مثلا Supplier / Vendor"
-                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">قیمت خرید هر کد</label>
-                        <input asp-for="ImportRequest.PurchasePrice"
-                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-xs font-black text-slate-500">توضیحات</label>
-                        <input asp-for="ImportRequest.Notes"
-                               class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-black text-slate-900">کدها</h2>
-                    <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                        هر خط یک کد
-                    </span>
-                </div>
-
-                <textarea asp-for="CodesText"
-                          rows="16"
-                          placeholder="STEAM-AAAA-BBBB-1111&#10;STEAM-CCCC-DDDD-2222&#10;STEAM-EEEE-FFFF-3333"
-                          class="mt-5 w-full rounded-3xl border border-slate-200 bg-slate-950 px-5 py-4 font-mono text-sm leading-7 text-emerald-300 outline-none focus:border-amber-400"></textarea>
-
-                <span asp-validation-for="CodesText" class="text-xs text-rose-600"></span>
-            </div>
-        </div>
-
-        <div class="space-y-6 xl:col-span-4">
-            <div class="sticky top-6 space-y-6">
-                <div class="rounded-[2rem] border border-amber-100 bg-amber-50/90 p-6 shadow-sm">
-                    <h3 class="text-lg font-black text-amber-900">راهنمای Import</h3>
-
-                    <div class="mt-4 space-y-3 text-sm leading-7 text-amber-800">
-                        <p>برای محصولات تحویل آنی، کدها باید به محصول یا تنوع درست وصل شوند.</p>
-                        <p>اگر محصول Variant دارد، بهتر است Variant را انتخاب کنی تا موجودی دقیق محاسبه شود.</p>
-                        <p>کدهای تکراری داخل همین ورودی قبل از ارسال حذف می‌شوند.</p>
-                    </div>
-                </div>
-
-                <div class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur">
-                    <h3 class="text-lg font-black text-slate-900">بعد از ثبت</h3>
-
-                    <div class="mt-4 space-y-3 text-sm text-slate-600">
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            کدها با وضعیت Available وارد می‌شوند.
-                        </div>
-
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            موجودی Product / Variant از تعداد کدهای Available خوانده می‌شود.
-                        </div>
-
-                        <div class="rounded-2xl bg-slate-50 p-4">
-                            هنگام Checkout، کد رزرو و بعد از پرداخت فروخته می‌شود.
-                        </div>
-                    </div>
-                </div>
-
-                <button class="w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg shadow-slate-300">
-                    ثبت و ورود کدها
-                </button>
-            </div>
-        </div>
-    </form>
+<h1 class="vz-title">ورود دسته‌ای گیفت‌کارت</h1>
+<p class="vz-desc">کدها را خط به خط وارد کن و برای محصول موردنظر ثبت کن.</p>
 </div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+<div class="vz-actions">
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
 }
+<form method="post" class="vz-form-layout">
+<div class="vz-main-col">
+<section class="vz-form-card">
+<div class="vz-card-head">
+<div>
+<h2>اطلاعات بچ</h2>
+<p>محصول و عنوان بچ را مشخص کن.</p>
+</div>
+
+</div>
+
+<div class="vz-form-grid two">
+<div class="vz-field">
+<label asp-for="ImportRequest.ProductId">محصول</label>
+<div class="vz-input-shell">
+<i data-lucide="package">
+</i>
+<select asp-for="ImportRequest.ProductId" class="vz-select">
+<option value="">انتخاب محصول</option>@foreach(var p in Model.Products){
+<option value="@p.Id">@p.Title</option>}
+</select>
+</div>
+
+</div>
+
+<div class="vz-field">
+<label asp-for="ImportRequest.ProductVariantId">واریانت</label>
+<div class="vz-input-shell">
+<i data-lucide="layers-3">
+</i>
+<select asp-for="ImportRequest.ProductVariantId" class="vz-select">
+<option value="">بدون واریانت</option>@foreach(var v in Model.Variants){
+<option value="@v.Id">@v.Title</option>}
+</select>
+</div>
+
+</div>
+
+</div>
+
+<div class="vz-form-grid two" style="margin-top:16px">
+<div class="vz-field">
+<label asp-for="ImportRequest.BatchTitle">عنوان بچ</label>
+<div class="vz-input-shell">
+<i data-lucide="archive">
+</i>
+<input asp-for="ImportRequest.BatchTitle" class="vz-input" />
+</div>
+
+</div>
+
+<div class="vz-field">
+<label asp-for="ImportRequest.SourceName">تامین‌کننده</label>
+<div class="vz-input-shell">
+<i data-lucide="truck">
+</i>
+<input asp-for="ImportRequest.SourceName" class="vz-input" />
+</div>
+
+</div>
+
+</div>
+
+<div class="vz-field" style="margin-top:16px">
+<label asp-for="CodesText">کدها</label>
+<textarea asp-for="CodesText" class="vz-textarea ltr" style="min-height:320px" placeholder="CODE-111&#10;CODE-222">
+</textarea>
+<span asp-validation-for="CodesText" class="vz-validation">
+</span>
+</div>
+
+</section>
+
+</div>
+
+<div class="vz-side-col">
+<section class="vz-side-card vz-side-sticky">
+<div class="vz-field">
+<label asp-for="ImportRequest.PurchasePrice">قیمت خرید</label>
+<div class="vz-input-shell">
+<i data-lucide="circle-dollar-sign">
+</i>
+<input asp-for="ImportRequest.PurchasePrice" type="number" class="vz-input ltr" />
+</div>
+
+</div>
+
+<div class="vz-field" style="margin-top:14px">
+<label asp-for="ImportRequest.Notes">یادداشت</label>
+<textarea asp-for="ImportRequest.Notes" class="vz-textarea" style="min-height:120px">
+</textarea>
+</div>
+
+<div style="height:14px">
+</div>
+
+<button class="vz-btn vz-btn-primary vz-btn-full">
+<i data-lucide="save">
+</i>ثبت کدها</button>
+</section>
+
+</div>
+
+</form>
+
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" />
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

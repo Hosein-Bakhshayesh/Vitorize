@@ -1,55 +1,48 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
     <title>@ViewData["Title"] | Vitorize Admin</title>
-
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Vitorize.Web.styles.css" asp-append-version="true" />
+    <script src="https://unpkg.com/lucide@latest">
 
-    <script src="https://unpkg.com/lucide@latest"></script>
+</script>
+
 </head>
-
 <body class="admin-body">
     <div class="admin-shell">
-
-        <div id="adminOverlay"
-             class="admin-overlay"
-             onclick="closeAdminSidebar()">
-        </div>
+        <div id="adminOverlay" class="admin-overlay" onclick="closeAdminSidebar()">
+</div>
 
         <aside id="adminSidebar" class="admin-sidebar">
             <div class="admin-sidebar-header">
                 <div class="admin-brand-card">
                     <div class="admin-brand-top">
-                        <button type="button"
-                                class="admin-sidebar-close"
-                                onclick="closeAdminSidebar()"
-                                aria-label="بستن منو">
-                            <i data-lucide="x"></i>
+                        <button type="button" class="admin-sidebar-close" onclick="closeAdminSidebar()" aria-label="بستن منو">
+                            <i data-lucide="x">
+</i>
                         </button>
                     </div>
 
                     <a href="/Admin" class="admin-brand-link">
                         <div class="admin-brand-logo-wrap">
-                            <img src="~/images/logo.png"
-                                 asp-append-version="true"
-                                 alt="Vitorize Logo"
-                                 class="admin-brand-logo"
-                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-
+                            <img src="~/images/logo.png" asp-append-version="true" alt="Vitorize" class="admin-brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                             <div class="admin-brand-fallback">
-                                <span class="admin-brand-v">V</span>
-                            </div>
+<span>V</span>
+</div>
+
                         </div>
 
                         <div class="admin-brand-title">Vitorize</div>
+
                         <div class="admin-brand-subtitle">پنل مدیریت فروشگاه</div>
+
                     </a>
                 </div>
+
             </div>
 
             <div class="admin-sidebar-scroll">
@@ -59,175 +52,125 @@
             <div class="admin-sidebar-footer">
                 <a href="/Admin/Auth/Logout" class="admin-logout" title="خروج">
                     <span class="admin-logout-content">
-                        <i data-lucide="log-out"></i>
+                        <i data-lucide="log-out">
+</i>
                         <span class="admin-logout-text">خروج</span>
                     </span>
                 </a>
             </div>
+
         </aside>
 
         <main class="admin-main">
             <header class="admin-topbar">
                 <div class="admin-topbar-inner">
-
                     <div class="admin-topbar-right">
-                        <button type="button"
-                                class="admin-icon-btn admin-toggle-btn"
-                                onclick="toggleAdminSidebar()"
-                                aria-label="باز و بسته کردن منو">
-                            <i data-lucide="menu"></i>
+                        <button type="button" class="admin-icon-btn admin-toggle-btn" onclick="toggleAdminSidebar()" aria-label="باز و بسته کردن منو">
+                            <i data-lucide="menu">
+</i>
                         </button>
-
                         <div class="admin-page-wrap">
                             <div class="admin-page-icon">
-                                <i data-lucide="@GetPageIcon()"></i>
-                            </div>
+<i data-lucide="@GetPageIcon()">
+</i>
+</div>
 
                             <div class="admin-page-text">
                                 <h1>@ViewData["Title"]</h1>
                                 <small>@GetPageSubtitle()</small>
                             </div>
+
                         </div>
+
                     </div>
 
                     <div class="admin-topbar-center">
                         <div class="admin-search">
-                            <i data-lucide="search"></i>
-                            <input type="text" placeholder="جستجو کنید..." />
+                            <i data-lucide="search">
+</i>
+                            <input type="text" placeholder="جستجو در پنل" />
                         </div>
+
                     </div>
 
                     <div class="admin-topbar-left">
-                        <button type="button" class="admin-icon-btn" aria-label="اعلان‌ها">
-                            <i data-lucide="bell"></i>
-                            <span class="admin-badge-dot">5</span>
+                        <a href="/Admin/Notifications" class="admin-icon-btn" aria-label="اعلان‌ها">
+                            <i data-lucide="bell">
+</i>
+                        </a>
+                        <button type="button" class="admin-icon-btn" onclick="toggleFullscreen()" aria-label="تمام صفحه">
+                            <i data-lucide="maximize">
+</i>
                         </button>
-
-                        <button type="button" class="admin-icon-btn" aria-label="پیام‌ها">
-                            <i data-lucide="mail"></i>
-                        </button>
-
-                        <button type="button" class="admin-icon-btn" aria-label="حالت نمایش">
-                            <i data-lucide="moon"></i>
-                        </button>
-
-                        <button type="button"
-                                class="admin-icon-btn"
-                                onclick="toggleFullscreen()"
-                                aria-label="تمام صفحه">
-                            <i data-lucide="maximize"></i>
-                        </button>
-
-                        <div class="admin-divider"></div>
+                        <div class="admin-divider">
+</div>
 
                         <div class="admin-profile">
                             <div class="admin-profile-info">
                                 <div class="admin-profile-name">@GetAdminName()</div>
-                                <div class="admin-profile-role">مدیر کل</div>
+
+                                <div class="admin-profile-role">مدیر فروشگاه</div>
+
                             </div>
 
                             <div class="admin-avatar">V</div>
+
                         </div>
+
                     </div>
 
                 </div>
+
             </header>
 
             <section class="admin-content">
                 @RenderBody()
             </section>
+
         </main>
     </div>
 
-    <script>
-        function isAdminMobile() {
-        return window.innerWidth <= 1024;
-        }
+<script>
 
-        function refreshAdminIcons() {
-        if (window.lucide) {
-        lucide.createIcons();
-        }
-        }
-
+        function isAdminMobile() { return window.innerWidth <= 1024;
+}
+        function refreshAdminIcons() { if (window.lucide) { lucide.createIcons();
+} }
         function openAdminSidebar() {
-        const sidebar = document.getElementById('adminSidebar');
-        const overlay = document.getElementById('adminOverlay');
-
-        if (!sidebar || !overlay) {
-        return;
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('adminOverlay');
+            if (!sidebar || !overlay) return;
+            sidebar.classList.add('open'); overlay.classList.add('show');
         }
-
-        sidebar.classList.add('open');
-        overlay.classList.add('show');
-        }
-
         function closeAdminSidebar() {
-        const sidebar = document.getElementById('adminSidebar');
-        const overlay = document.getElementById('adminOverlay');
-
-        if (!sidebar || !overlay) {
-        return;
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('adminOverlay');
+            if (!sidebar || !overlay) return;
+            sidebar.classList.remove('open'); overlay.classList.remove('show');
         }
-
-        sidebar.classList.remove('open');
-        overlay.classList.remove('show');
-        }
-
         function toggleAdminSidebar() {
-        if (isAdminMobile()) {
-        const sidebar = document.getElementById('adminSidebar');
-
-        if (sidebar && sidebar.classList.contains('open')) {
-        closeAdminSidebar();
-        } else {
-        openAdminSidebar();
+            if (isAdminMobile()) {
+                const sidebar = document.getElementById('adminSidebar');
+                if (sidebar && sidebar.classList.contains('open')) closeAdminSidebar(); else openAdminSidebar();
+                return;
+            }
+            document.body.classList.toggle('admin-sidebar-collapsed');
+            localStorage.setItem('vitorize.admin.sidebar.collapsed', document.body.classList.contains('admin-sidebar-collapsed') ? 'true' : 'false');
+            refreshAdminIcons();
         }
-
-        return;
-        }
-
-        document.body.classList.toggle('admin-sidebar-collapsed');
-
-        const isCollapsed = document.body.classList.contains('admin-sidebar-collapsed');
-
-        localStorage.setItem(
-        'vitorize.admin.sidebar.collapsed',
-        isCollapsed ? 'true' : 'false');
-
-        refreshAdminIcons();
-        }
-
         function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.();
-        } else {
-        document.exitFullscreen?.();
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
         }
-        }
-
         document.addEventListener('DOMContentLoaded', function () {
-        if (!isAdminMobile()) {
-        const collapsed = localStorage.getItem('vitorize.admin.sidebar.collapsed');
-
-        if (collapsed === 'true') {
-        document.body.classList.add('admin-sidebar-collapsed');
-        }
-        }
-
-        refreshAdminIcons();
+            if (!isAdminMobile() && localStorage.getItem('vitorize.admin.sidebar.collapsed') === 'true') document.body.classList.add('admin-sidebar-collapsed');
+            refreshAdminIcons();
         });
-
         window.addEventListener('resize', function () {
-        if (!isAdminMobile()) {
-        closeAdminSidebar();
-        } else {
-        document.body.classList.remove('admin-sidebar-collapsed');
-        }
-
-        refreshAdminIcons();
+            if (!isAdminMobile()) closeAdminSidebar(); else document.body.classList.remove('admin-sidebar-collapsed');
+            refreshAdminIcons();
         });
-    </script>
+
+</script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
@@ -243,128 +186,42 @@
     private string GetPageSubtitle()
     {
         var path = (Context.Request.Path.Value ?? string.Empty).ToLowerInvariant();
-
-        if (path == "/admin" || path == "/admin/index")
-            return "خوش آمدید در پنل مدیریت ویتورایز";
-
-        if (path.StartsWith("/admin/orders"))
-            return "مدیریت سفارش‌ها و وضعیت تحویل";
-
-        if (path.StartsWith("/admin/products"))
-            return "مدیریت محصولات، تصاویر و واریانت‌ها";
-
-        if (path.StartsWith("/admin/productimages"))
-            return "مدیریت تصاویر محصولات";
-
-        if (path.StartsWith("/admin/productvariants"))
-            return "مدیریت واریانت‌ها و قیمت محصولات";
-
-        if (path.StartsWith("/admin/giftcodes"))
-            return "مدیریت موجودی و ورود گیفت‌کارت‌ها";
-
-        if (path.StartsWith("/admin/categories"))
-            return "مدیریت دسته‌بندی‌های فروشگاه";
-
-        if (path.StartsWith("/admin/brands"))
-            return "مدیریت برندهای فروشگاه";
-
-        if (path.StartsWith("/admin/coupons"))
-            return "مدیریت کدهای تخفیف و کمپین‌ها";
-
-        if (path.StartsWith("/admin/users"))
-            return "مدیریت کاربران و دسترسی‌ها";
-
-        if (path.StartsWith("/admin/verifications"))
-            return "مدیریت احراز هویت کاربران";
-
-        if (path.StartsWith("/admin/wallets"))
-            return "مدیریت کیف پول کاربران";
-
-        if (path.StartsWith("/admin/tickets"))
-            return "مدیریت تیکت‌ها و پشتیبانی";
-
-        if (path.StartsWith("/admin/notifications"))
-            return "مدیریت اعلان‌ها و پیام‌ها";
-
-        if (path.StartsWith("/admin/settings"))
-            return "تنظیمات و پیکربندی سیستم";
-
-        if (path.StartsWith("/admin/reports"))
-            return "گزارش‌ها و تحلیل عملکرد فروشگاه";
-
-        if (path.StartsWith("/admin/auditlogs"))
-            return "بررسی لاگ‌های عملیاتی";
-
-        if (path.StartsWith("/admin/securitylogs"))
-            return "بررسی لاگ‌های امنیتی";
-
-        if (path.StartsWith("/admin/errorlogs"))
-            return "بررسی خطاهای سیستم";
-
-        return "مدیریت بخش‌های مختلف فروشگاه";
+        if (path == "/admin" || path == "/admin/index") return "خلاصه وضعیت فروشگاه و فعالیت‌های امروز";
+        if (path.StartsWith("/admin/orders")) return "مدیریت سفارش‌ها، پرداخت و تحویل";
+        if (path.StartsWith("/admin/products")) return "مدیریت محصولات فروشگاه";
+        if (path.StartsWith("/admin/productimages")) return "مدیریت تصاویر محصولات";
+        if (path.StartsWith("/admin/productvariants")) return "مدیریت تنوع و قیمت محصولات";
+        if (path.StartsWith("/admin/giftcodes")) return "مدیریت موجودی گیفت‌کارت‌ها";
+        if (path.StartsWith("/admin/categories")) return "مدیریت دسته‌بندی‌های فروشگاه";
+        if (path.StartsWith("/admin/brands")) return "مدیریت برندهای فروشگاه";
+        if (path.StartsWith("/admin/coupons")) return "مدیریت کدهای تخفیف";
+        if (path.StartsWith("/admin/users")) return "مدیریت کاربران و نقش‌ها";
+        if (path.StartsWith("/admin/verifications")) return "بررسی درخواست‌های احراز هویت";
+        if (path.StartsWith("/admin/wallets")) return "مدیریت کیف پول کاربران";
+        if (path.StartsWith("/admin/tickets")) return "مدیریت درخواست‌های پشتیبانی";
+        if (path.StartsWith("/admin/settings")) return "تنظیمات فروشگاه";
+        if (path.StartsWith("/admin/reports") || path.StartsWith("/admin/payments")) return "گزارش‌ها و تحلیل عملکرد";
+        return "مدیریت بخش‌های فروشگاه";
     }
 
     private string GetPageIcon()
     {
         var path = (Context.Request.Path.Value ?? string.Empty).ToLowerInvariant();
-
-        if (path == "/admin" || path == "/admin/index")
-            return "layout-grid";
-
-        if (path.StartsWith("/admin/orders"))
-            return "shopping-cart";
-
-        if (path.StartsWith("/admin/products"))
-            return "package";
-
-        if (path.StartsWith("/admin/productimages"))
-            return "image";
-
-        if (path.StartsWith("/admin/productvariants"))
-            return "layers-3";
-
-        if (path.StartsWith("/admin/giftcodes"))
-            return "credit-card";
-
-        if (path.StartsWith("/admin/categories"))
-            return "grid-2x2";
-
-        if (path.StartsWith("/admin/brands"))
-            return "badge-check";
-
-        if (path.StartsWith("/admin/coupons"))
-            return "ticket-percent";
-
-        if (path.StartsWith("/admin/users"))
-            return "users";
-
-        if (path.StartsWith("/admin/verifications"))
-            return "shield-check";
-
-        if (path.StartsWith("/admin/wallets"))
-            return "wallet";
-
-        if (path.StartsWith("/admin/tickets"))
-            return "headphones";
-
-        if (path.StartsWith("/admin/notifications"))
-            return "bell";
-
-        if (path.StartsWith("/admin/settings"))
-            return "settings";
-
-        if (path.StartsWith("/admin/reports"))
-            return "line-chart";
-
-        if (path.StartsWith("/admin/auditlogs"))
-            return "file-text";
-
-        if (path.StartsWith("/admin/securitylogs"))
-            return "history";
-
-        if (path.StartsWith("/admin/errorlogs"))
-            return "triangle-alert";
-
+        if (path == "/admin" || path == "/admin/index") return "layout-grid";
+        if (path.StartsWith("/admin/orders")) return "shopping-cart";
+        if (path.StartsWith("/admin/products")) return "package";
+        if (path.StartsWith("/admin/productimages")) return "image";
+        if (path.StartsWith("/admin/productvariants")) return "layers-3";
+        if (path.StartsWith("/admin/giftcodes")) return "credit-card";
+        if (path.StartsWith("/admin/categories")) return "grid-2x2";
+        if (path.StartsWith("/admin/brands")) return "badge-check";
+        if (path.StartsWith("/admin/coupons")) return "ticket-percent";
+        if (path.StartsWith("/admin/users")) return "users";
+        if (path.StartsWith("/admin/verifications")) return "shield-check";
+        if (path.StartsWith("/admin/wallets")) return "wallet";
+        if (path.StartsWith("/admin/tickets")) return "headphones";
+        if (path.StartsWith("/admin/settings")) return "settings";
+        if (path.StartsWith("/admin/reports") || path.StartsWith("/admin/payments")) return "line-chart";
         return "layout-grid";
     }
 }

@@ -1,0 +1,75 @@
+@page
+@model Vitorize.Web.Pages.Admin.Tickets.IndexModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"]="تیکت‌ها";
+    Layout="~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="headphones">
+</i>تیکت‌ها</div>
+
+<h1 class="vz-title">مدیریت تیکت‌ها</h1>
+<p class="vz-desc">درخواست‌های پشتیبانی کاربران را پیگیری کن.</p>
+</div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.ErrorMessage)){
+<div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+}
+<section class="vz-table-card">
+<div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>موضوع</th>
+<th>کاربر</th>
+<th>بخش</th>
+<th>اولویت</th>
+<th>وضعیت</th>
+<th>تاریخ</th>
+<th>عملیات</th>
+</tr>
+
+</thead>
+
+<tbody>@foreach(var t in Model.Tickets){
+<tr>
+<td>@t.Subject</td>
+<td>@t.UserFullName</td>
+<td>@AdminUiHelper.TicketDepartment(t.Department)</td>
+<td>@AdminUiHelper.TicketPriority(t.Priority)</td>
+<td>@AdminUiHelper.TicketStatus(t.Status)</td>
+<td>@AdminUiHelper.Date(t.CreatedAt)</td>
+<td>
+<a asp-page="Details" asp-route-id="@t.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+</td>
+</tr>
+}
+</tbody>
+
+</table>
+
+</div>
+
+</section>
+
+</div>
+
+@section Scripts {
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+}

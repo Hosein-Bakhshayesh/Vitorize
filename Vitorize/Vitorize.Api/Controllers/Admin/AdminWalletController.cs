@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Vitorize.Application.DTOs.Admin.System;
+using Vitorize.Application.DTOs.Admin.Wallets;
 using Vitorize.Application.DTOs.Wallet;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
@@ -12,10 +14,25 @@ namespace Vitorize.Api.Controllers.Admin
     public class AdminWalletController : ControllerBase
     {
         private readonly IWalletService _walletService;
+        private readonly IAdminWalletReadService _walletReadService;
 
-        public AdminWalletController(IWalletService walletService)
+        public AdminWalletController(
+            IWalletService walletService,
+            IAdminWalletReadService walletReadService)
         {
             _walletService = walletService;
+            _walletReadService = walletReadService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<ApiResult<List<AdminWalletListDto>>>> GetAll(
+            [FromQuery] AdminQueryFilterDto filter)
+        {
+            var result = await _walletReadService.GetAllAsync(filter);
+
+            return Ok(ApiResult<List<AdminWalletListDto>>.Success(
+                result,
+                "کیف پول‌ها با موفقیت دریافت شدند."));
         }
 
         [HttpGet("{userId:guid}")]
@@ -29,8 +46,7 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         [HttpGet("{userId:guid}/transactions")]
-        public async Task<ActionResult<ApiResult<List<WalletTransactionDto>>>> GetUserTransactions(
-            Guid userId)
+        public async Task<ActionResult<ApiResult<List<WalletTransactionDto>>>> GetUserTransactions(Guid userId)
         {
             var result = await _walletService.GetUserTransactionsAsync(userId);
 
@@ -40,8 +56,7 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         [HttpPost("charge")]
-        public async Task<ActionResult<ApiResult<WalletDto>>> Charge(
-            WalletChargeRequestDto request)
+        public async Task<ActionResult<ApiResult<WalletDto>>> Charge(WalletChargeRequestDto request)
         {
             var result = await _walletService.AdminChargeAsync(request);
 
@@ -51,8 +66,7 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         [HttpPost("withdraw")]
-        public async Task<ActionResult<ApiResult<WalletDto>>> Withdraw(
-            WalletWithdrawRequestDto request)
+        public async Task<ActionResult<ApiResult<WalletDto>>> Withdraw(WalletWithdrawRequestDto request)
         {
             var result = await _walletService.AdminWithdrawAsync(request);
 

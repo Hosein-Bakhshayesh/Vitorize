@@ -37,5 +37,9 @@
 
         public string CategoryTitle { get; set; } = string.Empty;
         public string? BrandTitle { get; set; }
+        public decimal FinalPrice { get; set; }
+        public int AvailableStock { get; set; }
+        public bool HasVariants { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

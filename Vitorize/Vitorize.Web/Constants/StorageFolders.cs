@@ -1,4 +1,4 @@
-﻿namespace Vitorize.Web.Constants
+namespace Vitorize.Web.Constants
 {
     public static class StorageFolders
     {

@@ -1,335 +1,155 @@
-﻿@page "{productId:guid}"
+@page
 @model Vitorize.Web.Pages.Admin.ProductVariants.IndexModel
-
+@using Vitorize.Web.Helpers
 @{
     ViewData["Title"] = "واریانت‌های محصول";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="layers-3">
+</i>واریانت‌ها</div>
 
-<div class="variants-page" dir="rtl">
+<h1 class="vz-title">مدیریت واریانت‌های محصول</h1>
+<p class="vz-desc">قیمت، مقدار و حالت موجودی هر واریانت را مدیریت کن.</p>
+</div>
 
-    <section class="variants-hero">
-        <div class="variants-hero-main">
-            <div class="variants-product-preview">
-                @if (!string.IsNullOrWhiteSpace(Model.GetProductImagePath()))
-                {
-                    <img src="@Model.GetProductImagePath()" alt="@Model.Product?.Title" />
-                }
-                else
-                {
-                    <span>@Model.GetProductInitial()</span>
-                }
-            </div>
+<div class="vz-actions">@if (Model.Product != null) { <a asp-page="Create" asp-route-productId="@Model.Product.Id" class="vz-btn vz-btn-primary">
+<i data-lucide="plus">
+</i>واریانت جدید</a>
+<a asp-page="/Admin/Products/Details" asp-route-id="@Model.Product.Id" class="vz-btn vz-btn-light">
+<i data-lucide="package">
+</i>محصول</a> }
+</div>
 
-            <div>
-                <div class="variants-eyebrow">
-                    <i data-lucide="layers-3"></i>
-                    مدیریت واریانت‌ها
-                </div>
+</section>
 
-                <h1>@(Model.Product?.Title ?? "واریانت‌های محصول")</h1>
+@if (!string.IsNullOrWhiteSpace(Model.SuccessMessage)) { <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+ }
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
+ }
+<section class="vz-form-card">
+<form method="get" class="vz-form-grid two">
+<div class="vz-field">
+<label>محصول</label>
+<div class="vz-input-shell">
+<i data-lucide="package">
+</i>
+<select asp-for="ProductId" class="vz-select" onchange="this.form.submit()">
+<option value="">انتخاب محصول</option>@foreach (var p in Model.Products) { <option value="@p.Id">@p.Title</option> }
+</select>
+</div>
 
-                <p>
-                    تنوع‌های قابل خرید محصول مثل مبلغ، ریجن، پلتفرم، SKU، قیمت جداگانه و وضعیت فروش را از این بخش مدیریت کن.
-                </p>
+</div>
 
-                @if (Model.Product != null)
-                {
-                    <div class="variants-hero-meta">
-                        <span>
-                            <i data-lucide="folder"></i>
-                            @Model.Product.CategoryTitle
-                        </span>
+</form>
 
-                        <span>
-                            <i data-lucide="badge-check"></i>
-                            @(Model.Product.BrandTitle ?? "بدون برند")
-                        </span>
+</section>
 
-                        <span>
-                            <i data-lucide="box"></i>
-                            @Model.FormatNumber(Model.Variants.Count)
-                            واریانت
-                        </span>
-                    </div>
-                }
-            </div>
-        </div>
+@if (Model.Product != null) { <section class="vz-table-card">
+<div class="vz-card-head">
+<div>
+<h2>@Model.Product.Title</h2>
+<p>@Model.Variants.Count واریانت ثبت شده است.</p>
+</div>
 
-        <div class="variants-hero-actions">
-            <a asp-page="/Admin/ProductVariants/Create"
-               asp-route-productId="@Model.ProductId"
-               class="variants-btn variants-btn-primary">
-                <i data-lucide="plus"></i>
-                واریانت جدید
-            </a>
+</div>
+@if (!Model.Variants.Any()) { <div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="layers-3">
+</i>
+</div>
 
-            <a asp-page="/Admin/Products/Details"
-               asp-route-id="@Model.ProductId"
-               class="variants-btn variants-btn-soft">
-                <i data-lucide="eye"></i>
-                جزئیات محصول
-            </a>
+<h3>واریانتی ثبت نشده است</h3>
+<p>برای این محصول یک واریانت جدید تعریف کن.</p>
+</div>
+ } else { <div class="vz-table-wrap">
+<table class="vz-table">
+<thead>
+<tr>
+<th>واریانت</th>
+<th>قیمت</th>
+<th>موجودی</th>
+<th>وضعیت</th>
+<th>عملیات</th>
+</tr>
 
-            <a asp-page="/Admin/Products/Index"
-               class="variants-btn variants-btn-soft">
-                <i data-lucide="arrow-right"></i>
-                بازگشت
-            </a>
-        </div>
-    </section>
+</thead>
 
-    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-    {
-        <div class="variants-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
+<tbody>@foreach (var item in Model.Variants) { <tr>
+<td>
+<div class="vz-item">
+<div class="vz-thumb-fallback sm">
+<i data-lucide="layers-3">
+</i>
+</div>
 
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="variants-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
+<div class="vz-item-text">
+<strong>@item.Title</strong>
+<span>@(item.Value ?? "-")</span>
+<small>@(item.Sku ?? "بدون SKU")</small>
+</div>
 
-    <section class="variants-stats">
-        <div class="variants-stat">
-            <div class="variants-stat-icon blue">
-                <i data-lucide="layers-3"></i>
-            </div>
+</div>
 
-            <div>
-                <span>کل واریانت‌ها</span>
-                <strong>@Model.FormatNumber(Model.TotalVariants)</strong>
-                <small>تمام تنوع‌های ثبت‌شده برای محصول</small>
-            </div>
-        </div>
+</td>
+<td>
+<strong>@AdminUiHelper.Money(item.FinalPrice, item.CurrencyType)</strong>@if(item.DiscountPrice.HasValue && item.DiscountPrice.Value > 0){
+<small style="display:block;color:#94a3b8;text-decoration:line-through">@AdminUiHelper.Money(item.Price,item.CurrencyType)</small>}
+</td>
+<td>
+<span class="vz-badge vz-badge-info">@AdminUiHelper.StockMode(item.StockMode)</span>
+</td>
+<td>@if(item.IsDefault){
+<span class="vz-badge vz-badge-warning">پیش‌فرض</span>} @if(item.IsActive){
+<span class="vz-badge vz-badge-success">فعال</span>}else{
+<span class="vz-badge vz-badge-muted">غیرفعال</span>}
+</td>
+<td>
+<div class="vz-actions">
+<a asp-page="Details" asp-route-productId="@Model.Product.Id" asp-route-id="@item.Id" class="vz-icon-btn info">
+<i data-lucide="eye">
+</i>
+</a>
+<a asp-page="Edit" asp-route-productId="@Model.Product.Id" asp-route-id="@item.Id" class="vz-icon-btn">
+<i data-lucide="pencil">
+</i>
+</a>
+<form method="post" asp-page-handler="Delete" asp-route-productId="@Model.Product.Id" asp-route-id="@item.Id" onsubmit="return confirm('واریانت حذف شود؟');">
+<button class="vz-icon-btn danger" type="submit">
+<i data-lucide="trash-2">
+</i>
+</button>
+</form>
 
-        <div class="variants-stat">
-            <div class="variants-stat-icon green">
-                <i data-lucide="check-circle-2"></i>
-            </div>
+</div>
 
-            <div>
-                <span>فعال و قابل فروش</span>
-                <strong>@Model.FormatNumber(Model.ActiveVariants)</strong>
-                <small>در فرآیند خرید قابل انتخاب هستند</small>
-            </div>
-        </div>
+</td>
+</tr>
+ }
+</tbody>
 
-        <div class="variants-stat">
-            <div class="variants-stat-icon orange">
-                <i data-lucide="badge-alert"></i>
-            </div>
+</table>
 
-            <div>
-                <span>نیازمند تامین</span>
-                <strong>@Model.FormatNumber(Model.OutOfStockVariants)</strong>
-                <small>@Model.FormatNumber(Model.TotalAvailableStock) موجودی آماده</small>
-            </div>
-        </div>
-
-        <div class="variants-stat">
-            <div class="variants-stat-icon purple">
-                <i data-lucide="star"></i>
-            </div>
-
-            <div>
-                <span>واریانت پیش‌فرض</span>
-                <strong>@(Model.DefaultVariant?.Title ?? "-")</strong>
-                <small>انتخاب اولیه برای خرید محصول</small>
-            </div>
-        </div>
-    </section>
-
-    @if (!Model.Variants.Any())
-    {
-        <section class="variants-empty">
-            <div class="variants-empty-icon">
-                <i data-lucide="layers-3"></i>
-            </div>
-
-            <h2>هنوز واریانتی برای این محصول ثبت نشده</h2>
-
-            <p>
-                برای فروش حرفه‌ای محصول، بهتر است حداقل یک واریانت تعریف شود؛ مثلاً مبلغ، ریجن یا پلن متفاوت.
-            </p>
-
-            <a asp-page="/Admin/ProductVariants/Create"
-               asp-route-productId="@Model.ProductId"
-               class="variants-btn variants-btn-primary">
-                <i data-lucide="plus"></i>
-                ایجاد اولین واریانت
-            </a>
-        </section>
-    }
-    else
-    {
-        <section class="variants-table-card">
-            <div class="variants-table-header">
-                <div>
-                    <div class="variants-card-kicker">
-                        <i data-lucide="list-tree"></i>
-                        لیست واریانت‌ها
-                    </div>
-
-                    <h2>تنوع‌های قابل خرید</h2>
-
-                    <p>
-                        قیمت، موجودی، Stock Mode، SKU و وضعیت فروش هر واریانت را بررسی و مدیریت کن.
-                    </p>
-                </div>
-
-                <span>@Model.FormatNumber(Model.Variants.Count) واریانت</span>
-            </div>
-
-            <div class="variants-table-head">
-                <div>واریانت</div>
-                <div>قیمت</div>
-                <div>موجودی</div>
-                <div>Stock Mode</div>
-                <div>وضعیت</div>
-                <div>عملیات</div>
-            </div>
-
-            <div class="variants-rows">
-                @foreach (var variant in Model.Variants)
-                {
-                    <article class="variant-row">
-                        <div class="variant-identity">
-                            <div class="variant-icon">
-                                <i data-lucide="box"></i>
-                            </div>
-
-                            <div class="variant-main">
-                                <div class="variant-title-line">
-                                    <h3>@variant.Title</h3>
-
-                                    @if (variant.IsDefault)
-                                    {
-                                        <span class="variant-pill featured">
-                                            پیش‌فرض
-                                        </span>
-                                    }
-                                </div>
-
-                                <div class="variant-sku">
-                                    SKU: @(string.IsNullOrWhiteSpace(variant.Sku) ? "-" : variant.Sku)
-                                </div>
-
-                                <p>
-                                    @(string.IsNullOrWhiteSpace(variant.Value)
-                                        ? "مقدار یا توضیح تکمیلی برای این واریانت ثبت نشده است."
-                                        : variant.Value)
-                                </p>
-
-                                <div class="variant-tags">
-                                    <span>
-                                        <i data-lucide="sort-asc"></i>
-                                        Sort: @variant.SortOrder
-                                    </span>
-
-                                    <span>
-                                        <i data-lucide="calendar"></i>
-                                        @Model.FormatDate(variant.CreatedAt)
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="variant-cell variant-price">
-                            <span>قیمت نهایی</span>
-                            <strong>@Model.FormatMoney(variant.FinalPrice)</strong>
-
-                            @if (Model.HasDiscount(variant))
-                            {
-                                <small>@Model.FormatMoney(variant.Price)</small>
-                            }
-                            else
-                            {
-                                <small>بدون تخفیف</small>
-                            }
-                        </div>
-
-                        <div class="variant-cell">
-                            <span>موجودی</span>
-                            <strong class="@Model.GetStockCss(variant)">
-                                @Model.FormatNumber(variant.AvailableStock)
-                            </strong>
-                            <small>@Model.GetStockText(variant)</small>
-                        </div>
-
-                        <div class="variant-cell">
-                            <span>مدل موجودی</span>
-                            <strong>
-                                <span class="@Model.GetStockModeCss(variant.StockMode)">
-                                    @Model.GetStockMode(variant.StockMode)
-                                </span>
-                            </strong>
-                            <small>روش محاسبه موجودی</small>
-                        </div>
-
-                        <div class="variant-cell">
-                            <span>وضعیت</span>
-                            <strong>
-                                <span class="@Model.GetStatusCss(variant)">
-                                    @Model.GetStatusText(variant)
-                                </span>
-                            </strong>
-                            <small>@(variant.IsDefault ? "واریانت اصلی" : "واریانت عادی")</small>
-                        </div>
-
-                        <div class="variant-actions">
-                            <a asp-page="/Admin/ProductVariants/Edit"
-                               asp-route-productId="@Model.ProductId"
-                               asp-route-id="@variant.Id"
-                               class="variant-action edit"
-                               title="ویرایش">
-                                <i data-lucide="pencil"></i>
-                            </a>
-
-                            <a asp-page="/Admin/GiftCodes/Import"
-                               asp-route-productId="@Model.ProductId"
-                               asp-route-variantId="@variant.Id"
-                               class="variant-action code"
-                               title="ورود گیفت‌کارت">
-                                <i data-lucide="upload-cloud"></i>
-                            </a>
-
-                            <a asp-page="/Admin/GiftCodes/Index"
-                               asp-route-productId="@Model.ProductId"
-                               asp-route-variantId="@variant.Id"
-                               class="variant-action list"
-                               title="مشاهده کدها">
-                                <i data-lucide="credit-card"></i>
-                            </a>
-
-                            <form method="post"
-                                  asp-page-handler="Delete"
-                                  asp-route-productId="@Model.ProductId"
-                                  asp-route-id="@variant.Id"
-                                  onsubmit="return confirm('آیا از حذف این واریانت مطمئن هستید؟ اگر برای این واریانت کد یا سفارش ثبت شده باشد، حذف ممکن است توسط سیستم محدود شود.');">
-                                <button type="submit"
-                                        class="variant-action delete"
-                                        title="حذف">
-                                    <i data-lucide="trash-2"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </article>
-                }
-            </div>
-        </section>
-    }
+</div>
+ }
+</section>
+ }
 </div>
 
 @section Scripts {
-    <script>
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
-}
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }

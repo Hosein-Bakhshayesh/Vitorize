@@ -24,7 +24,6 @@
     <Folder Include="Models\Payments\" />
     <Folder Include="Models\Orders\" />
     <Folder Include="Models\Products\" />
-    <Folder Include="Pages\Admin\Coupons\" />
     <Folder Include="ViewModels\" />
   </ItemGroup>
 

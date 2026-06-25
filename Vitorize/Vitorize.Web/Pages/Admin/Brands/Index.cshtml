@@ -1,533 +1,214 @@
-﻿@page
+@page
 @model Vitorize.Web.Pages.Admin.Brands.IndexModel
-
 @{
-    ViewData["Title"] = "مدیریت برندها";
+    ViewData["Title"] = "برندها";
     Layout = "~/Pages/Shared/_AdminLayout.cshtml";
 }
 
-<div class="brands-page" dir="rtl">
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+            <div class="vz-eyebrow">
+<i data-lucide="badge-check">
+</i>برندها</div>
 
-    <section class="brand-hero">
-        <div>
-            <div class="brand-eyebrow">
-                <i data-lucide="badge-check"></i>
-                برندهای فروشگاه
-            </div>
-
-            <h1>مدیریت برندها</h1>
-
-            <p>
-                برندهای فروشگاه مثل Steam، PlayStation، Xbox، Nintendo، Telegram و ChatGPT را مدیریت کن.
-                برندها در فرم ساخت محصول، فیلترها و نمایش حرفه‌ای محصول استفاده می‌شوند.
-            </p>
+            <h1 class="vz-title">مدیریت برندها</h1>
+            <p class="vz-desc">ایجاد، ویرایش و مرتب‌سازی برندها فروشگاه.</p>
         </div>
 
-        <div class="brand-hero-actions">
-            <button type="button"
-                    class="brand-btn brand-btn-primary"
-                    onclick="openCreateBrandModal()">
-                <i data-lucide="plus"></i>
-                برند جدید
-            </button>
+        <div class="vz-actions">
+            <a asp-page="Create" class="vz-btn vz-btn-primary">
+<i data-lucide="plus">
+</i>افزودن برند</a>
         </div>
+
     </section>
 
     @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
     {
-        <div class="brand-alert success">
-            <i data-lucide="check-circle-2"></i>
-            <span>@Model.SuccessMessage</span>
-        </div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-    {
-        <div class="brand-alert danger">
-            <i data-lucide="triangle-alert"></i>
-            <span>@Model.ErrorMessage</span>
-        </div>
-    }
-
-    <section class="brand-stats">
-        <div class="brand-stat">
-            <div class="brand-stat-icon blue">
-                <i data-lucide="badge-check"></i>
-            </div>
-
-            <div>
-                <span>کل برندها</span>
-                <strong>@Model.FormatNumber(Model.TotalBrands)</strong>
-                <small>تمام برندهای ثبت‌شده</small>
-            </div>
-        </div>
-
-        <div class="brand-stat">
-            <div class="brand-stat-icon green">
-                <i data-lucide="check-circle-2"></i>
-            </div>
-
-            <div>
-                <span>فعال</span>
-                <strong>@Model.FormatNumber(Model.ActiveBrandCount)</strong>
-                <small>قابل استفاده در محصول</small>
-            </div>
-        </div>
-
-        <div class="brand-stat">
-            <div class="brand-stat-icon orange">
-                <i data-lucide="pause-circle"></i>
-            </div>
-
-            <div>
-                <span>غیرفعال</span>
-                <strong>@Model.FormatNumber(Model.InactiveBrandCount)</strong>
-                <small>در فرم محصول بهتر است نمایش داده نشوند</small>
-            </div>
-        </div>
-
-        <div class="brand-stat">
-            <div class="brand-stat-icon purple">
-                <i data-lucide="image"></i>
-            </div>
-
-            <div>
-                <span>دارای لوگو</span>
-                <strong>@Model.FormatNumber(Model.BrandsWithImageCount)</strong>
-                <small>برای نمایش حرفه‌ای در سایت</small>
-            </div>
-        </div>
-    </section>
-
-    <section class="brand-toolbar">
-        <div>
-            <div class="brand-card-kicker">
-                <i data-lucide="search"></i>
-                جستجو و مدیریت
-            </div>
-
-            <h2>لیست برندها</h2>
-
-            <p>
-                برندهای فعال در فرم ساخت محصول قابل انتخاب هستند.
-            </p>
-        </div>
-
-        <div class="brand-search-box">
-            <i data-lucide="search"></i>
-            <input id="brandSearch"
-                   type="search"
-                   autocomplete="off"
-                   placeholder="جستجوی عنوان یا اسلاگ..."
-                   oninput="filterBrands()" />
-        </div>
-    </section>
-
-    @if (!Model.Brands.Any())
-    {
-        <section class="brand-empty">
-            <div class="brand-empty-icon">
-                <i data-lucide="badge"></i>
-            </div>
-
-            <h2>هنوز برندی ثبت نشده</h2>
-
-            <p>
-                برای تست Product بهتر است حداقل یک برند مثل Steam یا PlayStation ایجاد کنی.
-            </p>
-
-            <button type="button"
-                    class="brand-btn brand-btn-primary"
-                    onclick="openCreateBrandModal()">
-                <i data-lucide="plus"></i>
-                ایجاد اولین برند
-            </button>
-        </section>
-    }
-    else
-    {
-        <section class="brand-grid-card">
-            <div class="brand-grid">
-                @foreach (var brand in Model.Brands.OrderBy(x => x.Title))
-                {
-                    <article class="brand-card brand-row"
-                             data-title="@brand.Title.ToLowerInvariant()"
-                             data-slug="@brand.Slug.ToLowerInvariant()">
-
-                        <div class="brand-logo-frame">
-                            @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                            {
-                                <img src="@Model.GetImagePath(brand.ImagePath)" alt="@brand.Title" />
-                            }
-                            else
-                            {
-                                <span>@Model.GetBrandInitial(brand)</span>
-                            }
-
-                            <div class="brand-card-status">
-                                <span class="@Model.GetStatusCss(brand)">
-                                    @(brand.IsActive ? "فعال" : "غیرفعال")
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="brand-card-body">
-                            <h3>@brand.Title</h3>
-
-                            <div class="brand-slug">
-                                @brand.Slug
-                            </div>
-
-                            <div class="brand-path-box">
-                                <span>مسیر لوگو</span>
-                                <code>@(string.IsNullOrWhiteSpace(brand.ImagePath) ? "-" : brand.ImagePath)</code>
-                            </div>
-
-                            <div class="brand-card-actions">
-                                <button type="button"
-                                        class="brand-action edit"
-                                        title="ویرایش"
-                                        data-id="@brand.Id"
-                                        data-title="@brand.Title"
-                                        data-slug="@brand.Slug"
-                                        data-image-path="@brand.ImagePath"
-                                        data-is-active="@brand.IsActive.ToString().ToLowerInvariant()"
-                                        onclick="openEditBrandModal(this)">
-                                    <i data-lucide="pencil"></i>
-                                </button>
-
-                                @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                                {
-                                    <a href="@Model.GetImagePath(brand.ImagePath)"
-                                       target="_blank"
-                                       class="brand-action view"
-                                       title="مشاهده لوگو">
-                                        <i data-lucide="external-link"></i>
-                                    </a>
-                                }
-
-                                <form method="post"
-                                      asp-page-handler="Delete"
-                                      asp-route-id="@brand.Id"
-                                      onsubmit="return confirm('آیا از حذف برند «@brand.Title» مطمئن هستید؟ اگر محصولی به این برند وصل باشد، حذف ممکن است توسط API محدود شود.');">
-                                    <button type="submit"
-                                            class="brand-action delete"
-                                            title="حذف">
-                                        <i data-lucide="trash-2"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </article>
-                }
-            </div>
-        </section>
-    }
+        <div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
 </div>
 
-<div id="brandModal" class="brand-modal-backdrop" aria-hidden="true">
-    <div class="brand-modal">
-        <div class="brand-modal-header">
-            <div>
-                <div class="brand-card-kicker">
-                    <i data-lucide="badge-plus"></i>
-                    فرم برند
-                </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="vz-alert vz-alert-danger">
+<i data-lucide="triangle-alert">
+</i>
+<span>@Model.ErrorMessage</span>
+</div>
 
-                <h2 id="brandModalTitle">برند جدید</h2>
+    }
 
-                <p>
-                    عنوان، اسلاگ، وضعیت و لوگوی برند را وارد کن.
-                    فایل لوگو روی سرور ذخیره می‌شود و فقط مسیر آن در دیتابیس ثبت می‌شود.
-                </p>
+    <section class="vz-stats">
+        <article class="vz-stats-card">
+<div class="vz-stat-icon purple">
+<i data-lucide="layers">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">کل موارد</span>
+<strong class="vz-stat-value">@Model.TotalCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon green">
+<i data-lucide="check-circle-2">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">فعال</span>
+<strong class="vz-stat-value">@Model.ActiveCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon orange">
+<i data-lucide="pause-circle">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">غیرفعال</span>
+<strong class="vz-stat-value">@Model.InactiveCount</strong>
+</div>
+
+</article>
+        <article class="vz-stats-card">
+<div class="vz-stat-icon blue">
+<i data-lucide="image">
+</i>
+</div>
+
+<div class="vz-stat-content">
+<span class="vz-stat-label">دارای تصویر</span>
+<strong class="vz-stat-value">@Model.WithImageCount</strong>
+</div>
+
+</article>
+    </section>
+
+    <section class="vz-table-card">
+        <form method="get" class="vz-filter-grid" style="margin-bottom:18px">
+            <div class="vz-field">
+                <label>جستجو</label>
+                <div class="vz-input-shell">
+<i data-lucide="search">
+</i>
+<input class="vz-input" asp-for="Search" placeholder="عنوان یا اسلاگ" />
+</div>
+
             </div>
 
-            <button type="button"
-                    class="brand-modal-close"
-                    onclick="closeBrandModal()"
-                    aria-label="بستن">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-
-        <form method="post"
-              enctype="multipart/form-data"
-              asp-page-handler="Save"
-              class="brand-modal-form">
-
-            <input asp-for="Input.Id" type="hidden" id="brandId" />
-            <input asp-for="Input.ImagePath" type="hidden" id="brandImagePath" />
-
-            <div class="brand-modal-grid">
-                <div class="brand-modal-main">
-                    <div asp-validation-summary="ModelOnly" class="brand-validation-summary"></div>
-
-                    <div class="brand-form-grid">
-                        <div class="brand-field">
-                            <label asp-for="Input.Title">عنوان برند</label>
-                            <input asp-for="Input.Title"
-                                   id="brandTitle"
-                                   class="brand-control"
-                                   autocomplete="off"
-                                   placeholder="مثلاً Steam" />
-                            <span asp-validation-for="Input.Title" class="brand-validation"></span>
-                        </div>
-
-                        <div class="brand-field">
-                            <label asp-for="Input.Slug">اسلاگ</label>
-                            <input asp-for="Input.Slug"
-                                   id="brandSlug"
-                                   class="brand-control ltr"
-                                   autocomplete="off"
-                                   placeholder="steam" />
-                            <span asp-validation-for="Input.Slug" class="brand-validation"></span>
-                            <small>اگر خالی باشد، از عنوان برند ساخته می‌شود.</small>
-                        </div>
-
-                        <label class="brand-switch">
-                            <span>
-                                <strong>فعال باشد</strong>
-                                <small>برند در فرم ساخت محصول قابل انتخاب باشد.</small>
-                            </span>
-
-                            <input asp-for="Input.IsActive"
-                                   id="brandIsActive"
-                                   class="brand-switch-input" />
-
-                            <i class="brand-switch-ui"></i>
-                        </label>
-                    </div>
-                </div>
-
-                <aside class="brand-modal-side">
-                    <div class="brand-image-upload">
-                        <div class="brand-image-preview">
-                            <img id="brandImagePreview" src="" alt="Brand Logo" hidden />
-
-                            <div id="brandImagePlaceholder">
-                                <i data-lucide="image-plus"></i>
-                                <strong>لوگوی برند</strong>
-                                <small>JPG / PNG / WEBP تا ۵MB</small>
-                            </div>
-                        </div>
-
-                        <label class="brand-file-zone">
-                            <i data-lucide="upload-cloud"></i>
-                            <span>انتخاب لوگو</span>
-                            <input asp-for="ImageFile"
-                                   id="brandImageFile"
-                                   type="file"
-                                   accept="image/jpeg,image/png,image/webp"
-                                   onchange="previewBrandImage(event)" />
-                        </label>
-
-                        <label class="brand-remove-image">
-                            <input asp-for="RemoveImage" id="brandRemoveImage" />
-                            <span>حذف لوگوی فعلی</span>
-                        </label>
-                    </div>
-
-                    <div class="brand-submit-box">
-                        <button type="submit" class="brand-btn brand-btn-primary brand-submit-btn">
-                            <i data-lucide="save"></i>
-                            ذخیره برند
-                        </button>
-
-                        <button type="button"
-                                class="brand-btn brand-btn-soft brand-submit-btn"
-                                onclick="closeBrandModal()">
-                            انصراف
-                        </button>
-                    </div>
-                </aside>
+            <div class="vz-actions">
+                <button type="submit" class="vz-btn vz-btn-light">
+<i data-lucide="filter">
+</i>اعمال فیلتر</button>
+                <a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="rotate-ccw">
+</i>پاک کردن</a>
             </div>
+
         </form>
-    </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="vz-empty">
+<div class="vz-empty-icon">
+<i data-lucide="inbox">
+</i>
+</div>
+
+<h3>موردی پیدا نشد</h3>
+<p>برای شروع، یک برند جدید اضافه کن.</p>
+</div>
+
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+<tr>
+<th>برند</th>
+<th>وضعیت</th>
+<th>تاریخ ایجاد</th>
+<th>عملیات</th>
+</tr>
+
+</thead>
+
+                    <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="vz-item">
+                                    @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                                    { <div class="vz-thumb">
+<img src="@Model.Image(item.ImagePath)" alt="@item.Title" />
+</div>
+ }
+                                    else
+                                    { <div class="vz-thumb-fallback">
+<i data-lucide="badge-check">
+</i>
+</div>
+ }
+                                    <div class="vz-item-text">
+<strong>@item.Title</strong>
+<span>@item.Slug</span>
+</div>
+
+                                </div>
+
+                            </td>
+                            <td>@if (item.IsActive) { <span class="vz-badge vz-badge-success">فعال</span> } else { <span class="vz-badge vz-badge-muted">غیرفعال</span> }
+</td>
+                            <td>@Vitorize.Web.Helpers.AdminUiHelper.Date(item.CreatedAt)</td>
+                            <td>
+                                <div class="vz-actions">
+                                    <a asp-page="Details" asp-route-id="@item.Id" class="vz-icon-btn info" title="جزئیات">
+<i data-lucide="eye">
+</i>
+</a>
+                                    <a asp-page="Edit" asp-route-id="@item.Id" class="vz-icon-btn" title="ویرایش">
+<i data-lucide="pencil">
+</i>
+</a>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" onsubmit="return confirm('آیا از حذف این مورد مطمئن هستید؟');">
+                                        <button class="vz-icon-btn danger" type="submit" title="حذف">
+<i data-lucide="trash-2">
+</i>
+</button>
+                                    </form>
+
+                                </div>
+
+                            </td>
+                        </tr>
+
+                    }
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        }
+    </section>
+
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+<script>
+if(window.lucide){lucide.createIcons();}
 
-    <script>
-        const modal = document.getElementById('brandModal');
-
-        const brandModalTitle = document.getElementById('brandModalTitle');
-        const brandId = document.getElementById('brandId');
-        const brandTitle = document.getElementById('brandTitle');
-        const brandSlug = document.getElementById('brandSlug');
-        const brandImagePath = document.getElementById('brandImagePath');
-        const brandIsActive = document.getElementById('brandIsActive');
-        const brandImageFile = document.getElementById('brandImageFile');
-        const brandRemoveImage = document.getElementById('brandRemoveImage');
-        const brandImagePreview = document.getElementById('brandImagePreview');
-        const brandImagePlaceholder = document.getElementById('brandImagePlaceholder');
-
-        function openCreateBrandModal() {
-            resetBrandForm();
-
-            brandModalTitle.innerText = 'برند جدید';
-            brandIsActive.checked = true;
-
-            openBrandModal();
-        }
-
-        function openEditBrandModal(button) {
-            resetBrandForm();
-
-            brandModalTitle.innerText = 'ویرایش برند';
-
-            brandId.value = button.dataset.id || '';
-            brandTitle.value = button.dataset.title || '';
-            brandSlug.value = button.dataset.slug || '';
-            brandImagePath.value = button.dataset.imagePath || '';
-            brandIsActive.checked = (button.dataset.isActive || 'true') === 'true';
-
-            if (brandImagePath.value) {
-                setBrandImagePreview(resolveImagePath(brandImagePath.value));
-            }
-
-            openBrandModal();
-        }
-
-        function openBrandModal() {
-            modal.classList.add('show');
-            modal.setAttribute('aria-hidden', 'false');
-
-            if (window.lucide) {
-                lucide.createIcons();
-            }
-
-            setTimeout(() => brandTitle.focus(), 80);
-        }
-
-        function closeBrandModal() {
-            modal.classList.remove('show');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function resetBrandForm() {
-            brandId.value = '';
-            brandTitle.value = '';
-            brandSlug.value = '';
-            brandImagePath.value = '';
-            brandIsActive.checked = true;
-            brandImageFile.value = '';
-            brandRemoveImage.checked = false;
-
-            resetBrandImagePreview();
-        }
-
-        function previewBrandImage(event) {
-            const file = event.target.files && event.target.files.length > 0
-                ? event.target.files[0]
-                : null;
-
-            if (!file) {
-                if (brandImagePath.value) {
-                    setBrandImagePreview(resolveImagePath(brandImagePath.value));
-                } else {
-                    resetBrandImagePreview();
-                }
-
-                return;
-            }
-
-            brandRemoveImage.checked = false;
-
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                setBrandImagePreview(e.target.result);
-            };
-
-            reader.readAsDataURL(file);
-        }
-
-        function setBrandImagePreview(src) {
-            if (!src) {
-                resetBrandImagePreview();
-                return;
-            }
-
-            brandImagePreview.src = src;
-            brandImagePreview.hidden = false;
-            brandImagePlaceholder.hidden = true;
-        }
-
-        function resetBrandImagePreview() {
-            brandImagePreview.src = '';
-            brandImagePreview.hidden = true;
-            brandImagePlaceholder.hidden = false;
-        }
-
-        function resolveImagePath(path) {
-            if (!path) {
-                return '';
-            }
-
-            if (path.startsWith('http') || path.startsWith('/')) {
-                return path;
-            }
-
-            return '/' + path.replace(/^~?\//, '');
-        }
-
-        function filterBrands() {
-            const search = document.getElementById('brandSearch').value.toLowerCase().trim();
-            const rows = document.querySelectorAll('.brand-row');
-
-            rows.forEach(row => {
-                const title = row.getAttribute('data-title') || '';
-                const slug = row.getAttribute('data-slug') || '';
-
-                row.style.display =
-                    title.includes(search) || slug.includes(search)
-                        ? ''
-                        : 'none';
-            });
-        }
-
-        brandTitle.addEventListener('blur', function () {
-            if (!brandSlug.value.trim()) {
-                brandSlug.value = brandTitle.value
-                    .trim()
-                    .toLowerCase()
-                    .replaceAll(' ', '-')
-                    .replaceAll('/', '-')
-                    .replaceAll('\\', '-');
-            }
-        });
-
-        brandRemoveImage.addEventListener('change', function () {
-            if (brandRemoveImage.checked) {
-                brandImageFile.value = '';
-                resetBrandImagePreview();
-            } else if (brandImagePath.value) {
-                setBrandImagePreview(resolveImagePath(brandImagePath.value));
-            }
-        });
-
-        modal.addEventListener('click', function (event) {
-            if (event.target === modal) {
-                closeBrandModal();
-            }
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('show')) {
-                closeBrandModal();
-            }
-        });
-
-        @if (Model.OpenModalOnLoad)
-        {
-                <text>
-                        openBrandModal();
-                </text>
-        }
-
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
-}
+</script>
+ }

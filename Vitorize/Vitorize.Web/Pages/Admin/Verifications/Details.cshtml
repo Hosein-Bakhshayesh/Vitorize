@@ -1,0 +1,121 @@
+@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.Verifications.DetailsModel
+@using Vitorize.Web.Helpers
+@{
+    ViewData["Title"]="جزئیات احراز هویت";
+    Layout="~/Pages/Shared/_AdminLayout.cshtml"; var docs = Model.Item.Documents.Any()?Model.Item.Documents:Model.Item.VerificationDocuments;
+}
+<div class="vz-page" dir="rtl">
+<section class="vz-hero">
+<div class="vz-hero-main">
+<div class="vz-eyebrow">
+<i data-lucide="shield-check">
+</i>احراز هویت</div>
+
+<h1 class="vz-title">@Model.Item.FirstName @Model.Item.LastName</h1>
+<p class="vz-desc">@Model.Item.NationalCode</p>
+</div>
+
+<div class="vz-actions">
+<a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+</div>
+
+</section>
+@if(!string.IsNullOrWhiteSpace(Model.SuccessMessage)){
+<div class="vz-alert vz-alert-success">
+<i data-lucide="check-circle-2">
+</i>
+<span>@Model.SuccessMessage</span>
+</div>
+}
+<section class="vz-form-card">
+<div class="vz-kv">
+<div class="vz-kv-item">
+<span>کارت بانکی</span>
+<strong>@(Model.Item.BankCardNumber??"-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>شبا</span>
+<strong>@(Model.Item.ShabaNumber??"-")</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>وضعیت</span>
+<strong>@AdminUiHelper.VerificationStatus(Model.Item.Status)</strong>
+</div>
+
+<div class="vz-kv-item">
+<span>ارسال</span>
+<strong>@AdminUiHelper.Date(Model.Item.SubmittedAt)</strong>
+</div>
+
+</div>
+
+</section>
+
+<section class="vz-table-card">
+<div class="vz-card-head">
+<div>
+<h2>مدارک</h2>
+<p>فایل‌های ارسال‌شده برای بررسی.</p>
+</div>
+
+</div>
+
+<div class="vz-gallery">@foreach(var d in docs){
+<article class="vz-gallery-card">
+<div class="vz-gallery-img">
+<img src="@AdminUiHelper.ImageUrl(d.FilePath)" alt="document" />
+</div>
+
+<div class="vz-gallery-body">
+<strong>@AdminUiHelper.VerificationDocumentType(d.DocumentType)</strong>
+<a href="@AdminUiHelper.ImageUrl(d.FilePath)" target="_blank" class="vz-btn vz-btn-light">مشاهده</a>
+</div>
+
+</article>}
+</div>
+
+</section>
+
+<section class="vz-form-card">
+<form method="post" asp-page-handler="Review" asp-route-id="@Model.Item.Id">
+<div class="vz-switch-card">
+<div>
+<strong>تایید شود</strong>
+<span>در صورت خاموش بودن، درخواست رد می‌شود.</span>
+</div>
+
+<label class="vz-switch">
+<input asp-for="Review.Approve" />
+<span class="vz-switch-ui">
+</span>
+</label>
+</div>
+
+<div class="vz-field" style="margin-top:16px">
+<label asp-for="Review.AdminNote">یادداشت</label>
+<textarea asp-for="Review.AdminNote" class="vz-textarea">
+</textarea>
+</div>
+
+<div style="height:12px">
+</div>
+
+<button class="vz-btn vz-btn-primary">ثبت نتیجه</button>
+</form>
+
+</section>
+
+</div>
+
+@section Scripts {
+
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+}

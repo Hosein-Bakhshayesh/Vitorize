@@ -149,7 +149,6 @@ namespace Vitorize.Web.Helpers
             {
                 CurrencyType.Rial => "ریال",
                 CurrencyType.Toman => "تومان",
-                CurrencyType.USD => "دلار",
                 _ => "نامشخص"
             };
         }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal;
@@ -58,7 +59,16 @@ namespace Vitorize.Infrastructure
             services.AddScoped<ISettingService, SettingService>();
             services.AddScoped<IAdminReportService, AdminReportService>();
             services.AddScoped<IStorefrontService, StorefrontService>();
+            services.AddScoped<IAdminBannerService, AdminBannerService>();
             services.AddScoped<AuditSaveChangesInterceptor>();
+
+            services.TryAddScoped<IAdminSystemReadService, AdminSystemReadService>();
+            services.TryAddScoped<IAdminPaymentReadService, AdminPaymentReadService>();
+            services.TryAddScoped<IAdminRoleReadService, AdminRoleReadService>();
+            services.TryAddScoped<IAdminNotificationReadService, AdminNotificationReadService>();
+            services.TryAddScoped<IAdminWalletReadService, AdminWalletReadService>();
+            services.TryAddScoped<IVitorizeSeedService, VitorizeSeedService>();
+
 
             services.AddHttpClient<IZarinpalGatewayService, ZarinpalGatewayService>();
 

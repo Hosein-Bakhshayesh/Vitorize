@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using System.IO.Compression;
 using System.Text;
 using Vitorize.Api.BackgroundServices;
+using Vitorize.Api.Extensions;
 using Vitorize.Api.Filters;
 using Vitorize.Api.Middlewares;
 using Vitorize.Application;
@@ -202,6 +203,8 @@ namespace Vitorize.Api
             builder.Services.AddHostedService<BackgroundJobProcessor>();
 
             var app = builder.Build();
+
+            app.SeedVitorizeInitialDataAsync();
 
             // Global Exception Handler
             app.UseMiddleware<GlobalExceptionMiddleware>();

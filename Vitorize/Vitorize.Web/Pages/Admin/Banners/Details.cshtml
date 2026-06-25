@@ -1,0 +1,131 @@
+@page "{id:guid}"
+@model Vitorize.Web.Pages.Admin.Banners.DetailsModel
+@{
+    ViewData["Title"] = "جزئیات بنر"; Layout = "~/Pages/Shared/_AdminLayout.cshtml";
+}
+<div class="vz-page" dir="rtl">
+    <section class="vz-hero">
+        <div class="vz-hero-main">
+            <div class="vz-detail-hero">
+                <div class="vz-detail-image">
+                    <img src="@Model.Image(Model.Banner.ImagePath)" alt="@Model.Banner.Title" />
+                </div>
+
+                <div>
+                    <div class="vz-eyebrow">
+<i data-lucide="image-plus">
+</i>بنر</div>
+
+                    <h1 class="vz-title">@Model.Banner.Title</h1>
+                    <p class="vz-desc">@Model.PositionTitle(Model.Banner.Position)</p>
+                    <div class="vz-actions" style="margin-top:14px">
+                        @if (Model.Banner.IsActive) { <span class="vz-badge vz-badge-success">فعال</span> } else { <span class="vz-badge vz-badge-muted">غیرفعال</span> }
+                        @if (Model.Banner.StartsAt.HasValue || Model.Banner.EndsAt.HasValue) { <span class="vz-badge vz-badge-info">زمان‌بندی شده</span> }
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="vz-actions">
+            <a asp-page="Edit" asp-route-id="@Model.Banner.Id" class="vz-btn vz-btn-primary">
+<i data-lucide="pencil">
+</i>ویرایش</a>
+            <a asp-page="Index" class="vz-btn vz-btn-light">
+<i data-lucide="arrow-right">
+</i>بازگشت</a>
+        </div>
+
+    </section>
+
+    <section class="vz-form-card">
+        <div class="vz-card-head">
+<div>
+<h2>اطلاعات بنر</h2>
+<p>جزئیات نمایش و لینک مقصد.</p>
+</div>
+
+</div>
+
+        <div class="vz-kv">
+            <div class="vz-kv-item">
+<span>جایگاه</span>
+<strong>@Model.PositionTitle(Model.Banner.Position)</strong>
+</div>
+
+            <div class="vz-kv-item">
+<span>ترتیب نمایش</span>
+<strong>@Model.Banner.SortOrder</strong>
+</div>
+
+            <div class="vz-kv-item">
+<span>لینک مقصد</span>
+<strong>@(string.IsNullOrWhiteSpace(Model.Banner.LinkUrl) ? "-" : Model.Banner.LinkUrl)</strong>
+</div>
+
+            <div class="vz-kv-item">
+<span>تاریخ ایجاد</span>
+<strong>@Model.Date(Model.Banner.CreatedAt)</strong>
+</div>
+
+            <div class="vz-kv-item">
+<span>شروع نمایش</span>
+<strong>@Model.Date(Model.Banner.StartsAt)</strong>
+</div>
+
+            <div class="vz-kv-item">
+<span>پایان نمایش</span>
+<strong>@Model.Date(Model.Banner.EndsAt)</strong>
+</div>
+
+        </div>
+
+    </section>
+
+    <section class="vz-form-card">
+        <div class="vz-card-head">
+<div>
+<h2>تصاویر</h2>
+<p>پیش‌نمایش نسخه‌های ثبت‌شده.</p>
+</div>
+
+</div>
+
+        <div class="vz-gallery">
+            <article class="vz-gallery-card">
+<div class="vz-gallery-img">
+<img src="@Model.Image(Model.Banner.ImagePath)" alt="@Model.Banner.Title" />
+</div>
+
+<div class="vz-gallery-body">
+<strong>تصویر اصلی</strong>
+</div>
+
+</article>
+            @if (!string.IsNullOrWhiteSpace(Model.Banner.MobileImagePath))
+            {
+                <article class="vz-gallery-card">
+<div class="vz-gallery-img">
+<img src="@Model.Image(Model.Banner.MobileImagePath)" alt="@Model.Banner.Title" />
+</div>
+
+<div class="vz-gallery-body">
+<strong>تصویر موبایل</strong>
+</div>
+
+</article>
+            }
+        </div>
+
+    </section>
+
+</div>
+
+@section Scripts {
+<script>
+if(window.lucide){lucide.createIcons();}
+
+</script>
+ }
