@@ -1,0 +1,30 @@
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+@if (Rows is { Count: > 0 })
+{
+    <div class="vz-card">
+        <div class="vz-card__head"><Icon Name="file-text" Size="18" /><div><div class="vz-card__title">جزئیات</div></div></div>
+        <div class="vz-card__body flush">
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>عنوان</th><th>تاریخ</th><th>تعداد</th><th>مبلغ</th></tr></thead>
+                    <tbody>
+                        @foreach (var row in Rows)
+                        {
+                            <tr>
+                                <td>@(string.IsNullOrWhiteSpace(row.Label) ? "—" : row.Label)</td>
+                                <td><PersianDateDisplay Value="row.Date" /></td>
+                                <td class="num">@AUI.Number(row.Count)</td>
+                                <td class="num">@AUI.MoneyFa(row.Amount)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public List<Vitorize.Web.Models.Admin.Reports.ReportRowModel>? Rows { get; set; }
+}

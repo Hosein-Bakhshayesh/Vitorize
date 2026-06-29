@@ -1,0 +1,198 @@
+@page "/admin/tickets"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="پشتیبانی و تیکت‌ها" Subtitle="مدیریت تیکت‌های مشتریان و پاسخگویی"
+            Icon="message" Breadcrumbs="@(new(){ ("تیکت‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="LoadList"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+@if (_loading) { <LoadingState /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="LoadList" /> }
+else
+{
+    <div class="vz-grid-2" style="grid-template-columns:380px 1fr">
+        <div class="vz-card" style="align-self:start">
+            <div class="vz-card__head">
+                <Icon Name="inbox" Size="18" />
+                <div><div class="vz-card__title">تیکت‌ها (@AUI.Number(Filtered.Count))</div></div>
+                <div class="right">
+                    <select class="vz-select" style="height:34px;min-height:34px;font-size:12px" @bind="_status">
+                        <option value="all">همه</option>
+                        <option value="1">باز</option>
+                        <option value="2">در انتظار مدیر</option>
+                        <option value="3">در انتظار مشتری</option>
+                        <option value="4">بسته شده</option>
+                    </select>
+                </div>
+            </div>
+            <div class="vz-card__body flush" style="max-height:620px;overflow-y:auto">
+                @if (Filtered.Count == 0) { <EmptyState Title="تیکتی یافت نشد" Icon="message" /> }
+                else
+                {
+                    @foreach (var t in Filtered)
+                    {
+                        <div class="vz-ticket-item @(_selected?.Id == t.Id ? "active" : "")" @onclick="() => Select(t.Id)">
+                            <div class="vz-spread">
+                                <span class="vz-cell-title" style="font-size:13px">@t.Subject</span>
+                                <StatusBadge Text="@AUI.TicketStatus(t.Status)" Intent="@TicketIntent(t.Status)" Dot="false" />
+                            </div>
+                            <div class="vz-spread" style="margin-top:6px">
+                                <span class="vz-cell-sub">@t.UserFullName</span>
+                                <span class="vz-cell-sub"><PersianDateDisplay Value="t.CreatedAt" /></span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="vz-card">
+            @if (_loadingDetail) { <div class="vz-card__body"><LoadingState /></div> }
+            else if (_selected is null)
+            {
+                <div class="vz-card__body"><EmptyState Title="یک تیکت را انتخاب کنید" Text="برای مشاهده گفتگو، تیکتی را از فهرست انتخاب کنید." Icon="message" /></div>
+            }
+            else
+            {
+                var t = _selected;
+                <div class="vz-card__head">
+                    <Icon Name="message" Size="18" />
+                    <div>
+                        <div class="vz-card__title">@t.Subject</div>
+                        <div class="vz-card__sub">@t.UserFullName — @t.UserMobile · @AUI.TicketDepartment(t.Department) · اولویت @AUI.TicketPriority(t.Priority)</div>
+                    </div>
+                    <div class="right">
+                        @if (t.Status == (byte)TicketStatus.Closed)
+                        { <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="Reopen" disabled="@_acting"><Icon Name="refresh" Size="14" /> بازگشایی</button> }
+                        else
+                        { <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="Close" disabled="@_acting"><Icon Name="check" Size="14" /> بستن تیکت</button> }
+                    </div>
+                </div>
+                <div class="vz-card__body" style="max-height:480px;overflow-y:auto;background:var(--surface-2)">
+                    @foreach (var m in Messages(t))
+                    {
+                        var mine = m.SenderUserId != t.UserId;
+                        <div class="vz-msg @(mine ? "mine" : "")">
+                            <div class="vz-msg__bubble @(m.IsInternalNote ? "note" : "")">
+                                @if (m.IsInternalNote) { <div class="vz-chip" style="margin-bottom:6px">یادداشت داخلی</div> }
+                                <div>@m.Message</div>
+                            </div>
+                            <div class="vz-msg__meta">@m.SenderName · <PersianDateDisplay Value="m.CreatedAt" WithTime="true" /></div>
+                        </div>
+                    }
+                </div>
+                @if (t.Status != (byte)TicketStatus.Closed)
+                {
+                    <div style="padding:16px;border-top:1px solid var(--border)">
+                        <textarea class="vz-textarea" style="min-height:70px" @bind="_reply" placeholder="پاسخ خود را بنویسید ..."></textarea>
+                        <div class="vz-spread" style="margin-top:10px">
+                            <label class="vz-switch"><input type="checkbox" @bind="_internalNote" /><span class="vz-switch__track"></span><span class="vz-switch__label">یادداشت داخلی</span></label>
+                            <button class="vz-btn vz-btn--primary" @onclick="SendReply" disabled="@_acting">
+                                @if (_acting) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال پاسخ</span> }
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .vz-ticket-item { padding:14px 18px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; }
+    .vz-ticket-item:hover { background:var(--surface-2); }
+    .vz-ticket-item.active { background:var(--admin-primary-soft); border-inline-start:3px solid var(--admin-primary); }
+    .vz-msg { margin-bottom:16px; display:flex; flex-direction:column; align-items:flex-start; }
+    .vz-msg.mine { align-items:flex-end; }
+    .vz-msg__bubble { max-width:78%; background:#fff; border:1px solid var(--border); border-radius:14px; padding:12px 15px; font-size:13px; line-height:1.9; }
+    .vz-msg.mine .vz-msg__bubble { background:var(--admin-primary-soft); border-color:transparent; }
+    .vz-msg__bubble.note { background:var(--warning-soft); border-color:transparent; }
+    .vz-msg__meta { font-size:11px; color:var(--text-3); margin-top:5px; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<TicketModel> _items = new();
+
+    private string _status = "all";
+
+    private bool _loadingDetail, _acting;
+    private TicketModel? _selected;
+    private string _reply = string.Empty;
+    private bool _internalNote;
+
+    protected override Task OnInitializedAsync() => LoadList();
+
+    private async Task LoadList()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<TicketModel>>("admin/tickets");
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<TicketModel> Filtered => _items
+        .Where(t => _status == "all" || t.Status.ToString() == _status)
+        .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
+        .ToList();
+
+    private static List<TicketMessageModel> Messages(TicketModel t) =>
+        (t.Messages.Count > 0 ? t.Messages : t.TicketMessages).OrderBy(m => m.CreatedAt).ToList();
+
+    private static string TicketIntent(byte status) => status switch
+    {
+        (byte)TicketStatus.Open => "info",
+        (byte)TicketStatus.WaitingForAdmin => "warning",
+        (byte)TicketStatus.WaitingForCustomer => "purple",
+        _ => "muted"
+    };
+
+    private async Task Select(Guid id)
+    {
+        _loadingDetail = true; _selected = null; _reply = string.Empty; _internalNote = false;
+        var r = await Api.GetAsync<TicketModel>($"admin/tickets/{id}");
+        if (r.IsSuccess && r.Data is not null) _selected = r.Data;
+        else Toasts.Error(r.Message);
+        _loadingDetail = false;
+    }
+
+    private async Task SendReply()
+    {
+        if (_selected is null) return;
+        if (string.IsNullOrWhiteSpace(_reply)) { Toasts.Error("متن پاسخ الزامی است."); return; }
+
+        _acting = true;
+        var r = await Api.PostAsync<TicketModel>($"admin/tickets/{_selected.Id}/messages",
+            new { Message = _reply, AttachmentPath = (string?)null, IsInternalNote = _internalNote });
+        _acting = false;
+
+        if (r.IsSuccess && r.Data is not null) { _selected = r.Data; _reply = string.Empty; _internalNote = false; Toasts.Success("پاسخ ثبت شد."); }
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task Close()
+    {
+        if (_selected is null) return;
+        _acting = true;
+        var r = await Api.PostAsync<TicketModel>($"admin/tickets/{_selected.Id}/close");
+        _acting = false;
+        if (r.IsSuccess && r.Data is not null) { _selected = r.Data; Toasts.Success("تیکت بسته شد."); await LoadList(); }
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task Reopen()
+    {
+        if (_selected is null) return;
+        _acting = true;
+        var r = await Api.PostAsync<TicketModel>($"admin/tickets/{_selected.Id}/reopen");
+        _acting = false;
+        if (r.IsSuccess && r.Data is not null) { _selected = r.Data; Toasts.Success("تیکت بازگشایی شد."); await LoadList(); }
+        else Toasts.Error(r.Message);
+    }
+}

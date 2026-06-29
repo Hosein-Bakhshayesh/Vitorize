@@ -1,0 +1,23 @@
+@inject NavigationManager Nav
+
+<div class="vz-splash">
+    <div class="vz-splash-mark">V</div>
+    <div class="vz-spinner"></div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        var returnUrl = "/" + relative;
+
+        var target = "admin/login";
+        if (!string.IsNullOrWhiteSpace(relative) &&
+            !relative.StartsWith("admin/login", StringComparison.OrdinalIgnoreCase))
+        {
+            target += $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
+        }
+
+        Nav.NavigateTo(target, forceLoad: false, replace: true);
+    }
+}

@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+<div class="vz-shell">
+    <div class="vz-sidebar__backdrop @(_sidebarOpen ? "show" : "")" @onclick="CloseSidebar"></div>
+
+    <AdminSidebar Open="_sidebarOpen" OnNavigate="CloseSidebar" />
+
+    <div class="vz-main">
+        <AdminTopbar OnToggleSidebar="ToggleSidebar" />
+        <div class="vz-content">
+            @Body
+        </div>
+    </div>
+</div>
+
+<ToastHost />
+
+@code {
+    private bool _sidebarOpen;
+
+    private void ToggleSidebar() => _sidebarOpen = !_sidebarOpen;
+    private void CloseSidebar() => _sidebarOpen = false;
+}

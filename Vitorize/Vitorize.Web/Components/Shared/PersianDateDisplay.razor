@@ -1,0 +1,15 @@
+<span class="vz-mono" title="@Title">@Display</span>
+
+@code {
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public bool WithTime { get; set; }
+    [Parameter] public bool Long { get; set; }
+
+    private string Display => Long
+        ? PersianDateHelper.ToLongDate(Value)
+        : WithTime
+            ? PersianDateHelper.ToDateTime(Value)
+            : PersianDateHelper.ToShortDate(Value);
+
+    private string Title => PersianDateHelper.ToDateTime(Value);
+}

@@ -1,0 +1,37 @@
+@page "/admin/tools"
+@inject ApiClient Api
+@inject ToastService Toasts
+
+<PageHeader Title="ابزارهای سیستم" Subtitle="ابزارهای مدیریتی و راه‌اندازی اولیه"
+            Icon="activity" Breadcrumbs="@(new(){ ("ابزارها", null) })" />
+
+<div class="vz-card" style="max-width:640px">
+    <div class="vz-card__head"><Icon Name="refresh" Size="18" /><div><div class="vz-card__title">آماده‌سازی داده‌های اولیه</div></div></div>
+    <div class="vz-card__body">
+        <p class="vz-muted" style="margin-bottom:18px;line-height:2">
+            با اجرای این ابزار، داده‌های اولیه‌ی مورد نیاز سیستم (نقش‌ها، تنظیمات پایه و موارد ضروری)
+            در صورت نبودن ایجاد می‌شوند. این عملیات ایمن است و داده‌های موجود را بازنویسی نمی‌کند.
+        </p>
+        <button class="vz-btn vz-btn--primary" @onclick="() => _confirm = true" disabled="@_running">
+            @if (_running) { <span class="vz-spinner sm"></span> <span>در حال اجرا ...</span> }
+            else { <Icon Name="refresh" Size="17" /> <span>اجرای آماده‌سازی</span> }
+        </button>
+    </div>
+</div>
+
+<ConfirmDialog Visible="_confirm" Title="اجرای آماده‌سازی داده‌ها" Intent="primary" Icon="refresh"
+               Message="آیا از اجرای آماده‌سازی داده‌های اولیه مطمئن هستید؟" ConfirmText="اجرا کن" Busy="_running"
+               OnConfirm="RunSeed" OnCancel="() => _confirm = false" />
+
+@code {
+    private bool _confirm, _running;
+
+    private async Task RunSeed()
+    {
+        _running = true;
+        var r = await Api.PostAsync("admin/seed/run");
+        _running = false; _confirm = false;
+        if (r.IsSuccess) Toasts.Success("داده‌های اولیه با موفقیت آماده شد.");
+        else Toasts.Error(r.Message);
+    }
+}

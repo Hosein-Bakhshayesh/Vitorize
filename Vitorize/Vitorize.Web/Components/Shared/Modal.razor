@@ -1,0 +1,54 @@
+@if (Visible)
+{
+    <div class="vz-overlay" @onclick="BackdropClose">
+        <div class="vz-dialog @Size" @onclick:stopPropagation="true">
+            <div class="vz-dialog__head">
+                @if (!string.IsNullOrEmpty(Icon))
+                {
+                    <div class="vz-page-head__icon" style="width:40px;height:40px;border-radius:11px">
+                        <Icon Name="@Icon" Size="20" />
+                    </div>
+                }
+                <div>
+                    <div class="vz-dialog__title">@Title</div>
+                    @if (!string.IsNullOrWhiteSpace(Subtitle))
+                    {
+                        <div class="vz-card__sub">@Subtitle</div>
+                    }
+                </div>
+                <button class="vz-dialog__close" @onclick="CloseAsync" type="button">
+                    <Icon Name="x" Size="18" />
+                </button>
+            </div>
+            <div class="vz-dialog__body">
+                @ChildContent
+            </div>
+            @if (Footer is not null)
+            {
+                <div class="vz-dialog__foot">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string Size { get; set; } = string.Empty;
+    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private async Task CloseAsync() => await OnClose.InvokeAsync();
+
+    private async Task BackdropClose()
+    {
+        if (CloseOnBackdrop)
+            await OnClose.InvokeAsync();
+    }
+}

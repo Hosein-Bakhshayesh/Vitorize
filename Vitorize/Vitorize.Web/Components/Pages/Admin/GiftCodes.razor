@@ -1,0 +1,273 @@
+@page "/admin/gift-codes"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="کدهای گیفت کارت" Subtitle="مدیریت بچ‌ها و موجودی کدهای دیجیتال"
+            Icon="gift" Breadcrumbs="@(new(){ ("کدهای گیفت", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Reload"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenImport"><Icon Name="upload" Size="17" /> وارد کردن کدها</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-tabs" style="margin-bottom:18px">
+    <button class="vz-tab @(_tab == "batches" ? "active" : "")" @onclick='() => SwitchTab("batches")'>بچ‌های کد</button>
+    <button class="vz-tab @(_tab == "codes" ? "active" : "")" @onclick='() => SwitchTab("codes")'>مرور کدها</button>
+</div>
+
+@if (_tab == "batches")
+{
+    <div class="vz-card">
+        <div class="vz-card__body flush">
+            @if (_loadingBatches) { <LoadingState /> }
+            else if (_batchError is not null) { <ErrorState Message="@_batchError" OnRetry="LoadBatches" /> }
+            else if (_batches.Count == 0)
+            {
+                <EmptyState Title="بچی ثبت نشده است" Text="برای افزودن موجودی کد، یک بچ جدید وارد کنید." Icon="gift">
+                    <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenImport"><Icon Name="upload" Size="15" /> وارد کردن کدها</button></Actions>
+                </EmptyState>
+            }
+            else
+            {
+                <div class="vz-table-wrap">
+                    <table class="vz-table">
+                        <thead><tr><th>عنوان بچ</th><th>محصول</th><th>منبع</th><th>کل</th><th>موجود</th><th>فروخته</th><th>تاریخ ورود</th><th class="col-actions">عملیات</th></tr></thead>
+                        <tbody>
+                            @foreach (var b in _batches)
+                            {
+                                <tr>
+                                    <td class="vz-cell-title">@b.BatchTitle</td>
+                                    <td>@b.ProductTitle @(string.IsNullOrWhiteSpace(b.ProductVariantTitle) ? "" : $"— {b.ProductVariantTitle}")</td>
+                                    <td>@(string.IsNullOrWhiteSpace(b.SourceName) ? "—" : b.SourceName)</td>
+                                    <td class="num">@AUI.Number(b.TotalCodes)</td>
+                                    <td class="num"><StatusBadge Text="@AUI.Number(b.AvailableCodes)" Intent="success" Dot="false" /></td>
+                                    <td class="num">@AUI.Number(b.SoldCodes)</td>
+                                    <td><PersianDateDisplay Value="b.ImportedAt" /></td>
+                                    <td class="col-actions">
+                                        <button class="vz-iconaction danger" title="حذف بچ" @onclick="() => AskDelete(b)"><Icon Name="trash" Size="16" /></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="vz-filterbar">
+        <div class="vz-filterbar__row">
+            <div class="vz-field">
+                <label class="vz-label">جستجو</label>
+                <input class="vz-input" placeholder="کد ماسک‌شده یا سریال ..." @bind="_codeSearch" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">وضعیت</label>
+                <select class="vz-select" @bind="_codeStatus">
+                    <option value="">همه</option>
+                    <option value="0">موجود</option>
+                    <option value="1">رزرو شده</option>
+                    <option value="2">فروخته شده</option>
+                    <option value="3">تحویل شده</option>
+                    <option value="4">منقضی</option>
+                    <option value="5">غیرفعال</option>
+                </select>
+            </div>
+            <div class="vz-field" style="align-self:end">
+                <button class="vz-btn vz-btn--primary" @onclick="() => LoadCodes(1)"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="vz-card">
+        <div class="vz-card__body flush">
+            @if (_loadingCodes) { <LoadingState /> }
+            else if (_codes.Count == 0) { <EmptyState Title="کدی یافت نشد" Icon="gift" /> }
+            else
+            {
+                <div class="vz-table-wrap">
+                    <table class="vz-table">
+                        <thead><tr><th>کد</th><th>سریال</th><th>محصول</th><th>وضعیت</th><th>فروش</th><th>انقضا</th><th>ایجاد</th></tr></thead>
+                        <tbody>
+                            @foreach (var c in _codes)
+                            {
+                                <tr>
+                                    <td class="vz-mono">@(string.IsNullOrWhiteSpace(c.MaskedCode) ? "••••" : c.MaskedCode)</td>
+                                    <td class="vz-mono">@(string.IsNullOrWhiteSpace(c.SerialNumber) ? "—" : c.SerialNumber)</td>
+                                    <td>@c.ProductTitle</td>
+                                    <td><StatusBadge Text="@AUI.GiftCodeStatus(c.Status)" Intent="@GiftIntent(c.Status)" /></td>
+                                    <td><PersianDateDisplay Value="c.SoldAt" /></td>
+                                    <td><PersianDateDisplay Value="c.ExpiresAt" /></td>
+                                    <td><PersianDateDisplay Value="c.CreatedAt" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <Pagination Page="_codePage" PageSize="_codePageSize" TotalCount="_codeTotal" OnPageChanged="LoadCodes" />
+            }
+        </div>
+    </div>
+}
+
+<Modal Visible="_importOpen" Title="وارد کردن کدهای گیفت" Icon="upload" Size="lg" OnClose="() => _importOpen = false">
+    <ChildContent>
+        <div class="vz-form-grid">
+            <div class="vz-field span-2">
+                <label class="vz-label">محصول <span class="req">*</span></label>
+                <select class="vz-select" value="@(_import.ProductId == Guid.Empty ? "" : _import.ProductId.ToString())"
+                        @onchange="e => _import.ProductId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
+                    <option value="">— انتخاب محصول —</option>
+                    @foreach (var p in _products) { <option value="@p.Id">@p.Title</option> }
+                </select>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">عنوان بچ <span class="req">*</span></label>
+                <input class="vz-input" @bind="_import.BatchTitle" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">منبع تأمین</label>
+                <input class="vz-input" @bind="_import.SourceName" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">قیمت خرید (هر کد)</label>
+                <input class="vz-input" type="number" @bind="_import.PurchasePrice" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">یادداشت</label>
+                <input class="vz-input" @bind="_import.Notes" />
+            </div>
+            <div class="vz-field span-2">
+                <label class="vz-label">کدها <span class="req">*</span></label>
+                <textarea class="vz-textarea" style="min-height:140px" @bind="_codesText" placeholder="هر کد را در یک خط وارد کنید"></textarea>
+                <span class="vz-hint">تعداد کدهای واردشده: @AUI.Number(CodeCount)</span>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _importOpen = false" disabled="@_importing">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="DoImport" disabled="@_importing">
+            @if (_importing) { <span class="vz-spinner sm"></span> } else { <Icon Name="upload" Size="16" /> <span>وارد کردن کدها</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف بچ کدها"
+               Message="@($"آیا از حذف بچ «{_target?.BatchTitle}» و کدهای موجود آن مطمئن هستید؟")"
+               ConfirmText="حذف بچ" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private string _tab = "batches";
+
+    private bool _loadingBatches = true;
+    private string? _batchError;
+    private List<GiftCodeBatchModel> _batches = new();
+
+    private bool _loadingCodes;
+    private List<AdminGiftCodeModel> _codes = new();
+    private int _codePage = 1, _codeTotal;
+    private const int _codePageSize = 20;
+    private string _codeSearch = string.Empty;
+    private string _codeStatus = string.Empty;
+
+    private List<AdminProductModel> _products = new();
+
+    private bool _importOpen, _importing;
+    private GiftCodeImportRequestModel _import = new();
+    private string _codesText = string.Empty;
+    private int CodeCount => _codesText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
+
+    private bool _confirmDelete, _deleting;
+    private GiftCodeBatchModel? _target;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBatches();
+        var prod = await Api.GetAsync<List<AdminProductModel>>("admin/products");
+        _products = prod.Data ?? new();
+    }
+
+    private async Task Reload()
+    {
+        if (_tab == "batches") await LoadBatches();
+        else await LoadCodes(_codePage);
+    }
+
+    private async Task SwitchTab(string tab)
+    {
+        _tab = tab;
+        if (tab == "codes" && _codes.Count == 0) await LoadCodes(1);
+    }
+
+    private async Task LoadBatches()
+    {
+        _loadingBatches = true; _batchError = null;
+        var r = await Api.GetAsync<List<GiftCodeBatchModel>>("admin/giftcodes/batches");
+        if (r.IsSuccess && r.Data is not null) _batches = r.Data;
+        else _batchError = r.Message;
+        _loadingBatches = false;
+    }
+
+    private async Task LoadCodes(int page)
+    {
+        _codePage = page;
+        _loadingCodes = true;
+        var query = $"admin/giftcodes/codes?page={page}&pageSize={_codePageSize}";
+        if (!string.IsNullOrWhiteSpace(_codeSearch)) query += $"&search={Uri.EscapeDataString(_codeSearch)}";
+        if (!string.IsNullOrWhiteSpace(_codeStatus)) query += $"&status={_codeStatus}";
+
+        var r = await Api.GetAsync<PagedResult<AdminGiftCodeModel>>(query);
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _codes = r.Data.Items.ToList();
+            _codeTotal = r.Data.TotalCount;
+        }
+        else { _codes = new(); Toasts.Error(r.Message); }
+        _loadingCodes = false;
+    }
+
+    private void OpenImport()
+    {
+        _import = new GiftCodeImportRequestModel();
+        _codesText = string.Empty;
+        _importOpen = true;
+    }
+
+    private async Task DoImport()
+    {
+        if (_import.ProductId == Guid.Empty) { Toasts.Error("انتخاب محصول الزامی است."); return; }
+        if (string.IsNullOrWhiteSpace(_import.BatchTitle)) { Toasts.Error("عنوان بچ الزامی است."); return; }
+
+        _import.Codes = _codesText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (_import.Codes.Count == 0) { Toasts.Error("حداقل یک کد وارد کنید."); return; }
+
+        _importing = true;
+        var payload = new { _import.ProductId, _import.ProductVariantId, _import.BatchTitle, _import.SourceName, _import.PurchasePrice, _import.Notes, _import.Codes };
+        var r = await Api.PostAsync<GiftCodeBatchModel>("admin/giftcodes/import", payload);
+        _importing = false;
+
+        if (r.IsSuccess) { Toasts.Success("کدها با موفقیت وارد شدند."); _importOpen = false; await LoadBatches(); }
+        else Toasts.Error(r.Message);
+    }
+
+    private void AskDelete(GiftCodeBatchModel b) { _target = b; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var r = await Api.DeleteAsync($"admin/giftcodes/batches/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (r.IsSuccess) { Toasts.Success("بچ کدها حذف شد."); await LoadBatches(); }
+        else Toasts.Error(r.Message);
+    }
+
+    private static string GiftIntent(byte status) => status switch
+    {
+        0 => "success", 1 => "warning", 2 => "info", 3 => "primary", 4 => "danger", 5 => "muted", _ => "muted"
+    };
+}

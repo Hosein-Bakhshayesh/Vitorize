@@ -1,0 +1,74 @@
+@inject NavigationManager Nav
+
+<aside class="vz-sidebar @(Open ? "open" : "")">
+    <div class="vz-sidebar__brand">
+        <div class="vz-sidebar__logo">V</div>
+        <div class="vz-sidebar__title">VITORIZE</div>
+    </div>
+
+    <nav class="vz-sidebar__nav">
+        <NavLink class="vz-nav-item" href="admin" Match="NavLinkMatch.All" @onclick="OnNavigate">
+            <span class="vz-nav-item__icon"><Icon Name="dashboard" Size="19" /></span>
+            <span>داشبورد</span>
+        </NavLink>
+
+        @foreach (var group in Groups)
+        {
+            <div class="vz-nav-group">
+                <div class="vz-nav-group__label">@group.Label</div>
+                @foreach (var item in group.Items)
+                {
+                    <NavLink class="vz-nav-item" href="@item.Href" Match="NavLinkMatch.Prefix" @onclick="OnNavigate">
+                        <span class="vz-nav-item__icon"><Icon Name="@item.Icon" Size="19" /></span>
+                        <span>@item.Title</span>
+                    </NavLink>
+                }
+            </div>
+        }
+    </nav>
+</aside>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback OnNavigate { get; set; }
+
+    private record NavItem(string Title, string Href, string Icon);
+    private record NavGroup(string Label, NavItem[] Items);
+
+    private static readonly NavGroup[] Groups =
+    {
+        new("مدیریت فروشگاه", new[]
+        {
+            new NavItem("محصولات", "admin/products", "box"),
+            new NavItem("دسته‌بندی‌ها", "admin/categories", "layers"),
+            new NavItem("برندها", "admin/brands", "tag"),
+            new NavItem("بنرها", "admin/banners", "image"),
+            new NavItem("کدهای گیفت", "admin/gift-codes", "gift"),
+            new NavItem("کدهای تخفیف", "admin/coupons", "percent"),
+        }),
+        new("مدیریت سفارش‌ها", new[]
+        {
+            new NavItem("سفارش‌ها", "admin/orders", "cart"),
+            new NavItem("پرداخت‌ها", "admin/payments", "credit-card"),
+            new NavItem("کیف پول‌ها", "admin/wallets", "wallet"),
+        }),
+        new("کاربران و ارتباطات", new[]
+        {
+            new NavItem("کاربران", "admin/users", "users"),
+            new NavItem("نقش‌ها", "admin/roles", "key"),
+            new NavItem("احراز هویت", "admin/verifications", "user-check"),
+            new NavItem("تیکت‌ها", "admin/tickets", "message"),
+            new NavItem("نظرات محصولات", "admin/reviews", "star"),
+            new NavItem("اعلان‌ها", "admin/notifications", "bell"),
+        }),
+        new("گزارش‌ها و سیستم", new[]
+        {
+            new NavItem("گزارش‌ها", "admin/reports", "bar-chart"),
+            new NavItem("تنظیمات", "admin/settings", "settings"),
+            new NavItem("لاگ عملیات", "admin/audit-logs", "file-text"),
+            new NavItem("لاگ خطاها", "admin/error-logs", "alert"),
+            new NavItem("لاگ امنیتی", "admin/security-logs", "shield"),
+            new NavItem("ابزارها", "admin/tools", "activity"),
+        }),
+    };
+}

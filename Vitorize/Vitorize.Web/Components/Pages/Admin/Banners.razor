@@ -1,0 +1,215 @@
+@page "/admin/banners"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت بنرها" Subtitle="بنرهای تبلیغاتی و اسلایدرهای فروشگاه"
+            Icon="image" Breadcrumbs="@(new(){ ("بنرها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> بنر جدید</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (_items.Count == 0)
+        {
+            <EmptyState Title="بنری ثبت نشده است" Icon="image">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن بنر</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr><th>بنر</th><th>جایگاه</th><th>لینک</th><th>ترتیب</th><th>بازه نمایش</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in _items.OrderBy(x => x.SortOrder))
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        <img class="vz-thumb lg" src="@Media.Resolve(b.ImagePath)" alt="@b.Title" style="width:74px" />
+                                        <span class="vz-cell-title">@b.Title</span>
+                                    </div>
+                                </td>
+                                <td><span class="vz-chip">@PositionTitle(b.Position)</span></td>
+                                <td class="vz-muted vz-mono" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">@(string.IsNullOrWhiteSpace(b.LinkUrl) ? "—" : b.LinkUrl)</td>
+                                <td class="num">@AUI.Number(b.SortOrder)</td>
+                                <td class="vz-mono" style="font-size:12px"><PersianDateDisplay Value="b.StartsAt" /> － <PersianDateDisplay Value="b.EndsAt" /></td>
+                                <td><StatusBadge Text="@(b.IsActive ? "فعال" : "غیرفعال")" Intent="@(b.IsActive ? "success" : "muted")" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" @onclick="() => OpenEdit(b)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(b)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن بنر" : "ویرایش بنر")"
+       Icon="image" Size="lg" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="banner-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field span-2">
+                    <label class="vz-label">عنوان بنر <span class="req">*</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.Title" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تصویر اصلی (دسکتاپ) <span class="req">*</span></label>
+                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر بنر" />
+                    <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تصویر موبایل</label>
+                    <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>
+                    <select class="vz-select" @bind="_model.Position">
+                        @foreach (var p in Positions)
+                        {
+                            <option value="@p.Value">@p.Title</option>
+                        }
+                    </select>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب نمایش</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">لینک مقصد</label>
+                    <InputText class="vz-input vz-mono" @bind-Value="_model.LinkUrl" placeholder="https://..." />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ شروع نمایش</label>
+                    <PersianDatePicker @bind-Value="_model.StartsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ پایان نمایش</label>
+                    <PersianDatePicker @bind-Value="_model.EndsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.IsActive" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">بنر فعال باشد</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="banner-form" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف بنر"
+               Message="@($"آیا از حذف بنر «{_target?.Title}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminBannerModel> _items = new();
+
+    private bool _formOpen, _saving;
+    private AdminBannerInputModel _model = new();
+
+    private bool _confirmDelete, _deleting;
+    private AdminBannerModel? _target;
+
+    private static readonly AdminBannerPositionOption[] Positions =
+    {
+        new("home-hero", "اسلایدر اصلی صفحه نخست"),
+        new("home-secondary", "بنر فرعی صفحه نخست"),
+        new("category-top", "بالای صفحه دسته‌بندی"),
+        new("sidebar", "نوار کناری"),
+        new("footer", "فوتر"),
+    };
+
+    private static string PositionTitle(string value) =>
+        Positions.FirstOrDefault(p => p.Value == value)?.Title ?? value;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminBannerModel>>("admin/banners");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        _model = new AdminBannerInputModel { IsActive = true, Position = "home-hero" };
+        _formOpen = true;
+    }
+
+    private void OpenEdit(AdminBannerModel b)
+    {
+        _model = new AdminBannerInputModel
+        {
+            Id = b.Id, Title = b.Title, ImagePath = b.ImagePath, MobileImagePath = b.MobileImagePath,
+            LinkUrl = b.LinkUrl, Position = b.Position, SortOrder = b.SortOrder,
+            IsActive = b.IsActive, StartsAt = b.StartsAt, EndsAt = b.EndsAt
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new
+        {
+            _model.Title, _model.ImagePath, _model.MobileImagePath, _model.LinkUrl,
+            _model.Position, _model.SortOrder, _model.IsActive, _model.StartsAt, _model.EndsAt
+        };
+
+        var result = _model.Id is null
+            ? await Api.PostAsync<AdminBannerModel>("admin/banners", payload)
+            : await Api.PutAsync<AdminBannerModel>($"admin/banners/{_model.Id}", payload);
+
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_model.Id is null ? "بنر ایجاد شد." : "بنر ویرایش شد.");
+            _formOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminBannerModel b) { _target = b; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/banners/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success("بنر حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

@@ -1,0 +1,205 @@
+@page "/admin/products"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت محصولات" Subtitle="لیست محصولات فروشگاه خود را مدیریت و ویرایش کنید"
+            Icon="box" Breadcrumbs="@(new(){ ("محصولات", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <a class="vz-btn vz-btn--primary" href="admin/products/create"><Icon Name="plus" Size="17" /> افزودن محصول جدید</a>
+    </Actions>
+</PageHeader>
+
+@if (_loading) { <LoadingState /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+else
+{
+    <div class="vz-stats">
+        <StatCard Label="همه محصولات" Value="@AUI.Number(_items.Count)" Icon="box" Accent="purple" />
+        <StatCard Label="محصولات فعال" Value="@AUI.Number(_items.Count(p => p.IsActive))" Icon="check-circle" Accent="green" />
+        <StatCard Label="ویژه" Value="@AUI.Number(_items.Count(p => p.IsFeatured))" Icon="star" Accent="orange" />
+        <StatCard Label="ناموجود" Value="@AUI.Number(_items.Count(p => p.AvailableStock <= 0))" Icon="alert" Accent="red" />
+    </div>
+
+    <div class="vz-filterbar">
+        <div class="vz-filterbar__row">
+            <div class="vz-field">
+                <label class="vz-label">جستجو</label>
+                <input class="vz-input" placeholder="عنوان، اسلاگ ..." @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">نوع محصول</label>
+                <select class="vz-select" @bind="_typeFilter" @bind:after="ResetPage">
+                    <option value="all">همه نوع‌ها</option>
+                    <option value="1">گیفت کارت</option>
+                    <option value="2">اکانت بازی</option>
+                    <option value="3">سرویس بازی</option>
+                    <option value="4">اشتراک</option>
+                    <option value="5">سایر</option>
+                </select>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">دسته‌بندی</label>
+                <select class="vz-select" @bind="_categoryFilter" @bind:after="ResetPage">
+                    <option value="all">همه دسته‌ها</option>
+                    @foreach (var cat in _items.Select(p => p.CategoryTitle).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct())
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">وضعیت</label>
+                <select class="vz-select" @bind="_statusFilter" @bind:after="ResetPage">
+                    <option value="all">همه وضعیت‌ها</option>
+                    <option value="active">فعال</option>
+                    <option value="inactive">غیرفعال</option>
+                    <option value="featured">ویژه</option>
+                    <option value="out">ناموجود</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="vz-card">
+        <div class="vz-card__body flush">
+            @if (Filtered.Count == 0)
+            {
+                <EmptyState Title="محصولی یافت نشد" Text="با فیلترهای انتخابی محصولی پیدا نشد." Icon="box">
+                    <Actions><a class="vz-btn vz-btn--primary vz-btn--sm" href="admin/products/create"><Icon Name="plus" Size="15" /> افزودن محصول</a></Actions>
+                </EmptyState>
+            }
+            else
+            {
+                <div class="vz-table-wrap">
+                    <table class="vz-table">
+                        <thead>
+                            <tr><th>محصول</th><th>نوع</th><th>برند</th><th>قیمت</th><th>تخفیف</th><th>موجودی</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Paged)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="vz-cell-main">
+                                            @if (!string.IsNullOrWhiteSpace(p.ThumbnailImagePath))
+                                            {
+                                                <img class="vz-thumb" src="@Media.Resolve(p.ThumbnailImagePath)" alt="@p.Title" />
+                                            }
+                                            else
+                                            {
+                                                <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="box" Size="18" /></div>
+                                            }
+                                            <div>
+                                                <div class="vz-cell-title">@p.Title</div>
+                                                <div class="vz-cell-sub">@p.CategoryTitle</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="vz-chip">@AUI.ProductType(p.ProductType)</span></td>
+                                    <td>@(string.IsNullOrWhiteSpace(p.BrandTitle) ? "—" : p.BrandTitle)</td>
+                                    <td><MoneyDisplay Amount="p.BasePrice" Currency="p.CurrencyType" /></td>
+                                    <td>
+                                        @if (p.DiscountPrice is > 0 && p.DiscountPrice < p.BasePrice)
+                                        { <StatusBadge Text="@AUI.MoneyFa(p.DiscountPrice.Value, p.CurrencyType)" Intent="success" Dot="false" /> }
+                                        else { <span class="vz-muted">—</span> }
+                                    </td>
+                                    <td class="num">
+                                        @if (p.HasVariants) { <span class="vz-chip">واریانت‌دار</span> }
+                                        else if (p.AvailableStock > 0) { @AUI.Number(p.AvailableStock) }
+                                        else { <StatusBadge Text="ناموجود" Intent="danger" Dot="false" /> }
+                                    </td>
+                                    <td>
+                                        <StatusBadge Text="@(p.IsActive ? "فعال" : "غیرفعال")" Intent="@(p.IsActive ? "success" : "muted")" />
+                                        @if (p.IsFeatured) { <StatusBadge Text="ویژه" Intent="warning" Dot="false" /> }
+                                    </td>
+                                    <td class="col-actions">
+                                        <a class="vz-iconaction" title="ویرایش" href="@($"admin/products/{p.Id}")"><Icon Name="edit" Size="16" /></a>
+                                        <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(p)"><Icon Name="trash" Size="16" /></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+            }
+        </div>
+    </div>
+}
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف محصول"
+               Message="@($"آیا از حذف محصول «{_target?.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.")"
+               ConfirmText="حذف محصول" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminProductModel> _items = new();
+
+    private string _search = string.Empty;
+    private string _typeFilter = "all";
+    private string _categoryFilter = "all";
+    private string _statusFilter = "all";
+
+    private int _page = 1;
+    private const int _pageSize = 10;
+
+    private bool _confirmDelete, _deleting;
+    private AdminProductModel? _target;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (q.TryGetValue("q", out var search)) _search = search.ToString();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminProductModel>>("admin/products");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private void ResetPage() => _page = 1;
+
+    private List<AdminProductModel> Filtered => _items
+        .Where(p => string.IsNullOrWhiteSpace(_search)
+            || p.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || p.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(p => _typeFilter == "all" || p.ProductType.ToString() == _typeFilter)
+        .Where(p => _categoryFilter == "all" || p.CategoryTitle == _categoryFilter)
+        .Where(p => _statusFilter switch
+        {
+            "active" => p.IsActive,
+            "inactive" => !p.IsActive,
+            "featured" => p.IsFeatured,
+            "out" => p.AvailableStock <= 0 && !p.HasVariants,
+            _ => true
+        })
+        .OrderByDescending(p => p.CreatedAt)
+        .ToList();
+
+    private List<AdminProductModel> Paged => Filtered
+        .Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+
+    private void AskDelete(AdminProductModel p) { _target = p; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/products/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success("محصول حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

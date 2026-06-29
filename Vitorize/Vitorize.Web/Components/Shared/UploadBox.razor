@@ -1,0 +1,98 @@
+@using Vitorize.Web.Models.Admin.Common
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+
+<div class="vz-upload">
+    @if (!string.IsNullOrWhiteSpace(Value))
+    {
+        <div class="vz-upload__preview">
+            <img src="@Media.Resolve(Value)" alt="پیش‌نمایش" />
+            <button type="button" class="vz-iconaction danger" @onclick="Clear" title="حذف تصویر">
+                <Icon Name="trash" Size="16" />
+            </button>
+        </div>
+    }
+    else
+    {
+        <label class="vz-upload__drop @(_busy ? "busy" : "")">
+            <InputFile OnChange="OnChange" accept="image/png,image/jpeg,image/webp" disabled="@_busy" />
+            @if (_busy)
+            {
+                <span class="vz-spinner sm"></span>
+                <span class="vz-muted">در حال آپلود ...</span>
+            }
+            else
+            {
+                <span class="vz-upload__icon"><Icon Name="upload" Size="22" /></span>
+                <span style="font-weight:700">@Label</span>
+                <span class="vz-hint">PNG، JPG یا WEBP — حداکثر ۲ مگابایت</span>
+            }
+        </label>
+    }
+</div>
+
+<style>
+    .vz-upload__drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:26px; border:1.5px dashed var(--border-strong); border-radius:14px; background:var(--surface-2); cursor:pointer; text-align:center; transition:border-color .15s; }
+    .vz-upload__drop:hover { border-color: var(--admin-primary-2); }
+    .vz-upload__drop input[type=file] { display:none; }
+    .vz-upload__icon { width:46px; height:46px; border-radius:13px; background:var(--admin-primary-soft); color:var(--admin-primary); display:flex; align-items:center; justify-content:center; }
+    .vz-upload__preview { position:relative; width:100%; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--surface-2); }
+    .vz-upload__preview img { width:100%; max-height:220px; object-fit:contain; display:block; }
+    .vz-upload__preview .vz-iconaction { position:absolute; top:10px; inset-inline-start:10px; background:#fff; }
+</style>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "برای آپلود تصویر کلیک کنید";
+    [Parameter] public string Endpoint { get; set; } = "admin/uploads/product-image";
+
+    private bool _busy;
+    private const long MaxSize = 2 * 1024 * 1024;
+
+    private async Task OnChange(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        if (file.Size > MaxSize)
+        {
+            Toasts.Error("حجم تصویر نباید بیشتر از ۲ مگابایت باشد.");
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxSize);
+            var result = await Api.UploadAsync<UploadResultModel>(
+                Endpoint, stream, file.Name, file.ContentType);
+
+            if (result.IsSuccess && result.Data is not null)
+            {
+                Value = result.Data.FilePath;
+                await ValueChanged.InvokeAsync(Value);
+                Toasts.Success("تصویر با موفقیت آپلود شد.");
+            }
+            else
+            {
+                Toasts.Error(string.IsNullOrWhiteSpace(result.Message) ? "آپلود تصویر ناموفق بود." : result.Message);
+            }
+        }
+        catch
+        {
+            Toasts.Error("آپلود تصویر با خطا مواجه شد.");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task Clear()
+    {
+        Value = null;
+        await ValueChanged.InvokeAsync(null);
+    }
+}

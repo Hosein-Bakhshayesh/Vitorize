@@ -1,107 +1,91 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Vitorize.Web.Filters;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Vitorize.Web.Components;
+using Vitorize.Web.Endpoints;
 using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
-using Vitorize.Web.Services.Storage;
-using Vitorize.Web.Services.Storefront;
+using Vitorize.Web.Services.UI;
 
-namespace Vitorize.Web
-{
-    public class Program
+var builder = WebApplication.CreateBuilder(args);
+
+// Blazor Web App با رندر تعاملی سمت سرور
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
+
+// احراز هویت مبتنی بر کوکی برای پنل مدیریت
+builder.Services
+    .AddAuthentication(options =>
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
+        options.DefaultScheme = VitorizeAuthSchemes.AdminScheme;
+        options.DefaultSignInScheme = VitorizeAuthSchemes.AdminScheme;
+    })
+    .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
+    {
+        options.Cookie.Name = "Vitorize.Admin.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.LoginPath = "/admin/login";
+        options.AccessDeniedPath = "/admin/access-denied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
 
-            builder.Services.AddRazorPages(options =>
-            {
-                options.Conventions.AuthorizeFolder("/Admin", "AdminOnly");
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Admin", "SuperAdmin");
+    });
+});
 
-                options.Conventions.AllowAnonymousToPage("/Admin/Auth/Login");
-                options.Conventions.AllowAnonymousToPage("/Admin/Auth/AccessDenied");
+builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
+builder.Services.AddScoped<MediaUrlResolver>();
+builder.Services.AddScoped<ToastService>();
 
-                options.Conventions.ConfigureFilter(new AdminApiAuthorizationFilter());
-            });
+// کلاینت API؛ آدرس پایه شامل /api/ است
+var apiClientBuilder = builder.Services.AddHttpClient<ApiClient>(client =>
+{
+    var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
 
-            builder.Services.AddHttpContextAccessor();
+    if (string.IsNullOrWhiteSpace(baseUrl))
+        throw new InvalidOperationException("ApiSettings:BaseUrl تنظیم نشده است.");
 
-            builder.Services
-                .AddAuthentication(options =>
-                {
-                    options.DefaultScheme = VitorizeAuthSchemes.AdminScheme;
-                    options.DefaultChallengeScheme = VitorizeAuthSchemes.AdminScheme;
-                })
-                .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
-                {
-                    options.LoginPath = "/Admin/Auth/Login";
-                    options.LogoutPath = "/Admin/Auth/Logout";
-                    options.AccessDeniedPath = "/Admin/Auth/AccessDenied";
-                    options.Cookie.Name = "Vitorize.Admin.Auth";
-                    options.Cookie.HttpOnly = true;
-                    options.Cookie.SameSite = SameSiteMode.Lax;
-                    options.ExpireTimeSpan = TimeSpan.FromHours(8);
-                    options.SlidingExpiration = true;
-                })
-                .AddCookie(VitorizeAuthSchemes.CustomerScheme, options =>
-                {
-                    options.LoginPath = "/Auth/Login";
-                    options.LogoutPath = "/Auth/Logout";
-                    options.AccessDeniedPath = "/Auth/AccessDenied";
-                    options.Cookie.Name = "Vitorize.Customer.Auth";
-                    options.Cookie.HttpOnly = true;
-                    options.Cookie.SameSite = SameSiteMode.Lax;
-                    options.ExpireTimeSpan = TimeSpan.FromDays(7);
-                    options.SlidingExpiration = true;
-                });
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 
-            builder.Services.AddAuthorization(options =>
-            {
-                options.AddPolicy("AdminOnly", policy =>
-                {
-                    policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.AdminScheme);
-                    policy.RequireAuthenticatedUser();
-                    policy.RequireRole("Admin", "SuperAdmin");
-                });
-
-                options.AddPolicy("CustomerOnly", policy =>
-                {
-                    policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.CustomerScheme);
-                    policy.RequireAuthenticatedUser();
-                });
-            });
-
-            builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
-            builder.Services.AddScoped<IStorefrontApiService, StorefrontApiService>();
-
-            builder.Services.AddHttpClient<ApiClient>(client =>
-            {
-                var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
-
-                if (string.IsNullOrWhiteSpace(baseUrl))
-                    throw new InvalidOperationException("ApiSettings:BaseUrl تنظیم نشده است.");
-
-                client.BaseAddress = new Uri(baseUrl);
-            });
-
-            var app = builder.Build();
-
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Error");
-                app.UseHsts();
-            }
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
-            app.UseRouting();
-
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.MapRazorPages();
-
-            app.Run();
-        }
-    }
+// در محیط توسعه، گواهی self-signed لوکال API پذیرفته می‌شود
+if (builder.Environment.IsDevelopment())
+{
+    apiClientBuilder.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
 }
+
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/error", createScopeForErrors: true);
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.UseStaticFiles();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseAntiforgery();
+
+app.MapAdminAuthEndpoints();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();

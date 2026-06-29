@@ -1,0 +1,227 @@
+@page "/admin/brands"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت برندها" Subtitle="برندهای فروشگاه را مدیریت و ویرایش کنید"
+            Icon="tag" Breadcrumbs="@(new(){ ("برندها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> برند جدید</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="عنوان یا اسلاگ برند ..." @bind="_search" @bind:event="oninput" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_statusFilter">
+                <option value="all">همه</option>
+                <option value="active">فعال</option>
+                <option value="inactive">غیرفعال</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading)
+        {
+            <LoadingState />
+        }
+        else if (_error is not null)
+        {
+            <ErrorState Message="@_error" OnRetry="Load" />
+        }
+        else if (Filtered.Count == 0)
+        {
+            <EmptyState Title="برندی یافت نشد" Text="هنوز برندی ثبت نشده یا با فیلتر شما مطابقت ندارد." Icon="tag">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن برند</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr>
+                            <th>برند</th>
+                            <th>اسلاگ</th>
+                            <th>تعداد محصول</th>
+                            <th>وضعیت</th>
+                            <th>تاریخ ایجاد</th>
+                            <th class="col-actions">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in Filtered)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        @if (!string.IsNullOrWhiteSpace(b.ImagePath))
+                                        {
+                                            <img class="vz-thumb" src="@Media.Resolve(b.ImagePath)" alt="@b.Title" />
+                                        }
+                                        else
+                                        {
+                                            <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="tag" Size="18" /></div>
+                                        }
+                                        <span class="vz-cell-title">@b.Title</span>
+                                    </div>
+                                </td>
+                                <td class="vz-muted vz-mono">@b.Slug</td>
+                                <td class="num">@AUI.Number(b.ProductCount)</td>
+                                <td><StatusBadge Text="@(b.IsActive ? "فعال" : "غیرفعال")" Intent="@(b.IsActive ? "success" : "muted")" /></td>
+                                <td><PersianDateDisplay Value="b.CreatedAt" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" @onclick="() => OpenEdit(b)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(b)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن برند جدید" : "ویرایش برند")"
+       Icon="tag" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="brand-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field">
+                    <label class="vz-label">عنوان برند <span class="req">*</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.Title" placeholder="مثال: PlayStation" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">اسلاگ <span class="req">*</span></label>
+                    <InputText class="vz-input vz-mono" @bind-Value="_model.Slug" placeholder="playstation" />
+                    <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">لوگوی برند</label>
+                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود لوگوی برند" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.IsActive" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">برند فعال باشد</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="brand-form" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره برند</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف برند"
+               Message="@($"آیا از حذف برند «{_target?.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.")"
+               ConfirmText="حذف برند" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminBrandModel> _items = new();
+
+    private string _search = string.Empty;
+    private string _statusFilter = "all";
+
+    private bool _formOpen;
+    private bool _saving;
+    private AdminBrandInputModel _model = new();
+
+    private bool _confirmDelete;
+    private bool _deleting;
+    private AdminBrandModel? _target;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminBrandModel>>("admin/brands");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private List<AdminBrandModel> Filtered => _items
+        .Where(b => string.IsNullOrWhiteSpace(_search)
+            || b.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || b.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(b => _statusFilter switch { "active" => b.IsActive, "inactive" => !b.IsActive, _ => true })
+        .OrderByDescending(b => b.CreatedAt)
+        .ToList();
+
+    private void OpenCreate()
+    {
+        _model = new AdminBrandInputModel { IsActive = true };
+        _formOpen = true;
+    }
+
+    private void OpenEdit(AdminBrandModel b)
+    {
+        _model = new AdminBrandInputModel
+        {
+            Id = b.Id, Title = b.Title, Slug = b.Slug, ImagePath = b.ImagePath, IsActive = b.IsActive
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new { _model.Title, _model.Slug, _model.ImagePath, _model.IsActive };
+
+        var result = _model.Id is null
+            ? await Api.PostAsync<AdminBrandModel>("admin/brands", payload)
+            : await Api.PutAsync<AdminBrandModel>($"admin/brands/{_model.Id}", payload);
+
+        _saving = false;
+
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_model.Id is null ? "برند با موفقیت ایجاد شد." : "برند با موفقیت ویرایش شد.");
+            _formOpen = false;
+            await Load();
+        }
+        else
+        {
+            Toasts.Error(result.Message);
+        }
+    }
+
+    private void AskDelete(AdminBrandModel b) { _target = b; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/brands/{_target.Id}");
+        _deleting = false;
+        _confirmDelete = false;
+
+        if (result.IsSuccess) { Toasts.Success("برند حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

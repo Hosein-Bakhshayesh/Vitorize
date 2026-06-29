@@ -1,0 +1,20 @@
+@page "/admin/access-denied"
+@layout BlankLayout
+
+<div class="vz-login__panel" style="min-height:100vh">
+    <div class="vz-login__card" style="text-align:center">
+        <div class="vz-confirm-icon danger" style="margin:0 auto 18px">
+            <Icon Name="lock" Size="26" />
+        </div>
+        <h1 class="vz-login__title">دسترسی غیرمجاز</h1>
+        <p class="vz-login__subtitle">
+            حساب کاربری شما مجوز ورود به پنل مدیریت را ندارد.
+            در صورت نیاز با مدیر سیستم تماس بگیرید.
+        </p>
+        <form method="post" action="/admin/auth/logout">
+            <button type="submit" class="vz-btn vz-btn--primary vz-btn--block">
+                <Icon Name="logout" Size="18" /> خروج و ورود مجدد
+            </button>
+        </form>
+    </div>
+</div>

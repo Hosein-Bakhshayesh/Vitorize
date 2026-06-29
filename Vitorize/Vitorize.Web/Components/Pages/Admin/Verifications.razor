@@ -1,0 +1,199 @@
+@page "/admin/verifications"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="احراز هویت کاربران" Subtitle="بررسی و تأیید مدارک هویتی کاربران"
+            Icon="user-check" Breadcrumbs="@(new(){ ("احراز هویت", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="نام، موبایل یا کد ملی ..." @bind="_search" @bind:event="oninput" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_status">
+                <option value="all">همه</option>
+                <option value="0">در انتظار بررسی</option>
+                <option value="1">تأیید شده</option>
+                <option value="2">رد شده</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Filtered.Count == 0) { <EmptyState Title="درخواستی یافت نشد" Icon="user-check" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>کاربر</th><th>کد ملی</th><th>مدارک</th><th>وضعیت</th><th>تاریخ ثبت</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var v in Filtered)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        <span class="vz-avatar-sm">@Initial(v.UserFullName)</span>
+                                        <div>
+                                            <div class="vz-cell-title">@(string.IsNullOrWhiteSpace(v.UserFullName) ? $"{v.FirstName} {v.LastName}" : v.UserFullName)</div>
+                                            <div class="vz-cell-sub vz-mono">@v.UserMobile</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="vz-mono">@v.NationalCode</td>
+                                <td class="num">@AUI.Number(Docs(v).Count)</td>
+                                <td><StatusBadge Text="@AUI.VerificationStatus(v.Status)" Intent="@AUI.StatusBadgeIntent(v.Status, "verify")" /></td>
+                                <td><PersianDateDisplay Value="v.SubmittedAt" WithTime="true" /></td>
+                                <td class="col-actions"><button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(v.Id)"><Icon Name="eye" Size="15" /> بررسی</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="بررسی احراز هویت" Icon="user-check" Size="lg" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_loadingDetail) { <LoadingState /> }
+        else if (_detail is not null)
+        {
+            var v = _detail;
+            <div class="vz-row" style="gap:14px;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px">
+                    <dl class="vz-deflist">
+                        <dt>نام</dt><dd>@v.FirstName @v.LastName</dd>
+                        <dt>کد ملی</dt><dd class="vz-mono">@v.NationalCode</dd>
+                        <dt>تاریخ تولد</dt><dd><PersianDateDisplay Value="v.BirthDate" /></dd>
+                        <dt>موبایل</dt><dd class="vz-mono">@v.UserMobile</dd>
+                    </dl>
+                </div>
+                <div style="flex:1;min-width:220px">
+                    <dl class="vz-deflist">
+                        <dt>شماره کارت</dt><dd class="vz-mono">@(v.BankCardNumber ?? "—")</dd>
+                        <dt>شبا</dt><dd class="vz-mono">@(v.ShabaNumber ?? "—")</dd>
+                        <dt>کد پستی</dt><dd class="vz-mono">@(v.PostalCode ?? "—")</dd>
+                        <dt>وضعیت</dt><dd><StatusBadge Text="@AUI.VerificationStatus(v.Status)" Intent="@AUI.StatusBadgeIntent(v.Status, "verify")" /></dd>
+                    </dl>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(v.Address))
+            {
+                <div style="margin-top:10px"><span class="vz-muted">آدرس: </span>@v.Address</div>
+            }
+
+            <div class="vz-divider"></div>
+            <div class="vz-card__title" style="margin-bottom:12px">مدارک بارگذاری‌شده</div>
+            @if (Docs(v).Count == 0) { <EmptyState Title="مدرکی بارگذاری نشده" Icon="image" /> }
+            else
+            {
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+                    @foreach (var doc in Docs(v))
+                    {
+                        <a href="@Media.Resolve(doc.FilePath)" target="_blank" style="border:1px solid var(--border);border-radius:12px;overflow:hidden;display:block">
+                            <img src="@Media.Resolve(doc.FilePath)" style="width:100%;height:120px;object-fit:cover" alt="" />
+                            <div style="padding:8px;font-size:12px;text-align:center;font-weight:600">@AUI.VerificationDocumentType(doc.DocumentType)</div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (v.Status == (byte)VerificationStatus.Pending)
+            {
+                <div class="vz-divider"></div>
+                <div class="vz-field">
+                    <label class="vz-label">یادداشت مدیر (در صورت رد الزامی)</label>
+                    <textarea class="vz-textarea" style="min-height:70px" @bind="_note" placeholder="توضیحات بررسی ..."></textarea>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(v.AdminNote))
+            {
+                <div class="vz-divider"></div>
+                <div class="vz-muted">یادداشت مدیر: @v.AdminNote</div>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        @if (_detail is not null && _detail.Status == (byte)VerificationStatus.Pending)
+        {
+            <button class="vz-btn vz-btn--danger" @onclick="() => Review(false)" disabled="@_acting">رد درخواست</button>
+            <button class="vz-btn vz-btn--success" @onclick="() => Review(true)" disabled="@_acting">
+                @if (_acting) { <span class="vz-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>تأیید احراز هویت</span> }
+            </button>
+        }
+        <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<VerificationProfileModel> _items = new();
+
+    private string _search = string.Empty, _status = "all";
+
+    private bool _open, _loadingDetail, _acting;
+    private VerificationProfileModel? _detail;
+    private string _note = string.Empty;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<VerificationProfileModel>>("admin/verifications");
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<VerificationProfileModel> Filtered => _items
+        .Where(v => string.IsNullOrWhiteSpace(_search)
+            || (v.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (v.UserMobile ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (v.NationalCode ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(v => _status == "all" || v.Status.ToString() == _status)
+        .OrderByDescending(v => v.SubmittedAt)
+        .ToList();
+
+    private static List<VerificationDocumentModel> Docs(VerificationProfileModel v) =>
+        v.Documents.Count > 0 ? v.Documents : v.VerificationDocuments;
+
+    private static string Initial(string? n) => string.IsNullOrWhiteSpace(n) ? "؟" : n.Trim()[..1];
+
+    private async Task Open(Guid id)
+    {
+        _open = true; _loadingDetail = true; _detail = null; _note = string.Empty;
+        var r = await Api.GetAsync<VerificationProfileModel>($"admin/verifications/{id}");
+        if (r.IsSuccess && r.Data is not null) _detail = r.Data;
+        else { Toasts.Error(r.Message); _open = false; }
+        _loadingDetail = false;
+    }
+
+    private async Task Review(bool approve)
+    {
+        if (_detail is null) return;
+        if (!approve && string.IsNullOrWhiteSpace(_note)) { Toasts.Error("برای رد درخواست، ذکر دلیل الزامی است."); return; }
+
+        _acting = true;
+        var r = await Api.PostAsync<VerificationProfileModel>($"admin/verifications/{_detail.Id}/review",
+            new { Approve = approve, AdminNote = _note });
+        _acting = false;
+
+        if (r.IsSuccess) { Toasts.Success(approve ? "احراز هویت تأیید شد." : "درخواست رد شد."); _open = false; await Load(); }
+        else Toasts.Error(r.Message);
+    }
+}

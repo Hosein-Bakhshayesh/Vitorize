@@ -1,0 +1,100 @@
+@inject NavigationManager Nav
+
+<header class="vz-topbar">
+    <button class="vz-icon-btn vz-hamburger" @onclick="OnToggleSidebar" title="منو">
+        <Icon Name="menu" />
+    </button>
+
+    <div class="vz-topbar__search">
+        <span class="ico"><Icon Name="search" Size="18" /></span>
+        <input type="text" placeholder="جستجو در محصولات، سفارش‌ها، کاربران ..."
+               @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" />
+    </div>
+
+    <div class="vz-topbar__spacer"></div>
+
+    <div class="vz-topbar__actions">
+        <a class="vz-icon-btn" href="admin/notifications" title="اعلان‌ها">
+            <Icon Name="bell" Size="19" />
+        </a>
+        <a class="vz-icon-btn" href="admin/tickets" title="تیکت‌ها">
+            <Icon Name="message" Size="19" />
+        </a>
+
+        <div style="position:relative">
+            <button class="vz-profile" @onclick="ToggleMenu">
+                <span class="vz-profile__avatar">@Initial</span>
+                <span class="vz-profile__meta">
+                    <span class="vz-profile__name">@DisplayName</span>
+                    <span class="vz-profile__role">@RoleLabel</span>
+                </span>
+                <Icon Name="chevron-down" Size="16" />
+            </button>
+
+            @if (_menuOpen)
+            {
+                <div style="position:fixed;inset:0;z-index:65" @onclick="CloseMenu"></div>
+                <div class="vz-menu">
+                    <div class="vz-menu__item" style="cursor:default">
+                        <Icon Name="user" Size="17" />
+                        <div>
+                            <div style="font-weight:700">@DisplayName</div>
+                            <div class="vz-muted" style="font-size:11px">@RoleLabel</div>
+                        </div>
+                    </div>
+                    <div class="vz-menu__divider"></div>
+                    <a class="vz-menu__item" href="admin/settings">
+                        <Icon Name="settings" Size="17" /> <span>تنظیمات سیستم</span>
+                    </a>
+                    <a class="vz-menu__item" href="admin/notifications">
+                        <Icon Name="bell" Size="17" /> <span>اعلان‌ها</span>
+                    </a>
+                    <div class="vz-menu__divider"></div>
+                    <form method="post" action="/admin/auth/logout" style="margin:0">
+                        <button type="submit" class="vz-menu__item danger" style="width:100%">
+                            <Icon Name="logout" Size="17" /> <span>خروج از حساب</span>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+</header>
+
+@code {
+    [Parameter] public EventCallback OnToggleSidebar { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _menuOpen;
+    private string _search = string.Empty;
+
+    private string DisplayName { get; set; } = "مدیر سیستم";
+    private string RoleLabel { get; set; } = "مدیر";
+    private string Initial => string.IsNullOrWhiteSpace(DisplayName) ? "م" : DisplayName.Trim()[..1];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+
+        var state = await AuthState;
+        var user = state.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            DisplayName = user.Identity.Name ?? "مدیر سیستم";
+            RoleLabel = user.IsInRole("SuperAdmin") ? "مدیر ارشد" : "مدیر سیستم";
+        }
+    }
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void CloseMenu() => _menuOpen = false;
+
+    private void OnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_search))
+        {
+            Nav.NavigateTo($"admin/products?q={Uri.EscapeDataString(_search.Trim())}");
+            _search = string.Empty;
+        }
+    }
+}

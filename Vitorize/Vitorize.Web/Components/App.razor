@@ -1,0 +1,40 @@
+@inject IConfiguration Configuration
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <base href="/" />
+    <title>پنل مدیریت ویتورایز</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+
+<body>
+    <div id="vz-initial-loader" class="vz-splash">
+        <div class="vz-splash-mark">V</div>
+        <div class="vz-spinner"></div>
+    </div>
+
+    <Routes @rendermode="PageRenderMode" />
+
+    <div id="blazor-error-ui" class="vz-error-ui">
+        یک خطای پیش‌بینی‌نشده رخ داد.
+        <a href="" class="reload">بارگذاری مجدد</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>
+
+@code {
+    private readonly IComponentRenderMode PageRenderMode =
+        new InteractiveServerRenderMode(prerender: false);
+}

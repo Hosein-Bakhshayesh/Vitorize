@@ -1,0 +1,76 @@
+@if (TotalCount > 0)
+{
+    <div class="vz-pagination">
+        <div class="vz-pagination__info">
+            نمایش @P(From) تا @P(To) از @P(TotalCount) مورد
+        </div>
+        <div class="vz-pagination__pages">
+            <button class="vz-page-btn" disabled="@(Page <= 1)" @onclick="() => Go(Page - 1)">
+                <Icon Name="chevron-right" Size="16" />
+            </button>
+
+            @foreach (var p in PageNumbers())
+            {
+                if (p == -1)
+                {
+                    <span class="vz-page-btn" style="border:none;background:none">…</span>
+                }
+                else
+                {
+                    var page = p;
+                    <button class="vz-page-btn @(page == Page ? "active" : "")" @onclick="() => Go(page)">
+                        @P(page)
+                    </button>
+                }
+            }
+
+            <button class="vz-page-btn" disabled="@(Page >= TotalPages)" @onclick="() => Go(Page + 1)">
+                <Icon Name="chevron-left" Size="16" />
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public int PageSize { get; set; } = 20;
+    [Parameter] public int TotalCount { get; set; }
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    private int TotalPages => PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling((double)TotalCount / PageSize));
+    private int From => TotalCount == 0 ? 0 : ((Page - 1) * PageSize) + 1;
+    private int To => Math.Min(Page * PageSize, TotalCount);
+
+    private static string P(int n) => PersianDateHelper.ToPersianDigits(n.ToString("#,0"));
+
+    private async Task Go(int page)
+    {
+        if (page < 1 || page > TotalPages || page == Page) return;
+        await OnPageChanged.InvokeAsync(page);
+    }
+
+    private IEnumerable<int> PageNumbers()
+    {
+        var total = TotalPages;
+        var current = Page;
+        var pages = new List<int>();
+
+        if (total <= 7)
+        {
+            for (var i = 1; i <= total; i++) pages.Add(i);
+            return pages;
+        }
+
+        pages.Add(1);
+        if (current > 3) pages.Add(-1);
+
+        var start = Math.Max(2, current - 1);
+        var end = Math.Min(total - 1, current + 1);
+        for (var i = start; i <= end; i++) pages.Add(i);
+
+        if (current < total - 2) pages.Add(-1);
+        pages.Add(total);
+
+        return pages;
+    }
+}

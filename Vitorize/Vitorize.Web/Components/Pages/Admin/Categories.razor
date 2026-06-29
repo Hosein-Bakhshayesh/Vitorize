@@ -1,0 +1,282 @@
+@page "/admin/categories"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت دسته‌بندی‌ها" Subtitle="ساختار دسته‌بندی محصولات فروشگاه"
+            Icon="layers" Breadcrumbs="@(new(){ ("دسته‌بندی‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> دسته‌بندی جدید</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="عنوان یا اسلاگ ..." @bind="_search" @bind:event="oninput" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">والد</label>
+            <select class="vz-select" @bind="_parentFilter">
+                <option value="all">همه</option>
+                <option value="root">دسته‌های اصلی</option>
+                @foreach (var c in _items.Where(x => x.ParentId is null))
+                {
+                    <option value="@c.Id">@c.Title</option>
+                }
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_statusFilter">
+                <option value="all">همه</option>
+                <option value="active">فعال</option>
+                <option value="inactive">غیرفعال</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Filtered.Count == 0)
+        {
+            <EmptyState Title="دسته‌بندی یافت نشد" Icon="layers">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن دسته‌بندی</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr>
+                            <th>دسته‌بندی</th><th>والد</th><th>تعداد محصول</th><th>زیرمجموعه</th>
+                            <th>ترتیب</th><th>وضعیت</th><th class="col-actions">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Filtered)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        @if (!string.IsNullOrWhiteSpace(c.ImagePath))
+                                        {
+                                            <img class="vz-thumb" src="@Media.Resolve(c.ImagePath)" alt="@c.Title" />
+                                        }
+                                        else
+                                        {
+                                            <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="folder" Size="18" /></div>
+                                        }
+                                        <div>
+                                            <div class="vz-cell-title">@c.Title</div>
+                                            <div class="vz-cell-sub vz-mono">@c.Slug</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(c.ParentTitle) ? "—" : c.ParentTitle)</td>
+                                <td class="num">@AUI.Number(c.ProductCount)</td>
+                                <td class="num">@AUI.Number(c.ChildrenCount)</td>
+                                <td class="num">@AUI.Number(c.SortOrder)</td>
+                                <td><StatusBadge Text="@(c.IsActive ? "فعال" : "غیرفعال")" Intent="@(c.IsActive ? "success" : "muted")" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" @onclick="() => OpenEdit(c)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(c)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن دسته‌بندی" : "ویرایش دسته‌بندی")"
+       Icon="layers" Size="lg" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="cat-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field">
+                    <label class="vz-label">عنوان <span class="req">*</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.Title" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">اسلاگ <span class="req">*</span></label>
+                    <InputText class="vz-input vz-mono" @bind-Value="_model.Slug" />
+                    <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">دسته والد</label>
+                    <select class="vz-select" value="@(_model.ParentId?.ToString() ?? "")"
+                            @onchange="OnParentChanged">
+                        <option value="">— بدون والد (دسته اصلی) —</option>
+                        @foreach (var c in ParentOptions)
+                        {
+                            <option value="@c.Id">@c.Title</option>
+                        }
+                    </select>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب نمایش</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">توضیحات</label>
+                    <InputTextArea class="vz-textarea" @bind-Value="_model.Description" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">تصویر دسته‌بندی</label>
+                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر دسته‌بندی" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">عنوان سئو</label>
+                    <InputText class="vz-input" @bind-Value="_model.SeoTitle" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">آیکن (اختیاری)</label>
+                    <InputText class="vz-input" @bind-Value="_model.Icon" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">توضیحات سئو</label>
+                    <InputTextArea class="vz-textarea" style="min-height:70px" @bind-Value="_model.SeoDescription" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.IsActive" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">دسته‌بندی فعال باشد</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="cat-form" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف دسته‌بندی"
+               Message="@($"آیا از حذف دسته‌بندی «{_target?.Title}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminCategoryModel> _items = new();
+
+    private string _search = string.Empty;
+    private string _parentFilter = "all";
+    private string _statusFilter = "all";
+
+    private bool _formOpen, _saving;
+    private AdminCategoryInputModel _model = new();
+    private Guid? _editingId;
+
+    private bool _confirmDelete, _deleting;
+    private AdminCategoryModel? _target;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminCategoryModel>>("admin/categories");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private List<AdminCategoryModel> Filtered => _items
+        .Where(c => string.IsNullOrWhiteSpace(_search)
+            || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || c.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(c => _parentFilter switch
+        {
+            "all" => true,
+            "root" => c.ParentId is null,
+            _ => Guid.TryParse(_parentFilter, out var pid) && c.ParentId == pid
+        })
+        .Where(c => _statusFilter switch { "active" => c.IsActive, "inactive" => !c.IsActive, _ => true })
+        .OrderBy(c => c.SortOrder).ThenBy(c => c.Title)
+        .ToList();
+
+    private IEnumerable<AdminCategoryModel> ParentOptions =>
+        _items.Where(c => c.Id != _editingId).OrderBy(c => c.Title);
+
+    private void OnParentChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        _model.ParentId = Guid.TryParse(val, out var id) ? id : null;
+    }
+
+    private void OpenCreate()
+    {
+        _editingId = null;
+        _model = new AdminCategoryInputModel { IsActive = true };
+        _formOpen = true;
+    }
+
+    private void OpenEdit(AdminCategoryModel c)
+    {
+        _editingId = c.Id;
+        _model = new AdminCategoryInputModel
+        {
+            Id = c.Id, ParentId = c.ParentId, Title = c.Title, Slug = c.Slug,
+            Description = c.Description, ImagePath = c.ImagePath, Icon = c.Icon,
+            SortOrder = c.SortOrder, IsActive = c.IsActive,
+            SeoTitle = c.SeoTitle, SeoDescription = c.SeoDescription
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new
+        {
+            _model.ParentId, _model.Title, _model.Slug, _model.Description,
+            _model.ImagePath, _model.Icon, _model.SortOrder, _model.IsActive,
+            _model.SeoTitle, _model.SeoDescription
+        };
+
+        var result = _model.Id is null
+            ? await Api.PostAsync<AdminCategoryModel>("admin/categories", payload)
+            : await Api.PutAsync<AdminCategoryModel>($"admin/categories/{_model.Id}", payload);
+
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_model.Id is null ? "دسته‌بندی ایجاد شد." : "دسته‌بندی ویرایش شد.");
+            _formOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminCategoryModel c) { _target = c; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/categories/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success("دسته‌بندی حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

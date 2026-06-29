@@ -1,0 +1,108 @@
+@page "/admin/error-logs"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="لاگ خطاها" Subtitle="خطاهای ثبت‌شده در سیستم"
+            Icon="alert" Breadcrumbs="@(new(){ ("لاگ خطاها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="متن خطا یا منبع ..." @bind="_search" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">بازه تاریخ</label>
+            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+        </div>
+        <div class="vz-field" style="align-self:end">
+            <button class="vz-btn vz-btn--primary" @onclick="Load"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Paged.Count == 0) { <EmptyState Title="خطایی ثبت نشده است" Icon="check-circle" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>پیام خطا</th><th>منبع</th><th>تاریخ</th><th class="col-actions">جزئیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in Paged)
+                        {
+                            <tr>
+                                <td style="max-width:420px"><div class="vz-cell-title" style="color:var(--danger)">@AUI.ShortText(l.Message, 90)</div></td>
+                                <td class="vz-muted">@(string.IsNullOrWhiteSpace(l.Source) ? "—" : l.Source)</td>
+                                <td><PersianDateDisplay Value="l.CreatedAt" WithTime="true" /></td>
+                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => Open(l)"><Icon Name="eye" Size="16" /></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="جزئیات خطا" Icon="alert" Size="lg" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_current is not null)
+        {
+            <dl class="vz-deflist">
+                <dt>منبع</dt><dd>@_current.Source</dd>
+                <dt>تاریخ</dt><dd><PersianDateDisplay Value="_current.CreatedAt" WithTime="true" /></dd>
+            </dl>
+            <div class="vz-divider"></div>
+            <div class="vz-label">پیام</div>
+            <div style="color:var(--danger);margin-bottom:14px">@_current.Message</div>
+            @if (!string.IsNullOrWhiteSpace(_current.StackTrace))
+            {
+                <div class="vz-label">جزئیات فنی</div>
+                <pre style="background:var(--surface-2);padding:14px;border-radius:10px;overflow:auto;font-size:11px;direction:ltr;text-align:left;max-height:300px">@_current.StackTrace</pre>
+            }
+        }
+    </ChildContent>
+    <Footer><button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button></Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminErrorLogModel> _items = new();
+    private string _search = string.Empty;
+    private DateTime? _from, _to;
+    private int _page = 1;
+    private const int _pageSize = 20;
+
+    private bool _open;
+    private AdminErrorLogModel? _current;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; _page = 1;
+        var query = "admin/error-logs?page=1&pageSize=500";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
+        if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
+
+        var r = await Api.GetAsync<List<AdminErrorLogModel>>(query);
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<AdminErrorLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+
+    private void Open(AdminErrorLogModel l) { _current = l; _open = true; }
+}

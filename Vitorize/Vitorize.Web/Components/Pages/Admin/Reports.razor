@@ -1,0 +1,137 @@
+@page "/admin/reports"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="گزارش‌ها و تحلیل" Subtitle="گزارش فروش، پرداخت، کیف پول، کدهای تخفیف و کاربران"
+            Icon="bar-chart" Breadcrumbs="@(new(){ ("گزارش‌ها", null) })" />
+
+<div class="vz-filterbar">
+    <div class="vz-spread">
+        <div class="vz-tabs">
+            <button class="vz-tab @(_tab == "sales" ? "active" : "")" @onclick='() => Switch("sales")'>فروش</button>
+            <button class="vz-tab @(_tab == "payments" ? "active" : "")" @onclick='() => Switch("payments")'>پرداخت‌ها</button>
+            <button class="vz-tab @(_tab == "wallet" ? "active" : "")" @onclick='() => Switch("wallet")'>کیف پول</button>
+            <button class="vz-tab @(_tab == "coupons" ? "active" : "")" @onclick='() => Switch("coupons")'>کدهای تخفیف</button>
+            <button class="vz-tab @(_tab == "giftcodes" ? "active" : "")" @onclick='() => Switch("giftcodes")'>کدهای گیفت</button>
+            <button class="vz-tab @(_tab == "users" ? "active" : "")" @onclick='() => Switch("users")'>کاربران</button>
+        </div>
+        <div style="display:flex;align-items:end;gap:10px">
+            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+            <button class="vz-btn vz-btn--primary" @onclick="Reload"><Icon Name="filter" Size="16" /> اعمال بازه</button>
+        </div>
+    </div>
+</div>
+
+@if (_loading) { <LoadingState /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Reload" /> }
+else
+{
+    @switch (_tab)
+    {
+        case "sales":
+            <div class="vz-stats">
+                <StatCard Label="کل فروش" Value="@AUI.MoneyFa(_sales.TotalSales)" Icon="trending-up" Accent="green" />
+                <StatCard Label="تعداد سفارش" Value="@AUI.Number(_sales.TotalOrders)" Icon="cart" Accent="teal" />
+                <StatCard Label="میانگین سبد" Value="@AUI.MoneyFa(_sales.AverageOrderValue)" Icon="bar-chart" Accent="blue" />
+                <StatCard Label="تکمیل شده" Value="@AUI.Number(_sales.CompletedOrders)" Icon="check-circle" Accent="green" />
+                <StatCard Label="لغو شده" Value="@AUI.Number(_sales.CancelledOrders)" Icon="x-circle" Accent="red" />
+            </div>
+            <ReportRows Rows="_sales.DailySales.Count > 0 ? _sales.DailySales : _sales.Rows" />
+            break;
+
+        case "payments":
+            <div class="vz-stats">
+                <StatCard Label="کل مبلغ" Value="@AUI.MoneyFa(_payments.TotalAmount)" Icon="credit-card" Accent="green" />
+                <StatCard Label="تعداد پرداخت" Value="@AUI.Number(_payments.TotalPayments)" Icon="activity" Accent="teal" />
+                <StatCard Label="موفق" Value="@AUI.Number(_payments.PaidCount)" Icon="check-circle" Accent="green" />
+                <StatCard Label="ناموفق" Value="@AUI.Number(_payments.FailedCount)" Icon="x-circle" Accent="red" />
+            </div>
+            <ReportRows Rows="_payments.Rows" />
+            break;
+
+        case "wallet":
+            <div class="vz-stats">
+                <StatCard Label="کل واریز" Value="@AUI.MoneyFa(_wallet.TotalCredit)" Icon="plus" Accent="green" />
+                <StatCard Label="کل برداشت" Value="@AUI.MoneyFa(_wallet.TotalDebit)" Icon="arrow-left" Accent="red" />
+                <StatCard Label="موجودی فعلی" Value="@AUI.MoneyFa(_wallet.CurrentBalance)" Icon="wallet" Accent="teal" />
+                <StatCard Label="تعداد تراکنش" Value="@AUI.Number(_wallet.TransactionCount)" Icon="activity" Accent="blue" />
+            </div>
+            break;
+
+        case "coupons":
+            <div class="vz-stats">
+                <StatCard Label="کل کدها" Value="@AUI.Number(_coupons.TotalCoupons)" Icon="percent" Accent="purple" />
+                <StatCard Label="فعال" Value="@AUI.Number(_coupons.ActiveCoupons)" Icon="check-circle" Accent="green" />
+                <StatCard Label="کل استفاده" Value="@AUI.Number(_coupons.TotalUsage)" Icon="activity" Accent="teal" />
+                <StatCard Label="کل تخفیف" Value="@AUI.MoneyFa(_coupons.TotalDiscount)" Icon="trending-up" Accent="orange" />
+            </div>
+            break;
+
+        case "giftcodes":
+            <div class="vz-stats">
+                <StatCard Label="کل کدها" Value="@AUI.Number(_giftcodes.TotalCodes)" Icon="gift" Accent="purple" />
+                <StatCard Label="موجود" Value="@AUI.Number(_giftcodes.AvailableCodes)" Icon="check-circle" Accent="green" />
+                <StatCard Label="فروخته‌شده" Value="@AUI.Number(_giftcodes.SoldCodes)" Icon="cart" Accent="teal" />
+                <StatCard Label="تحویل‌شده" Value="@AUI.Number(_giftcodes.DeliveredCodes)" Icon="package-check" Accent="blue" />
+                <StatCard Label="غیرفعال" Value="@AUI.Number(_giftcodes.DisabledCodes)" Icon="x-circle" Accent="red" />
+            </div>
+            break;
+
+        case "users":
+            <div class="vz-stats">
+                <StatCard Label="کل کاربران" Value="@AUI.Number(_users.TotalUsers)" Icon="users" Accent="blue" />
+                <StatCard Label="کاربران جدید" Value="@AUI.Number(_users.NewUsers)" Icon="user-check" Accent="green" />
+                <StatCard Label="احرازشده" Value="@AUI.Number(_users.VerifiedUsers)" Icon="shield-check" Accent="teal" />
+                <StatCard Label="فعال" Value="@AUI.Number(_users.ActiveUsers)" Icon="activity" Accent="purple" />
+            </div>
+            break;
+    }
+}
+
+@code {
+    private string _tab = "sales";
+    private bool _loading = true;
+    private string? _error;
+    private DateTime? _from, _to;
+
+    private SalesReportModel _sales = new();
+    private PaymentsReportModel _payments = new();
+    private WalletReportModel _wallet = new();
+    private CouponsReportModel _coupons = new();
+    private GiftCodesReportModel _giftcodes = new();
+    private UsersReportModel _users = new();
+
+    protected override Task OnInitializedAsync() => Reload();
+
+    private async Task Switch(string tab) { _tab = tab; await Reload(); }
+
+    private string Range()
+    {
+        var q = new List<string>();
+        if (_from is not null) q.Add($"from={_from:yyyy-MM-dd}");
+        if (_to is not null) q.Add($"to={_to:yyyy-MM-dd}");
+        return q.Count > 0 ? "?" + string.Join("&", q) : string.Empty;
+    }
+
+    private async Task Reload()
+    {
+        _loading = true; _error = null;
+        switch (_tab)
+        {
+            case "sales": { var r = await Api.GetAsync<SalesReportModel>($"admin/reports/sales{Range()}"); Apply(r, d => _sales = d); break; }
+            case "payments": { var r = await Api.GetAsync<PaymentsReportModel>($"admin/reports/payments{Range()}"); Apply(r, d => _payments = d); break; }
+            case "wallet": { var r = await Api.GetAsync<WalletReportModel>($"admin/reports/wallet{Range()}"); Apply(r, d => _wallet = d); break; }
+            case "coupons": { var r = await Api.GetAsync<CouponsReportModel>($"admin/reports/coupons{Range()}"); Apply(r, d => _coupons = d); break; }
+            case "giftcodes": { var r = await Api.GetAsync<GiftCodesReportModel>("admin/reports/giftcodes"); Apply(r, d => _giftcodes = d); break; }
+            case "users": { var r = await Api.GetAsync<UsersReportModel>($"admin/reports/users{Range()}"); Apply(r, d => _users = d); break; }
+        }
+        _loading = false;
+    }
+
+    private void Apply<T>(ApiResult<T> result, Action<T> set)
+    {
+        if (result.IsSuccess && result.Data is not null) set(result.Data);
+        else _error = result.Message;
+    }
+}

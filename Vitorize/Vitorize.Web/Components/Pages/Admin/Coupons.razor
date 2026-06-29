@@ -1,0 +1,255 @@
+@page "/admin/coupons"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="کدهای تخفیف" Subtitle="مدیریت کدهای تخفیف و کمپین‌های فروش"
+            Icon="percent" Breadcrumbs="@(new(){ ("کدهای تخفیف", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> کد تخفیف جدید</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="کد یا عنوان ..." @bind="_search" @bind:event="oninput" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">نوع تخفیف</label>
+            <select class="vz-select" @bind="_typeFilter">
+                <option value="all">همه</option>
+                <option value="1">درصدی</option>
+                <option value="2">مبلغ ثابت</option>
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_statusFilter">
+                <option value="all">همه</option>
+                <option value="active">فعال</option>
+                <option value="inactive">غیرفعال</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Filtered.Count == 0)
+        {
+            <EmptyState Title="کد تخفیفی یافت نشد" Icon="percent">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن کد تخفیف</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr><th>کد</th><th>عنوان</th><th>تخفیف</th><th>استفاده</th><th>اعتبار</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Filtered)
+                        {
+                            <tr>
+                                <td><span class="vz-chip vz-mono">@c.Code</span></td>
+                                <td class="vz-cell-title">@c.Title</td>
+                                <td>
+                                    @if (c.DiscountType == (byte)DiscountType.Percentage)
+                                    { <span>@AUI.Number((long)c.DiscountValue)٪</span> }
+                                    else
+                                    { <MoneyDisplay Amount="c.DiscountValue" /> }
+                                </td>
+                                <td class="num">@AUI.Number(c.UsedCount)@(c.MaxUsageCount.HasValue ? $" / {AUI.Number(c.MaxUsageCount.Value)}" : "")</td>
+                                <td class="vz-mono" style="font-size:12px">
+                                    <PersianDateDisplay Value="c.StartsAt" /> － <PersianDateDisplay Value="c.EndsAt" />
+                                </td>
+                                <td><StatusBadge Text="@(c.IsActive ? "فعال" : "غیرفعال")" Intent="@(c.IsActive ? "success" : "muted")" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" @onclick="() => OpenEdit(c)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(c)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_editingId is null ? "افزودن کد تخفیف" : "ویرایش کد تخفیف")"
+       Icon="percent" Size="lg" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="coupon-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field">
+                    <label class="vz-label">کد تخفیف <span class="req">*</span></label>
+                    <InputText class="vz-input vz-mono" @bind-Value="_model.Code" placeholder="مثال: NOWRUZ1403" />
+                    <ValidationMessage For="() => _model.Code" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">عنوان <span class="req">*</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.Title" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">نوع تخفیف</label>
+                    <select class="vz-select" value="@_model.DiscountType" @onchange="e => _model.DiscountType = byte.Parse(e.Value!.ToString()!)">
+                        <option value="1">درصدی</option>
+                        <option value="2">مبلغ ثابت</option>
+                    </select>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">مقدار تخفیف <span class="req">*</span></label>
+                    <div class="vz-input-group">
+                        <InputNumber class="vz-input" @bind-Value="_model.DiscountValue" />
+                        <span class="suffix">@(_model.DiscountType == 1 ? "درصد" : "تومان")</span>
+                    </div>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">حداکثر دفعات استفاده</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.MaxUsageCount" placeholder="نامحدود" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">حداکثر برای هر کاربر</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.MaxUsagePerUser" placeholder="نامحدود" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">حداقل مبلغ سفارش</label>
+                    <div class="vz-input-group">
+                        <InputNumber class="vz-input" @bind-Value="_model.MinOrderAmount" placeholder="بدون محدودیت" />
+                        <span class="suffix">تومان</span>
+                    </div>
+                </div>
+                <div class="vz-field"></div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ شروع</label>
+                    <PersianDatePicker @bind-Value="_model.StartsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ پایان</label>
+                    <PersianDatePicker @bind-Value="_model.EndsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.IsActive" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">کد تخفیف فعال باشد</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="coupon-form" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف کد تخفیف"
+               Message="@($"آیا از حذف کد «{_target?.Code}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminCouponModel> _items = new();
+
+    private string _search = string.Empty;
+    private string _typeFilter = "all";
+    private string _statusFilter = "all";
+
+    private bool _formOpen, _saving;
+    private AdminCouponInputModel _model = new();
+    private Guid? _editingId;
+
+    private bool _confirmDelete, _deleting;
+    private AdminCouponModel? _target;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminCouponModel>>("admin/coupons");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private List<AdminCouponModel> Filtered => _items
+        .Where(c => string.IsNullOrWhiteSpace(_search)
+            || c.Code.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(c => _typeFilter == "all" || c.DiscountType.ToString() == _typeFilter)
+        .Where(c => _statusFilter switch { "active" => c.IsActive, "inactive" => !c.IsActive, _ => true })
+        .OrderByDescending(c => c.CreatedAt)
+        .ToList();
+
+    private void OpenCreate()
+    {
+        _editingId = null;
+        _model = new AdminCouponInputModel { IsActive = true, DiscountType = 1 };
+        _formOpen = true;
+    }
+
+    private void OpenEdit(AdminCouponModel c)
+    {
+        _editingId = c.Id;
+        _model = new AdminCouponInputModel
+        {
+            Code = c.Code, Title = c.Title, DiscountType = c.DiscountType, DiscountValue = c.DiscountValue,
+            MaxUsageCount = c.MaxUsageCount, MaxUsagePerUser = c.MaxUsagePerUser, MinOrderAmount = c.MinOrderAmount,
+            StartsAt = c.StartsAt, EndsAt = c.EndsAt, IsActive = c.IsActive
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new
+        {
+            _model.Code, _model.Title, _model.DiscountType, _model.DiscountValue,
+            _model.MaxUsageCount, _model.MaxUsagePerUser, _model.MinOrderAmount,
+            _model.StartsAt, _model.EndsAt, _model.IsActive
+        };
+
+        var result = _editingId is null
+            ? await Api.PostAsync<AdminCouponModel>("admin/coupons", payload)
+            : await Api.PutAsync<AdminCouponModel>($"admin/coupons/{_editingId}", payload);
+
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_editingId is null ? "کد تخفیف ایجاد شد." : "کد تخفیف ویرایش شد.");
+            _formOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminCouponModel c) { _target = c; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/coupons/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success("کد تخفیف حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

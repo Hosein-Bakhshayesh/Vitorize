@@ -1,0 +1,200 @@
+@page "/admin/wallets"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="کیف پول‌ها" Subtitle="مدیریت موجودی و تراکنش‌های کیف پول کاربران"
+            Icon="wallet" Breadcrumbs="@(new(){ ("کیف پول‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="نام یا موبایل کاربر ..." @bind="_search" @bind:event="oninput" @bind:after="() => _page = 1" />
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Filtered.Count == 0) { <EmptyState Title="کیف پولی یافت نشد" Icon="wallet" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>کاربر</th><th>موجودی</th><th>تاریخ ایجاد</th><th>آخرین بروزرسانی</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var w in Paged)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        <span class="vz-avatar-sm">@Initial(w.UserFullName)</span>
+                                        <div>
+                                            <div class="vz-cell-title">@w.UserFullName</div>
+                                            <div class="vz-cell-sub vz-mono">@w.UserMobile</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="font-weight:700"><MoneyDisplay Amount="w.Balance" /></td>
+                                <td><PersianDateDisplay Value="w.CreatedAt" /></td>
+                                <td><PersianDateDisplay Value="w.UpdatedAt" WithTime="true" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(w)"><Icon Name="eye" Size="15" /> مدیریت</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="@($"کیف پول {_current?.UserFullName}")" Icon="wallet" Size="lg" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_current is not null)
+        {
+            <div class="vz-card" style="background:var(--admin-primary-soft);border:none;margin-bottom:18px">
+                <div class="vz-card__body vz-spread">
+                    <div>
+                        <div class="vz-muted" style="font-size:12px">موجودی فعلی</div>
+                        <div style="font-size:26px;font-weight:700;color:var(--admin-primary-strong)"><MoneyDisplay Amount="_current.Balance" /></div>
+                    </div>
+                    <Icon Name="wallet" Size="40" />
+                </div>
+            </div>
+
+            <div class="vz-form-grid">
+                <div class="vz-field">
+                    <label class="vz-label">مبلغ</label>
+                    <div class="vz-input-group">
+                        <input class="vz-input" type="number" @bind="_amount" />
+                        <span class="suffix">تومان</span>
+                    </div>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">توضیحات</label>
+                    <input class="vz-input" @bind="_desc" placeholder="بابت ..." />
+                </div>
+                <div class="vz-field span-2" style="display:flex;gap:10px">
+                    <button class="vz-btn vz-btn--success" style="flex:1" @onclick="Charge" disabled="@_acting"><Icon Name="plus" Size="16" /> شارژ کیف پول</button>
+                    <button class="vz-btn vz-btn--danger-soft" style="flex:1" @onclick="Withdraw" disabled="@_acting"><Icon Name="arrow-left" Size="16" /> برداشت</button>
+                </div>
+            </div>
+
+            <div class="vz-divider"></div>
+            <div class="vz-card__title" style="margin-bottom:12px">تراکنش‌های اخیر</div>
+            @if (_loadingTx) { <LoadingState Text="در حال دریافت تراکنش‌ها ..." /> }
+            else if (_transactions.Count == 0) { <EmptyState Title="تراکنشی ثبت نشده" Icon="activity" /> }
+            else
+            {
+                <div class="vz-table-wrap">
+                    <table class="vz-table">
+                        <thead><tr><th>نوع</th><th>مبلغ</th><th>موجودی بعد</th><th>توضیحات</th><th>تاریخ</th></tr></thead>
+                        <tbody>
+                            @foreach (var t in _transactions)
+                            {
+                                var credit = t.Type == (byte)WalletTransactionType.Credit;
+                                <tr>
+                                    <td><StatusBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" /></td>
+                                    <td style="color:@(credit ? "var(--success)" : "var(--danger)");font-weight:700">@(credit ? "+" : "−")<MoneyDisplay Amount="t.Amount" ShowUnit="false" /></td>
+                                    <td><MoneyDisplay Amount="t.BalanceAfter" /></td>
+                                    <td class="vz-muted">@(string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description)</td>
+                                    <td><PersianDateDisplay Value="t.CreatedAt" WithTime="true" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<WalletModel> _items = new();
+
+    private string _search = string.Empty;
+    private int _page = 1;
+    private const int _pageSize = 12;
+
+    private bool _open, _acting, _loadingTx;
+    private WalletModel? _current;
+    private List<WalletTransactionModel> _transactions = new();
+    private decimal _amount;
+    private string _desc = string.Empty;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<WalletModel>>("admin/wallets?page=1&pageSize=500");
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<WalletModel> Filtered => _items
+        .Where(w => string.IsNullOrWhiteSpace(_search)
+            || w.UserFullName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || w.UserMobile.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(w => w.Balance)
+        .ToList();
+
+    private List<WalletModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+
+    private static string Initial(string n) => string.IsNullOrWhiteSpace(n) ? "؟" : n.Trim()[..1];
+
+    private async Task Open(WalletModel w)
+    {
+        _current = w; _amount = 0; _desc = string.Empty; _open = true;
+        await LoadTransactions();
+    }
+
+    private async Task LoadTransactions()
+    {
+        if (_current is null) return;
+        _loadingTx = true;
+        var r = await Api.GetAsync<List<WalletTransactionModel>>($"admin/wallets/{_current.UserId}/transactions");
+        _transactions = r.Data ?? new();
+        _loadingTx = false;
+    }
+
+    private async Task Charge() => await Move("charge", "کیف پول شارژ شد.");
+    private async Task Withdraw() => await Move("withdraw", "برداشت انجام شد.");
+
+    private async Task Move(string action, string success)
+    {
+        if (_current is null) return;
+        if (_amount <= 0) { Toasts.Error("مبلغ باید بیشتر از صفر باشد."); return; }
+
+        _acting = true;
+        var r = await Api.PostAsync<WalletModel>($"admin/wallets/{action}",
+            new { UserId = _current.UserId, Amount = _amount, Description = _desc });
+        _acting = false;
+
+        if (r.IsSuccess && r.Data is not null)
+        {
+            Toasts.Success(success);
+            _current.Balance = r.Data.Balance;
+            _amount = 0; _desc = string.Empty;
+            await LoadTransactions();
+            await Load();
+        }
+        else Toasts.Error(r.Message);
+    }
+}

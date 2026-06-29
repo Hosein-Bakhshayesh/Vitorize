@@ -1,0 +1,110 @@
+@page "/admin/login"
+@layout BlankLayout
+@inject NavigationManager Nav
+
+<div class="vz-login">
+    <div class="vz-login__hero">
+        <div class="vz-login__brand">
+            <div class="mark">V</div>
+            <div>
+                <div style="font-size:24px;font-weight:700;letter-spacing:1px">VITORIZE</div>
+                <div style="opacity:.8;font-size:12px">بازارگاه دیجیتال گیمینگ و خدمات آنلاین</div>
+            </div>
+        </div>
+
+        <div class="vz-login__headline">
+            پنل مدیریت هوشمند<br />فروشگاه دیجیتال شما
+        </div>
+        <p class="vz-login__desc">
+            مدیریت محصولات، سفارش‌ها، کاربران، پرداخت‌ها و گزارش‌ها در یک داشبورد یکپارچه،
+            سریع و امن.
+        </p>
+
+        <div class="vz-login__features">
+            <div class="vz-login__feature">
+                <span class="ic"><Icon Name="shield-check" Size="18" /></span> اتصال امن و رمزگذاری‌شده
+            </div>
+            <div class="vz-login__feature">
+                <span class="ic"><Icon Name="activity" Size="18" /></span> گزارش‌های لحظه‌ای
+            </div>
+            <div class="vz-login__feature">
+                <span class="ic"><Icon Name="package-check" Size="18" /></span> مدیریت کامل سفارش‌ها
+            </div>
+        </div>
+    </div>
+
+    <div class="vz-login__panel">
+        <div class="vz-login__card">
+            <div class="vz-confirm-icon primary" style="margin:0 auto 14px">
+                <Icon Name="shield" Size="24" />
+            </div>
+            <h1 class="vz-login__title">ورود به پنل مدیریت</h1>
+            <p class="vz-login__subtitle">برای دسترسی به داشبورد، وارد حساب کاربری خود شوید.</p>
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="vz-toast error" style="margin-bottom:18px">
+                    <span class="vz-toast__icon"><Icon Name="x-circle" Size="18" /></span>
+                    <div class="vz-toast__body">@_error</div>
+                </div>
+            }
+
+            <form method="post" action="/admin/auth/login" class="vz-stack" style="gap:18px">
+                <input type="hidden" name="returnUrl" value="@_returnUrl" />
+
+                <div class="vz-field">
+                    <label class="vz-label">شماره موبایل</label>
+                    <div class="vz-input-group">
+                        <input class="vz-input" name="mobile" inputmode="tel" autocomplete="username"
+                               placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹" required />
+                    </div>
+                </div>
+
+                <div class="vz-field">
+                    <label class="vz-label">رمز عبور</label>
+                    <div class="vz-input-group">
+                        <input class="vz-input" name="password" type="@(_showPass ? "text" : "password")"
+                               autocomplete="current-password" placeholder="رمز عبور خود را وارد کنید"
+                               style="padding-inline-start:44px" required />
+                        <button type="button" class="vz-iconaction" style="position:absolute;inset-inline-start:6px;border:none;background:none"
+                                @onclick="() => _showPass = !_showPass" tabindex="-1">
+                            <Icon Name="eye" Size="17" />
+                        </button>
+                    </div>
+                </div>
+
+                <label class="vz-switch">
+                    <input type="checkbox" name="rememberMe" value="true" />
+                    <span class="vz-switch__track"></span>
+                    <span class="vz-switch__label">مرا به خاطر بسپار</span>
+                </label>
+
+                <button type="submit" class="vz-btn vz-btn--primary vz-btn--block" style="height:48px">
+                    <Icon Name="logout" Size="18" /> ورود به پنل مدیریت
+                </button>
+            </form>
+
+            <div class="vz-chip" style="margin-top:22px;width:100%;justify-content:center;background:var(--admin-primary-soft);color:var(--admin-primary-strong);border:none">
+                <Icon Name="lock" Size="14" /> دسترسی فقط برای پرسنل مجاز می‌باشد
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _error;
+    private string _returnUrl = string.Empty;
+    private bool _showPass;
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("error", out var error))
+            _error = error.ToString();
+
+        if (query.TryGetValue("returnUrl", out var returnUrl))
+            _returnUrl = returnUrl.ToString();
+    }
+}

@@ -1,0 +1,45 @@
+<div class="vz-page-head">
+    <div>
+        @if (Breadcrumbs is { Count: > 0 })
+        {
+            <div class="vz-breadcrumb">
+                <a href="admin">داشبورد</a>
+                @foreach (var crumb in Breadcrumbs)
+                {
+                    <span class="sep"><Icon Name="chevron-left" Size="13" /></span>
+                    @if (!string.IsNullOrEmpty(crumb.Href))
+                    {
+                        <a href="@crumb.Href">@crumb.Title</a>
+                    }
+                    else
+                    {
+                        <span>@crumb.Title</span>
+                    }
+                }
+            </div>
+        }
+        <div style="display:flex;align-items:center;gap:13px">
+            <div class="vz-page-head__icon"><Icon Name="@Icon" Size="24" /></div>
+            <div>
+                <h1 class="vz-page-head__title">@Title</h1>
+                @if (!string.IsNullOrWhiteSpace(Subtitle))
+                {
+                    <div class="vz-page-head__sub">@Subtitle</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (Actions is not null)
+    {
+        <div class="vz-page-head__actions">@Actions</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string Icon { get; set; } = "box";
+    [Parameter] public List<(string Title, string? Href)>? Breadcrumbs { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

@@ -1,189 +1,164 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Vitorize.Shared.Common;
-using Vitorize.Web.Constants;
+using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Services
 {
+    /// <summary>
+    /// کلاینت ارتباط با APIهای بک‌اند ویتورایز.
+    /// آدرس پایه شامل /api/ است؛ پس مسیرها به‌صورت admin/... ارسال می‌شوند.
+    /// تمام خطاها به پیام فارسی کاربرپسند تبدیل می‌شوند.
+    /// </summary>
     public class ApiClient
     {
         private readonly HttpClient _httpClient;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IAccessTokenProvider _tokenProvider;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public ApiClient(
-            HttpClient httpClient,
-            IHttpContextAccessor httpContextAccessor)
+        public ApiClient(HttpClient httpClient, IAccessTokenProvider tokenProvider)
         {
             _httpClient = httpClient;
-            _httpContextAccessor = httpContextAccessor;
+            _tokenProvider = tokenProvider;
         }
 
-        public async Task<ApiResult<T>> GetAsync<T>(string url)
-        {
-            AddBearerToken();
+        public Task<ApiResult<T>> GetAsync<T>(string url) =>
+            SendAsync<T>(HttpMethod.Get, url, null);
 
-            var response = await _httpClient.GetAsync(url);
+        public Task<ApiResult<T>> PostAsync<T>(string url, object? data = null) =>
+            SendAsync<T>(HttpMethod.Post, url, data);
 
-            TrackAdminApiAuthFailure(response);
+        public Task<ApiResult<T>> PutAsync<T>(string url, object? data = null) =>
+            SendAsync<T>(HttpMethod.Put, url, data);
 
-            var json = await response.Content.ReadAsStringAsync();
+        public Task<ApiResult> PostAsync(string url, object? data = null) =>
+            SendAsync(HttpMethod.Post, url, data);
 
-            return Deserialize<ApiResult<T>>(json, response);
-        }
+        public Task<ApiResult> PutAsync(string url, object? data = null) =>
+            SendAsync(HttpMethod.Put, url, data);
 
-        public async Task<ApiResult<T>> PostAsync<T>(string url, object? data = null)
-        {
-            AddBearerToken();
+        public Task<ApiResult> DeleteAsync(string url) =>
+            SendAsync(HttpMethod.Delete, url, null);
 
-            var content = CreateJsonContent(data);
-            var response = await _httpClient.PostAsync(url, content);
-
-            TrackAdminApiAuthFailure(response);
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            return Deserialize<ApiResult<T>>(json, response);
-        }
-
-        public async Task<ApiResult<T>> PutAsync<T>(string url, object? data = null)
-        {
-            AddBearerToken();
-
-            var content = CreateJsonContent(data);
-            var response = await _httpClient.PutAsync(url, content);
-
-            TrackAdminApiAuthFailure(response);
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            return Deserialize<ApiResult<T>>(json, response);
-        }
-
-        public async Task<ApiResult> DeleteAsync(string url)
-        {
-            AddBearerToken();
-
-            var response = await _httpClient.DeleteAsync(url);
-
-            TrackAdminApiAuthFailure(response);
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            return Deserialize<ApiResult>(json, response);
-        }
-
-        public async Task<ApiResult<T>> UploadFileAsync<T>(
+        public async Task<ApiResult<T>> UploadAsync<T>(
             string url,
-            IFormFile file,
+            Stream fileStream,
+            string fileName,
+            string contentType,
             string fieldName = "file")
         {
-            AddBearerToken();
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                await ApplyAuthAsync(request);
 
-            using var content = new MultipartFormDataContent();
+                using var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(fileStream);
 
-            await using var stream = file.OpenReadStream();
+                if (!string.IsNullOrWhiteSpace(contentType))
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
 
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType =
-                new MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, fieldName, fileName);
+                request.Content = content;
 
-            content.Add(fileContent, fieldName, file.FileName);
+                using var response = await _httpClient.SendAsync(request);
+                var json = await response.Content.ReadAsStringAsync();
 
-            var response = await _httpClient.PostAsync(url, content);
-
-            TrackAdminApiAuthFailure(response);
-
-            var json = await response.Content.ReadAsStringAsync();
-
-            return Deserialize<ApiResult<T>>(json, response);
+                return Deserialize<ApiResult<T>>(json, response);
+            }
+            catch (Exception)
+            {
+                return ApiResult<T>.Failure(ConnectionErrorMessage);
+            }
         }
 
-        private void AddBearerToken()
+        private async Task<ApiResult<T>> SendAsync<T>(
+            HttpMethod method,
+            string url,
+            object? data)
         {
-            var httpContext = _httpContextAccessor.HttpContext;
-
-            var token =
-                httpContext?.Request.Cookies["Vitorize.Admin.AccessToken"] ??
-                httpContext?.Request.Cookies["Vitorize.Customer.AccessToken"] ??
-                httpContext?.Request.Cookies["Vitorize.AccessToken"];
-
-            if (string.IsNullOrWhiteSpace(token))
+            try
             {
-                token = httpContext?
-                    .User
-                    .FindFirst("access_token")
-                    ?.Value;
+                using var request = BuildRequest(method, url, data);
+                await ApplyAuthAsync(request);
+
+                using var response = await _httpClient.SendAsync(request);
+                var json = await response.Content.ReadAsStringAsync();
+
+                return Deserialize<ApiResult<T>>(json, response);
+            }
+            catch (Exception)
+            {
+                return ApiResult<T>.Failure(ConnectionErrorMessage);
+            }
+        }
+
+        private async Task<ApiResult> SendAsync(
+            HttpMethod method,
+            string url,
+            object? data)
+        {
+            try
+            {
+                using var request = BuildRequest(method, url, data);
+                await ApplyAuthAsync(request);
+
+                using var response = await _httpClient.SendAsync(request);
+                var json = await response.Content.ReadAsStringAsync();
+
+                return Deserialize<ApiResult>(json, response);
+            }
+            catch (Exception)
+            {
+                return ApiResult.Failure(ConnectionErrorMessage);
+            }
+        }
+
+        private static HttpRequestMessage BuildRequest(
+            HttpMethod method,
+            string url,
+            object? data)
+        {
+            var request = new HttpRequestMessage(method, url);
+
+            if (data != null && method != HttpMethod.Get && method != HttpMethod.Delete)
+            {
+                var json = JsonSerializer.Serialize(data);
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
-            _httpClient.DefaultRequestHeaders.Authorization = null;
+            return request;
+        }
+
+        private async Task ApplyAuthAsync(HttpRequestMessage request)
+        {
+            var token = await _tokenProvider.GetAccessTokenAsync();
 
             if (!string.IsNullOrWhiteSpace(token))
             {
-                _httpClient.DefaultRequestHeaders.Authorization =
+                request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
             }
         }
 
-        private void TrackAdminApiAuthFailure(HttpResponseMessage response)
-        {
-            var httpContext = _httpContextAccessor.HttpContext;
+        private const string ConnectionErrorMessage =
+            "امکان برقراری ارتباط با سرور وجود ندارد. لطفاً اتصال خود را بررسی کرده و دوباره تلاش کنید.";
 
-            if (httpContext == null)
-                return;
-
-            if (!ShouldTrackAdminApiAuth(httpContext))
-                return;
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                httpContext.Items[AdminApiAuthItems.Unauthorized] = true;
-                return;
-            }
-
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                httpContext.Items[AdminApiAuthItems.Forbidden] = true;
-            }
-        }
-
-        private static bool ShouldTrackAdminApiAuth(HttpContext httpContext)
-        {
-            var path = httpContext.Request.Path.Value ?? string.Empty;
-
-            if (!path.StartsWith("/Admin", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            if (path.StartsWith("/Admin/Auth", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            return true;
-        }
-
-        private static StringContent CreateJsonContent(object? data)
-        {
-            var json = JsonSerializer.Serialize(data ?? new { });
-
-            return new StringContent(
-                json,
-                Encoding.UTF8,
-                "application/json");
-        }
-
-        private static T Deserialize<T>(
-            string json,
-            HttpResponseMessage response)
+        private static T Deserialize<T>(string json, HttpResponseMessage response)
         {
             if (string.IsNullOrWhiteSpace(json))
             {
-                return CreateFailure<T>(
-                    $"پاسخ API خالی است. StatusCode: {(int)response.StatusCode} - {response.ReasonPhrase}");
+                if (response.StatusCode == HttpStatusCode.Unauthorized ||
+                    response.StatusCode == HttpStatusCode.Forbidden)
+                    return CreateFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
+
+                return CreateFailure<T>("پاسخی از سرور دریافت نشد. لطفاً دوباره تلاش کنید.");
             }
 
             try
@@ -191,47 +166,42 @@ namespace Vitorize.Web.Services
                 var result = JsonSerializer.Deserialize<T>(json, JsonOptions);
 
                 if (result == null)
-                {
-                    return CreateFailure<T>(
-                        $"پاسخ API قابل خواندن نیست. StatusCode: {(int)response.StatusCode} - {response.ReasonPhrase}");
-                }
+                    return CreateFailure<T>("پاسخ سرور قابل پردازش نیست. لطفاً دوباره تلاش کنید.");
 
                 return result;
             }
             catch
             {
-                return CreateFailure<T>(
-                    $"پاسخ API معتبر نیست. StatusCode: {(int)response.StatusCode} - {response.ReasonPhrase}");
+                if (response.StatusCode == HttpStatusCode.Unauthorized ||
+                    response.StatusCode == HttpStatusCode.Forbidden)
+                    return CreateFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
+
+                return CreateFailure<T>("پاسخ سرور قابل پردازش نیست. لطفاً دوباره تلاش کنید.");
             }
         }
 
         private static T CreateFailure<T>(string message)
         {
             if (typeof(T) == typeof(ApiResult))
-            {
                 return (T)(object)ApiResult.Failure(message);
-            }
 
             if (typeof(T).IsGenericType &&
                 typeof(T).GetGenericTypeDefinition() == typeof(ApiResult<>))
             {
                 var dataType = typeof(T).GetGenericArguments()[0];
-
                 var apiResultType = typeof(ApiResult<>).MakeGenericType(dataType);
 
                 var failureMethod = apiResultType.GetMethod(
                     "Failure",
                     new[] { typeof(string), typeof(List<string>) });
 
-                if (failureMethod == null)
-                    throw new Exception(message);
-
-                return (T)failureMethod.Invoke(
-                    null,
-                    new object?[] { message, null })!;
+                if (failureMethod != null)
+                {
+                    return (T)failureMethod.Invoke(null, new object?[] { message, null })!;
+                }
             }
 
-            throw new Exception(message);
+            return Activator.CreateInstance<T>();
         }
     }
 }

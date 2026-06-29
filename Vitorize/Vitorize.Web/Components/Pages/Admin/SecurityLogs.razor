@@ -1,0 +1,92 @@
+@page "/admin/security-logs"
+@inject ApiClient Api
+
+<PageHeader Title="لاگ امنیتی" Subtitle="رویدادهای امنیتی و ورود به سیستم"
+            Icon="shield" Breadcrumbs="@(new(){ ("لاگ امنیتی", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="نوع رویداد یا کاربر ..." @bind="_search" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">نتیجه</label>
+            <select class="vz-select" @bind="_result">
+                <option value="">همه</option>
+                <option value="true">موفق</option>
+                <option value="false">ناموفق</option>
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">بازه تاریخ</label>
+            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+        </div>
+        <div class="vz-field" style="align-self:end">
+            <button class="vz-btn vz-btn--primary" @onclick="Load"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Paged.Count == 0) { <EmptyState Title="رکوردی یافت نشد" Icon="shield" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>رویداد</th><th>کاربر</th><th>توضیحات</th><th>IP</th><th>نتیجه</th><th>تاریخ</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in Paged)
+                        {
+                            <tr>
+                                <td><span class="vz-chip">@l.EventType</span></td>
+                                <td>@(string.IsNullOrWhiteSpace(l.UserFullName) ? "—" : l.UserFullName)</td>
+                                <td class="vz-muted">@(string.IsNullOrWhiteSpace(l.Description) ? "—" : l.Description)</td>
+                                <td class="vz-mono">@(string.IsNullOrWhiteSpace(l.IpAddress) ? "—" : l.IpAddress)</td>
+                                <td><StatusBadge Text="@(l.IsSuccessful ? "موفق" : "ناموفق")" Intent="@(l.IsSuccessful ? "success" : "danger")" /></td>
+                                <td><PersianDateDisplay Value="l.CreatedAt" WithTime="true" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+        }
+    </div>
+</div>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminSecurityLogModel> _items = new();
+    private string _search = string.Empty, _result = string.Empty;
+    private DateTime? _from, _to;
+    private int _page = 1;
+    private const int _pageSize = 20;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; _page = 1;
+        var query = "admin/security-logs?page=1&pageSize=500";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (!string.IsNullOrWhiteSpace(_result)) query += $"&isSuccessful={_result}";
+        if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
+        if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
+
+        var r = await Api.GetAsync<List<AdminSecurityLogModel>>(query);
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<AdminSecurityLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+}

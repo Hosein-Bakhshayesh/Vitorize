@@ -1,0 +1,88 @@
+@page "/admin/settings"
+@inject ApiClient Api
+@inject ToastService Toasts
+
+<PageHeader Title="تنظیمات سیستم" Subtitle="پیکربندی پارامترهای فروشگاه"
+            Icon="settings" Breadcrumbs="@(new(){ ("تنظیمات", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+@if (_loading) { <LoadingState /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+else if (_groups.Count == 0) { <EmptyState Title="تنظیماتی ثبت نشده است" Icon="settings" /> }
+else
+{
+    <div class="vz-stack">
+        @foreach (var group in _groups)
+        {
+            <div class="vz-card">
+                <div class="vz-card__head">
+                    <Icon Name="settings" Size="18" />
+                    <div><div class="vz-card__title">@(string.IsNullOrWhiteSpace(group.Title) ? group.GroupName : group.Title)</div></div>
+                </div>
+                <div class="vz-card__body">
+                    <div class="vz-stack" style="gap:14px">
+                        @foreach (var s in Items(group))
+                        {
+                            <div class="vz-spread" style="gap:16px">
+                                <div style="flex:1">
+                                    <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
+                                    <div class="vz-hint vz-mono">@s.Key</div>
+                                </div>
+                                <div style="flex:1;display:flex;gap:8px">
+                                    @if (string.Equals(s.ValueType, "bool", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <label class="vz-switch">
+                                            <input type="checkbox" checked="@IsTrue(s.Value)" @onchange='e => s.Value = ((bool)e.Value! ? "true" : "false")' />
+                                            <span class="vz-switch__track"></span>
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        <input class="vz-input" @bind="s.Value" />
+                                    }
+                                    <button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="() => Save(s)" disabled="@_saving">
+                                        <Icon Name="save" Size="14" /> ذخیره
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="vz-divider" style="margin:0"></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true, _saving;
+    private string? _error;
+    private List<SettingGroupModel> _groups = new();
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<SettingGroupModel>>("admin/settings");
+        if (r.IsSuccess && r.Data is not null) _groups = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private static List<SettingModel> Items(SettingGroupModel g) => g.Settings.Count > 0 ? g.Settings : g.Items;
+    private static bool IsTrue(string? v) => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || v == "1";
+
+    private async Task Save(SettingModel s)
+    {
+        _saving = true;
+        var r = await Api.PostAsync<SettingModel>("admin/settings",
+            new { s.Key, s.Value, s.GroupName, s.ValueType, s.Description });
+        _saving = false;
+        if (r.IsSuccess) Toasts.Success("تنظیمات ذخیره شد.");
+        else Toasts.Error(r.Message);
+    }
+}

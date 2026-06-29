@@ -1,0 +1,144 @@
+@page "/admin/payments"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="پرداخت‌ها" Subtitle="تراکنش‌های پرداخت سفارش‌ها"
+            Icon="credit-card" Breadcrumbs="@(new(){ ("پرداخت‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="() => Load()"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="شماره سفارش، مشتری، کد رهگیری ..." @bind="_search" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_status">
+                <option value="">همه</option>
+                <option value="1">در انتظار</option>
+                <option value="2">پرداخت شده</option>
+                <option value="3">ناموفق</option>
+                <option value="4">لغو شده</option>
+                <option value="5">بازگشت وجه</option>
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">بازه تاریخ</label>
+            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+        </div>
+        <div class="vz-field" style="align-self:end">
+            <button class="vz-btn vz-btn--primary" @onclick="() => Load()"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="() => Load()" /> }
+        else if (Paged.Count == 0) { <EmptyState Title="پرداختی یافت نشد" Icon="credit-card" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>شماره سفارش</th><th>مشتری</th><th>مبلغ</th><th>درگاه</th><th>کد رهگیری</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in Paged)
+                        {
+                            <tr>
+                                <td><span class="vz-chip vz-mono">@p.OrderNumber</span></td>
+                                <td>
+                                    <div class="vz-cell-title">@p.UserFullName</div>
+                                    <div class="vz-cell-sub vz-mono">@p.UserMobile</div>
+                                </td>
+                                <td><MoneyDisplay Amount="p.Amount" /></td>
+                                <td>@(string.IsNullOrWhiteSpace(p.Gateway) ? "—" : p.Gateway)</td>
+                                <td class="vz-mono" style="font-size:12px">@(string.IsNullOrWhiteSpace(p.GatewayTrackingCode) ? "—" : p.GatewayTrackingCode)</td>
+                                <td><StatusBadge Text="@AUI.PaymentStatus(p.Status)" Intent="@AUI.StatusBadgeIntent(p.Status, "payment")" /></td>
+                                <td><PersianDateDisplay Value="p.RequestedAt" WithTime="true" /></td>
+                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => OpenDetails(p.Id)"><Icon Name="eye" Size="16" /></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_detailOpen" Title="جزئیات پرداخت" Icon="credit-card" OnClose="() => _detailOpen = false">
+    <ChildContent>
+        @if (_detail is not null)
+        {
+            var d = _detail;
+            <dl class="vz-deflist">
+                <dt>شماره سفارش</dt><dd class="vz-mono">@d.OrderNumber</dd>
+                <dt>مشتری</dt><dd>@d.UserFullName (@d.UserMobile)</dd>
+                <dt>مبلغ</dt><dd><MoneyDisplay Amount="d.Amount" /></dd>
+                <dt>درگاه</dt><dd>@d.Gateway</dd>
+                <dt>وضعیت</dt><dd><StatusBadge Text="@AUI.PaymentStatus(d.Status)" Intent="@AUI.StatusBadgeIntent(d.Status, "payment")" /></dd>
+                <dt>کد رهگیری درگاه</dt><dd class="vz-mono">@(d.GatewayTrackingCode ?? "—")</dd>
+                <dt>شناسه تراکنش</dt><dd class="vz-mono">@(d.TransactionId ?? "—")</dd>
+                <dt>شماره مرجع</dt><dd class="vz-mono">@(d.ReferenceNumber ?? "—")</dd>
+                <dt>تأیید بازگشت</dt><dd>@(d.CallbackVerified ? "بله" : "خیر")</dd>
+                <dt>زمان درخواست</dt><dd><PersianDateDisplay Value="d.RequestedAt" WithTime="true" /></dd>
+                <dt>زمان تأیید</dt><dd><PersianDateDisplay Value="d.VerifiedAt" WithTime="true" /></dd>
+                @if (!string.IsNullOrWhiteSpace(d.ErrorMessage))
+                {
+                    <dt>پیام خطا</dt><dd style="color:var(--danger)">@d.ErrorMessage</dd>
+                }
+            </dl>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _detailOpen = false">بستن</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminPaymentModel> _items = new();
+
+    private string _search = string.Empty, _status = string.Empty;
+    private DateTime? _from, _to;
+
+    private int _page = 1;
+    private const int _pageSize = 12;
+
+    private bool _detailOpen;
+    private AdminPaymentModel? _detail;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; _page = 1;
+        var query = $"admin/payments?page=1&pageSize=500";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (!string.IsNullOrWhiteSpace(_status)) query += $"&status={_status}";
+        if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
+        if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
+
+        var r = await Api.GetAsync<List<AdminPaymentModel>>(query);
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<AdminPaymentModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+
+    private async Task OpenDetails(Guid id)
+    {
+        _detail = _items.FirstOrDefault(p => p.Id == id);
+        _detailOpen = true;
+        var r = await Api.GetAsync<AdminPaymentModel>($"admin/payments/{id}");
+        if (r.IsSuccess && r.Data is not null) { _detail = r.Data; StateHasChanged(); }
+    }
+}

@@ -1,0 +1,39 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+<div class="vz-toasts">
+    @foreach (var toast in Toasts.Messages.ToArray())
+    {
+        <div class="vz-toast @LevelClass(toast.Level)" @key="toast.Id">
+            <span class="vz-toast__icon"><Icon Name="@LevelIcon(toast.Level)" Size="18" /></span>
+            <div class="vz-toast__body">@toast.Text</div>
+            <button class="vz-toast__close" @onclick="() => Toasts.Remove(toast)">
+                <Icon Name="x" Size="15" />
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.OnChange += OnChange;
+
+    private async void OnChange() => await InvokeAsync(StateHasChanged);
+
+    private static string LevelClass(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "success",
+        ToastLevel.Error => "error",
+        ToastLevel.Warning => "warning",
+        _ => "info"
+    };
+
+    private static string LevelIcon(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "check-circle",
+        ToastLevel.Error => "x-circle",
+        ToastLevel.Warning => "alert",
+        _ => "bell"
+    };
+
+    public void Dispose() => Toasts.OnChange -= OnChange;
+}

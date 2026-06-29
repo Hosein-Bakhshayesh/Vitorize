@@ -1,0 +1,158 @@
+@page "/admin/notifications"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="اعلان‌ها" Subtitle="اعلان‌های سیستمی و ارسال پیام به کاربران"
+            Icon="bell" Breadcrumbs="@(new(){ ("اعلان‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenSend"><Icon Name="send" Size="17" /> ارسال اعلان</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="عنوان، متن یا کاربر ..." @bind="_search" @bind:event="oninput" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_readFilter">
+                <option value="all">همه</option>
+                <option value="unread">خوانده‌نشده</option>
+                <option value="read">خوانده‌شده</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Filtered.Count == 0) { <EmptyState Title="اعلانی یافت نشد" Icon="bell" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>عنوان</th><th>کاربر</th><th>نوع</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var n in Filtered)
+                        {
+                            <tr style="@(n.IsRead ? "" : "background:var(--admin-primary-soft)")">
+                                <td>
+                                    <div class="vz-cell-title">@n.Title</div>
+                                    <div class="vz-cell-sub">@AUI.ShortText(n.Message, 70)</div>
+                                </td>
+                                <td>@n.UserFullName</td>
+                                <td><span class="vz-chip">@AUI.NotificationType(n.Type)</span></td>
+                                <td><StatusBadge Text="@(n.IsRead ? "خوانده‌شده" : "خوانده‌نشده")" Intent="@(n.IsRead ? "muted" : "info")" /></td>
+                                <td><PersianDateDisplay Value="n.CreatedAt" WithTime="true" /></td>
+                                <td class="col-actions">
+                                    @if (!n.IsRead)
+                                    { <button class="vz-iconaction" title="علامت‌گذاری به‌عنوان خوانده‌شده" @onclick="() => MarkRead(n)"><Icon Name="check" Size="16" /></button> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_sendOpen" Title="ارسال اعلان به کاربر" Icon="send" OnClose="() => _sendOpen = false">
+    <ChildContent>
+        <div class="vz-form-grid one">
+            <div class="vz-field">
+                <label class="vz-label">کاربر گیرنده <span class="req">*</span></label>
+                <select class="vz-select" value="@(_sendUserId == Guid.Empty ? "" : _sendUserId.ToString())"
+                        @onchange="e => _sendUserId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
+                    <option value="">— انتخاب کاربر —</option>
+                    @foreach (var u in _users) { <option value="@u.Id">@u.FullName — @u.Mobile</option> }
+                </select>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">عنوان <span class="req">*</span></label>
+                <input class="vz-input" @bind="_sendTitle" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">متن پیام <span class="req">*</span></label>
+                <textarea class="vz-textarea" @bind="_sendMessage"></textarea>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _sendOpen = false" disabled="@_sending">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="DoSend" disabled="@_sending">
+            @if (_sending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال اعلان</span> }
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminNotificationModel> _items = new();
+
+    private string _search = string.Empty, _readFilter = "all";
+
+    private List<AdminUserModel> _users = new();
+    private bool _sendOpen, _sending;
+    private Guid _sendUserId;
+    private string _sendTitle = string.Empty, _sendMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+        var u = await Api.GetAsync<PagedResult<AdminUserModel>>("admin/users?page=1&pageSize=300");
+        _users = u.Data?.Items.ToList() ?? new();
+    }
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<AdminNotificationModel>>("admin/notifications?page=1&pageSize=500");
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<AdminNotificationModel> Filtered => _items
+        .Where(n => string.IsNullOrWhiteSpace(_search)
+            || n.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || n.Message.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (n.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(n => _readFilter switch { "read" => n.IsRead, "unread" => !n.IsRead, _ => true })
+        .OrderByDescending(n => n.CreatedAt)
+        .ToList();
+
+    private async Task MarkRead(AdminNotificationModel n)
+    {
+        var r = await Api.PostAsync($"admin/notifications/{n.Id}/read");
+        if (r.IsSuccess) { n.IsRead = true; Toasts.Success("اعلان خوانده شد."); }
+        else Toasts.Error(r.Message);
+    }
+
+    private void OpenSend()
+    {
+        _sendUserId = Guid.Empty; _sendTitle = string.Empty; _sendMessage = string.Empty;
+        _sendOpen = true;
+    }
+
+    private async Task DoSend()
+    {
+        if (_sendUserId == Guid.Empty) { Toasts.Error("انتخاب کاربر الزامی است."); return; }
+        if (string.IsNullOrWhiteSpace(_sendTitle) || string.IsNullOrWhiteSpace(_sendMessage)) { Toasts.Error("عنوان و متن پیام الزامی است."); return; }
+
+        _sending = true;
+        var r = await Api.PostAsync("admin/notifications/send",
+            new { UserId = _sendUserId, Title = _sendTitle, Message = _sendMessage });
+        _sending = false;
+
+        if (r.IsSuccess) { Toasts.Success("اعلان برای کاربر ارسال شد."); _sendOpen = false; await Load(); }
+        else Toasts.Error(r.Message);
+    }
+}

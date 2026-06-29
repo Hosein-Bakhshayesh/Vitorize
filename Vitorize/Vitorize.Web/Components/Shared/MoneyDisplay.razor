@@ -1,0 +1,21 @@
+<span class="vz-mono">@Display</span>
+
+@code {
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public decimal? NullableAmount { get; set; }
+    [Parameter] public byte Currency { get; set; } = (byte)CurrencyType.Toman;
+    [Parameter] public bool ShowUnit { get; set; } = true;
+    [Parameter] public bool PersianDigits { get; set; } = true;
+
+    private string Display
+    {
+        get
+        {
+            var value = NullableAmount ?? Amount;
+            var unit = Currency == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+            var number = value.ToString("#,0");
+            if (PersianDigits) number = PersianDateHelper.ToPersianDigits(number);
+            return ShowUnit ? $"{number} {unit}" : number;
+        }
+    }
+}

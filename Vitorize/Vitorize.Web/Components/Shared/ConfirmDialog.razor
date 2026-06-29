@@ -1,0 +1,55 @@
+@if (Visible)
+{
+    <div class="vz-overlay" @onclick="CancelAsync">
+        <div class="vz-dialog sm" @onclick:stopPropagation="true">
+            <div class="vz-dialog__body" style="text-align:center">
+                <div class="vz-confirm-icon @Intent" style="margin:0 auto 16px">
+                    <Icon Name="@Icon" Size="26" />
+                </div>
+                <h3 style="font-size:17px;margin-bottom:8px">@Title</h3>
+                <p class="vz-muted" style="font-size:13.5px">@Message</p>
+            </div>
+            <div class="vz-dialog__foot" style="justify-content:center">
+                <button class="vz-btn vz-btn--outline" @onclick="CancelAsync" disabled="@Busy">
+                    @CancelText
+                </button>
+                <button class="vz-btn @ConfirmClass" @onclick="ConfirmAsync" disabled="@Busy">
+                    @if (Busy)
+                    {
+                        <span class="vz-spinner sm"></span>
+                    }
+                    else
+                    {
+                        @ConfirmText
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string Title { get; set; } = "آیا مطمئن هستید؟";
+    [Parameter] public string Message { get; set; } = "این عملیات قابل بازگشت نیست.";
+    [Parameter] public string ConfirmText { get; set; } = "تأیید و انجام";
+    [Parameter] public string CancelText { get; set; } = "انصراف";
+    [Parameter] public string Intent { get; set; } = "danger";
+    [Parameter] public string Icon { get; set; } = "alert";
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string ConfirmClass => Intent switch
+    {
+        "danger" => "vz-btn--danger",
+        "warning" => "vz-btn--primary",
+        _ => "vz-btn--primary"
+    };
+
+    private async Task ConfirmAsync() => await OnConfirm.InvokeAsync();
+    private async Task CancelAsync()
+    {
+        if (!Busy) await OnCancel.InvokeAsync();
+    }
+}

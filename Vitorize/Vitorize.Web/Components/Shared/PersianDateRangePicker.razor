@@ -1,0 +1,27 @@
+<div class="vz-row" style="gap:10px">
+    <div style="flex:1">
+        <PersianDatePicker Value="From" ValueChanged="OnFromChanged" Placeholder="از تاریخ" />
+    </div>
+    <div style="flex:1">
+        <PersianDatePicker Value="To" ValueChanged="OnToChanged" Placeholder="تا تاریخ" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public EventCallback<DateTime?> FromChanged { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToChanged { get; set; }
+
+    private async Task OnFromChanged(DateTime? value)
+    {
+        From = value;
+        await FromChanged.InvokeAsync(value);
+    }
+
+    private async Task OnToChanged(DateTime? value)
+    {
+        To = value;
+        await ToChanged.InvokeAsync(value);
+    }
+}

@@ -1,0 +1,148 @@
+<div class="vz-datepicker">
+    <div class="vz-input vz-datepicker__field" @onclick="Toggle" tabindex="0">
+        <span class="ico"><Icon Name="calendar" Size="17" /></span>
+        <span style="flex:1">@(HasValue ? PersianDateHelper.ToShortDate(Value) : Placeholder)</span>
+        @if (HasValue)
+        {
+            <button type="button" class="vz-iconaction" style="width:26px;height:26px;border:none;background:none"
+                    @onclick="ClearAsync" @onclick:stopPropagation="true" title="پاک کردن">
+                <Icon Name="x" Size="14" />
+            </button>
+        }
+    </div>
+
+    @if (_open)
+    {
+        <div style="position:fixed;inset:0;z-index:115" @onclick="Close"></div>
+        <div class="vz-cal" @onclick:stopPropagation="true">
+            <div class="vz-cal__head">
+                <button type="button" class="vz-cal__nav" @onclick="PrevMonth"><Icon Name="chevron-right" Size="16" /></button>
+                <div class="vz-cal__title">@MonthTitle</div>
+                <button type="button" class="vz-cal__nav" @onclick="NextMonth"><Icon Name="chevron-left" Size="16" /></button>
+            </div>
+
+            <div class="vz-cal__grid">
+                @foreach (var d in PersianDateHelper.WeekDayShortNames)
+                {
+                    <div class="vz-cal__dow">@d</div>
+                }
+                @for (var i = 0; i < _firstDow; i++)
+                {
+                    <span class="vz-cal__day empty"></span>
+                }
+                @for (var day = 1; day <= _daysInMonth; day++)
+                {
+                    var d = day;
+                    <button type="button" class="vz-cal__day @(IsSelected(d) ? "selected" : "") @(IsToday(d) ? "today" : "")"
+                            @onclick="() => SelectDay(d)">
+                        @PersianDateHelper.ToPersianDigits(d.ToString())
+                    </button>
+                }
+            </div>
+
+            <div class="vz-cal__foot">
+                <button type="button" @onclick="SelectToday">امروز</button>
+                <button type="button" class="clear" @onclick="ClearAsync">پاک کردن</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "انتخاب تاریخ";
+
+    private bool _open;
+    private int _viewYear;
+    private int _viewMonth;
+    private int _firstDow;
+    private int _daysInMonth;
+
+    private bool HasValue => PersianDateHelper.IsValid(Value);
+    private string MonthTitle =>
+        $"{PersianDateHelper.MonthNames[_viewMonth - 1]} {PersianDateHelper.ToPersianDigits(_viewYear.ToString())}";
+
+    protected override void OnInitialized() => InitView();
+
+    private void InitView()
+    {
+        var parts = PersianDateHelper.ToJalaliParts(Value);
+        if (parts is { } p)
+        {
+            _viewYear = p.Year;
+            _viewMonth = p.Month;
+        }
+        else
+        {
+            var today = PersianDateHelper.Today();
+            _viewYear = today.Year;
+            _viewMonth = today.Month;
+        }
+        RecomputeMonth();
+    }
+
+    private void RecomputeMonth()
+    {
+        _daysInMonth = PersianDateHelper.DaysInMonth(_viewYear, _viewMonth);
+        _firstDow = PersianDateHelper.PersianDayOfWeek(_viewYear, _viewMonth, 1);
+    }
+
+    private void Toggle()
+    {
+        _open = !_open;
+        if (_open) InitView();
+    }
+
+    private void Close() => _open = false;
+
+    private void PrevMonth()
+    {
+        _viewMonth--;
+        if (_viewMonth < 1) { _viewMonth = 12; _viewYear--; }
+        RecomputeMonth();
+    }
+
+    private void NextMonth()
+    {
+        _viewMonth++;
+        if (_viewMonth > 12) { _viewMonth = 1; _viewYear++; }
+        RecomputeMonth();
+    }
+
+    private bool IsSelected(int day)
+    {
+        var parts = PersianDateHelper.ToJalaliParts(Value);
+        return parts is { } p && p.Year == _viewYear && p.Month == _viewMonth && p.Day == day;
+    }
+
+    private bool IsToday(int day)
+    {
+        var today = PersianDateHelper.Today();
+        return today.Year == _viewYear && today.Month == _viewMonth && today.Day == day;
+    }
+
+    private async Task SelectDay(int day)
+    {
+        var date = PersianDateHelper.ToGregorian(_viewYear, _viewMonth, day);
+        Value = date;
+        _open = false;
+        await ValueChanged.InvokeAsync(date);
+    }
+
+    private async Task SelectToday()
+    {
+        var today = PersianDateHelper.Today();
+        _viewYear = today.Year;
+        _viewMonth = today.Month;
+        RecomputeMonth();
+        await SelectDay(today.Day);
+    }
+
+    private async Task ClearAsync()
+    {
+        Value = null;
+        _open = false;
+        await ValueChanged.InvokeAsync(null);
+    }
+}

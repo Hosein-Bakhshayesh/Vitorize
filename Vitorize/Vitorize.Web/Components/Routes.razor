@@ -1,0 +1,35 @@
+@using Vitorize.Web.Components.Account
+@using Vitorize.Web.Components.Layout
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(AdminLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <LayoutView Layout="typeof(BlankLayout)">
+                        <AccessDenied />
+                    </LayoutView>
+                }
+            </NotAuthorized>
+            <Authorizing>
+                <LayoutView Layout="typeof(BlankLayout)">
+                    <div class="vz-splash">
+                        <div class="vz-splash-mark">V</div>
+                        <div class="vz-spinner"></div>
+                    </div>
+                </LayoutView>
+            </Authorizing>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(BlankLayout)">
+            <NotFoundView />
+        </LayoutView>
+    </NotFound>
+</Router>

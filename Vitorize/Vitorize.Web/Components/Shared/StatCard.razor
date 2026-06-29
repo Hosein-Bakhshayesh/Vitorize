@@ -1,0 +1,32 @@
+<div class="vz-stat">
+    <div class="vz-stat__top">
+        <span class="vz-stat__label">@Label</span>
+        <span class="vz-stat__icon @Accent"><Icon Name="@Icon" Size="22" /></span>
+    </div>
+    <div class="vz-stat__value">@Value</div>
+    @if (!string.IsNullOrWhiteSpace(Foot) || Trend is not null)
+    {
+        <div class="vz-stat__foot">
+            @if (Trend is not null)
+            {
+                <span class="vz-trend @(TrendUp ? "up" : "down")">
+                    @(TrendUp ? "▲" : "▼") @Trend
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Foot))
+            {
+                <span>@Foot</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = "-";
+    [Parameter] public string Icon { get; set; } = "box";
+    [Parameter] public string Accent { get; set; } = "teal";
+    [Parameter] public string? Trend { get; set; }
+    [Parameter] public bool TrendUp { get; set; } = true;
+    [Parameter] public string? Foot { get; set; }
+}

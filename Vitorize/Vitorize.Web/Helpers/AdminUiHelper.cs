@@ -15,6 +15,22 @@ namespace Vitorize.Web.Helpers
             return $"{value:N0} {unit}";
         }
 
+        public static string MoneyFa(
+            decimal value,
+            byte currencyType = (byte)Vitorize.Shared.Enums.CurrencyType.Toman)
+        {
+            var unit = currencyType == (byte)Vitorize.Shared.Enums.CurrencyType.Rial
+                ? "ریال"
+                : "تومان";
+
+            return PersianDateHelper.ToPersianDigits(value.ToString("#,0")) + " " + unit;
+        }
+
+        public static string Number(long value)
+        {
+            return PersianDateHelper.ToPersianDigits(value.ToString("#,0"));
+        }
+
         public static string Date(DateTime? value)
         {
             return value.HasValue

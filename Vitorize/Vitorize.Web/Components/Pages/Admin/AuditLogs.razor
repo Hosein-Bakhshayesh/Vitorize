@@ -1,0 +1,113 @@
+@page "/admin/audit-logs"
+@inject ApiClient Api
+@inject ToastService Toasts
+
+<PageHeader Title="لاگ عملیات" Subtitle="ثبت تغییرات و عملیات انجام‌شده در سیستم"
+            Icon="file-text" Breadcrumbs="@(new(){ ("لاگ عملیات", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="نوع عملیات، موجودیت یا کاربر ..." @bind="_search" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">بازه تاریخ</label>
+            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+        </div>
+        <div class="vz-field" style="align-self:end">
+            <button class="vz-btn vz-btn--primary" @onclick="Load"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (Paged.Count == 0) { <EmptyState Title="رکوردی یافت نشد" Icon="file-text" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>عملیات</th><th>موجودیت</th><th>کاربر</th><th>IP</th><th>تاریخ</th><th class="col-actions">جزئیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in Paged)
+                        {
+                            <tr>
+                                <td><span class="vz-chip">@l.ActionType</span></td>
+                                <td>@l.EntityName <span class="vz-mono vz-muted" style="font-size:11px">@l.EntityId</span></td>
+                                <td>@(string.IsNullOrWhiteSpace(l.UserFullName) ? "—" : l.UserFullName)</td>
+                                <td class="vz-mono">@(string.IsNullOrWhiteSpace(l.IpAddress) ? "—" : l.IpAddress)</td>
+                                <td><PersianDateDisplay Value="l.CreatedAt" WithTime="true" /></td>
+                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => Open(l)"><Icon Name="eye" Size="16" /></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="جزئیات عملیات" Icon="file-text" Size="lg" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_current is not null)
+        {
+            <dl class="vz-deflist">
+                <dt>نوع عملیات</dt><dd>@_current.ActionType</dd>
+                <dt>موجودیت</dt><dd>@_current.EntityName</dd>
+                <dt>شناسه</dt><dd class="vz-mono">@_current.EntityId</dd>
+                <dt>کاربر</dt><dd>@_current.UserFullName</dd>
+                <dt>آدرس IP</dt><dd class="vz-mono">@_current.IpAddress</dd>
+                <dt>مرورگر</dt><dd style="font-size:11px">@_current.UserAgent</dd>
+                <dt>تاریخ</dt><dd><PersianDateDisplay Value="_current.CreatedAt" WithTime="true" /></dd>
+            </dl>
+            @if (!string.IsNullOrWhiteSpace(_current.Data))
+            {
+                <div class="vz-divider"></div>
+                <div class="vz-label">اطلاعات</div>
+                <pre style="background:var(--surface-2);padding:14px;border-radius:10px;overflow:auto;font-size:12px;direction:ltr;text-align:left">@_current.Data</pre>
+            }
+        }
+    </ChildContent>
+    <Footer><button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button></Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminAuditLogModel> _items = new();
+    private string _search = string.Empty;
+    private DateTime? _from, _to;
+    private int _page = 1;
+    private const int _pageSize = 20;
+
+    private bool _open;
+    private AdminAuditLogModel? _current;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; _page = 1;
+        var query = "admin/audit-logs?page=1&pageSize=500";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
+        if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
+
+        var r = await Api.GetAsync<List<AdminAuditLogModel>>(query);
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private List<AdminAuditLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+
+    private void Open(AdminAuditLogModel l) { _current = l; _open = true; }
+}

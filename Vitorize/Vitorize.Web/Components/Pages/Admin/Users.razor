@@ -1,0 +1,236 @@
+@page "/admin/users"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت کاربران" Subtitle="کاربران فروشگاه را مدیریت و بررسی کنید"
+            Icon="users" Breadcrumbs="@(new(){ ("کاربران", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="() => Load(1)"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="نام، موبایل یا ایمیل ..." @bind="_search" @onkeyup="OnSearchKey" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت حساب</label>
+            <select class="vz-select" @bind="_status" @bind:after="() => Load(1)">
+                <option value="">همه</option>
+                <option value="1">فعال</option>
+                <option value="0">غیرفعال</option>
+                <option value="2">معلق</option>
+                <option value="3">مسدود</option>
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">احراز هویت</label>
+            <select class="vz-select" @bind="_verification" @bind:after="() => Load(1)">
+                <option value="">همه</option>
+                <option value="0">در انتظار</option>
+                <option value="1">تأیید شده</option>
+                <option value="2">رد شده</option>
+            </select>
+        </div>
+        <div class="vz-field" style="align-self:end">
+            <button class="vz-btn vz-btn--primary" @onclick="() => Load(1)"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="() => Load(_page)" /> }
+        else if (_items.Count == 0) { <EmptyState Title="کاربری یافت نشد" Icon="users" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>کاربر</th><th>موبایل</th><th>وضعیت</th><th>احراز هویت</th><th>کیف پول</th><th>سفارش‌ها</th><th>عضویت</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var u in _items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        @if (!string.IsNullOrWhiteSpace(u.AvatarPath))
+                                        { <img class="vz-thumb" style="border-radius:50%" src="@Media.Resolve(u.AvatarPath)" alt="" /> }
+                                        else { <span class="vz-avatar-sm">@Initial(u.FullName)</span> }
+                                        <div>
+                                            <div class="vz-cell-title">@u.FullName</div>
+                                            <div class="vz-cell-sub">@(string.IsNullOrWhiteSpace(u.Email) ? "—" : u.Email)</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="vz-mono">@u.Mobile</td>
+                                <td><StatusBadge Text="@AUI.UserStatus(u.Status)" Intent="@AUI.StatusBadgeIntent(u.Status, "user")" /></td>
+                                <td><StatusBadge Text="@AUI.VerificationStatus(u.VerificationStatus)" Intent="@AUI.StatusBadgeIntent(u.VerificationStatus, "verify")" /></td>
+                                <td><MoneyDisplay Amount="u.WalletBalance" /></td>
+                                <td class="num">@AUI.Number(u.OrdersCount)</td>
+                                <td><PersianDateDisplay Value="u.CreatedAt" /></td>
+                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => Open(u.Id)"><Icon Name="eye" Size="16" /></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="Load" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="پروفایل کاربر" Icon="user" Size="lg" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_loadingDetail) { <LoadingState /> }
+        else if (_detail is not null)
+        {
+            var u = _detail;
+            <div class="vz-row" style="gap:16px;align-items:center;margin-bottom:18px">
+                @if (!string.IsNullOrWhiteSpace(u.AvatarPath))
+                { <img src="@Media.Resolve(u.AvatarPath)" style="width:64px;height:64px;border-radius:16px;object-fit:cover" alt="" /> }
+                else { <div class="vz-page-head__icon" style="width:64px;height:64px;font-size:24px;font-weight:700">@Initial(u.FullName)</div> }
+                <div>
+                    <div style="font-size:18px;font-weight:700">@u.FullName</div>
+                    <div class="vz-muted vz-mono">@u.Mobile</div>
+                </div>
+                <div style="margin-inline-start:auto">
+                    <StatusBadge Text="@AUI.UserStatus(u.Status)" Intent="@AUI.StatusBadgeIntent(u.Status, "user")" />
+                </div>
+            </div>
+
+            <div class="vz-row" style="gap:14px;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px">
+                    <dl class="vz-deflist">
+                        <dt>ایمیل</dt><dd>@(string.IsNullOrWhiteSpace(u.Email) ? "—" : u.Email)</dd>
+                        <dt>کد ملی</dt><dd class="vz-mono">@(string.IsNullOrWhiteSpace(u.NationalCode) ? "—" : u.NationalCode)</dd>
+                        <dt>احراز هویت</dt><dd><StatusBadge Text="@AUI.VerificationStatus(u.VerificationStatus)" Intent="@AUI.StatusBadgeIntent(u.VerificationStatus, "verify")" /></dd>
+                        <dt>موبایل تأییدشده</dt><dd>@(u.IsMobileConfirmed ? "بله" : "خیر")</dd>
+                    </dl>
+                </div>
+                <div style="flex:1;min-width:220px">
+                    <dl class="vz-deflist">
+                        <dt>موجودی کیف پول</dt><dd><MoneyDisplay Amount="u.WalletBalance" /></dd>
+                        <dt>تعداد سفارش</dt><dd>@AUI.Number(u.OrdersCount)</dd>
+                        <dt>آخرین ورود</dt><dd><PersianDateDisplay Value="u.LastLoginAt" WithTime="true" /></dd>
+                        <dt>تاریخ عضویت</dt><dd><PersianDateDisplay Value="u.CreatedAt" /></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="vz-divider"></div>
+            <div class="vz-spread" style="margin-bottom:10px">
+                <div class="vz-card__title">نقش‌های کاربر</div>
+                <div style="display:flex;gap:8px">
+                    <select class="vz-select" style="min-height:36px;height:36px" @bind="_roleToAdd">
+                        <option value="">— انتخاب نقش —</option>
+                        @foreach (var role in _roles)
+                        { <option value="@role.Name">@(string.IsNullOrWhiteSpace(role.DisplayName) ? role.Name : role.DisplayName)</option> }
+                    </select>
+                    <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="AddRole" disabled="@_acting"><Icon Name="plus" Size="14" /> افزودن</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                @foreach (var role in (u.RoleNames.Count > 0 ? u.RoleNames : u.Roles))
+                {
+                    <span class="vz-chip">@role <button class="vz-iconaction" style="width:20px;height:20px;border:none;background:none" @onclick="() => RemoveRole(role)"><Icon Name="x" Size="12" /></button></span>
+                }
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        @if (_detail is not null)
+        {
+            <button class="vz-btn vz-btn--success" @onclick='() => ChangeStatus("activate", "کاربر فعال شد.")' disabled="@_acting">فعال‌سازی</button>
+            <button class="vz-btn vz-btn--outline" @onclick='() => ChangeStatus("suspend", "کاربر معلق شد.")' disabled="@_acting">تعلیق</button>
+            <button class="vz-btn vz-btn--danger" @onclick='() => ChangeStatus("block", "کاربر مسدود شد.")' disabled="@_acting">مسدودسازی</button>
+        }
+        <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminUserModel> _items = new();
+    private int _page = 1, _total;
+    private const int _pageSize = 15;
+
+    private string _search = string.Empty, _status = string.Empty, _verification = string.Empty;
+
+    private bool _open, _loadingDetail, _acting;
+    private AdminUserDetailModel? _detail;
+    private List<AdminRoleModel> _roles = new();
+    private string _roleToAdd = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load(1);
+        var roles = await Api.GetAsync<List<AdminRoleModel>>("admin/roles");
+        _roles = roles.Data ?? new();
+    }
+
+    private async Task OnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Load(1);
+    }
+
+    private async Task Load(int page)
+    {
+        _loading = true; _error = null; _page = page;
+        var query = $"admin/users?page={page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (!string.IsNullOrWhiteSpace(_status)) query += $"&status={_status}";
+        if (!string.IsNullOrWhiteSpace(_verification)) query += $"&verificationStatus={_verification}";
+
+        var r = await Api.GetAsync<PagedResult<AdminUserModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private static string Initial(string n) => string.IsNullOrWhiteSpace(n) ? "؟" : n.Trim()[..1];
+
+    private async Task Open(Guid id)
+    {
+        _open = true; _loadingDetail = true; _detail = null; _roleToAdd = string.Empty;
+        var r = await Api.GetAsync<AdminUserDetailModel>($"admin/users/{id}");
+        if (r.IsSuccess && r.Data is not null) _detail = r.Data;
+        else { Toasts.Error(r.Message); _open = false; }
+        _loadingDetail = false;
+    }
+
+    private async Task ChangeStatus(string action, string success)
+    {
+        if (_detail is null) return;
+        _acting = true;
+        var r = await Api.PostAsync($"admin/users/{_detail.Id}/{action}");
+        _acting = false;
+        if (r.IsSuccess) { Toasts.Success(success); await Open(_detail.Id); await Load(_page); }
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task AddRole()
+    {
+        if (_detail is null || string.IsNullOrWhiteSpace(_roleToAdd)) return;
+        _acting = true;
+        var r = await Api.PostAsync($"admin/users/{_detail.Id}/roles/add", new { RoleName = _roleToAdd });
+        _acting = false;
+        if (r.IsSuccess) { Toasts.Success("نقش اضافه شد."); await Open(_detail.Id); }
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task RemoveRole(string role)
+    {
+        if (_detail is null) return;
+        _acting = true;
+        var r = await Api.PostAsync($"admin/users/{_detail.Id}/roles/remove", new { RoleName = role });
+        _acting = false;
+        if (r.IsSuccess) { Toasts.Success("نقش حذف شد."); await Open(_detail.Id); }
+        else Toasts.Error(r.Message);
+    }
+}

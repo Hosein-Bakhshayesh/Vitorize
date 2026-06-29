@@ -1,0 +1,22 @@
+<div class="vz-state">
+    <div class="vz-state__icon" style="background:var(--danger-soft);color:var(--danger)">
+        <Icon Name="alert" Size="30" />
+    </div>
+    <div class="vz-state__title">@Title</div>
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="vz-state__text">@Message</div>
+    }
+    @if (OnRetry.HasDelegate)
+    {
+        <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="OnRetry">
+            <Icon Name="refresh" Size="16" /> تلاش مجدد
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "خطا در دریافت اطلاعات";
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+}

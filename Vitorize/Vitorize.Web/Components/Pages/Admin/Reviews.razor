@@ -1,0 +1,200 @@
+@page "/admin/reviews"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="نظرات محصولات" Subtitle="بررسی، تأیید و مدیریت نظرات کاربران"
+            Icon="star" Breadcrumbs="@(new(){ ("نظرات", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="() => Load(_page)"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-filterbar">
+    <div class="vz-filterbar__row">
+        <div class="vz-field">
+            <label class="vz-label">جستجو</label>
+            <input class="vz-input" placeholder="متن نظر یا محصول ..." @bind="_search" @onkeyup="OnKey" />
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">وضعیت</label>
+            <select class="vz-select" @bind="_status" @bind:after="() => Load(1)">
+                <option value="all">همه</option>
+                <option value="pending">در انتظار بررسی</option>
+                <option value="approved">تأیید شده</option>
+                <option value="rejected">رد شده</option>
+            </select>
+        </div>
+        <div class="vz-field">
+            <label class="vz-label">امتیاز</label>
+            <select class="vz-select" @bind="_rating" @bind:after="() => Load(1)">
+                <option value="">همه</option>
+                <option value="5">۵ ستاره</option>
+                <option value="4">۴ ستاره</option>
+                <option value="3">۳ ستاره</option>
+                <option value="2">۲ ستاره</option>
+                <option value="1">۱ ستاره</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="() => Load(_page)" /> }
+        else if (_items.Count == 0) { <EmptyState Title="نظری یافت نشد" Icon="star" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>محصول</th><th>کاربر</th><th>امتیاز</th><th>نظر</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in _items)
+                        {
+                            <tr>
+                                <td class="vz-cell-title">@r.ProductTitle</td>
+                                <td>
+                                    <div>@r.UserFullName @if (r.IsBuyer) { <span class="vz-chip">خریدار</span> }</div>
+                                </td>
+                                <td><span class="vz-stars">@AUI.Stars(r.Rating)</span></td>
+                                <td style="max-width:280px">
+                                    @if (!string.IsNullOrWhiteSpace(r.Title)) { <div class="vz-cell-title">@r.Title</div> }
+                                    <div class="vz-cell-sub">@AUI.ShortText(r.Comment, 80)</div>
+                                </td>
+                                <td><StatusBadge Text="@AUI.ReviewStatusText(r.IsApproved, r.IsRejected)" Intent="@AUI.ReviewStatusIntent(r.IsApproved, r.IsRejected)" /></td>
+                                <td><PersianDateDisplay Value="r.CreatedAt" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="مشاهده" @onclick="() => Open(r)"><Icon Name="eye" Size="16" /></button>
+                                    @if (!r.IsApproved)
+                                    { <button class="vz-iconaction" title="تأیید" @onclick="() => Approve(r)"><Icon Name="check" Size="16" /></button> }
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(r)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="Load" />
+        }
+    </div>
+</div>
+
+<Modal Visible="_open" Title="جزئیات نظر" Icon="star" OnClose="() => _open = false">
+    <ChildContent>
+        @if (_current is not null)
+        {
+            var r = _current;
+            <dl class="vz-deflist">
+                <dt>محصول</dt><dd>@r.ProductTitle</dd>
+                <dt>کاربر</dt><dd>@r.UserFullName</dd>
+                <dt>امتیاز</dt><dd><span class="vz-stars">@AUI.Stars(r.Rating)</span></dd>
+                <dt>عنوان</dt><dd>@(string.IsNullOrWhiteSpace(r.Title) ? "—" : r.Title)</dd>
+                <dt>وضعیت</dt><dd><StatusBadge Text="@AUI.ReviewStatusText(r.IsApproved, r.IsRejected)" Intent="@AUI.ReviewStatusIntent(r.IsApproved, r.IsRejected)" /></dd>
+                <dt>پسند/ناپسند</dt><dd>@AUI.Number(r.LikeCount) / @AUI.Number(r.DislikeCount)</dd>
+                <dt>تاریخ</dt><dd><PersianDateDisplay Value="r.CreatedAt" WithTime="true" /></dd>
+            </dl>
+            <div class="vz-divider"></div>
+            <div style="font-size:13px;line-height:2">@r.Comment</div>
+            @if (r.IsRejected && !string.IsNullOrWhiteSpace(r.RejectionReason))
+            {
+                <div class="vz-divider"></div>
+                <div class="vz-muted">دلیل رد: @r.RejectionReason</div>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        @if (_current is not null && !_current.IsApproved)
+        { <button class="vz-btn vz-btn--success" @onclick="() => Approve(_current)" disabled="@_acting">تأیید نظر</button> }
+        @if (_current is not null && !_current.IsRejected)
+        { <button class="vz-btn vz-btn--danger-soft" @onclick="OpenReject" disabled="@_acting">رد نظر</button> }
+        <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
+    </Footer>
+</Modal>
+
+<Modal Visible="_rejectOpen" Title="رد نظر" Icon="x-circle" Size="sm" OnClose="() => _rejectOpen = false">
+    <ChildContent>
+        <div class="vz-field">
+            <label class="vz-label">دلیل رد نظر <span class="req">*</span></label>
+            <textarea class="vz-textarea" @bind="_rejectReason" placeholder="دلیل رد را وارد کنید"></textarea>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _rejectOpen = false" disabled="@_acting">انصراف</button>
+        <button class="vz-btn vz-btn--danger" @onclick="DoReject" disabled="@_acting">تأیید رد</button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف نظر"
+               Message="آیا از حذف این نظر مطمئن هستید؟" ConfirmText="حذف" Busy="_acting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminProductReviewModel> _items = new();
+    private int _page = 1, _total;
+    private const int _pageSize = 15;
+
+    private string _search = string.Empty, _status = "all", _rating = string.Empty;
+
+    private bool _open, _rejectOpen, _confirmDelete, _acting;
+    private AdminProductReviewModel? _current;
+    private string _rejectReason = string.Empty;
+
+    protected override Task OnInitializedAsync() => Load(1);
+
+    private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await Load(1); }
+
+    private async Task Load(int page)
+    {
+        _loading = true; _error = null; _page = page;
+        var query = $"admin/product-reviews?page={page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (!string.IsNullOrWhiteSpace(_rating)) query += $"&rating={_rating}";
+        if (_status == "approved") query += "&isApproved=true";
+        else if (_status == "rejected") query += "&isRejected=true";
+        else if (_status == "pending") query += "&isApproved=false&isRejected=false";
+
+        var r = await Api.GetAsync<PagedResult<AdminProductReviewModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
+        else _error = r.Message;
+        _loading = false;
+    }
+
+    private void Open(AdminProductReviewModel r) { _current = r; _open = true; }
+
+    private async Task Approve(AdminProductReviewModel r)
+    {
+        _acting = true;
+        var result = await Api.PostAsync<AdminProductReviewModel>($"admin/product-reviews/{r.Id}/approve");
+        _acting = false;
+        if (result.IsSuccess) { Toasts.Success("نظر تأیید شد."); _open = false; await Load(_page); }
+        else Toasts.Error(result.Message);
+    }
+
+    private void OpenReject() { _rejectReason = string.Empty; _rejectOpen = true; }
+
+    private async Task DoReject()
+    {
+        if (_current is null) return;
+        if (string.IsNullOrWhiteSpace(_rejectReason)) { Toasts.Error("ذکر دلیل رد الزامی است."); return; }
+        _acting = true;
+        var result = await Api.PostAsync<AdminProductReviewModel>($"admin/product-reviews/{_current.Id}/reject", new { Reason = _rejectReason });
+        _acting = false;
+        if (result.IsSuccess) { Toasts.Success("نظر رد شد."); _rejectOpen = false; _open = false; await Load(_page); }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminProductReviewModel r) { _current = r; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_current is null) return;
+        _acting = true;
+        var result = await Api.DeleteAsync($"admin/product-reviews/{_current.Id}");
+        _acting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success("نظر حذف شد."); await Load(_page); }
+        else Toasts.Error(result.Message);
+    }
+}

@@ -1,0 +1,165 @@
+@page "/admin"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="داشبورد مدیریت" Subtitle="نمای کلی عملکرد فروشگاه ویتورایز" Icon="dashboard">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load">
+            <Icon Name="refresh" Size="17" /> بروزرسانی
+        </button>
+        <a class="vz-btn vz-btn--primary" href="admin/products">
+            <Icon Name="box" Size="17" /> مدیریت محصولات
+        </a>
+    </Actions>
+</PageHeader>
+
+@if (_loading)
+{
+    <LoadingState Text="در حال دریافت اطلاعات داشبورد ..." />
+}
+else if (_error is not null)
+{
+    <ErrorState Message="@_error" OnRetry="Load" />
+}
+else if (_data is not null)
+{
+    var s = _data.Summary;
+
+    <div class="vz-stats">
+        <StatCard Label="کاربران" Value="@AUI.Number(s.TotalUsers)" Icon="users" Accent="blue"
+                  Trend="@AUI.Number(s.NewUsersToday)" TrendUp="true" Foot="ثبت‌نام امروز" />
+        <StatCard Label="سفارش‌ها" Value="@AUI.Number(s.TotalOrders)" Icon="cart" Accent="teal"
+                  Trend="@AUI.Number(s.OrdersToday)" TrendUp="true" Foot="سفارش امروز" />
+        <StatCard Label="درآمد امروز" Value="@AUI.MoneyFa(s.RevenueToday)" Icon="trending-up" Accent="green" />
+        <StatCard Label="درآمد این ماه" Value="@AUI.MoneyFa(s.RevenueThisMonth)" Icon="bar-chart" Accent="purple" />
+        <StatCard Label="موجودی کیف پول‌ها" Value="@AUI.MoneyFa(s.TotalWalletBalance)" Icon="wallet" Accent="teal" />
+        <StatCard Label="تیکت‌های در انتظار" Value="@AUI.Number(s.PendingTickets)" Icon="message" Accent="orange" />
+        <StatCard Label="احراز هویت در انتظار" Value="@AUI.Number(s.PendingVerifications)" Icon="user-check" Accent="orange" />
+        <StatCard Label="کدهای گیفت موجود" Value="@AUI.Number(s.AvailableGiftCodes)" Icon="gift" Accent="green" />
+    </div>
+
+    <div class="vz-grid-2">
+        <div class="vz-stack">
+            <div class="vz-card">
+                <div class="vz-card__head">
+                    <Icon Name="trending-up" Size="18" />
+                    <div><div class="vz-card__title">فروش ۷ روز اخیر</div></div>
+                </div>
+                <div class="vz-card__body">
+                    @if (_data.SalesLast7Days.Count == 0)
+                    {
+                        <EmptyState Title="داده‌ای برای نمایش نیست" Icon="bar-chart" />
+                    }
+                    else
+                    {
+                        var max = _data.SalesLast7Days.Max(x => x.Value);
+                        <div style="display:flex;align-items:flex-end;gap:14px;height:200px;padding-top:10px">
+                            @foreach (var point in _data.SalesLast7Days)
+                            {
+                                var h = max > 0 ? (int)(point.Value / max * 160) + 6 : 6;
+                                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%">
+                                    <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+                                        <div title="@AUI.MoneyFa(point.Value)" style="width:100%;height:@(h)px;border-radius:8px 8px 4px 4px;background:var(--admin-primary-grad)"></div>
+                                    </div>
+                                    <span class="vz-muted" style="font-size:11px">
+                                        <PersianDateDisplay Value="point.Date" />
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="vz-card">
+                <div class="vz-card__head">
+                    <Icon Name="box" Size="18" />
+                    <div><div class="vz-card__title">پرفروش‌ترین محصولات</div></div>
+                    <div class="right"><a class="vz-btn vz-btn--ghost vz-btn--sm" href="admin/products">همه محصولات</a></div>
+                </div>
+                <div class="vz-card__body flush">
+                    @if (_data.TopProducts.Count == 0)
+                    {
+                        <EmptyState Title="فروشی ثبت نشده است" Icon="box" />
+                    }
+                    else
+                    {
+                        <div class="vz-table-wrap">
+                            <table class="vz-table">
+                                <thead>
+                                    <tr><th>محصول</th><th>تعداد فروش</th><th>درآمد</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var p in _data.TopProducts)
+                                    {
+                                        <tr>
+                                            <td class="vz-cell-title">@p.ProductTitle</td>
+                                            <td class="num">@AUI.Number(p.TotalSold)</td>
+                                            <td class="num">@AUI.MoneyFa(p.Revenue)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="vz-stack">
+            <StatusBreakdownCard Title="وضعیت سفارش‌ها" Icon="cart"
+                                 Items="OrderStatusItems()" />
+            <StatusBreakdownCard Title="وضعیت پرداخت‌ها" Icon="credit-card"
+                                 Items="PaymentStatusItems()" />
+            <StatusBreakdownCard Title="وضعیت کدهای گیفت" Icon="gift"
+                                 Items="GiftCodeStatusItems()" />
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private AdminDashboardModel? _data;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        _error = null;
+
+        var result = await Api.GetAsync<AdminDashboardModel>("admin/dashboard");
+
+        if (result.IsSuccess && result.Data is not null)
+            _data = result.Data;
+        else
+            _error = result.Message;
+
+        _loading = false;
+    }
+
+    private List<StatusBreakdownCard.Item> OrderStatusItems() =>
+        _data!.OrderStatusCounts
+            .Select(x => new StatusBreakdownCard.Item(
+                AUI.OrderStatus(x.Status),
+                AUI.StatusBadgeIntent(x.Status, "order"),
+                x.Count))
+            .ToList();
+
+    private List<StatusBreakdownCard.Item> PaymentStatusItems() =>
+        _data!.PaymentStatusCounts
+            .Select(x => new StatusBreakdownCard.Item(
+                AUI.PaymentStatus(x.Status),
+                AUI.StatusBadgeIntent(x.Status, "payment"),
+                x.Count))
+            .ToList();
+
+    private List<StatusBreakdownCard.Item> GiftCodeStatusItems() =>
+        _data!.GiftCodeStatusCounts
+            .Select(x => new StatusBreakdownCard.Item(
+                AUI.GiftCodeStatus(x.Status),
+                "muted",
+                x.Count))
+            .ToList();
+}

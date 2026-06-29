@@ -1,0 +1,59 @@
+@page "/admin/roles"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="نقش‌ها و دسترسی‌ها" Subtitle="نقش‌های تعریف‌شده در سیستم (فقط مشاهده)"
+            Icon="key" Breadcrumbs="@(new(){ ("نقش‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (_items.Count == 0) { <EmptyState Title="نقشی یافت نشد" Icon="key" /> }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead><tr><th>نقش</th><th>نام سیستمی</th><th>تعداد کاربر</th><th>تاریخ ایجاد</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in _items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        <span class="vz-page-head__icon" style="width:38px;height:38px;border-radius:10px"><Icon Name="shield" Size="18" /></span>
+                                        <span class="vz-cell-title">@(string.IsNullOrWhiteSpace(r.DisplayName) ? r.Name : r.DisplayName)</span>
+                                    </div>
+                                </td>
+                                <td><span class="vz-chip vz-mono">@r.Name</span></td>
+                                <td class="num">@AUI.Number(r.UsersCount)</td>
+                                <td><PersianDateDisplay Value="r.CreatedAt" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminRoleModel> _items = new();
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var r = await Api.GetAsync<List<AdminRoleModel>>("admin/roles");
+        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        else _error = r.Message;
+        _loading = false;
+    }
+}

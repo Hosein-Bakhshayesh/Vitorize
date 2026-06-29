@@ -1,0 +1,32 @@
+<div class="vz-card">
+    <div class="vz-card__head">
+        <Icon Name="@Icon" Size="18" />
+        <div><div class="vz-card__title">@Title</div></div>
+    </div>
+    <div class="vz-card__body">
+        @if (Items is null || Items.Count == 0)
+        {
+            <div class="vz-muted" style="text-align:center;padding:14px">موردی ثبت نشده است.</div>
+        }
+        else
+        {
+            <div class="vz-stack" style="gap:12px">
+                @foreach (var item in Items)
+                {
+                    <div class="vz-spread">
+                        <StatusBadge Text="@item.Label" Intent="@item.Intent" />
+                        <span class="vz-mono" style="font-weight:700">@AdminUiHelper.Number(item.Count)</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = "activity";
+    [Parameter] public List<Item>? Items { get; set; }
+
+    public record Item(string Label, string Intent, int Count);
+}
