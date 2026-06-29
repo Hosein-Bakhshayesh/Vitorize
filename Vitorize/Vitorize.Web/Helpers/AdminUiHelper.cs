@@ -406,5 +406,35 @@ namespace Vitorize.Web.Helpers
                 _ => "muted"
             };
         }
+
+        public static string ReviewStatusText(bool isApproved, bool isRejected)
+        {
+            if (isApproved)
+                return "تأیید شده";
+
+            if (isRejected)
+                return "رد شده";
+
+            return "در انتظار بررسی";
+        }
+
+        public static string ReviewStatusIntent(bool isApproved, bool isRejected)
+        {
+            if (isApproved)
+                return "success";
+
+            if (isRejected)
+                return "danger";
+
+            return "warning";
+        }
+
+        public static string Stars(byte rating)
+        {
+            if (rating > 5)
+                rating = 5;
+
+            return new string('★', rating) + new string('☆', 5 - rating);
+        }
     }
 }

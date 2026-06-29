@@ -88,17 +88,27 @@
                         <div class="admin-search">
                             <i data-lucide="search">
 </i>
-                            <input type="text" placeholder="جستجو در پنل" />
+                            <input type="text" placeholder="جستجو در سفارش‌ها، محصولات، کاربران و ..." />
+                            <span class="admin-kbd">Ctrl + K</span>
                         </div>
 
                     </div>
 
                     <div class="admin-topbar-left">
-                        <a href="/Admin/Notifications" class="admin-icon-btn" aria-label="اعلان‌ها">
+                        <a href="/Admin/Products/Create" class="admin-quick-btn" aria-label="افزودن محصول جدید" title="افزودن محصول جدید">
+                            <i data-lucide="plus">
+</i>
+                            <span class="admin-quick-text">افزودن</span>
+                        </a>
+                        <a href="/Admin/Tickets" class="admin-icon-btn" aria-label="تیکت‌ها" title="تیکت‌ها">
+                            <i data-lucide="message-square">
+</i>
+                        </a>
+                        <a href="/Admin/Notifications" class="admin-icon-btn" aria-label="اعلان‌ها" title="اعلان‌ها">
                             <i data-lucide="bell">
 </i>
                         </a>
-                        <button type="button" class="admin-icon-btn" onclick="toggleFullscreen()" aria-label="تمام صفحه">
+                        <button type="button" class="admin-icon-btn admin-fullscreen-btn" onclick="toggleFullscreen()" aria-label="تمام صفحه" title="تمام صفحه">
                             <i data-lucide="maximize">
 </i>
                         </button>
@@ -188,6 +198,7 @@
         var path = (Context.Request.Path.Value ?? string.Empty).ToLowerInvariant();
         if (path == "/admin" || path == "/admin/index") return "خلاصه وضعیت فروشگاه و فعالیت‌های امروز";
         if (path.StartsWith("/admin/orders")) return "مدیریت سفارش‌ها، پرداخت و تحویل";
+        if (path.StartsWith("/admin/reviews")) return "بررسی و تأیید نظرات محصولات";
         if (path.StartsWith("/admin/products")) return "مدیریت محصولات فروشگاه";
         if (path.StartsWith("/admin/productimages")) return "مدیریت تصاویر محصولات";
         if (path.StartsWith("/admin/productvariants")) return "مدیریت تنوع و قیمت محصولات";
@@ -209,6 +220,7 @@
         var path = (Context.Request.Path.Value ?? string.Empty).ToLowerInvariant();
         if (path == "/admin" || path == "/admin/index") return "layout-grid";
         if (path.StartsWith("/admin/orders")) return "shopping-cart";
+        if (path.StartsWith("/admin/reviews")) return "star";
         if (path.StartsWith("/admin/products")) return "package";
         if (path.StartsWith("/admin/productimages")) return "image";
         if (path.StartsWith("/admin/productvariants")) return "layers-3";

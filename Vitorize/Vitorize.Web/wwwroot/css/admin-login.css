@@ -28,8 +28,8 @@
     --login-border: rgba(209, 222, 235, .78);
     --login-text: #111827;
     --login-muted: #69768f;
-    --login-teal: #008b8f;
-    --login-cyan: #55d3d2;
+    --login-teal: #0a8276;
+    --login-cyan: #11b39f;
     --login-danger: #ef4444;
     --login-shadow: 0 30px 90px rgba(44, 74, 110, .13);
 }
@@ -49,7 +49,7 @@ body {
         direction: rtl;
         font-family: var(--login-font);
         color: var(--login-text);
-        background: radial-gradient(circle at 18% 18%, rgba(85, 211, 210, .20), transparent 28%), radial-gradient(circle at 82% 22%, rgba(47, 128, 237, .10), transparent 32%), linear-gradient(135deg, #fbfdff 0%, #edf6ff 47%, #f7fbff 100%);
+        background: radial-gradient(circle at 18% 18%, rgba(17, 179, 159, .18), transparent 28%), radial-gradient(circle at 82% 22%, rgba(10, 130, 118, .10), transparent 32%), linear-gradient(135deg, #fbfdff 0%, #ecfaf6 47%, #f7fffd 100%);
         overflow-x: hidden;
     }
 
@@ -426,8 +426,8 @@ input {
     border: none;
     border-radius: 13px;
     color: #fff;
-    background: linear-gradient(90deg, #008b8f 0%, #09a6a9 50%, #62d2d0 100%);
-    box-shadow: 0 16px 30px rgba(0, 139, 143, .22);
+    background: linear-gradient(135deg, #0c8174 0%, #075c52 100%);
+    box-shadow: 0 16px 30px rgba(10, 130, 118, .28);
     font-size: 17px;
     font-weight: 900;
     cursor: pointer;
