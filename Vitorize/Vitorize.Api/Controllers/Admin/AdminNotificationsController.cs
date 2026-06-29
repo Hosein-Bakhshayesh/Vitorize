@@ -13,7 +13,15 @@ namespace Vitorize.Api.Controllers.Admin
     public class AdminNotificationsController : ControllerBase
     {
         private readonly IAdminNotificationReadService _service;
-        public AdminNotificationsController(IAdminNotificationReadService service) => _service = service;
+        private readonly INotificationService _notificationService;
+
+        public AdminNotificationsController(
+            IAdminNotificationReadService service,
+            INotificationService notificationService)
+        {
+            _service = service;
+            _notificationService = notificationService;
+        }
         [HttpGet]
         public async Task<ActionResult<ApiResult<List<AdminNotificationDto>>>> GetAll([FromQuery] AdminQueryFilterDto filter)
         {
@@ -31,6 +39,17 @@ namespace Vitorize.Api.Controllers.Admin
         {
             await _service.MarkAsReadAsync(id);
             return Ok(ApiResult.Success("اطلاعیه خوانده شد."));
+        }
+
+        [HttpPost("send")]
+        public async Task<ActionResult<ApiResult>> Send(SendNotificationRequestDto request)
+        {
+            await _notificationService.SendSystemNotificationAsync(
+                request.UserId,
+                request.Title,
+                request.Message);
+
+            return Ok(ApiResult.Success("اعلان برای کاربر ارسال شد."));
         }
     }
 }

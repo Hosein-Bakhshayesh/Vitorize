@@ -60,6 +60,14 @@ namespace Vitorize.Api.Controllers
                 "مدرک احراز هویت ثبت شد."));
         }
 
+        [HttpDelete("documents/{documentId:guid}")]
+        public async Task<ActionResult<ApiResult>> DeleteDocument(Guid documentId)
+        {
+            await _verificationService.DeleteDocumentAsync(GetUserId(), documentId);
+
+            return Ok(ApiResult.Success("مدرک احراز هویت حذف شد."));
+        }
+
         private Guid GetUserId()
         {
             if (!_currentUserService.UserId.HasValue)

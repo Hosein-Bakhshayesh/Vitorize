@@ -12,7 +12,12 @@
 
         public decimal? DiscountPrice { get; set; }
 
-        public decimal FinalPrice => DiscountPrice ?? Price;
+        public decimal FinalPrice =>
+            DiscountPrice.HasValue &&
+            DiscountPrice.Value > 0 &&
+            DiscountPrice.Value < Price
+                ? DiscountPrice.Value
+                : Price;
 
         public string? Value { get; set; }
 

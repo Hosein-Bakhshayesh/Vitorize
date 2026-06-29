@@ -39,6 +39,27 @@ namespace Vitorize.Api.Controllers.Admin
                 "لیست بچ‌های کد با موفقیت دریافت شد."));
         }
 
+        [HttpGet("batches/{batchId:guid}")]
+        public async Task<ActionResult<ApiResult<GiftCodeBatchDto>>> GetBatch(Guid batchId)
+        {
+            var result = await _giftCodeService.GetBatchByIdAsync(batchId);
+
+            return Ok(ApiResult<GiftCodeBatchDto>.Success(
+                result,
+                "جزئیات بچ کد با موفقیت دریافت شد."));
+        }
+
+        [HttpGet("codes")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminGiftCodeDto>>>> GetCodes(
+            [FromQuery] AdminGiftCodeFilterDto filter)
+        {
+            var result = await _giftCodeService.GetGiftCodesAsync(filter);
+
+            return Ok(ApiResult<PagedResult<AdminGiftCodeDto>>.Success(
+                result,
+                "لیست کدها با موفقیت دریافت شد."));
+        }
+
         [HttpDelete("batches/{batchId:guid}")]
         public async Task<ActionResult<ApiResult>> DeleteBatch(Guid batchId)
         {

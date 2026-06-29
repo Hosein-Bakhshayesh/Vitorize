@@ -58,6 +58,18 @@ namespace Vitorize.Api.Controllers
                 "جزئیات محصول با موفقیت دریافت شد."));
         }
 
+        [HttpGet("{id:guid}/related")]
+        public async Task<ActionResult<ApiResult<List<ProductListItemDto>>>> GetRelatedProducts(
+            Guid id,
+            [FromQuery] int count = 8)
+        {
+            var result = await _productService.GetRelatedProductsAsync(id, count);
+
+            return Ok(ApiResult<List<ProductListItemDto>>.Success(
+                result,
+                "محصولات مرتبط با موفقیت دریافت شدند."));
+        }
+
         [HttpGet("categories")]
         public async Task<ActionResult<ApiResult<List<ProductLookupDto>>>> GetCategories()
         {

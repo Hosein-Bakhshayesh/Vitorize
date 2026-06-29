@@ -59,8 +59,8 @@ namespace Vitorize.Infrastructure.Services
             }
 
             var unitPrice = variant != null
-                ? variant.DiscountPrice ?? variant.Price
-                : product.DiscountPrice ?? product.BasePrice;
+                ? ResolveFinalPrice(variant.Price, variant.DiscountPrice)
+                : ResolveFinalPrice(product.BasePrice, product.DiscountPrice);
 
             var cart = await GetOrCreateCartAsync(userId);
 
@@ -208,6 +208,15 @@ namespace Vitorize.Infrastructure.Services
                 .Include(x => x.CartItems)
                     .ThenInclude(x => x.ProductVariant)
                 .FirstOrDefaultAsync(x => x.UserId == userId);
+        }
+
+        private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice)
+        {
+            return discountPrice.HasValue &&
+                   discountPrice.Value > 0 &&
+                   discountPrice.Value < basePrice
+                ? discountPrice.Value
+                : basePrice;
         }
 
         private static CartDto MapToDto(Cart cart)

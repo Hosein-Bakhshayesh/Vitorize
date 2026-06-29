@@ -5,6 +5,7 @@ using Vitorize.Application.DTOs.Outbox;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services
@@ -66,6 +67,34 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
+        public async Task SendSystemNotificationAsync(
+            Guid userId,
+            string title,
+            string message)
+        {
+            if (userId == Guid.Empty)
+                throw new BusinessException("کاربر مقصد معتبر نیست.");
+
+            if (string.IsNullOrWhiteSpace(title))
+                throw new BusinessException("عنوان اعلان الزامی است.");
+
+            if (string.IsNullOrWhiteSpace(message))
+                throw new BusinessException("متن اعلان الزامی است.");
+
+            var userExists = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == userId);
+
+            if (!userExists)
+                throw new NotFoundException("کاربر یافت نشد.");
+
+            await CreateAsync(
+                userId,
+                (byte)NotificationType.SystemMessage,
+                title.Trim(),
+                message.Trim());
+        }
+
         public async Task<List<NotificationDto>> GetMyNotificationsAsync(
             Guid userId)
         {
@@ -84,6 +113,13 @@ namespace Vitorize.Infrastructure.Services
                     ReadAt = x.ReadAt
                 })
                 .ToListAsync();
+        }
+
+        public async Task<int> GetUnreadCountAsync(Guid userId)
+        {
+            return await _dbContext.Notifications
+                .AsNoTracking()
+                .CountAsync(x => x.UserId == userId && !x.IsRead);
         }
 
         public async Task MarkAsReadAsync(

@@ -6,6 +6,12 @@ namespace Vitorize.Application.Interfaces
     {
         Task<HomeDto> GetHomeAsync();
 
+        /// <summary>
+        /// بنرهای فعال (با رعایت بازه زمانی) مرتب‌شده بر اساس SortOrder.
+        /// در صورت ارسال position فقط بنرهای همان جایگاه برگردانده می‌شوند.
+        /// </summary>
+        Task<List<BannerDto>> GetActiveBannersAsync(string? position);
+
         Task<List<FaqDto>> GetFaqsAsync();
 
         Task<PageDto> GetPageBySlugAsync(string slug);

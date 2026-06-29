@@ -5,6 +5,7 @@ using Vitorize.Application.DTOs.Admin.GiftCodes;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Common;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
@@ -165,7 +166,75 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        private async Task<GiftCodeBatchDto> GetBatchByIdAsync(Guid batchId)
+        public async Task<PagedResult<AdminGiftCodeDto>> GetGiftCodesAsync(
+            AdminGiftCodeFilterDto filter)
+        {
+            var page = filter.Page <= 0 ? 1 : filter.Page;
+            var pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+            pageSize = pageSize > 100 ? 100 : pageSize;
+
+            var query = _dbContext.GiftCodes
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (filter.ProductId.HasValue)
+                query = query.Where(x => x.ProductId == filter.ProductId.Value);
+
+            if (filter.ProductVariantId.HasValue)
+                query = query.Where(x => x.ProductVariantId == filter.ProductVariantId.Value);
+
+            if (filter.BatchId.HasValue)
+                query = query.Where(x => x.BatchId == filter.BatchId.Value);
+
+            if (filter.Status.HasValue)
+                query = query.Where(x => x.Status == filter.Status.Value);
+
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var search = filter.Search.Trim();
+
+                query = query.Where(x =>
+                    (x.MaskedCode != null && x.MaskedCode.Contains(search)) ||
+                    (x.SerialNumber != null && x.SerialNumber.Contains(search)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new AdminGiftCodeDto
+                {
+                    Id = x.Id,
+                    BatchId = x.BatchId,
+                    ProductId = x.ProductId,
+                    ProductTitle = x.Product.Title,
+                    ProductVariantId = x.ProductVariantId,
+                    VariantTitle = x.ProductVariant != null ? x.ProductVariant.Title : null,
+                    MaskedCode = x.MaskedCode,
+                    SerialNumber = x.SerialNumber,
+                    Status = x.Status,
+                    ReservedByUserId = x.ReservedByUserId,
+                    ReservedAt = x.ReservedAt,
+                    SoldAt = x.SoldAt,
+                    DeliveredAt = x.DeliveredAt,
+                    ExpiresAt = x.ExpiresAt,
+                    OrderItemId = x.OrderItemId,
+                    CreatedAt = x.CreatedAt
+                })
+                .ToListAsync();
+
+            return new PagedResult<AdminGiftCodeDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<GiftCodeBatchDto> GetBatchByIdAsync(Guid batchId)
         {
             var batch = await _dbContext.GiftCodeBatches
                 .AsNoTracking()

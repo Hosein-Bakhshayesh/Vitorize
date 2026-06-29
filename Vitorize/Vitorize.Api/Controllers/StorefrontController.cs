@@ -25,5 +25,16 @@ namespace Vitorize.Api.Controllers
                 result,
                 "اطلاعات صفحه اصلی با موفقیت دریافت شد."));
         }
+
+        [HttpGet("banners")]
+        public async Task<ActionResult<ApiResult<List<BannerDto>>>> GetBanners(
+            [FromQuery] string? position)
+        {
+            var result = await _storefrontService.GetActiveBannersAsync(position);
+
+            return Ok(ApiResult<List<BannerDto>>.Success(
+                result,
+                "بنرها با موفقیت دریافت شدند."));
+        }
     }
 }

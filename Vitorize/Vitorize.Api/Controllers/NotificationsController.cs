@@ -34,6 +34,16 @@ namespace Vitorize.Api.Controllers
                 "اعلان‌ها با موفقیت دریافت شدند."));
         }
 
+        [HttpGet("unread-count")]
+        public async Task<ActionResult<ApiResult<int>>> GetUnreadCount()
+        {
+            var result = await _notificationService.GetUnreadCountAsync(GetUserId());
+
+            return Ok(ApiResult<int>.Success(
+                result,
+                "تعداد اعلان‌های خوانده‌نشده دریافت شد."));
+        }
+
         [HttpPost("{notificationId:guid}/read")]
         public async Task<ActionResult<ApiResult>> MarkAsRead(
             Guid notificationId)

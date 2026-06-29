@@ -133,6 +133,66 @@ namespace Vitorize.Infrastructure.Services
             });
         }
 
+        public async Task<List<ProductListItemDto>> GetRelatedProductsAsync(
+            Guid productId,
+            int count = 8)
+        {
+            count = count <= 0 ? 8 : count;
+            count = count > 24 ? 24 : count;
+
+            var source = await _dbContext.Products
+                .AsNoTracking()
+                .Where(x => x.Id == productId && x.IsActive && !x.IsDeleted)
+                .Select(x => new { x.Id, x.CategoryId, x.BrandId })
+                .FirstOrDefaultAsync();
+
+            if (source == null)
+                throw new NotFoundException("محصول یافت نشد.");
+
+            return await _dbContext.Products
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Include(x => x.Brand)
+                .Include(x => x.ProductVariants)
+                .Where(x =>
+                    x.Id != source.Id &&
+                    x.IsActive &&
+                    !x.IsDeleted &&
+                    x.Category.IsActive &&
+                    !x.Category.IsDeleted &&
+                    (x.CategoryId == source.CategoryId ||
+                     (source.BrandId != null && x.BrandId == source.BrandId)))
+                .OrderByDescending(x => x.CategoryId == source.CategoryId)
+                .ThenByDescending(x => x.IsFeatured)
+                .ThenBy(x => x.SortOrder)
+                .ThenByDescending(x => x.CreatedAt)
+                .Take(count)
+                .Select(x => new ProductListItemDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Slug = x.Slug,
+                    ShortDescription = x.ShortDescription,
+                    ThumbnailImagePath = x.ThumbnailImagePath,
+                    BasePrice = x.BasePrice,
+                    DiscountPrice = x.DiscountPrice,
+                    ProductType = x.ProductType,
+                    DeliveryType = x.DeliveryType,
+                    CurrencyType = x.CurrencyType,
+                    RequiresVerification = x.RequiresVerification,
+                    IsFeatured = x.IsFeatured,
+                    CategoryTitle = x.Category.Title,
+                    BrandTitle = x.Brand != null ? x.Brand.Title : null,
+                    HasVariants = x.ProductVariants.Any(v => v.IsActive),
+                    AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
+                        ? 999999
+                        : _dbContext.GiftCodes.Count(g =>
+                            g.ProductId == x.Id &&
+                            g.Status == GiftCodeStatusAvailable)
+                })
+                .ToListAsync();
+        }
+
         public async Task<List<ProductLookupDto>> GetCategoriesAsync()
         {
             return await _dbContext.Categories

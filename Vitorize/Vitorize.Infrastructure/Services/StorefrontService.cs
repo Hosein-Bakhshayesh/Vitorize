@@ -133,6 +133,39 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
+        public async Task<List<BannerDto>> GetActiveBannersAsync(string? position)
+        {
+            var now = DateTime.UtcNow;
+
+            var query = _dbContext.Banners
+                .AsNoTracking()
+                .Where(x =>
+                    x.IsActive &&
+                    (x.StartsAt == null || x.StartsAt <= now) &&
+                    (x.EndsAt == null || x.EndsAt >= now));
+
+            if (!string.IsNullOrWhiteSpace(position))
+            {
+                var normalizedPosition = position.Trim();
+                query = query.Where(x => x.Position == normalizedPosition);
+            }
+
+            return await query
+                .OrderBy(x => x.Position)
+                .ThenBy(x => x.SortOrder)
+                .Select(x => new BannerDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    ImagePath = x.ImagePath,
+                    MobileImagePath = x.MobileImagePath,
+                    LinkUrl = x.LinkUrl,
+                    Position = x.Position,
+                    SortOrder = x.SortOrder
+                })
+                .ToListAsync();
+        }
+
         public async Task<List<FaqDto>> GetFaqsAsync()
         {
             return await _dbContext.Faqs

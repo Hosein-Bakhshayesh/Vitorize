@@ -24,7 +24,12 @@
 
         public decimal? DiscountPrice { get; set; }
 
-        public decimal FinalPrice => DiscountPrice ?? BasePrice;
+        public decimal FinalPrice =>
+            DiscountPrice.HasValue &&
+            DiscountPrice.Value > 0 &&
+            DiscountPrice.Value < BasePrice
+                ? DiscountPrice.Value
+                : BasePrice;
 
         public byte CurrencyType { get; set; }
 

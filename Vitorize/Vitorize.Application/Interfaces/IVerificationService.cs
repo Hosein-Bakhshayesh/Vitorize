@@ -15,6 +15,11 @@ namespace Vitorize.Application.Interfaces
             byte documentType,
             string filePath);
 
+        /// <summary>
+        /// حذف مدرک احراز هویتِ خودِ کاربر، فقط زمانی که پرونده هنوز در وضعیت در انتظار بررسی است.
+        /// </summary>
+        Task DeleteDocumentAsync(Guid userId, Guid documentId);
+
         Task<List<VerificationProfileDto>> GetAllAsync();
 
         Task<VerificationProfileDto> GetByIdAsync(Guid profileId);

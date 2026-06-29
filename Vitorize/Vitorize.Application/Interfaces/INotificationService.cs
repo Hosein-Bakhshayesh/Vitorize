@@ -10,7 +10,18 @@ namespace Vitorize.Application.Interfaces
             string title,
             string message);
 
+        /// <summary>
+        /// ارسال اعلان سیستمی توسط ادمین به یک کاربر مشخص (با اعتبارسنجی وجود کاربر).
+        /// </summary>
+        Task SendSystemNotificationAsync(
+            Guid userId,
+            string title,
+            string message);
+
         Task<List<NotificationDto>> GetMyNotificationsAsync(
+            Guid userId);
+
+        Task<int> GetUnreadCountAsync(
             Guid userId);
 
         Task MarkAsReadAsync(

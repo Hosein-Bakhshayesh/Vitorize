@@ -141,6 +141,34 @@ namespace Vitorize.Infrastructure.Services
             return MapDocument(document);
         }
 
+        public async Task DeleteDocumentAsync(Guid userId, Guid documentId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            var document = await _dbContext.VerificationDocuments
+                .Include(x => x.UserVerificationProfile)
+                .FirstOrDefaultAsync(x => x.Id == documentId);
+
+            if (document == null)
+                throw new NotFoundException("مدرک یافت نشد.");
+
+            if (document.UserVerificationProfile.UserId != userId)
+                throw new UnauthorizedException("شما اجازه حذف این مدرک را ندارید.");
+
+            if (document.UserVerificationProfile.Status == (byte)VerificationStatus.Verified)
+                throw new BusinessException("پرونده شما تأیید شده است و مدارک قابل حذف نیستند.");
+
+            if (document.Status != (byte)VerificationStatus.Pending)
+                throw new BusinessException("فقط مدارک در انتظار بررسی قابل حذف هستند.");
+
+            _dbContext.VerificationDocuments.Remove(document);
+
+            document.UserVerificationProfile.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+        }
+
         public async Task<List<VerificationProfileDto>> GetAllAsync()
         {
             return await _dbContext.UserVerificationProfiles

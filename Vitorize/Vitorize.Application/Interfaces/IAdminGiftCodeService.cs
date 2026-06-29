@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Vitorize.Application.DTOs.Admin.GiftCodes;
+using Vitorize.Shared.Common;
 
 namespace Vitorize.Application.Interfaces
 {
@@ -13,6 +14,11 @@ namespace Vitorize.Application.Interfaces
             GiftCodeImportDto request);
 
         Task<List<GiftCodeBatchDto>> GetBatchesAsync();
+
+        Task<GiftCodeBatchDto> GetBatchByIdAsync(Guid batchId);
+
+        Task<PagedResult<AdminGiftCodeDto>> GetGiftCodesAsync(
+            AdminGiftCodeFilterDto filter);
 
         Task DeleteBatchAsync(Guid batchId);
     }
