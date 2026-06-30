@@ -3,7 +3,7 @@
 
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(AdminLayout)">
+        <AuthorizeRouteView RouteData="routeData">
             <NotAuthorized>
                 @if (context.User.Identity?.IsAuthenticated != true)
                 {
@@ -17,12 +17,10 @@
                 }
             </NotAuthorized>
             <Authorizing>
-                <LayoutView Layout="typeof(BlankLayout)">
-                    <div class="vz-splash">
-                        <div class="vz-splash-mark">V</div>
-                        <div class="vz-spinner"></div>
-                    </div>
-                </LayoutView>
+                <div class="vz-splash">
+                    <div class="vz-splash-mark">V</div>
+                    <div class="vz-spinner"></div>
+                </div>
             </Authorizing>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

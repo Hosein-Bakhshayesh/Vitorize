@@ -146,7 +146,7 @@ namespace Vitorize.Web.Endpoints
                 returnUrl.StartsWith("/") &&
                 !returnUrl.StartsWith("//")
                     ? returnUrl
-                    : "/admin";
+                    : "/admin/dashboard";
 
             http.Response.Redirect(safeReturn);
         }

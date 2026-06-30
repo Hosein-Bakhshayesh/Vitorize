@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components;
 using Vitorize.Shared.Common;
 using Vitorize.Web.Services.Auth;
 
@@ -16,16 +17,21 @@ namespace Vitorize.Web.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAccessTokenProvider _tokenProvider;
+        private readonly IServiceProvider _serviceProvider;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public ApiClient(HttpClient httpClient, IAccessTokenProvider tokenProvider)
+        public ApiClient(
+            HttpClient httpClient,
+            IAccessTokenProvider tokenProvider,
+            IServiceProvider serviceProvider)
         {
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
+            _serviceProvider = serviceProvider;
         }
 
         public Task<ApiResult<T>> GetAsync<T>(string url) =>
@@ -68,6 +74,7 @@ namespace Vitorize.Web.Services
                 request.Content = content;
 
                 using var response = await _httpClient.SendAsync(request);
+                HandleAuthFailure(url, response.StatusCode);
                 var json = await response.Content.ReadAsStringAsync();
 
                 return Deserialize<ApiResult<T>>(json, response);
@@ -89,6 +96,7 @@ namespace Vitorize.Web.Services
                 await ApplyAuthAsync(request);
 
                 using var response = await _httpClient.SendAsync(request);
+                HandleAuthFailure(url, response.StatusCode);
                 var json = await response.Content.ReadAsStringAsync();
 
                 return Deserialize<ApiResult<T>>(json, response);
@@ -110,6 +118,7 @@ namespace Vitorize.Web.Services
                 await ApplyAuthAsync(request);
 
                 using var response = await _httpClient.SendAsync(request);
+                HandleAuthFailure(url, response.StatusCode);
                 var json = await response.Content.ReadAsStringAsync();
 
                 return Deserialize<ApiResult>(json, response);
@@ -144,6 +153,46 @@ namespace Vitorize.Web.Services
             {
                 request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
+        /// <summary>
+        /// در صورت دریافت ۴۰۱/۴۰۳ از APIهای ادمین، کاربر به صفحه‌ی مناسب هدایت می‌شود.
+        /// فقط در مدار تعاملی (که NavigationManager مقداردهی شده) اجرا می‌شود.
+        /// </summary>
+        private void HandleAuthFailure(string url, HttpStatusCode statusCode)
+        {
+            if (statusCode != HttpStatusCode.Unauthorized &&
+                statusCode != HttpStatusCode.Forbidden)
+                return;
+
+            // فقط برای فراخوانی‌های پنل ادمین؛ مسیر ورود (auth/...) را نادیده می‌گیریم.
+            var path = url.TrimStart('/');
+            if (!path.StartsWith("admin", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var navigation = _serviceProvider.GetService<NavigationManager>();
+            if (navigation is null)
+                return;
+
+            try
+            {
+                if (statusCode == HttpStatusCode.Forbidden)
+                {
+                    navigation.NavigateTo("admin/access-denied", forceLoad: false, replace: true);
+                    return;
+                }
+
+                // ۴۰۱: نشست منقضی شده؛ بازگشت به صفحه ورود با حفظ مسیر فعلی.
+                var returnUrl = "/" + navigation.ToBaseRelativePath(navigation.Uri);
+                navigation.NavigateTo(
+                    $"admin/login?returnUrl={Uri.EscapeDataString(returnUrl)}",
+                    forceLoad: true,
+                    replace: true);
+            }
+            catch
+            {
+                // خارج از مدار تعاملی یا در حین رندر اولیه، هدایت انجام نمی‌شود.
             }
         }
 

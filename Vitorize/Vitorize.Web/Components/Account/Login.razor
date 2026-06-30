@@ -104,7 +104,11 @@
         if (query.TryGetValue("error", out var error))
             _error = error.ToString();
 
-        if (query.TryGetValue("returnUrl", out var returnUrl))
+        // مسیر بازگشت ممکن است از میدلور کوکی (ReturnUrl) یا هدایت داخلی (returnUrl) بیاید.
+        if (query.TryGetValue("returnUrl", out var returnUrl) ||
+            query.TryGetValue("ReturnUrl", out returnUrl))
+        {
             _returnUrl = returnUrl.ToString();
+        }
     }
 }

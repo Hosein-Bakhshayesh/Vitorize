@@ -74,11 +74,13 @@
 html, body {
     margin: 0;
     padding: 0;
+    height: 100%;
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
     font-size: 14px;
     line-height: 1.7;
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -115,14 +117,20 @@ input, select, textarea { font-family: inherit; }
 /* ==========================================================================
    Layout
    ========================================================================== */
-.vz-shell { display: flex; min-height: 100vh; }
+.vz-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
 
 .vz-sidebar {
-    width: var(--sidebar-w);
+    height: 100vh;
     background: var(--surface);
-    border-inline-start: 1px solid var(--border);
+    border-inline-end: 1px solid var(--border);
     display: flex; flex-direction: column;
-    position: fixed; top: 0; bottom: 0; right: 0;
+    min-height: 0;
     z-index: 60;
     transition: transform 0.25s ease;
 }
@@ -161,15 +169,18 @@ input, select, textarea { font-family: inherit; }
 }
 
 .vz-main {
-    flex: 1; margin-inline-end: var(--sidebar-w);
-    display: flex; flex-direction: column; min-width: 0;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0;
+    overflow: hidden;
 }
 
 .vz-topbar {
-    height: var(--topbar-h); background: var(--surface);
+    height: var(--topbar-h); flex: 0 0 var(--topbar-h);
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 16px;
-    padding: 0 26px; position: sticky; top: 0; z-index: 50;
+    padding: 0 26px; z-index: 50;
 }
 .vz-topbar__search {
     flex: 1; max-width: 460px; position: relative;
@@ -214,7 +225,7 @@ input, select, textarea { font-family: inherit; }
 .vz-menu__item.danger { color: var(--danger); }
 .vz-menu__divider { height: 1px; background: var(--border); margin: 6px 4px; }
 
-.vz-content { padding: 26px; flex: 1; }
+.vz-content { padding: 26px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 
 /* ==========================================================================
    Page header / breadcrumb
@@ -501,8 +512,12 @@ input, select, textarea { font-family: inherit; }
 }
 
 @media (max-width: 900px) {
-    .vz-main { margin-inline-end: 0; }
-    .vz-sidebar { transform: translateX(100%); box-shadow: var(--shadow-lg); }
+    .vz-shell { grid-template-columns: minmax(0, 1fr); }
+    .vz-sidebar {
+        position: fixed; top: 0; bottom: 0; right: 0;
+        width: var(--sidebar-w);
+        transform: translateX(100%); box-shadow: var(--shadow-lg);
+    }
     .vz-sidebar.open { transform: none; }
     .vz-sidebar__backdrop.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 55; }
     .vz-hamburger { display: flex; }
