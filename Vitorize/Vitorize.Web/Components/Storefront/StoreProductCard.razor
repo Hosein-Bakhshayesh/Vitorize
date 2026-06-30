@@ -8,14 +8,7 @@
 
 <div class="st-pcard">
     <a class="st-pcard__media" href="@($"/product/{Product.Slug}")">
-        @if (!string.IsNullOrWhiteSpace(Product.ThumbnailImagePath))
-        {
-            <img src="@Media.Resolve(Product.ThumbnailImagePath)" alt="@Product.Title" loading="lazy" />
-        }
-        else
-        {
-            <div class="ph"><Icon Name="box" Size="34" /></div>
-        }
+        <StoreImage Url="@Product.ThumbnailImagePath" Alt="@Product.Title" Icon="gamepad" />
         @if (Product.DiscountPercent > 0)
         {
             <span class="st-pcard__off">@AUI.Number(Product.DiscountPercent)٪</span>

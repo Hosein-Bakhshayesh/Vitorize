@@ -22,9 +22,7 @@ else
         {
             <a class="st-cat" href="@($"/category/{c.Slug}")">
                 <div class="st-cat__ic">
-                    @if (!string.IsNullOrWhiteSpace(c.ImagePath))
-                    { <img src="@Media.Resolve(c.ImagePath)" alt="@c.Title" style="width:32px;height:32px;object-fit:contain" /> }
-                    else { <Icon Name="gamepad" Size="24" /> }
+                    <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="22" Contain="true" />
                 </div>
                 <div class="st-cat__t">@c.Title</div>
             </a>

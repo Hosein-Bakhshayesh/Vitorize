@@ -23,19 +23,21 @@ else
             </div>
         </div>
         <div class="st-hero__art">
-            <div class="st-hero__card">
-                @if (_data.Banners.Count > 0)
-                {
-                    <img src="@Media.Resolve(_data.Banners[0].ImagePath)" alt="@_data.Banners[0].Title" style="width:100%;border-radius:14px" />
-                }
-                else
-                {
-                    <div style="text-align:center;padding:24px">
-                        <div style="font-size:46px;font-weight:800;color:var(--st-brand-3)">VITORIZE</div>
-                        <div style="opacity:.85;margin-top:8px">بازارگاه دیجیتال گیمینگ</div>
-                    </div>
-                }
-            </div>
+            @if (HeroBanner is not null && !string.IsNullOrWhiteSpace(HeroBanner.ImagePath))
+            {
+                <a class="st-hero__banner" href="@(string.IsNullOrWhiteSpace(HeroBanner.LinkUrl) ? "/shop" : HeroBanner.LinkUrl)">
+                    <StoreImage Url="@HeroBanner.ImagePath" Alt="@HeroBanner.Title" Icon="gamepad" />
+                </a>
+            }
+            else
+            {
+                <div class="st-hero__stack">
+                    <div class="st-plat st-plat--ps"><span class="glow"></span>PlayStation</div>
+                    <div class="st-plat st-plat--steam"><span class="glow"></span>Steam</div>
+                    <div class="st-plat st-plat--xbox"><span class="glow"></span>Xbox</div>
+                    <div class="st-plat st-plat--spotify"><span class="glow"></span>Spotify</div>
+                </div>
+            }
         </div>
     </section>
 
@@ -58,9 +60,7 @@ else
                 {
                     <a class="st-cat" href="@($"/category/{c.Slug}")">
                         <div class="st-cat__ic">
-                            @if (!string.IsNullOrWhiteSpace(c.ImagePath))
-                            { <img src="@Media.Resolve(c.ImagePath)" alt="@c.Title" style="width:32px;height:32px;object-fit:contain" /> }
-                            else { <Icon Name="gamepad" Size="24" /> }
+                            <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="22" Contain="true" />
                         </div>
                         <div class="st-cat__t">@c.Title</div>
                     </a>
@@ -85,6 +85,15 @@ else
         </section>
     }
 
+    @if (CampaignBanner is not null)
+    {
+        <section class="st-section">
+            <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
+                <StoreImage Url="@CampaignBanner.ImagePath" Alt="@CampaignBanner.Title" Icon="gift" />
+            </a>
+        </section>
+    }
+
     @if (_data.Brands.Count > 0)
     {
         <section class="st-section">
@@ -94,7 +103,11 @@ else
                 {
                     <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
                         @if (!string.IsNullOrWhiteSpace(b.ImagePath))
-                        { <img src="@Media.Resolve(b.ImagePath)" alt="@b.Title" /> }
+                        {
+                            <img src="@Media.Resolve(b.ImagePath)" alt="@b.Title"
+                                 onerror="this.style.display='none';var s=this.nextElementSibling;if(s)s.style.display='block';" />
+                            <span style="display:none">@b.Title</span>
+                        }
                         else { <span>@b.Title</span> }
                     </a>
                 }
@@ -114,9 +127,7 @@ else
                 {
                     <a class="st-pcard" href="@($"/blog/{post.Slug}")">
                         <div class="st-pcard__media">
-                            @if (!string.IsNullOrWhiteSpace(post.CoverImagePath))
-                            { <img src="@Media.Resolve(post.CoverImagePath)" alt="@post.Title" /> }
-                            else { <div class="ph"><Icon Name="file-text" Size="34" /></div> }
+                            <StoreImage Url="@post.CoverImagePath" Alt="@post.Title" Icon="file-text" />
                         </div>
                         <div class="st-pcard__body">
                             <div class="st-pcard__title">@post.Title</div>
@@ -148,6 +159,15 @@ else
 @code {
     private bool _loading = true;
     private StoreHomeModel _data = new();
+
+    private StoreBannerModel? HeroBanner =>
+        _data.Banners.FirstOrDefault(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase))
+        ?? _data.Banners.FirstOrDefault();
+
+    private StoreBannerModel? CampaignBanner =>
+        _data.Banners.FirstOrDefault(b =>
+            !string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(b.ImagePath));
 
     protected override async Task OnInitializedAsync()
     {

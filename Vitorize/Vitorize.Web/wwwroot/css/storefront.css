@@ -160,6 +160,18 @@
 .st-hero__art { position: relative; display: flex; align-items: center; justify-content: center; min-height: 220px; }
 .st-hero__card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); border-radius: var(--st-radius-lg); padding: 22px; backdrop-filter: blur(6px); width: 100%; max-width: 320px; }
 
+.st-hero__banner { display: block; width: 100%; aspect-ratio: 16/10; border-radius: 18px; overflow: hidden; box-shadow: var(--st-shadow); }
+.st-hero__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
+.st-plat { position: relative; overflow: hidden; min-height: 96px; border-radius: 18px; color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28); transition: transform 0.2s; }
+.st-plat:hover { transform: translateY(-5px); }
+.st-plat .glow { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); filter: blur(22px); top: -30px; inset-inline-end: -30px; }
+.st-plat--ps { background: linear-gradient(135deg, #2b4cd6, #0a1a6e); }
+.st-plat--steam { background: linear-gradient(135deg, #2a475e, #16202c); }
+.st-plat--xbox { background: linear-gradient(135deg, #107c10, #0a4f0a); }
+.st-plat--spotify { background: linear-gradient(135deg, #1db954, #0a7a34); }
+.st-campaign { display: block; height: 220px; border-radius: 22px; overflow: hidden; box-shadow: var(--st-shadow); }
+@media (max-width: 720px) { .st-campaign { height: 150px; } }
+
 .st-hero-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
 .st-trust { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-radius); padding: 16px; display: flex; align-items: center; gap: 12px; box-shadow: var(--st-shadow-sm); }
 .st-trust__ic { width: 44px; height: 44px; border-radius: 12px; background: var(--st-chip); color: var(--st-brand-2); display: flex; align-items: center; justify-content: center; flex: 0 0 44px; }
@@ -212,6 +224,17 @@
 .st-tag--brand { background: var(--st-success-soft); color: var(--st-brand-2); }
 .st-tag--warn { background: var(--st-warning-soft); color: var(--st-warning); }
 .st-tag--verify { background: var(--st-info-soft); color: var(--st-info); }
+
+/* image with graceful fallback (never a broken icon) */
+.st-img { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--st-surface-2); }
+.st-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-img--contain img { object-fit: contain; padding: 8px; }
+.st-img__ph {
+    position: absolute; inset: 0; align-items: center; justify-content: center;
+    color: var(--st-muted);
+    background: linear-gradient(135deg, var(--st-surface-2), var(--st-chip));
+}
+:root[data-theme="dark"] .st-img__ph { background: linear-gradient(135deg, #122029, #0c161d); }
 
 /* ==========================================================================
    Layout helpers / cards

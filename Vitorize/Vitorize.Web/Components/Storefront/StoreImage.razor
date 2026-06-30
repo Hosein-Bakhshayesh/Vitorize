@@ -1,0 +1,23 @@
+@inject MediaUrlResolver Media
+
+<div class="st-img @(Contain ? "st-img--contain" : "") @Class">
+    @if (!string.IsNullOrWhiteSpace(Url))
+    {
+        <img src="@Media.Resolve(Url)" alt="@Alt" loading="lazy"
+             onerror="this.style.display='none';var p=this.nextElementSibling;if(p)p.style.display='flex';" />
+        <div class="st-img__ph" style="display:none"><Icon Name="@Icon" Size="@IconSize" /></div>
+    }
+    else
+    {
+        <div class="st-img__ph" style="display:flex"><Icon Name="@Icon" Size="@IconSize" /></div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public string Alt { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "box";
+    [Parameter] public int IconSize { get; set; } = 34;
+    [Parameter] public bool Contain { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

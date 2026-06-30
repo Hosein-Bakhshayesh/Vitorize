@@ -28,10 +28,7 @@ else
     <div class="st-pd">
         <div>
             <div class="st-gallery__main">
-                @if (!string.IsNullOrWhiteSpace(_activeImage))
-                { <img src="@Media.Resolve(_activeImage)" alt="@_p.Title" /> }
-                else
-                { <div class="ph" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--st-muted)"><Icon Name="box" Size="56" /></div> }
+                <StoreImage Url="@_activeImage" Alt="@_p.Title" Icon="gamepad" IconSize="56" />
             </div>
             @if (_gallery.Count > 1)
             {
@@ -39,7 +36,7 @@ else
                     @foreach (var img in _gallery)
                     {
                         <div class="st-gallery__thumb @(img == _activeImage ? "active" : "")" @onclick="() => _activeImage = img">
-                            <img src="@Media.Resolve(img)" alt="" />
+                            <img src="@Media.Resolve(img)" alt="" onerror="this.style.display='none'" />
                         </div>
                     }
                 </div>
