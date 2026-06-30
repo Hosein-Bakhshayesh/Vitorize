@@ -1,0 +1,127 @@
+@page "/cart"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject CartState CartSvc
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>سبد خرید | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سبد خرید</span></div>
+<h1 style="font-size:22px;margin-bottom:18px">سبد خرید شما</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_cart is null || _cart.Items.Count == 0)
+{
+    <div class="st-state" style="padding:70px 24px">
+        <div class="st-state__ic"><Icon Name="cart" Size="34" /></div>
+        <div style="font-weight:700;font-size:16px">سبد خرید شما خالی است</div>
+        <p class="st-muted">محصولات مورد علاقه خود را به سبد اضافه کنید.</p>
+        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="17" /> رفتن به فروشگاه</a>
+    </div>
+}
+else
+{
+    <div class="st-split">
+        <div class="st-stack">
+            @foreach (var item in _cart.Items)
+            {
+                <div class="st-card st-card__pad" style="display:flex;gap:14px;align-items:center">
+                    <div style="width:70px;height:56px;border-radius:10px;overflow:hidden;background:var(--st-surface-2);flex:0 0 70px">
+                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailImagePath))
+                        { <img src="@Media.Resolve(item.ThumbnailImagePath)" alt="" style="width:100%;height:100%;object-fit:cover" /> }
+                        else { <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--st-muted)"><Icon Name="box" Size="22" /></div> }
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:700;font-size:14px">@item.ProductTitle</div>
+                        @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
+                        { <div class="st-muted" style="font-size:12px">@item.VariantTitle</div> }
+                        <div class="st-muted" style="font-size:12.5px;margin-top:4px">قیمت واحد: @AUI.MoneyFa(item.UnitPrice)</div>
+                    </div>
+                    <div class="st-qty">
+                        <button @onclick="() => UpdateQty(item, item.Quantity - 1)" disabled="@_busy">−</button>
+                        <span>@AUI.Number(item.Quantity)</span>
+                        <button @onclick="() => UpdateQty(item, item.Quantity + 1)" disabled="@_busy">+</button>
+                    </div>
+                    <div style="text-align:end;min-width:120px">
+                        <div style="font-weight:800">@AUI.MoneyFa(item.TotalPrice)</div>
+                        <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger);margin-top:4px" @onclick="() => Remove(item)" disabled="@_busy"><Icon Name="trash" Size="14" /> حذف</button>
+                    </div>
+                </div>
+            }
+            <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger);align-self:flex-start" @onclick="Clear" disabled="@_busy">
+                <Icon Name="trash" Size="14" /> خالی کردن سبد خرید
+            </button>
+        </div>
+
+        <div class="st-card st-card__pad" style="align-self:start;position:sticky;top:calc(var(--st-header-h) + 16px)">
+            <h3 style="font-size:16px;margin-bottom:14px">خلاصه سفارش</h3>
+            <div class="st-sumrow"><span class="st-muted">تعداد اقلام</span><span>@AUI.Number(_cart.TotalQuantity)</span></div>
+            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
+            <a class="st-btn st-btn--primary st-btn--block st-btn--lg" style="margin-top:14px" href="/checkout">
+                ادامه و پرداخت <Icon Name="arrow-left" Size="18" />
+            </a>
+            <a class="st-btn st-btn--ghost st-btn--block" style="margin-top:8px" href="/shop">ادامه خرید</a>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true, _busy;
+    private CartModel? _cart;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<CartModel>("cart");
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _cart = result.Data;
+            CartSvc.Set(_cart.TotalQuantity);
+        }
+        _loading = false;
+    }
+
+    private async Task UpdateQty(CartItemModel item, int qty)
+    {
+        if (qty < 1) { await Remove(item); return; }
+        _busy = true;
+        var result = await Api.PutAsync<CartModel>($"cart/items/{item.Id}", new { Quantity = qty });
+        _busy = false;
+        Apply(result);
+    }
+
+    private async Task Remove(CartItemModel item)
+    {
+        _busy = true;
+        var result = await Api.DeleteAsync($"cart/items/{item.Id}");
+        _busy = false;
+        if (result.IsSuccess) await Load();
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task Clear()
+    {
+        _busy = true;
+        var result = await Api.DeleteAsync("cart/clear");
+        _busy = false;
+        if (result.IsSuccess) { CartSvc.Clear(); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private void Apply(ApiResult<CartModel> result)
+    {
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _cart = result.Data;
+            CartSvc.Set(_cart.TotalQuantity);
+        }
+        else Toasts.Error(result.Message);
+    }
+}

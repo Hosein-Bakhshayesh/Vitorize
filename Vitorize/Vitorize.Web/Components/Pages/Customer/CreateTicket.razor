@@ -1,0 +1,82 @@
+@page "/customer/tickets/new"
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject ToastService Toasts
+
+<PageTitle>تیکت جدید | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/customer/tickets">تیکت‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>تیکت جدید</span></div>
+<h1 style="font-size:22px;margin-bottom:18px">ثبت تیکت جدید</h1>
+
+<div class="st-card st-card__pad" style="max-width:720px">
+    <div class="st-field">
+        <label class="st-label">موضوع</label>
+        <input class="st-input" @bind="_subject" placeholder="موضوع تیکت" />
+    </div>
+    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+        <div class="st-field">
+            <label class="st-label">بخش</label>
+            <select class="st-select" @bind="_department">
+                <option value="1">عمومی</option>
+                <option value="2">سفارش‌ها</option>
+                <option value="3">پرداخت</option>
+                <option value="4">احراز هویت</option>
+                <option value="5">فنی</option>
+            </select>
+        </div>
+        <div class="st-field">
+            <label class="st-label">اولویت</label>
+            <select class="st-select" @bind="_priority">
+                <option value="1">کم</option>
+                <option value="2">معمولی</option>
+                <option value="3">زیاد</option>
+                <option value="4">بحرانی</option>
+            </select>
+        </div>
+    </div>
+    <div class="st-field">
+        <label class="st-label">متن پیام</label>
+        <textarea class="st-textarea" @bind="_message" placeholder="مشکل یا سوال خود را توضیح دهید ..."></textarea>
+    </div>
+    <button class="st-btn st-btn--primary st-btn--lg" @onclick="Submit" disabled="@_busy">
+        @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="send" Size="18" /> <span>ثبت تیکت</span> }
+    </button>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? OrderId { get; set; }
+
+    private string _subject = string.Empty;
+    private byte _department = 1;
+    private byte _priority = 2;
+    private string _message = string.Empty;
+    private bool _busy;
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_subject) || string.IsNullOrWhiteSpace(_message))
+        { Toasts.Error("موضوع و متن پیام الزامی است."); return; }
+
+        Guid? orderId = Guid.TryParse(OrderId, out var oid) ? oid : null;
+
+        _busy = true;
+        var result = await Api.PostAsync<CustomerTicketModel>("tickets", new
+        {
+            OrderId = orderId,
+            OrderItemId = (Guid?)null,
+            Subject = _subject,
+            Department = _department,
+            Priority = _priority,
+            Message = _message,
+            AttachmentPath = (string?)null
+        });
+        _busy = false;
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            Toasts.Success("تیکت با موفقیت ثبت شد.");
+            Nav.NavigateTo($"/customer/tickets/{result.Data.Id}");
+        }
+        else Toasts.Error(result.Message);
+    }
+}

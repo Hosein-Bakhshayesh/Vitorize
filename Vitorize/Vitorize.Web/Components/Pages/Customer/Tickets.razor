@@ -1,0 +1,66 @@
+@page "/customer/tickets"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>پشتیبانی | ویتورایز</PageTitle>
+
+<div class="st-spread" style="margin-bottom:18px">
+    <h1 style="font-size:22px">پشتیبانی و تیکت‌ها</h1>
+    <a class="st-btn st-btn--primary" href="/customer/tickets/new"><Icon Name="plus" Size="17" /> تیکت جدید</a>
+</div>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_tickets.Count == 0)
+{
+    <div class="st-state" style="padding:60px">
+        <div class="st-state__ic"><Icon Name="message" Size="32" /></div>
+        <div style="font-weight:700">تیکتی ثبت نکرده‌اید</div>
+        <a class="st-btn st-btn--primary st-btn--sm" href="/customer/tickets/new">ثبت اولین تیکت</a>
+    </div>
+}
+else
+{
+    <div class="st-card">
+        <div class="st-table-wrap">
+            <table class="st-table">
+                <thead><tr><th>موضوع</th><th>بخش</th><th>اولویت</th><th>وضعیت</th><th>آخرین بروزرسانی</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var t in _tickets)
+                    {
+                        <tr>
+                            <td style="font-weight:700">@t.Subject</td>
+                            <td>@AUI.TicketDepartment(t.Department)</td>
+                            <td>@AUI.TicketPriority(t.Priority)</td>
+                            <td><StoreBadge Text="@AUI.TicketStatus(t.Status)" Intent="@TicketIntent(t.Status)" /></td>
+                            <td><PersianDateDisplay Value="@(t.UpdatedAt ?? t.CreatedAt)" WithTime="true" /></td>
+                            <td><a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/tickets/{t.Id}")">مشاهده</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<CustomerTicketModel> _tickets = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<CustomerTicketModel>>("tickets");
+        _tickets = (result.Data ?? new()).OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt).ToList();
+        _loading = false;
+    }
+
+    private static string TicketIntent(byte status) => status switch
+    {
+        (byte)TicketStatus.Open => "info",
+        (byte)TicketStatus.WaitingForAdmin => "warning",
+        (byte)TicketStatus.WaitingForCustomer => "purple",
+        _ => "muted"
+    };
+}

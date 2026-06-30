@@ -1,0 +1,18 @@
+@inject NavigationManager Nav
+
+<nav class="st-bottomnav">
+    <a href="/" class="@Active("/", true)"><Icon Name="home" Size="20" /> خانه</a>
+    <a href="/shop" class="@Active("/shop")"><Icon Name="grid" Size="20" /> فروشگاه</a>
+    <a href="/cart" class="@Active("/cart")"><Icon Name="cart" Size="20" /> سبد خرید</a>
+    <a href="/customer/orders" class="@Active("/customer")"><Icon Name="list" Size="20" /> سفارش‌ها</a>
+    <a href="/customer/dashboard" class="@Active("/customer/dashboard")"><Icon Name="user" Size="20" /> حساب من</a>
+</nav>
+
+@code {
+    private string Active(string path, bool exact = false)
+    {
+        var current = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
+        if (exact) return current == "/" || current == "" ? "active" : "";
+        return current.StartsWith(path, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    }
+}

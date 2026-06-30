@@ -1,0 +1,45 @@
+@page "/categories"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+
+<PageTitle>دسته‌بندی‌ها | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>دسته‌بندی‌ها</span></div>
+<h1 style="font-size:22px;margin-bottom:18px">همه دسته‌بندی‌ها</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_categories.Count == 0)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="layers" Size="32" /></div><div style="font-weight:700">دسته‌بندی‌ای یافت نشد</div></div>
+}
+else
+{
+    <div class="st-cats">
+        @foreach (var c in _categories)
+        {
+            <a class="st-cat" href="@($"/category/{c.Slug}")">
+                <div class="st-cat__ic">
+                    @if (!string.IsNullOrWhiteSpace(c.ImagePath))
+                    { <img src="@Media.Resolve(c.ImagePath)" alt="@c.Title" style="width:32px;height:32px;object-fit:contain" /> }
+                    else { <Icon Name="gamepad" Size="24" /> }
+                </div>
+                <div class="st-cat__t">@c.Title</div>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<StoreLookupModel> _categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<StoreLookupModel>>("products/categories");
+        _categories = result.Data ?? new();
+        _loading = false;
+    }
+}

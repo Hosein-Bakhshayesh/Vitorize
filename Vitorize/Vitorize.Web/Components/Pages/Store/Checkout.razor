@@ -1,0 +1,180 @@
+@page "/checkout"
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using Vitorize.Web.Models.Customer
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>تکمیل خرید | ویتورایز</PageTitle>
+
+<div class="st-steps">
+    <div class="st-step done"><span class="st-step__n"><Icon Name="check" Size="13" /></span> سبد خرید</div>
+    <div class="st-step active"><span class="st-step__n">۲</span> اطلاعات و پرداخت</div>
+    <div class="st-step"><span class="st-step__n">۳</span> تکمیل سفارش</div>
+</div>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_cart is null || _cart.Items.Count == 0)
+{
+    <div class="st-state" style="padding:60px 24px">
+        <div class="st-state__ic"><Icon Name="cart" Size="32" /></div>
+        <div style="font-weight:700">سبد خرید شما خالی است</div>
+        <a class="st-btn st-btn--primary st-btn--sm" href="/shop">رفتن به فروشگاه</a>
+    </div>
+}
+else
+{
+    <div class="st-split">
+        <div class="st-stack">
+            <div class="st-card">
+                <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات مشتری</div>
+                <div class="st-card__pad">
+                    <div class="st-stats" style="grid-template-columns:1fr 1fr">
+                        <div><div class="st-muted" style="font-size:12px">نام</div><div style="font-weight:700">@(_user?.FullName ?? "-")</div></div>
+                        <div><div class="st-muted" style="font-size:12px">موبایل</div><div style="font-weight:700" class="st-mono">@(_user?.Mobile ?? "-")</div></div>
+                    </div>
+                </div>
+            </div>
+
+            @if (_user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
+            {
+                <div class="st-alert st-alert--warn">
+                    <Icon Name="shield" Size="20" />
+                    <div>
+                        <div style="font-weight:700">احراز هویت</div>
+                        <div style="font-size:12.5px;margin-top:3px">برخی محصولات برای تحویل نیازمند احراز هویت هستند. در صورت نیاز ابتدا احراز هویت را تکمیل کنید.</div>
+                        <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px" href="/customer/verification">تکمیل احراز هویت</a>
+                    </div>
+                </div>
+            }
+
+            <div class="st-card">
+                <div class="st-card__head"><Icon Name="percent" Size="18" /> کد تخفیف</div>
+                <div class="st-card__pad" style="display:flex;gap:10px">
+                    <input class="st-input" placeholder="کد تخفیف خود را وارد کنید" @bind="_coupon" />
+                </div>
+            </div>
+
+            <div class="st-card">
+                <div class="st-card__head"><Icon Name="credit-card" Size="18" /> روش پرداخت</div>
+                <div class="st-card__pad st-stack">
+                    <label class="st-check" style="padding:12px;border:1.5px solid @(_method == "gateway" ? "var(--st-brand-2)" : "var(--st-border)");border-radius:12px">
+                        <input type="radio" name="pm" checked="@(_method == "gateway")" @onchange='() => _method = "gateway"' />
+                        <Icon Name="credit-card" Size="18" /> پرداخت اینترنتی (درگاه بانکی)
+                    </label>
+                    <label class="st-check" style="padding:12px;border:1.5px solid @(_method == "wallet" ? "var(--st-brand-2)" : "var(--st-border)");border-radius:12px;@(WalletEnough ? "" : "opacity:.6")">
+                        <input type="radio" name="pm" checked="@(_method == "wallet")" disabled="@(!WalletEnough)" @onchange='() => _method = "wallet"' />
+                        <Icon Name="wallet" Size="18" /> کیف پول (موجودی: @AUI.MoneyFa(_walletBalance))
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="st-card st-card__pad" style="align-self:start;position:sticky;top:calc(var(--st-header-h) + 16px)">
+            <h3 style="font-size:16px;margin-bottom:14px">خلاصه سفارش</h3>
+            <div class="st-stack" style="gap:8px;max-height:230px;overflow-y:auto;margin-bottom:10px">
+                @foreach (var item in _cart.Items)
+                {
+                    <div class="st-spread" style="font-size:12.5px">
+                        <span style="flex:1;min-width:0">@item.ProductTitle <span class="st-muted">×@AUI.Number(item.Quantity)</span></span>
+                        <span class="st-mono">@AUI.MoneyFa(item.TotalPrice)</span>
+                    </div>
+                }
+            </div>
+            <div class="st-sumrow"><span class="st-muted">تعداد اقلام</span><span>@AUI.Number(_cart.TotalQuantity)</span></div>
+            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
+
+            <button class="st-btn st-btn--primary st-btn--block st-btn--lg" style="margin-top:14px" @onclick="PlaceOrder" disabled="@_placing">
+                @if (_placing) { <span class="st-spinner sm"></span> <span>در حال پردازش ...</span> }
+                else { <Icon Name="lock" Size="18" /> <span>ثبت و پرداخت سفارش</span> }
+            </button>
+            <div class="st-muted" style="font-size:11.5px;text-align:center;margin-top:10px">با ثبت سفارش، قوانین و مقررات ویتورایز را می‌پذیرید.</div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true, _placing;
+    private CartModel? _cart;
+    private CustomerProfileModel? _user;
+    private decimal _walletBalance;
+    private string _coupon = string.Empty;
+    private string _method = "gateway";
+
+    private bool WalletEnough => _cart is not null && _walletBalance >= _cart.SubtotalAmount && _cart.SubtotalAmount > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cartTask = Api.GetAsync<CartModel>("cart");
+        var meTask = Api.GetAsync<CustomerProfileModel>("auth/me");
+        var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
+        await Task.WhenAll(cartTask, meTask, walletTask);
+
+        _cart = cartTask.Result.Data;
+        _user = meTask.Result.Data;
+        _walletBalance = walletTask.Result.Data?.Balance ?? 0;
+        _loading = false;
+    }
+
+    private async Task PlaceOrder()
+    {
+        if (_cart is null || _cart.Items.Count == 0) return;
+        _placing = true;
+
+        var key = Guid.NewGuid().ToString("N");
+        var headers = new Dictionary<string, string> { ["Idempotency-Key"] = key };
+
+        var checkout = await Api.PostAsync<CheckoutResultModel>(
+            "checkout",
+            new { Description = (string?)null, CouponCode = string.IsNullOrWhiteSpace(_coupon) ? null : _coupon.Trim() },
+            headers);
+
+        if (!checkout.IsSuccess || checkout.Data is null)
+        {
+            _placing = false;
+            Toasts.Error(checkout.Message);
+            return;
+        }
+
+        var orderId = checkout.Data.OrderId;
+
+        if (_method == "wallet")
+        {
+            var payKey = new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString("N") };
+            var pay = await Api.PostAsync<PaymentVerifyResultModel>($"payments/wallet/pay/{orderId}", null, payKey);
+            _placing = false;
+            if (pay.IsSuccess && pay.Data is not null)
+                Nav.NavigateTo($"/payment/result?orderId={orderId}&paid={(pay.Data.IsPaid ? "1" : "0")}");
+            else
+                Toasts.Error(pay.Message);
+            return;
+        }
+
+        // درگاه پرداخت
+        var start = await Api.PostAsync<PaymentStartResultModel>($"payments/start/{orderId}");
+        if (!start.IsSuccess || start.Data is null)
+        {
+            _placing = false;
+            Toasts.Error(start.Message);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(start.Data.PaymentUrl) &&
+            start.Data.PaymentUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo(start.Data.PaymentUrl, forceLoad: true);
+            return;
+        }
+
+        // درگاه تستی: تایید داخلی
+        var verify = await Api.PostAsync<PaymentVerifyResultModel>($"payments/mock/verify/{start.Data.PaymentId}");
+        _placing = false;
+        if (verify.IsSuccess && verify.Data is not null)
+            Nav.NavigateTo($"/payment/result?orderId={orderId}&paid={(verify.Data.IsPaid ? "1" : "0")}");
+        else
+            Nav.NavigateTo($"/payment/result?orderId={orderId}&paid=0");
+    }
+}

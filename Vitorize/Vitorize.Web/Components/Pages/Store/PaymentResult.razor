@@ -1,0 +1,44 @@
+@page "/payment/result"
+@inject CartState Cart
+
+<PageTitle>نتیجه پرداخت | ویتورایز</PageTitle>
+
+<div class="st-state" style="padding:70px 24px">
+    @if (Paid == "1")
+    {
+        <div class="st-state__ic" style="background:var(--st-success-soft);color:var(--st-success)"><Icon Name="check-circle" Size="40" /></div>
+        <h1 style="font-size:24px">پرداخت با موفقیت انجام شد</h1>
+        <p class="st-muted" style="max-width:440px">سفارش شما ثبت و در صورت تحویل آنی، کدها در جزئیات سفارش قابل مشاهده هستند.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            @if (OrderId is not null)
+            {
+                <a class="st-btn st-btn--primary" href="@($"/customer/orders/{OrderId}")"><Icon Name="package-check" Size="17" /> مشاهده سفارش و کدها</a>
+            }
+            <a class="st-btn st-btn--outline" href="/customer/orders">سفارش‌های من</a>
+            <a class="st-btn st-btn--ghost" href="/shop">ادامه خرید</a>
+        </div>
+    }
+    else
+    {
+        <div class="st-state__ic" style="background:var(--st-danger-soft);color:var(--st-danger)"><Icon Name="x-circle" Size="40" /></div>
+        <h1 style="font-size:24px">پرداخت ناموفق بود</h1>
+        <p class="st-muted" style="max-width:440px">متأسفانه پرداخت شما تکمیل نشد. در صورت کسر وجه، مبلغ طی ۷۲ ساعت بازگردانده می‌شود.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            <a class="st-btn st-btn--primary" href="/cart">بازگشت به سبد خرید</a>
+            @if (OrderId is not null)
+            {
+                <a class="st-btn st-btn--outline" href="@($"/customer/orders/{OrderId}")">جزئیات سفارش</a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? OrderId { get; set; }
+    [SupplyParameterFromQuery] public string? Paid { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Paid == "1") Cart.Clear();
+    }
+}

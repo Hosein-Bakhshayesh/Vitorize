@@ -24,11 +24,23 @@ namespace Vitorize.Web.Services.Auth
 
             if (httpContext is not null)
             {
-                var cookieToken =
-                    httpContext.Request.Cookies[VitorizeAuthSchemes.AdminAccessTokenCookie];
+                var isAdminPath = httpContext.Request.Path.StartsWithSegments("/admin");
 
-                if (!string.IsNullOrWhiteSpace(cookieToken))
-                    return cookieToken;
+                // ابتدا کوکی حوزه‌ی مرتبط با مسیر، سپس کوکی دیگر به‌عنوان fallback.
+                var primaryCookie = isAdminPath
+                    ? VitorizeAuthSchemes.AdminAccessTokenCookie
+                    : VitorizeAuthSchemes.CustomerAccessTokenCookie;
+
+                var secondaryCookie = isAdminPath
+                    ? VitorizeAuthSchemes.CustomerAccessTokenCookie
+                    : VitorizeAuthSchemes.AdminAccessTokenCookie;
+
+                var token =
+                    httpContext.Request.Cookies[primaryCookie] ??
+                    httpContext.Request.Cookies[secondaryCookie];
+
+                if (!string.IsNullOrWhiteSpace(token))
+                    return token;
 
                 return httpContext.User.FindFirst("access_token")?.Value;
             }

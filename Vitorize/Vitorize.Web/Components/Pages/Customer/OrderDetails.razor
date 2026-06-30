@@ -1,0 +1,106 @@
+@page "/customer/orders/{Id:guid}"
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject IJSRuntime JS
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>جزئیات سفارش | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/customer/dashboard">داشبورد</a> <Icon Name="chevron-left" Size="13" /> <a href="/customer/orders">سفارش‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>جزئیات</span></div>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_order is null)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="cart" Size="30" /></div><div style="font-weight:700">سفارش یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/customer/orders">بازگشت</a></div>
+}
+else
+{
+    <div class="st-spread" style="margin-bottom:18px">
+        <h1 style="font-size:20px">سفارش <span class="st-mono">@_order.OrderNumber</span></h1>
+        <div style="display:flex;gap:8px">
+            <StoreBadge Text="@AUI.PaymentStatus(_order.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(_order.PaymentStatus, "payment")" />
+            <StoreBadge Text="@AUI.OrderStatus(_order.Status)" Intent="@AUI.StatusBadgeIntent(_order.Status, "order")" />
+        </div>
+    </div>
+
+    <div class="st-split">
+        <div class="st-stack">
+            @foreach (var item in _order.Items)
+            {
+                <div class="st-card st-card__pad">
+                    <div class="st-spread">
+                        <div>
+                            <div style="font-weight:700">@item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")</div>
+                            <div class="st-muted" style="font-size:12.5px;margin-top:4px">تعداد @AUI.Number(item.Quantity) · @AUI.MoneyFa(item.UnitPrice) · @AUI.DeliveryType(item.DeliveryType)</div>
+                        </div>
+                        <StoreBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="@(item.DeliveryStatus == (byte)DeliveryStatus.Delivered ? "success" : "warning")" Dot="false" />
+                    </div>
+
+                    @{
+                        var codes = item.Deliveries.Where(d => d.IsVisibleToCustomer && !string.IsNullOrWhiteSpace(d.DeliveredContent)).ToList();
+                    }
+                    @if (codes.Count > 0)
+                    {
+                        <div class="st-divider"></div>
+                        <div class="st-label">کدها / محتوای تحویل‌شده</div>
+                        <div class="st-stack" style="gap:8px">
+                            @foreach (var d in codes)
+                            {
+                                <div style="display:flex;align-items:center;gap:10px;background:var(--st-surface-2);border:1px dashed var(--st-border-2);border-radius:10px;padding:10px 12px">
+                                    <span class="st-mono" style="flex:1;font-size:14px;font-weight:700;letter-spacing:1px">@d.DeliveredContent</span>
+                                    <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => Copy(d.DeliveredContent!)"><Icon Name="copy" Size="15" /> کپی</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (item.DeliveryStatus != (byte)DeliveryStatus.Delivered)
+                    {
+                        <div class="st-divider"></div>
+                        <div class="st-alert st-alert--info"><Icon Name="clock" Size="16" /> <span>تحویل این آیتم در حال انجام است.</span></div>
+                    }
+                </div>
+            }
+
+            @if (_order.Status != (byte)OrderStatus.Completed && _order.Status != (byte)OrderStatus.Cancelled)
+            {
+                <a class="st-btn st-btn--outline" style="align-self:flex-start" href="@($"/customer/tickets/new?orderId={_order.Id}")"><Icon Name="headphones" Size="16" /> ثبت تیکت برای این سفارش</a>
+            }
+        </div>
+
+        <div class="st-card st-card__pad" style="align-self:start">
+            <h3 style="font-size:15px;margin-bottom:12px">خلاصه پرداخت</h3>
+            <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_order.SubtotalAmount)</span></div>
+            <div class="st-sumrow"><span class="st-muted">تخفیف</span><span>@AUI.MoneyFa(_order.DiscountAmount)</span></div>
+            <div class="st-sumrow total"><span>مبلغ نهایی</span><span>@AUI.MoneyFa(_order.FinalAmount)</span></div>
+            <div class="st-divider"></div>
+            <div class="st-sumrow"><span class="st-muted">تاریخ ثبت</span><span><PersianDateDisplay Value="_order.CreatedAt" WithTime="true" /></span></div>
+            <div class="st-sumrow"><span class="st-muted">تاریخ پرداخت</span><span><PersianDateDisplay Value="_order.PaidAt" WithTime="true" /></span></div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private bool _loading = true;
+    private StoreOrderModel? _order;
+    private Guid _loadedId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id == _loadedId) return;
+        _loadedId = Id;
+        _loading = true;
+        var result = await Api.GetAsync<StoreOrderModel>($"orders/{Id}");
+        _order = result.IsSuccess ? result.Data : null;
+        _loading = false;
+    }
+
+    private async Task Copy(string text)
+    {
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", text); Toasts.Success("کپی شد."); }
+        catch { Toasts.Info("امکان کپی خودکار نبود."); }
+    }
+}

@@ -1,0 +1,50 @@
+@page "/blog"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+
+<PageTitle>وبلاگ | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>وبلاگ</span></div>
+<h1 style="font-size:22px;margin-bottom:18px">آخرین مطالب</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_posts.Count == 0)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="file-text" Size="30" /></div><div class="st-muted">مطلبی منتشر نشده است.</div></div>
+}
+else
+{
+    <div class="st-grid">
+        @foreach (var post in _posts)
+        {
+            <a class="st-pcard" href="@($"/blog/{post.Slug}")">
+                <div class="st-pcard__media">
+                    @if (!string.IsNullOrWhiteSpace(post.CoverImagePath))
+                    { <img src="@Media.Resolve(post.CoverImagePath)" alt="@post.Title" /> }
+                    else { <div class="ph"><Icon Name="file-text" Size="34" /></div> }
+                </div>
+                <div class="st-pcard__body">
+                    <div class="st-pcard__title">@post.Title</div>
+                    @if (!string.IsNullOrWhiteSpace(post.Summary))
+                    { <div class="st-muted" style="font-size:12.5px;line-height:1.9">@post.Summary</div> }
+                    <div class="st-muted" style="font-size:12px;margin-top:auto"><PersianDateDisplay Value="post.CreatedAt" /></div>
+                </div>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<StoreBlogPostModel> _posts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<StoreBlogPostModel>>("blog");
+        _posts = result.Data ?? new();
+        _loading = false;
+    }
+}

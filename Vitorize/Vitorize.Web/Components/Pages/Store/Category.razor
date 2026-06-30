@@ -1,0 +1,9 @@
+@page "/category/{Slug}"
+
+<PageTitle>دسته‌بندی | ویتورایز</PageTitle>
+
+<ShopBrowser Title="دسته‌بندی محصولات" CategorySlug="@Slug" />
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+}

@@ -1,0 +1,56 @@
+@page "/customer/orders"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>سفارش‌های من | ویتورایز</PageTitle>
+
+<h1 style="font-size:22px;margin-bottom:18px">سفارش‌های من</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_orders.Count == 0)
+{
+    <div class="st-state" style="padding:60px">
+        <div class="st-state__ic"><Icon Name="cart" Size="32" /></div>
+        <div style="font-weight:700">هنوز سفارشی ثبت نکرده‌اید</div>
+        <a class="st-btn st-btn--primary st-btn--sm" href="/shop">شروع خرید</a>
+    </div>
+}
+else
+{
+    <div class="st-card">
+        <div class="st-table-wrap">
+            <table class="st-table">
+                <thead><tr><th>شماره سفارش</th><th>تعداد اقلام</th><th>مبلغ</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var o in _orders)
+                    {
+                        <tr>
+                            <td class="st-mono">@o.OrderNumber</td>
+                            <td>@AUI.Number(o.Items.Count)</td>
+                            <td>@AUI.MoneyFa(o.FinalAmount)</td>
+                            <td><StoreBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" /></td>
+                            <td><StoreBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
+                            <td><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></td>
+                            <td><a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /> جزئیات</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<StoreOrderModel> _orders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<StoreOrderModel>>("orders");
+        _orders = (result.Data ?? new()).OrderByDescending(o => o.CreatedAt).ToList();
+        _loading = false;
+    }
+}

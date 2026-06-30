@@ -1,0 +1,9 @@
+@page "/search"
+
+<PageTitle>جستجو | ویتورایز</PageTitle>
+
+<ShopBrowser Title="@($"نتایج جستجو {(string.IsNullOrWhiteSpace(Q) ? "" : $": {Q}")}")" InitialSearch="@Q" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+}

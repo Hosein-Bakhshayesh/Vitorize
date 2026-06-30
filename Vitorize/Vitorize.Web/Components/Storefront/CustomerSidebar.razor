@@ -1,0 +1,37 @@
+<div class="st-acc__side">
+    <div class="st-acc__user">
+        <span class="st-avatar">@Initial</span>
+        <div>
+            <div style="font-weight:700;font-size:14px">@_name</div>
+            <div class="st-muted" style="font-size:11.5px">حساب کاربری</div>
+        </div>
+    </div>
+    <nav class="st-acc__nav">
+        <NavLink href="/customer/dashboard" Match="NavLinkMatch.All"><span class="ic"><Icon Name="dashboard" Size="18" /></span> داشبورد</NavLink>
+        <NavLink href="/customer/orders"><span class="ic"><Icon Name="cart" Size="18" /></span> سفارش‌های من</NavLink>
+        <NavLink href="/customer/wallet"><span class="ic"><Icon Name="wallet" Size="18" /></span> کیف پول</NavLink>
+        <NavLink href="/customer/verification"><span class="ic"><Icon Name="user-check" Size="18" /></span> احراز هویت</NavLink>
+        <NavLink href="/customer/tickets"><span class="ic"><Icon Name="message" Size="18" /></span> پشتیبانی و تیکت‌ها</NavLink>
+        <NavLink href="/customer/notifications"><span class="ic"><Icon Name="bell" Size="18" /></span> اعلان‌ها</NavLink>
+        <NavLink href="/customer/reviews"><span class="ic"><Icon Name="star" Size="18" /></span> نظرات من</NavLink>
+        <NavLink href="/customer/profile"><span class="ic"><Icon Name="user" Size="18" /></span> پروفایل و امنیت</NavLink>
+        <form method="post" action="/auth/customer/logout" style="margin-top:6px">
+            <button type="submit" class="st-acc__nav-logout" style="display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--st-danger);background:none;border:none;cursor:pointer;font-family:inherit">
+                <span class="ic"><Icon Name="logout" Size="18" /></span> خروج از حساب
+            </button>
+        </form>
+    </nav>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private string _name = "کاربر";
+    private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+        var state = await AuthState;
+        _name = state.User.Identity?.Name ?? "کاربر";
+    }
+}

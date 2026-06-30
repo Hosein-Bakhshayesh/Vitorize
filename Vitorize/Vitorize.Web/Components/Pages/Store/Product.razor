@@ -1,0 +1,257 @@
+@page "/product/{Slug}"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject CartState Cart
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using Vitorize.Web.Models.Customer
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>@(_p?.Title ?? "محصول") | ویتورایز</PageTitle>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری ...</div></div>
+}
+else if (_p is null)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="box" Size="32" /></div><div style="font-weight:700">محصول یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/shop">بازگشت به فروشگاه</a></div>
+}
+else
+{
+    <div class="st-bc">
+        <a href="/">خانه</a> <Icon Name="chevron-left" Size="13" />
+        <a href="/shop">فروشگاه</a> <Icon Name="chevron-left" Size="13" />
+        <span>@_p.Title</span>
+    </div>
+
+    <div class="st-pd">
+        <div>
+            <div class="st-gallery__main">
+                @if (!string.IsNullOrWhiteSpace(_activeImage))
+                { <img src="@Media.Resolve(_activeImage)" alt="@_p.Title" /> }
+                else
+                { <div class="ph" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--st-muted)"><Icon Name="box" Size="56" /></div> }
+            </div>
+            @if (_gallery.Count > 1)
+            {
+                <div class="st-gallery__thumbs">
+                    @foreach (var img in _gallery)
+                    {
+                        <div class="st-gallery__thumb @(img == _activeImage ? "active" : "")" @onclick="() => _activeImage = img">
+                            <img src="@Media.Resolve(img)" alt="" />
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="st-card st-card__pad" style="margin-top:22px">
+                <div class="st-tabs">
+                    <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
+                    <button class="st-tab @(_tab == "specs" ? "active" : "")" @onclick='() => _tab = "specs"'>مشخصات</button>
+                    <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
+                </div>
+
+                @if (_tab == "desc")
+                {
+                    <div style="line-height:2;color:var(--st-text-2);font-size:14px">
+                        @if (!string.IsNullOrWhiteSpace(_p.FullDescription))
+                        { @((MarkupString)_p.FullDescription) }
+                        else if (!string.IsNullOrWhiteSpace(_p.ShortDescription))
+                        { <p>@_p.ShortDescription</p> }
+                        else { <p class="st-muted">توضیحاتی ثبت نشده است.</p> }
+                    </div>
+                    @if (_p.Tags.Count > 0)
+                    {
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+                            @foreach (var t in _p.Tags) { <span class="st-tag">@t</span> }
+                        </div>
+                    }
+                }
+                else if (_tab == "specs")
+                {
+                    <table class="st-table">
+                        <tbody>
+                            <tr><td style="width:160px;color:var(--st-muted)">نوع محصول</td><td>@AUI.ProductType(_p.ProductType)</td></tr>
+                            <tr><td style="color:var(--st-muted)">نوع تحویل</td><td>@AUI.DeliveryType(_p.DeliveryType)</td></tr>
+                            <tr><td style="color:var(--st-muted)">دسته‌بندی</td><td>@_p.CategoryTitle</td></tr>
+                            @if (!string.IsNullOrWhiteSpace(_p.BrandTitle))
+                            { <tr><td style="color:var(--st-muted)">برند</td><td>@_p.BrandTitle</td></tr> }
+                            <tr><td style="color:var(--st-muted)">احراز هویت</td><td>@(_p.RequiresVerification ? "نیاز دارد" : "نیاز ندارد")</td></tr>
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <ProductReviews ProductId="_p.Id" Summary="_summary" />
+                }
+            </div>
+        </div>
+
+        <div class="st-buybox">
+            <div class="st-pcard__cat">@_p.CategoryTitle@(string.IsNullOrWhiteSpace(_p.BrandTitle) ? "" : $" · {_p.BrandTitle}")</div>
+            <h1 style="font-size:20px;margin:8px 0 12px">@_p.Title</h1>
+
+            @if (_summary.TotalApprovedReviews > 0)
+            {
+                <div class="st-rating" style="margin-bottom:14px">
+                    <span class="st-stars">@Stars((int)Math.Round(_summary.AverageRating))</span>
+                    <span>@PersianDateHelper.ToPersianDigits(_summary.AverageRating.ToString("0.0")) از @AUI.Number(_summary.TotalApprovedReviews) نظر</span>
+                </div>
+            }
+
+            @if (_p.Variants.Count > 0)
+            {
+                <div class="st-field">
+                    <label class="st-label">انتخاب نسخه</label>
+                    <div class="st-variant">
+                        @foreach (var v in _p.Variants.OrderBy(x => x.SortOrder))
+                        {
+                            <button class="@(_variant?.Id == v.Id ? "active" : "")" @onclick="() => SelectVariant(v)">@v.Title</button>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div style="display:flex;align-items:flex-end;gap:10px;margin:16px 0">
+                @if (CurrentDiscounted)
+                {
+                    <span class="st-price__old" style="font-size:14px">@AUI.MoneyFa(CurrentBase, _p.CurrencyType)</span>
+                }
+                <span style="font-size:24px;font-weight:800">@AUI.Number((long)CurrentPrice)</span>
+                <span class="st-muted" style="margin-bottom:4px">@Unit</span>
+            </div>
+
+            @if (_p.RequiresVerification)
+            {
+                <div class="st-alert st-alert--info" style="margin-bottom:14px"><Icon Name="shield" Size="18" /> <span>خرید این محصول نیازمند تکمیل احراز هویت است.</span></div>
+            }
+            @if (_p.DeliveryType == (byte)DeliveryType.Instant)
+            {
+                <div class="st-alert st-alert--success" style="margin-bottom:14px"><Icon Name="zap" Size="18" /> <span>تحویل آنی و خودکار پس از پرداخت.</span></div>
+            }
+
+            <div class="st-spread" style="margin-bottom:14px">
+                <span class="st-label" style="margin:0">تعداد</span>
+                <div class="st-qty">
+                    <button @onclick="() => SetQty(_qty - 1)">−</button>
+                    <span>@AUI.Number(_qty)</span>
+                    <button @onclick="() => SetQty(_qty + 1)">+</button>
+                </div>
+            </div>
+
+            <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@_busy">
+                @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>افزودن به سبد خرید</span> }
+            </button>
+            <button class="st-btn st-btn--outline st-btn--block" style="margin-top:10px" @onclick="() => AddToCart(true)" disabled="@_busy">
+                خرید فوری
+            </button>
+        </div>
+    </div>
+
+    @if (_related.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> محصولات مرتبط</div></div>
+            <div class="st-grid">
+                @foreach (var r in _related) { <StoreProductCard Product="r" /> }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+
+    private bool _loading = true, _busy;
+    private StoreProductDetailModel? _p;
+    private StoreVariantModel? _variant;
+    private List<string> _gallery = new();
+    private string? _activeImage;
+    private string _tab = "desc";
+    private int _qty = 1;
+    private CustomerReviewSummaryModel _summary = new();
+    private List<StoreProductModel> _related = new();
+    private string? _loadedSlug;
+
+    private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
+    private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
+    private bool CurrentDiscounted => CurrentPrice < CurrentBase;
+    private string Unit => (_p?.CurrencyType ?? 2) == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Slug == _loadedSlug) return;
+        _loadedSlug = Slug;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        _p = null; _variant = null; _gallery.Clear(); _activeImage = null; _qty = 1; _tab = "desc";
+
+        var result = await Api.GetAsync<StoreProductDetailModel>($"products/slug/{Uri.EscapeDataString(Slug)}");
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _p = result.Data;
+            _gallery = new List<string>();
+            if (!string.IsNullOrWhiteSpace(_p.ThumbnailImagePath)) _gallery.Add(_p.ThumbnailImagePath);
+            foreach (var img in _p.Images.Where(i => !string.IsNullOrWhiteSpace(i)))
+                if (!_gallery.Contains(img)) _gallery.Add(img);
+            _activeImage = _gallery.FirstOrDefault();
+            _variant = _p.Variants.FirstOrDefault(v => v.IsDefault) ?? _p.Variants.OrderBy(v => v.SortOrder).FirstOrDefault();
+            _qty = Math.Max(1, _p.MinOrderQuantity);
+
+            _ = LoadExtras(_p.Id);
+        }
+        _loading = false;
+    }
+
+    private async Task LoadExtras(Guid id)
+    {
+        var sumTask = Api.GetAsync<CustomerReviewSummaryModel>($"product-reviews/product/{id}/summary");
+        var relTask = Api.GetAsync<List<StoreProductModel>>($"products/{id}/related?count=8");
+        await Task.WhenAll(sumTask, relTask);
+        if (sumTask.Result.Data is not null) _summary = sumTask.Result.Data;
+        _related = relTask.Result.Data ?? new();
+        StateHasChanged();
+    }
+
+    private void SelectVariant(StoreVariantModel v) => _variant = v;
+
+    private void SetQty(int q)
+    {
+        var min = Math.Max(1, _p?.MinOrderQuantity ?? 1);
+        var max = _p?.MaxOrderQuantity ?? 99;
+        _qty = Math.Clamp(q, min, max);
+    }
+
+    private async Task AddToCart(bool buyNow)
+    {
+        if (_p is null) return;
+        if (_p.Variants.Count > 0 && _variant is null) { Toasts.Error("لطفاً یک نسخه را انتخاب کنید."); return; }
+
+        _busy = true;
+        var result = await Api.PostAsync<CartModel>("cart/items",
+            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty });
+        _busy = false;
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            Cart.Set(result.Data.TotalQuantity);
+            if (buyNow) { Nav.NavigateTo("/cart"); return; }
+            Toasts.Success("به سبد خرید اضافه شد.");
+        }
+        else if (result.Message.Contains("احراز") || result.Message.Contains("نشست") || result.Message.Contains("مجاز"))
+        {
+            Nav.NavigateTo($"/login?returnUrl=/product/{Slug}", forceLoad: true);
+        }
+        else
+        {
+            Toasts.Error(result.Message);
+        }
+    }
+
+    private static string Stars(int rating) => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', 5 - Math.Clamp(rating, 0, 5));
+}

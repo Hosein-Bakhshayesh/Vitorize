@@ -40,6 +40,12 @@ namespace Vitorize.Web.Services
         public Task<ApiResult<T>> PostAsync<T>(string url, object? data = null) =>
             SendAsync<T>(HttpMethod.Post, url, data);
 
+        public Task<ApiResult<T>> PostAsync<T>(
+            string url,
+            object? data,
+            IReadOnlyDictionary<string, string> headers) =>
+            SendAsync<T>(HttpMethod.Post, url, data, headers);
+
         public Task<ApiResult<T>> PutAsync<T>(string url, object? data = null) =>
             SendAsync<T>(HttpMethod.Put, url, data);
 
@@ -88,12 +94,19 @@ namespace Vitorize.Web.Services
         private async Task<ApiResult<T>> SendAsync<T>(
             HttpMethod method,
             string url,
-            object? data)
+            object? data,
+            IReadOnlyDictionary<string, string>? headers = null)
         {
             try
             {
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
+
+                if (headers is not null)
+                {
+                    foreach (var header in headers)
+                        request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                }
 
                 using var response = await _httpClient.SendAsync(request);
                 HandleAuthFailure(url, response.StatusCode);
@@ -166,9 +179,9 @@ namespace Vitorize.Web.Services
                 statusCode != HttpStatusCode.Forbidden)
                 return;
 
-            // فقط برای فراخوانی‌های پنل ادمین؛ مسیر ورود (auth/...) را نادیده می‌گیریم.
-            var path = url.TrimStart('/');
-            if (!path.StartsWith("admin", StringComparison.OrdinalIgnoreCase))
+            // فراخوانی‌های مربوط به خود فرایند ورود را نادیده می‌گیریم.
+            var apiPath = url.TrimStart('/');
+            if (apiPath.StartsWith("auth", StringComparison.OrdinalIgnoreCase))
                 return;
 
             var navigation = _serviceProvider.GetService<NavigationManager>();
@@ -177,16 +190,34 @@ namespace Vitorize.Web.Services
 
             try
             {
+                var currentPath = "/" + navigation.ToBaseRelativePath(navigation.Uri);
+                var lower = currentPath.ToLowerInvariant();
+
+                var isAdminArea = lower.StartsWith("/admin");
+
+                // فقط در ناحیه‌های محافظت‌شده هدایت خودکار انجام می‌شود تا
+                // صفحات عمومی هنگام فراخوانی‌های اختیاری به ورود پرتاب نشوند.
+                var isProtectedArea =
+                    isAdminArea ||
+                    lower.StartsWith("/customer") ||
+                    lower.StartsWith("/cart") ||
+                    lower.StartsWith("/checkout");
+
+                if (!isProtectedArea)
+                    return;
+
                 if (statusCode == HttpStatusCode.Forbidden)
                 {
-                    navigation.NavigateTo("admin/access-denied", forceLoad: false, replace: true);
+                    navigation.NavigateTo(
+                        isAdminArea ? "admin/access-denied" : "access-denied",
+                        forceLoad: false, replace: true);
                     return;
                 }
 
                 // ۴۰۱: نشست منقضی شده؛ بازگشت به صفحه ورود با حفظ مسیر فعلی.
-                var returnUrl = "/" + navigation.ToBaseRelativePath(navigation.Uri);
+                var loginPath = isAdminArea ? "admin/login" : "login";
                 navigation.NavigateTo(
-                    $"admin/login?returnUrl={Uri.EscapeDataString(returnUrl)}",
+                    $"{loginPath}?returnUrl={Uri.EscapeDataString(currentPath)}",
                     forceLoad: true,
                     replace: true);
             }

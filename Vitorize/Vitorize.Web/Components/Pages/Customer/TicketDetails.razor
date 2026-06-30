@@ -1,0 +1,111 @@
+@page "/customer/tickets/{Id:guid}"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>تیکت | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/customer/tickets">تیکت‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>جزئیات</span></div>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_ticket is null)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div style="font-weight:700">تیکت یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/customer/tickets">بازگشت</a></div>
+}
+else
+{
+    <div class="st-spread" style="margin-bottom:14px">
+        <div>
+            <h1 style="font-size:20px">@_ticket.Subject</h1>
+            <div class="st-muted" style="font-size:12.5px;margin-top:4px">@AUI.TicketDepartment(_ticket.Department) · اولویت @AUI.TicketPriority(_ticket.Priority)</div>
+        </div>
+        <StoreBadge Text="@AUI.TicketStatus(_ticket.Status)" Intent="@TicketIntent(_ticket.Status)" />
+    </div>
+
+    <div class="st-card">
+        <div class="st-chat">
+            @foreach (var m in _ticket.Messages.Where(x => !x.IsInternalNote).OrderBy(x => x.CreatedAt))
+            {
+                var mine = m.SenderUserId == _myId;
+                <div class="st-msg @(mine ? "me" : "")">
+                    <div class="st-msg__b">@m.Message</div>
+                    <div class="st-msg__t">@(mine ? "شما" : "پشتیبانی") · <PersianDateDisplay Value="m.CreatedAt" WithTime="true" /></div>
+                </div>
+            }
+        </div>
+
+        @if (_ticket.Status != (byte)TicketStatus.Closed)
+        {
+            <div style="padding:16px;border-top:1px solid var(--st-border)">
+                <textarea class="st-textarea" style="min-height:70px" @bind="_reply" placeholder="پاسخ خود را بنویسید ..."></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:10px">
+                    <button class="st-btn st-btn--primary" @onclick="Send" disabled="@_sending">
+                        @if (_sending) { <span class="st-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال پاسخ</span> }
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div style="padding:16px;border-top:1px solid var(--st-border)" class="st-muted">این تیکت بسته شده است.</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _loading = true, _sending;
+    private CustomerTicketModel? _ticket;
+    private string _reply = string.Empty;
+    private Guid _myId;
+    private Guid _loadedId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var id = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid.TryParse(id, out _myId);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id == _loadedId) return;
+        _loadedId = Id;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<CustomerTicketModel>($"tickets/{Id}");
+        _ticket = result.IsSuccess ? result.Data : null;
+        _loading = false;
+    }
+
+    private async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(_reply)) { Toasts.Error("متن پاسخ الزامی است."); return; }
+        _sending = true;
+        var result = await Api.PostAsync<CustomerTicketModel>($"tickets/{Id}/messages",
+            new { Message = _reply, AttachmentPath = (string?)null });
+        _sending = false;
+        if (result.IsSuccess && result.Data is not null) { _ticket = result.Data; _reply = string.Empty; }
+        else Toasts.Error(result.Message);
+    }
+
+    private static string TicketIntent(byte status) => status switch
+    {
+        (byte)TicketStatus.Open => "info",
+        (byte)TicketStatus.WaitingForAdmin => "warning",
+        (byte)TicketStatus.WaitingForCustomer => "purple",
+        _ => "muted"
+    };
+}

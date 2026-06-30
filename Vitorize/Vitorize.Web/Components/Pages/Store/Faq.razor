@@ -1,0 +1,37 @@
+@page "/faq"
+@inject ApiClient Api
+
+<PageTitle>سوالات متداول | ویتورایز</PageTitle>
+
+<div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سوالات متداول</span></div>
+<h1 style="font-size:22px;margin-bottom:18px">سوالات متداول</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_faqs.Count == 0)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div class="st-muted">سوالی ثبت نشده است.</div></div>
+}
+else
+{
+    <div class="st-stack" style="max-width:820px">
+        @foreach (var f in _faqs)
+        {
+            <FaqItem Question="@f.Question" Answer="@f.Answer" />
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<StoreFaqModel> _faqs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<StoreFaqModel>>("faqs");
+        _faqs = result.Data ?? new();
+        _loading = false;
+    }
+}

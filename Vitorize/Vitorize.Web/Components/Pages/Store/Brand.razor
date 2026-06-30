@@ -1,0 +1,9 @@
+@page "/brand/{Slug}"
+
+<PageTitle>برند | ویتورایز</PageTitle>
+
+<ShopBrowser Title="محصولات برند" BrandSlug="@Slug" />
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+}

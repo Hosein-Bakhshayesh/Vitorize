@@ -1,0 +1,82 @@
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject CartState Cart
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using Vitorize.Web.Models.Store
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<div class="st-pcard">
+    <a class="st-pcard__media" href="@($"/product/{Product.Slug}")">
+        @if (!string.IsNullOrWhiteSpace(Product.ThumbnailImagePath))
+        {
+            <img src="@Media.Resolve(Product.ThumbnailImagePath)" alt="@Product.Title" loading="lazy" />
+        }
+        else
+        {
+            <div class="ph"><Icon Name="box" Size="34" /></div>
+        }
+        @if (Product.DiscountPercent > 0)
+        {
+            <span class="st-pcard__off">@AUI.Number(Product.DiscountPercent)٪</span>
+        }
+    </a>
+    <div class="st-pcard__body">
+        <div class="st-pcard__cat">@Product.CategoryTitle</div>
+        <a class="st-pcard__title" href="@($"/product/{Product.Slug}")">@Product.Title</a>
+        <div class="st-pcard__meta">
+            <span class="st-tag">@AUI.ProductType(Product.ProductType)</span>
+            @if (Product.DeliveryType == (byte)DeliveryType.Instant)
+            {
+                <span class="st-tag st-tag--brand"><Icon Name="zap" Size="12" /> تحویل آنی</span>
+            }
+            @if (Product.RequiresVerification)
+            {
+                <span class="st-tag st-tag--verify">احراز هویت</span>
+            }
+        </div>
+        <div class="st-pcard__foot">
+            <div class="st-price">
+                @if (Product.HasDiscount)
+                {
+                    <span class="st-price__old">@AUI.MoneyFa(Product.BasePrice, Product.CurrencyType)</span>
+                }
+                <span class="st-price__now">@AUI.Number((long)Product.FinalPrice) <span class="st-price__unit">@Unit</span></span>
+            </div>
+            <button class="st-btn st-btn--primary st-btn--sm" @onclick="AddToCart" disabled="@_busy" title="افزودن به سبد">
+                @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="16" /> }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public StoreProductModel Product { get; set; } = default!;
+
+    private bool _busy;
+    private string Unit => Product.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+
+    private async Task AddToCart()
+    {
+        if (Product.HasVariants)
+        {
+            Nav.NavigateTo($"/product/{Product.Slug}");
+            return;
+        }
+
+        _busy = true;
+        var result = await Api.PostAsync<CartModel>("cart/items",
+            new { ProductId = Product.Id, ProductVariantId = (Guid?)null, Quantity = 1 });
+        _busy = false;
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            Cart.Set(result.Data.TotalQuantity);
+            Toasts.Success("محصول به سبد خرید اضافه شد.");
+        }
+        else
+        {
+            Toasts.Error(result.Message);
+        }
+    }
+}

@@ -1,0 +1,74 @@
+@page "/customer/notifications"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>اعلان‌ها | ویتورایز</PageTitle>
+
+<div class="st-spread" style="margin-bottom:18px">
+    <h1 style="font-size:22px">اعلان‌ها</h1>
+    @if (_items.Any(n => !n.IsRead))
+    {
+        <button class="st-btn st-btn--outline st-btn--sm" @onclick="MarkAll"><Icon Name="check" Size="15" /> خواندن همه</button>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_items.Count == 0)
+{
+    <div class="st-state" style="padding:60px"><div class="st-state__ic"><Icon Name="bell" Size="32" /></div><div class="st-muted">اعلانی ندارید.</div></div>
+}
+else
+{
+    <div class="st-stack">
+        @foreach (var n in _items)
+        {
+            <div class="st-card st-card__pad" style="@(n.IsRead ? "" : "border-inline-start:3px solid var(--st-brand-2)")">
+                <div class="st-spread">
+                    <div style="display:flex;gap:12px;align-items:flex-start">
+                        <span style="width:38px;height:38px;border-radius:11px;background:var(--st-chip);color:var(--st-brand-2);display:flex;align-items:center;justify-content:center;flex:0 0 38px"><Icon Name="bell" Size="18" /></span>
+                        <div>
+                            <div style="font-weight:700;font-size:14px">@n.Title</div>
+                            <div class="st-muted" style="font-size:13px;line-height:1.9;margin-top:2px">@n.Message</div>
+                            <div class="st-muted" style="font-size:11.5px;margin-top:6px"><PersianDateDisplay Value="n.CreatedAt" WithTime="true" /></div>
+                        </div>
+                    </div>
+                    @if (!n.IsRead)
+                    {
+                        <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => MarkRead(n)"><Icon Name="check" Size="15" /></button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<CustomerNotificationModel> _items = new();
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<List<CustomerNotificationModel>>("notifications");
+        _items = (result.Data ?? new()).OrderByDescending(n => n.CreatedAt).ToList();
+        _loading = false;
+    }
+
+    private async Task MarkRead(CustomerNotificationModel n)
+    {
+        var result = await Api.PostAsync($"notifications/{n.Id}/read");
+        if (result.IsSuccess) n.IsRead = true;
+    }
+
+    private async Task MarkAll()
+    {
+        var result = await Api.PostAsync("notifications/read-all");
+        if (result.IsSuccess) { Toasts.Success("همه اعلان‌ها خوانده شد."); await Load(); }
+    }
+}

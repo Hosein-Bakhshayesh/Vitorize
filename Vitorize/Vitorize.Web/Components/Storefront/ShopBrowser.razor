@@ -1,0 +1,212 @@
+@inject ApiClient Api
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<div class="st-bc">
+    <a href="/">خانه</a> <Icon Name="chevron-left" Size="13" />
+    <span>@Title</span>
+</div>
+
+<div class="st-spread" style="margin-bottom:18px">
+    <h1 style="font-size:22px">@Title</h1>
+    <div style="display:flex;gap:10px;align-items:center">
+        <select class="st-select" style="height:42px;min-height:42px;width:auto" @bind="_sort" @bind:after="ApplyClient">
+            <option value="newest">جدیدترین</option>
+            <option value="cheap">ارزان‌ترین</option>
+            <option value="expensive">گران‌ترین</option>
+        </select>
+    </div>
+</div>
+
+<div class="st-shop">
+    <aside class="st-filters">
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">جستجو</div>
+            <input class="st-input" placeholder="نام محصول ..." @bind="_search" @bind:after="ReloadFromFilters" />
+        </div>
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">دسته‌بندی</div>
+            <select class="st-select" @bind="_categoryId" @bind:after="ReloadFromFilters">
+                <option value="">همه دسته‌ها</option>
+                @foreach (var c in _categories) { <option value="@c.Id">@c.Title</option> }
+            </select>
+        </div>
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">برند</div>
+            <select class="st-select" @bind="_brandId" @bind:after="ReloadFromFilters">
+                <option value="">همه برندها</option>
+                @foreach (var b in _brands) { <option value="@b.Id">@b.Title</option> }
+            </select>
+        </div>
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">نوع محصول</div>
+            @foreach (var t in ProductTypes)
+            {
+                <label class="st-check"><input type="checkbox" checked="@_types.Contains(t.Key)" @onchange="e => ToggleType(t.Key, (bool)e.Value!)" /> @t.Value</label>
+            }
+        </div>
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">نوع تحویل</div>
+            <label class="st-check"><input type="checkbox" checked="@_instantOnly" @onchange="e => { _instantOnly = (bool)e.Value!; ApplyClient(); }" /> تحویل آنی</label>
+        </div>
+        <div class="st-fgroup">
+            <div class="st-fgroup__t">محدوده قیمت (تومان)</div>
+            <div style="display:flex;gap:8px">
+                <input class="st-input" type="number" placeholder="از" @bind="_minPrice" @bind:after="ApplyClient" />
+                <input class="st-input" type="number" placeholder="تا" @bind="_maxPrice" @bind:after="ApplyClient" />
+            </div>
+        </div>
+        <div class="st-fgroup">
+            <label class="st-check"><input type="checkbox" checked="@_verifiedOnly" @onchange="e => { _verifiedOnly = (bool)e.Value!; ApplyClient(); }" /> فقط نیازمند احراز هویت</label>
+        </div>
+    </aside>
+
+    <div>
+        @if (_loading)
+        {
+            <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری محصولات ...</div></div>
+        }
+        else if (_view.Count == 0)
+        {
+            <div class="st-state"><div class="st-state__ic"><Icon Name="box" Size="32" /></div><div style="font-weight:700">محصولی یافت نشد</div><div class="st-muted">فیلترها را تغییر دهید یا دوباره جستجو کنید.</div></div>
+        }
+        else
+        {
+            <div class="st-grid">
+                @foreach (var p in _view)
+                {
+                    <StoreProductCard Product="p" />
+                }
+            </div>
+            <div class="st-pager">
+                <button @onclick="() => GoPage(_page - 1)" disabled="@(_page <= 1)"><Icon Name="chevron-right" Size="16" /></button>
+                <button class="active">@AUI.Number(_page)</button>
+                <button @onclick="() => GoPage(_page + 1)" disabled="@(!_hasMore)"><Icon Name="chevron-left" Size="16" /></button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "فروشگاه";
+    [Parameter] public string? CategorySlug { get; set; }
+    [Parameter] public string? BrandSlug { get; set; }
+    [Parameter] public string? InitialSearch { get; set; }
+
+    private List<StoreLookupModel> _categories = new();
+    private List<StoreLookupModel> _brands = new();
+
+    private List<StoreProductModel> _all = new();
+    private List<StoreProductModel> _view = new();
+
+    private bool _loading = true;
+    private int _page = 1;
+    private const int _pageSize = 24;
+    private bool _hasMore;
+
+    private string _search = string.Empty;
+    private string _categoryId = string.Empty;
+    private string _brandId = string.Empty;
+    private string _sort = "newest";
+    private readonly HashSet<byte> _types = new();
+    private bool _instantOnly;
+    private bool _verifiedOnly;
+    private decimal? _minPrice;
+    private decimal? _maxPrice;
+
+    private static readonly Dictionary<byte, string> ProductTypes = new()
+    {
+        { 1, "گیفت کارت" }, { 2, "اکانت بازی" }, { 3, "سرویس بازی" }, { 4, "اشتراک" }, { 5, "سایر" }
+    };
+
+    private string? _appliedKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var catTask = Api.GetAsync<List<StoreLookupModel>>("products/categories");
+        var brandTask = Api.GetAsync<List<StoreLookupModel>>("products/brands");
+        await Task.WhenAll(catTask, brandTask);
+        _categories = catTask.Result.Data ?? new();
+        _brands = brandTask.Result.Data ?? new();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{CategorySlug}|{BrandSlug}|{InitialSearch}";
+        if (key == _appliedKey) return;
+        _appliedKey = key;
+
+        _search = InitialSearch ?? string.Empty;
+        _categoryId = string.Empty;
+        _brandId = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(CategorySlug))
+        {
+            var c = _categories.FirstOrDefault(x => string.Equals(x.Slug, CategorySlug, StringComparison.OrdinalIgnoreCase));
+            if (c is not null) _categoryId = c.Id.ToString();
+        }
+        if (!string.IsNullOrWhiteSpace(BrandSlug))
+        {
+            var b = _brands.FirstOrDefault(x => string.Equals(x.Slug, BrandSlug, StringComparison.OrdinalIgnoreCase));
+            if (b is not null) _brandId = b.Id.ToString();
+        }
+
+        _page = 1;
+        await Load();
+    }
+
+    private async Task ReloadFromFilters()
+    {
+        _page = 1;
+        await Load();
+    }
+
+    private async Task GoPage(int page)
+    {
+        if (page < 1) return;
+        _page = page;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        var query = $"products?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
+        if (!string.IsNullOrWhiteSpace(_categoryId)) query += $"&categoryId={_categoryId}";
+        if (!string.IsNullOrWhiteSpace(_brandId)) query += $"&brandId={_brandId}";
+
+        var result = await Api.GetAsync<List<StoreProductModel>>(query);
+        _all = result.Data ?? new();
+        _hasMore = _all.Count >= _pageSize;
+        _loading = false;
+        ApplyClient();
+    }
+
+    private void ApplyClient()
+    {
+        IEnumerable<StoreProductModel> q = _all;
+
+        if (_types.Count > 0) q = q.Where(p => _types.Contains(p.ProductType));
+        if (_instantOnly) q = q.Where(p => p.DeliveryType == (byte)DeliveryType.Instant);
+        if (_verifiedOnly) q = q.Where(p => p.RequiresVerification);
+        if (_minPrice is > 0) q = q.Where(p => p.FinalPrice >= _minPrice);
+        if (_maxPrice is > 0) q = q.Where(p => p.FinalPrice <= _maxPrice);
+
+        q = _sort switch
+        {
+            "cheap" => q.OrderBy(p => p.FinalPrice),
+            "expensive" => q.OrderByDescending(p => p.FinalPrice),
+            _ => q
+        };
+
+        _view = q.ToList();
+        StateHasChanged();
+    }
+
+    private void ToggleType(byte t, bool on)
+    {
+        if (on) _types.Add(t); else _types.Remove(t);
+        ApplyClient();
+    }
+}

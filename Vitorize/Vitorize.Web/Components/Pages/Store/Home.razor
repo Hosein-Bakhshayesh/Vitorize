@@ -1,0 +1,158 @@
+@page "/"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین</PageTitle>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری ...</div></div>
+}
+else
+{
+    <section class="st-hero">
+        <div>
+            <span class="st-hero__eyebrow"><Icon Name="zap" Size="14" /> تحویل آنی و خودکار</span>
+            <h1 class="st-hero__title">دنیای بازی و دیجیتال <span class="hl">در دستان تو!</span></h1>
+            <p class="st-hero__desc">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال؛ با بهترین قیمت و پشتیبانی ۲۴ ساعته.</p>
+            <div class="st-hero__cta">
+                <a class="st-btn st-btn--accent st-btn--lg" href="/shop"><Icon Name="shopping-bag" Size="18" /> ورود به فروشگاه</a>
+                <a class="st-btn st-btn--outline st-btn--lg" style="color:#fff;border-color:rgba(255,255,255,.4)" href="/faq">راهنمای خرید</a>
+            </div>
+        </div>
+        <div class="st-hero__art">
+            <div class="st-hero__card">
+                @if (_data.Banners.Count > 0)
+                {
+                    <img src="@Media.Resolve(_data.Banners[0].ImagePath)" alt="@_data.Banners[0].Title" style="width:100%;border-radius:14px" />
+                }
+                else
+                {
+                    <div style="text-align:center;padding:24px">
+                        <div style="font-size:46px;font-weight:800;color:var(--st-brand-3)">VITORIZE</div>
+                        <div style="opacity:.85;margin-top:8px">بازارگاه دیجیتال گیمینگ</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <div class="st-hero-mini">
+        <div class="st-trust"><span class="st-trust__ic"><Icon Name="shield-check" Size="20" /></span><div><div class="st-trust__t">تضمین اصالت</div><div class="st-trust__s">محصولات رسمی و اورجینال</div></div></div>
+        <div class="st-trust"><span class="st-trust__ic"><Icon Name="zap" Size="20" /></span><div><div class="st-trust__t">تحویل آنی</div><div class="st-trust__s">سریع و بدون انتظار</div></div></div>
+        <div class="st-trust"><span class="st-trust__ic"><Icon Name="headphones" Size="20" /></span><div><div class="st-trust__t">پشتیبانی ۲۴/۷</div><div class="st-trust__s">همیشه کنار شما</div></div></div>
+        <div class="st-trust"><span class="st-trust__ic"><Icon Name="lock" Size="20" /></span><div><div class="st-trust__t">پرداخت امن</div><div class="st-trust__s">درگاه‌های معتبر</div></div></div>
+    </div>
+
+    @if (_data.Categories.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head">
+                <div class="st-section__title"><span class="bar"></span> دسته‌بندی‌ها</div>
+                <a class="st-section__more" href="/categories">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+            </div>
+            <div class="st-cats">
+                @foreach (var c in _data.Categories.Take(12))
+                {
+                    <a class="st-cat" href="@($"/category/{c.Slug}")">
+                        <div class="st-cat__ic">
+                            @if (!string.IsNullOrWhiteSpace(c.ImagePath))
+                            { <img src="@Media.Resolve(c.ImagePath)" alt="@c.Title" style="width:32px;height:32px;object-fit:contain" /> }
+                            else { <Icon Name="gamepad" Size="24" /> }
+                        </div>
+                        <div class="st-cat__t">@c.Title</div>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (_data.FeaturedProducts.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head">
+                <div class="st-section__title"><span class="bar"></span> محصولات پرطرفدار</div>
+                <a class="st-section__more" href="/shop">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+            </div>
+            <div class="st-grid">
+                @foreach (var p in _data.FeaturedProducts)
+                {
+                    <StoreProductCard Product="p" />
+                }
+            </div>
+        </section>
+    }
+
+    @if (_data.Brands.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> برندهای محبوب</div></div>
+            <div class="st-brands">
+                @foreach (var b in _data.Brands.Take(10))
+                {
+                    <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
+                        @if (!string.IsNullOrWhiteSpace(b.ImagePath))
+                        { <img src="@Media.Resolve(b.ImagePath)" alt="@b.Title" /> }
+                        else { <span>@b.Title</span> }
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (_data.LatestBlogPosts.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head">
+                <div class="st-section__title"><span class="bar"></span> آخرین مطالب</div>
+                <a class="st-section__more" href="/blog">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+            </div>
+            <div class="st-grid">
+                @foreach (var post in _data.LatestBlogPosts.Take(4))
+                {
+                    <a class="st-pcard" href="@($"/blog/{post.Slug}")">
+                        <div class="st-pcard__media">
+                            @if (!string.IsNullOrWhiteSpace(post.CoverImagePath))
+                            { <img src="@Media.Resolve(post.CoverImagePath)" alt="@post.Title" /> }
+                            else { <div class="ph"><Icon Name="file-text" Size="34" /></div> }
+                        </div>
+                        <div class="st-pcard__body">
+                            <div class="st-pcard__title">@post.Title</div>
+                            <div class="st-muted" style="font-size:12px"><PersianDateDisplay Value="post.CreatedAt" /></div>
+                        </div>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+
+    @if (_data.Faqs.Count > 0)
+    {
+        <section class="st-section">
+            <div class="st-section__head">
+                <div class="st-section__title"><span class="bar"></span> سوالات متداول</div>
+                <a class="st-section__more" href="/faq">همه سوالات <Icon Name="chevron-left" Size="15" /></a>
+            </div>
+            <div class="st-stack">
+                @foreach (var f in _data.Faqs.Take(5))
+                {
+                    <FaqItem Question="@f.Question" Answer="@f.Answer" />
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private StoreHomeModel _data = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<StoreHomeModel>("storefront/home");
+        if (result.IsSuccess && result.Data is not null) _data = result.Data;
+        _loading = false;
+    }
+}

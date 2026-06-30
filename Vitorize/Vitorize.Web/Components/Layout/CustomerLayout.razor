@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+@using Vitorize.Web.Components.Storefront
+
+<div class="st-shell">
+    <StoreHeader />
+    <main class="st-main">
+        <div class="st-container">
+            <div class="st-acc">
+                <CustomerSidebar />
+                <div style="min-width:0">
+                    @Body
+                </div>
+            </div>
+        </div>
+    </main>
+    <StoreFooter />
+    <StoreBottomNav />
+</div>
+
+<ToastHost />

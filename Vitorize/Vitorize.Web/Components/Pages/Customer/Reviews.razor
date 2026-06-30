@@ -1,0 +1,63 @@
+@page "/customer/reviews"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>نظرات من | ویتورایز</PageTitle>
+
+<h1 style="font-size:22px;margin-bottom:18px">نظرات من</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_items.Count == 0)
+{
+    <div class="st-state" style="padding:60px"><div class="st-state__ic"><Icon Name="star" Size="32" /></div><div class="st-muted">هنوز نظری ثبت نکرده‌اید.</div></div>
+}
+else
+{
+    <div class="st-stack">
+        @foreach (var r in _items)
+        {
+            <div class="st-card st-card__pad">
+                <div class="st-spread">
+                    <div>
+                        <div class="st-stars" style="font-size:14px">@Stars(r.Rating)</div>
+                        @if (!string.IsNullOrWhiteSpace(r.Title)) { <div style="font-weight:700;margin-top:6px">@r.Title</div> }
+                    </div>
+                    <StoreBadge Text="@AUI.ReviewStatusText(r.IsApproved, r.IsRejected)" Intent="@AUI.ReviewStatusIntent(r.IsApproved, r.IsRejected)" />
+                </div>
+                <p style="margin-top:8px;line-height:2;font-size:13.5px;color:var(--st-text-2)">@r.Comment</p>
+                <div class="st-spread" style="margin-top:8px">
+                    <span class="st-muted" style="font-size:12px"><PersianDateDisplay Value="r.CreatedAt" /></span>
+                    <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger)" @onclick="() => Delete(r)"><Icon Name="trash" Size="14" /> حذف</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<CustomerReviewModel> _items = new();
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<List<CustomerReviewModel>>("product-reviews/mine");
+        _items = (result.Data ?? new()).OrderByDescending(r => r.CreatedAt).ToList();
+        _loading = false;
+    }
+
+    private async Task Delete(CustomerReviewModel r)
+    {
+        var result = await Api.DeleteAsync($"product-reviews/{r.Id}");
+        if (result.IsSuccess) { Toasts.Success("نظر حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private static string Stars(int rating) => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', 5 - Math.Clamp(rating, 0, 5));
+}

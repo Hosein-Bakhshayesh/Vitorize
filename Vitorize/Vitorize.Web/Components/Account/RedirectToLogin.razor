@@ -10,13 +10,17 @@
     {
         var relative = Nav.ToBaseRelativePath(Nav.Uri);
         var returnUrl = "/" + relative;
+        var isAdmin = relative.StartsWith("admin", StringComparison.OrdinalIgnoreCase);
 
-        var target = "admin/login";
-        if (!string.IsNullOrWhiteSpace(relative) &&
-            !relative.StartsWith("admin/login", StringComparison.OrdinalIgnoreCase))
-        {
+        var loginBase = isAdmin ? "admin/login" : "login";
+
+        var target = loginBase;
+        var alreadyOnLogin =
+            relative.StartsWith("admin/login", StringComparison.OrdinalIgnoreCase) ||
+            relative.StartsWith("login", StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(relative) && !alreadyOnLogin)
             target += $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
-        }
 
         Nav.NavigateTo(target, forceLoad: false, replace: true);
     }

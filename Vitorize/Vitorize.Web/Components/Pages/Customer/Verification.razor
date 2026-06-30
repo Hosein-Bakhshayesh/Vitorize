@@ -1,0 +1,171 @@
+@page "/customer/verification"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>احراز هویت | ویتورایز</PageTitle>
+
+<h1 style="font-size:22px;margin-bottom:6px">احراز هویت (KYC)</h1>
+<p class="st-muted" style="font-size:13px;margin-bottom:18px">برای خرید برخی محصولات، تکمیل احراز هویت الزامی است.</p>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else
+{
+    @if (_profile is not null)
+    {
+        var intent = AUI.StatusBadgeIntent(_profile.Status, "verify");
+        <div class="st-alert st-alert--@(_profile.Status == (byte)VerificationStatus.Verified ? "success" : _profile.Status == (byte)VerificationStatus.Rejected ? "danger" : "info")" style="margin-bottom:18px">
+            <Icon Name="shield" Size="20" />
+            <div>
+                <div style="font-weight:700">وضعیت: @AUI.VerificationStatus(_profile.Status)</div>
+                @if (_profile.Status == (byte)VerificationStatus.Rejected && !string.IsNullOrWhiteSpace(_profile.AdminNote))
+                { <div style="font-size:12.5px;margin-top:3px">دلیل: @_profile.AdminNote</div> }
+                @if (_profile.Status == (byte)VerificationStatus.Pending)
+                { <div style="font-size:12.5px;margin-top:3px">درخواست شما در حال بررسی است.</div> }
+            </div>
+        </div>
+    }
+
+    <div class="st-split" style="grid-template-columns:1fr 320px">
+        <div class="st-stack">
+            <div class="st-card">
+                <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی</div>
+                <div class="st-card__pad">
+                    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+                        <div class="st-field"><label class="st-label">نام</label><input class="st-input" @bind="_firstName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">نام خانوادگی</label><input class="st-input" @bind="_lastName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد ملی</label><input class="st-input st-mono" @bind="_nationalCode" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">تاریخ تولد</label><PersianDatePicker @bind-Value="_birthDate" /></div>
+                        <div class="st-field"><label class="st-label">شماره کارت بانکی</label><input class="st-input st-mono" @bind="_bankCard" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">شماره شبا</label><input class="st-input st-mono" @bind="_shaba" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد پستی</label><input class="st-input st-mono" @bind="_postalCode" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">آدرس</label><input class="st-input" @bind="_address" disabled="@ReadOnly" /></div>
+                    </div>
+                    @if (!ReadOnly)
+                    {
+                        <button class="st-btn st-btn--primary" style="margin-top:8px" @onclick="Submit" disabled="@_submitting">
+                            @if (_submitting) { <span class="st-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>ثبت اطلاعات احراز هویت</span> }
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="st-card">
+                <div class="st-card__head"><Icon Name="image" Size="18" /> مدارک</div>
+                <div class="st-card__pad">
+                    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+                        @foreach (var dt in DocTypes)
+                        {
+                            <div>
+                                <div class="st-label">@dt.Value</div>
+                                @{ var existing = _profile?.Documents.FirstOrDefault(d => d.DocumentType == dt.Key); }
+                                @if (existing is not null)
+                                {
+                                    <div style="position:relative;border:1px solid var(--st-border);border-radius:12px;overflow:hidden">
+                                        <img src="@Media.Resolve(existing.FilePath)" style="width:100%;height:130px;object-fit:cover" alt="" />
+                                        <button class="st-btn st-btn--sm" style="position:absolute;top:8px;inset-inline-start:8px;background:#fff;color:var(--st-danger)" @onclick="() => DeleteDoc(existing.Id)"><Icon Name="trash" Size="14" /></button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <UploadBox Value="null" ValueChanged="(p) => AddDoc(dt.Key, p)" Label="آپلود تصویر" Endpoint="uploads/verification-document" />
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="st-card st-card__pad" style="align-self:start">
+            <h3 style="font-size:15px;margin-bottom:12px">راهنما</h3>
+            <ul style="font-size:12.5px;line-height:2.2;color:var(--st-text-2);padding-inline-start:18px;margin:0">
+                <li>تصاویر باید واضح و خوانا باشند.</li>
+                <li>اطلاعات باید با کارت ملی مطابقت داشته باشد.</li>
+                <li>حداکثر حجم هر تصویر ۵ مگابایت.</li>
+                <li>پس از ثبت، بررسی حداکثر تا ۲۴ ساعت انجام می‌شود.</li>
+            </ul>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true, _submitting;
+    private CustomerVerificationModel? _profile;
+
+    private string _firstName = "", _lastName = "", _nationalCode = "";
+    private DateTime? _birthDate;
+    private string? _bankCard, _shaba, _postalCode, _address;
+
+    private bool ReadOnly => _profile is not null &&
+        (_profile.Status == (byte)VerificationStatus.Verified || _profile.Status == (byte)VerificationStatus.Pending);
+
+    private static readonly Dictionary<byte, string> DocTypes = new()
+    {
+        { 1, "روی کارت ملی" }, { 2, "پشت کارت ملی" }, { 3, "سلفی با کارت ملی" }, { 4, "کارت بانکی" }
+    };
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<CustomerVerificationModel>("verification/me");
+        _profile = result.IsSuccess ? result.Data : null;
+        if (_profile is not null)
+        {
+            _firstName = _profile.FirstName;
+            _lastName = _profile.LastName;
+            _nationalCode = _profile.NationalCode;
+            _birthDate = _profile.BirthDate;
+            _bankCard = _profile.BankCardNumber;
+            _shaba = _profile.ShabaNumber;
+            _postalCode = _profile.PostalCode;
+            _address = _profile.Address;
+        }
+        _loading = false;
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode))
+        { Toasts.Error("نام، نام خانوادگی و کد ملی الزامی است."); return; }
+
+        _submitting = true;
+        var result = await Api.PostAsync<CustomerVerificationModel>("verification/submit", new
+        {
+            FirstName = _firstName,
+            LastName = _lastName,
+            NationalCode = _nationalCode,
+            BirthDate = _birthDate?.ToString("yyyy-MM-dd"),
+            BankCardNumber = _bankCard,
+            ShabaNumber = _shaba,
+            Address = _address,
+            PostalCode = _postalCode
+        });
+        _submitting = false;
+
+        if (result.IsSuccess) { Toasts.Success("اطلاعات احراز هویت ثبت شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task AddDoc(byte docType, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        var result = await Api.PostAsync<CustomerVerificationDocumentModel>("verification/documents",
+            new { DocumentType = docType, FilePath = path });
+        if (result.IsSuccess) { Toasts.Success("مدرک ثبت شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task DeleteDoc(Guid id)
+    {
+        var result = await Api.DeleteAsync($"verification/documents/{id}");
+        if (result.IsSuccess) { Toasts.Success("مدرک حذف شد."); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

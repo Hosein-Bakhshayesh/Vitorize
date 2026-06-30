@@ -1,0 +1,33 @@
+@inject IJSRuntime JS
+
+<button class="st-theme-toggle" @onclick="Toggle" title="@(_dark ? "حالت روشن" : "حالت تاریک")" type="button">
+    <Icon Name="@(_dark ? "sun" : "moon")" Size="19" />
+</button>
+
+@code {
+    private bool _dark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var theme = await JS.InvokeAsync<string>("vzTheme.get");
+                _dark = theme == "dark";
+                StateHasChanged();
+            }
+            catch { }
+        }
+    }
+
+    private async Task Toggle()
+    {
+        try
+        {
+            var theme = await JS.InvokeAsync<string>("vzTheme.toggle");
+            _dark = theme == "dark";
+        }
+        catch { }
+    }
+}

@@ -1,0 +1,40 @@
+@page "/page/{Slug}"
+@inject ApiClient Api
+
+<PageTitle>@(_page?.Title ?? "صفحه") | ویتورایز</PageTitle>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_page is null)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="file-text" Size="30" /></div><div style="font-weight:700">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
+}
+else
+{
+    <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>@_page.Title</span></div>
+    <article style="max-width:840px;margin:0 auto">
+        <h1 style="font-size:24px;margin-bottom:18px">@_page.Title</h1>
+        <div style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
+            @((MarkupString)(_page.ContentHtml ?? string.Empty))
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    private bool _loading = true;
+    private StorePageModel? _page;
+    private string? _loadedSlug;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Slug == _loadedSlug) return;
+        _loadedSlug = Slug;
+        _loading = true;
+        var result = await Api.GetAsync<StorePageModel>($"pages/{Uri.EscapeDataString(Slug)}");
+        _page = result.IsSuccess ? result.Data : null;
+        _loading = false;
+    }
+}

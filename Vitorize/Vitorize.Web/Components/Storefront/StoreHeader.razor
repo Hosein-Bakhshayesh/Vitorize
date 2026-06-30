@@ -1,0 +1,129 @@
+@implements IDisposable
+@inject NavigationManager Nav
+@inject ApiClient Api
+@inject CartState Cart
+@using Vitorize.Web.Models.Store
+
+<header class="st-header">
+    <div class="st-container">
+        <div class="st-header__row">
+            <a class="st-logo" href="/">
+                <span class="st-logo__mark">V</span>
+                <span>VITORIZE</span>
+            </a>
+
+            <nav class="st-nav">
+                <a href="/" class="@Active("/")">خانه</a>
+                <a href="/shop" class="@Active("/shop")">فروشگاه</a>
+                <a href="/categories" class="@Active("/categories")">دسته‌بندی‌ها</a>
+                <a href="/blog" class="@Active("/blog")">وبلاگ</a>
+                <a href="/faq" class="@Active("/faq")">سوالات متداول</a>
+            </nav>
+
+            <div class="st-search">
+                <span class="ico"><Icon Name="search" Size="18" /></span>
+                <input type="text" placeholder="جستجو در محصولات، بازی‌ها، گیفت کارت‌ها ..."
+                       @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" />
+            </div>
+
+            <div class="st-header__actions">
+                <ThemeToggle />
+
+                <a class="st-iconbtn st-mobile-only" href="/search" title="جستجو"><Icon Name="search" Size="19" /></a>
+
+                <a class="st-iconbtn" href="/cart" title="سبد خرید">
+                    <Icon Name="cart" Size="19" />
+                    @if (Cart.Count > 0)
+                    {
+                        <span class="badge">@AdminUiHelper.Number(Cart.Count)</span>
+                    }
+                </a>
+
+                @if (_authenticated)
+                {
+                    <div class="st-pmenu">
+                        <button class="st-avatar" @onclick="ToggleMenu" type="button">@Initial</button>
+                        @if (_menuOpen)
+                        {
+                            <div style="position:fixed;inset:0;z-index:120" @onclick="CloseMenu"></div>
+                            <div class="st-dropdown">
+                                <a href="/customer/dashboard"><Icon Name="dashboard" Size="17" /> داشبورد</a>
+                                <a href="/customer/orders"><Icon Name="cart" Size="17" /> سفارش‌های من</a>
+                                <a href="/customer/wallet"><Icon Name="wallet" Size="17" /> کیف پول</a>
+                                <a href="/customer/tickets"><Icon Name="message" Size="17" /> پشتیبانی</a>
+                                <div class="st-dropdown__divider"></div>
+                                <form method="post" action="/auth/customer/logout" style="margin:0">
+                                    <button type="submit" class="danger"><Icon Name="logout" Size="17" /> خروج از حساب</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <a class="st-btn st-btn--primary" href="/login"><Icon Name="log-in" Size="17" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
+                }
+            </div>
+        </div>
+    </div>
+</header>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _authenticated;
+    private bool _menuOpen;
+    private string _search = string.Empty;
+    private string _name = "کاربر";
+    private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
+
+    protected override void OnInitialized() => Cart.OnChange += OnCartChange;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+
+        var state = await AuthState;
+        _authenticated = state.User.Identity?.IsAuthenticated == true;
+
+        if (_authenticated)
+        {
+            _name = state.User.Identity?.Name ?? "کاربر";
+            await RefreshCartCount();
+        }
+    }
+
+    private async Task RefreshCartCount()
+    {
+        try
+        {
+            var result = await Api.GetAsync<CartModel>("cart");
+            if (result.IsSuccess && result.Data is not null)
+                Cart.Set(result.Data.TotalQuantity);
+        }
+        catch { }
+    }
+
+    private void OnCartChange() => InvokeAsync(StateHasChanged);
+
+    private string Active(string path)
+    {
+        var current = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
+        if (path == "/") return current == "/" || current == "" ? "active" : "";
+        return current.StartsWith(path, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    }
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void CloseMenu() => _menuOpen = false;
+
+    private void OnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_search))
+        {
+            Nav.NavigateTo($"/search?q={Uri.EscapeDataString(_search.Trim())}");
+            _search = string.Empty;
+        }
+    }
+
+    public void Dispose() => Cart.OnChange -= OnCartChange;
+}

@@ -5,12 +5,24 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <meta name="color-scheme" content="light" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <base href="/" />
-    <title>پنل مدیریت ویتورایز</title>
+    <title>ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('vitorize-theme');
+                if (!t) {
+                    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+        })();
+    </script>
     <link rel="stylesheet" href="css/admin.css" />
+    <link rel="stylesheet" href="css/storefront.css" />
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
@@ -30,6 +42,7 @@
 
     <script src="_framework/blazor.web.js"></script>
     <script src="js/admin.js"></script>
+    <script src="js/storefront-theme.js"></script>
 </body>
 
 </html>

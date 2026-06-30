@@ -1,0 +1,99 @@
+@page "/customer/dashboard"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>داشبورد | ویتورایز</PageTitle>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else
+{
+    <div class="st-spread" style="margin-bottom:18px">
+        <div>
+            <h1 style="font-size:22px">سلام @(_user?.FullName ?? "کاربر") 👋</h1>
+            <p class="st-muted" style="font-size:13px">به پنل کاربری ویتورایز خوش آمدید.</p>
+        </div>
+        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="17" /> خرید جدید</a>
+    </div>
+
+    <div class="st-stats" style="margin-bottom:22px">
+        <div class="st-stat">
+            <div class="st-stat__ic" style="background:var(--st-success-soft);color:var(--st-brand-2)"><Icon Name="wallet" Size="22" /></div>
+            <div class="st-stat__v">@AUI.MoneyFa(_walletBalance)</div>
+            <div class="st-stat__l">موجودی کیف پول</div>
+        </div>
+        <div class="st-stat">
+            <div class="st-stat__ic" style="background:var(--st-info-soft);color:var(--st-info)"><Icon Name="cart" Size="22" /></div>
+            <div class="st-stat__v">@AUI.Number(_orders.Count)</div>
+            <div class="st-stat__l">سفارش‌های من</div>
+        </div>
+        <div class="st-stat">
+            <div class="st-stat__ic" style="background:var(--st-warning-soft);color:var(--st-warning)"><Icon Name="message" Size="22" /></div>
+            <div class="st-stat__v">@AUI.Number(_openTickets)</div>
+            <div class="st-stat__l">تیکت‌های باز</div>
+        </div>
+        <div class="st-stat">
+            <div class="st-stat__ic" style="background:var(--st-chip);color:var(--st-brand-2)"><Icon Name="user-check" Size="22" /></div>
+            <div class="st-stat__v" style="font-size:15px;padding-top:6px">
+                <StoreBadge Text="@AUI.VerificationStatus(_user?.VerificationStatus ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.VerificationStatus ?? 0, "verify")" />
+            </div>
+            <div class="st-stat__l">احراز هویت</div>
+        </div>
+    </div>
+
+    <div class="st-card">
+        <div class="st-card__head"><Icon Name="cart" Size="18" /> آخرین سفارش‌ها <a href="/customer/orders" style="margin-inline-start:auto;font-size:12.5px;color:var(--st-brand-2)">مشاهده همه</a></div>
+        <div style="padding:0">
+            @if (_orders.Count == 0)
+            {
+                <div class="st-state" style="padding:40px"><div class="st-muted">هنوز سفارشی ثبت نکرده‌اید.</div></div>
+            }
+            else
+            {
+                <div class="st-table-wrap">
+                    <table class="st-table">
+                        <thead><tr><th>شماره سفارش</th><th>مبلغ</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var o in _orders.Take(6))
+                            {
+                                <tr>
+                                    <td class="st-mono">@o.OrderNumber</td>
+                                    <td>@AUI.MoneyFa(o.FinalAmount)</td>
+                                    <td><StoreBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" /></td>
+                                    <td><StoreBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
+                                    <td><PersianDateDisplay Value="o.CreatedAt" /></td>
+                                    <td><a class="st-btn st-btn--ghost st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /></a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private CustomerProfileModel? _user;
+    private decimal _walletBalance;
+    private List<StoreOrderModel> _orders = new();
+    private int _openTickets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var meTask = Api.GetAsync<CustomerProfileModel>("auth/me");
+        var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
+        var ordersTask = Api.GetAsync<List<StoreOrderModel>>("orders");
+        var ticketsTask = Api.GetAsync<List<CustomerTicketModel>>("tickets");
+        await Task.WhenAll(meTask, walletTask, ordersTask, ticketsTask);
+
+        _user = meTask.Result.Data;
+        _walletBalance = walletTask.Result.Data?.Balance ?? 0;
+        _orders = (ordersTask.Result.Data ?? new()).OrderByDescending(o => o.CreatedAt).ToList();
+        _openTickets = (ticketsTask.Result.Data ?? new()).Count(t => t.Status != (byte)TicketStatus.Closed);
+        _loading = false;
+    }
+}

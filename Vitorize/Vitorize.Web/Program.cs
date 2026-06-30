@@ -14,12 +14,24 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-// احراز هویت مبتنی بر کوکی برای پنل مدیریت
+// دو حوزه‌ی احراز هویت مجزا: ادمین و مشتری.
+// طرح هوشمند بر اساس مسیر تصمیم می‌گیرد کدام کوکی استفاده شود.
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultScheme = VitorizeAuthSchemes.AdminScheme;
-        options.DefaultSignInScheme = VitorizeAuthSchemes.AdminScheme;
+        options.DefaultScheme = VitorizeAuthSchemes.SmartScheme;
+        options.DefaultSignInScheme = VitorizeAuthSchemes.CustomerScheme;
+    })
+    .AddPolicyScheme(VitorizeAuthSchemes.SmartScheme, VitorizeAuthSchemes.SmartScheme, options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var path = context.Request.Path;
+            if (path.StartsWithSegments("/admin"))
+                return VitorizeAuthSchemes.AdminScheme;
+
+            return VitorizeAuthSchemes.CustomerScheme;
+        };
     })
     .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
     {
@@ -30,20 +42,38 @@ builder.Services
         options.AccessDeniedPath = "/admin/access-denied";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+    })
+    .AddCookie(VitorizeAuthSchemes.CustomerScheme, options =>
+    {
+        options.Cookie.Name = "Vitorize.Customer.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/access-denied";
+        options.ExpireTimeSpan = TimeSpan.FromDays(14);
+        options.SlidingExpiration = true;
     });
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy =>
     {
+        policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.AdminScheme);
         policy.RequireAuthenticatedUser();
         policy.RequireRole("Admin", "SuperAdmin");
+    });
+
+    options.AddPolicy("CustomerOnly", policy =>
+    {
+        policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.CustomerScheme);
+        policy.RequireAuthenticatedUser();
     });
 });
 
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<CartState>();
 
 // کلاینت API؛ آدرس پایه شامل /api/ است
 var apiClientBuilder = builder.Services.AddHttpClient<ApiClient>(client =>
@@ -84,6 +114,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapAdminAuthEndpoints();
+app.MapCustomerAuthEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

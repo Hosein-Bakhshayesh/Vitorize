@@ -1,0 +1,195 @@
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using Vitorize.Web.Models.Customer
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<div class="st-split" style="grid-template-columns:280px 1fr;gap:24px">
+    <div>
+        <div class="st-card st-card__pad" style="text-align:center">
+            <div style="font-size:40px;font-weight:800">@PersianDateHelper.ToPersianDigits(Summary.AverageRating.ToString("0.0"))</div>
+            <div class="st-stars" style="font-size:18px;justify-content:center">@Stars((int)Math.Round(Summary.AverageRating))</div>
+            <div class="st-muted" style="margin-top:6px">از @AUI.Number(Summary.TotalApprovedReviews) نظر</div>
+            <div style="margin-top:16px;text-align:start">
+                @foreach (var row in Bars())
+                {
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                        <span style="width:34px;font-size:12px">@AUI.Number(row.Star) ★</span>
+                        <div style="flex:1;height:7px;border-radius:6px;background:var(--st-chip);overflow:hidden">
+                            <div style="height:100%;width:@(row.Percent)%;background:var(--st-amber)"></div>
+                        </div>
+                        <span style="width:30px;font-size:11px" class="st-muted">@AUI.Number(row.Count)</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_authenticated)
+        {
+            <button class="st-btn st-btn--outline st-btn--block" style="margin-top:14px" @onclick="() => _writing = !_writing">
+                <Icon Name="edit" Size="16" /> ثبت نظر
+            </button>
+        }
+        else
+        {
+            <a class="st-btn st-btn--outline st-btn--block" style="margin-top:14px" href="/login">برای ثبت نظر وارد شوید</a>
+        }
+    </div>
+
+    <div>
+        @if (_writing)
+        {
+            <div class="st-card st-card__pad" style="margin-bottom:18px">
+                <div class="st-label">امتیاز شما</div>
+                <div style="font-size:24px;color:var(--st-amber);margin-bottom:12px;cursor:pointer;direction:ltr;text-align:right">
+                    @for (byte i = 1; i <= 5; i++)
+                    {
+                        var star = i;
+                        <span @onclick="() => _newRating = star">@(_newRating >= star ? "★" : "☆")</span>
+                    }
+                </div>
+                <div class="st-field"><input class="st-input" placeholder="عنوان (اختیاری)" @bind="_newTitle" /></div>
+                <div class="st-field"><textarea class="st-textarea" placeholder="نظر خود را بنویسید ..." @bind="_newComment"></textarea></div>
+                <div style="display:flex;gap:10px">
+                    <button class="st-btn st-btn--primary" @onclick="Submit" disabled="@_submitting">
+                        @if (_submitting) { <span class="st-spinner sm"></span> } else { <span>ثبت نظر</span> }
+                    </button>
+                    <button class="st-btn st-btn--ghost" @onclick="() => _writing = false">انصراف</button>
+                </div>
+            </div>
+        }
+
+        @if (_loading)
+        {
+            <div class="st-state"><div class="st-spinner"></div></div>
+        }
+        else if (_reviews.Count == 0)
+        {
+            <div class="st-state"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div class="st-muted">هنوز نظری ثبت نشده است. اولین نفر باشید!</div></div>
+        }
+        else
+        {
+            <div class="st-stack">
+                @foreach (var r in _reviews)
+                {
+                    <div class="st-card st-card__pad">
+                        <div class="st-spread">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <span class="st-avatar" style="width:36px;height:36px;font-size:13px">@Initial(r.UserDisplayName)</span>
+                                <div>
+                                    <div style="font-weight:700;font-size:13.5px">@r.UserDisplayName @if (r.IsBuyer) { <span class="st-tag st-tag--brand">خریدار</span> }</div>
+                                    <div class="st-stars" style="font-size:13px">@Stars(r.Rating)</div>
+                                </div>
+                            </div>
+                            <span class="st-muted" style="font-size:12px"><PersianDateDisplay Value="r.CreatedAt" /></span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(r.Title))
+                        { <div style="font-weight:700;margin-top:10px">@r.Title</div> }
+                        <p style="margin-top:8px;line-height:2;font-size:13.5px;color:var(--st-text-2)">@r.Comment</p>
+                        <div style="display:flex;gap:8px;margin-top:10px">
+                            <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => Vote(r, 1)" disabled="@(!_authenticated)" title="مفید">
+                                <Icon Name="check" Size="14" /> @AUI.Number(r.LikeCount)
+                            </button>
+                            <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => Vote(r, 2)" disabled="@(!_authenticated)" title="غیرمفید">
+                                <Icon Name="x" Size="14" /> @AUI.Number(r.DislikeCount)
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (_hasMore)
+            {
+                <button class="st-btn st-btn--outline st-btn--block" style="margin-top:16px" @onclick="LoadMore">نمایش نظرات بیشتر</button>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid ProductId { get; set; }
+    [Parameter] public CustomerReviewSummaryModel Summary { get; set; } = new();
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _loading = true, _authenticated, _writing, _submitting, _hasMore;
+    private readonly List<CustomerReviewModel> _reviews = new();
+    private int _page = 1;
+    private byte _newRating = 5;
+    private string _newTitle = string.Empty;
+    private string _newComment = string.Empty;
+    private Guid _loadedId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            _authenticated = state.User.Identity?.IsAuthenticated == true;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProductId == _loadedId || ProductId == Guid.Empty) return;
+        _loadedId = ProductId;
+        _reviews.Clear();
+        _page = 1;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<CustomerReviewListModel>(
+            $"product-reviews/product/{ProductId}?page={_page}&pageSize=10&sort=newest");
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _reviews.AddRange(result.Data.Reviews.Items);
+            if (result.Data.Summary.TotalApprovedReviews > 0) Summary = result.Data.Summary;
+            _hasMore = _page < result.Data.Reviews.TotalPages;
+        }
+        _loading = false;
+    }
+
+    private async Task LoadMore() { _page++; await Load(); }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_newComment)) { Toasts.Error("متن نظر الزامی است."); return; }
+        _submitting = true;
+        var result = await Api.PostAsync<CustomerReviewModel>("product-reviews",
+            new { ProductId, Title = string.IsNullOrWhiteSpace(_newTitle) ? null : _newTitle, Comment = _newComment, Rating = _newRating });
+        _submitting = false;
+
+        if (result.IsSuccess)
+        {
+            Toasts.Success("نظر شما ثبت شد و پس از بررسی منتشر می‌شود.");
+            _writing = false; _newTitle = string.Empty; _newComment = string.Empty; _newRating = 5;
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task Vote(CustomerReviewModel r, byte voteType)
+    {
+        var result = await Api.PostAsync<CustomerReviewModel>($"product-reviews/{r.Id}/vote", new { VoteType = voteType });
+        if (result.IsSuccess && result.Data is not null)
+        {
+            r.LikeCount = result.Data.LikeCount;
+            r.DislikeCount = result.Data.DislikeCount;
+            r.MyVote = result.Data.MyVote;
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private IEnumerable<(int Star, int Count, int Percent)> Bars()
+    {
+        var total = Math.Max(1, Summary.TotalApprovedReviews);
+        yield return (5, Summary.FiveStarCount, Summary.FiveStarCount * 100 / total);
+        yield return (4, Summary.FourStarCount, Summary.FourStarCount * 100 / total);
+        yield return (3, Summary.ThreeStarCount, Summary.ThreeStarCount * 100 / total);
+        yield return (2, Summary.TwoStarCount, Summary.TwoStarCount * 100 / total);
+        yield return (1, Summary.OneStarCount, Summary.OneStarCount * 100 / total);
+    }
+
+    private static string Stars(int rating) => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', 5 - Math.Clamp(rating, 0, 5));
+    private static string Initial(string n) => string.IsNullOrWhiteSpace(n) ? "؟" : n.Trim()[..1];
+}

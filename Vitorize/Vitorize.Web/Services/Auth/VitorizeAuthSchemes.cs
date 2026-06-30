@@ -2,6 +2,7 @@ namespace Vitorize.Web.Services.Auth
 {
     public static class VitorizeAuthSchemes
     {
+        public const string SmartScheme = "Vitorize.Smart";
         public const string AdminScheme = "Vitorize.Admin";
         public const string CustomerScheme = "Vitorize.Customer";
 

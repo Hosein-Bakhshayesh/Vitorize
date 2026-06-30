@@ -1,0 +1,86 @@
+@page "/customer/profile"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>پروفایل | ویتورایز</PageTitle>
+
+<h1 style="font-size:22px;margin-bottom:18px">پروفایل و امنیت</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else
+{
+    <div class="st-split" style="grid-template-columns:1fr 1fr">
+        <div class="st-card">
+            <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات حساب</div>
+            <div class="st-card__pad">
+                <div class="st-stack" style="gap:14px">
+                    <div class="st-spread"><span class="st-muted">نام و نام خانوادگی</span><span style="font-weight:700">@(_user?.FullName)</span></div>
+                    <div class="st-divider" style="margin:0"></div>
+                    <div class="st-spread"><span class="st-muted">شماره موبایل</span><span class="st-mono" style="font-weight:700">@(_user?.Mobile)</span></div>
+                    <div class="st-divider" style="margin:0"></div>
+                    <div class="st-spread"><span class="st-muted">ایمیل</span><span>@(string.IsNullOrWhiteSpace(_user?.Email) ? "—" : _user!.Email)</span></div>
+                    <div class="st-divider" style="margin:0"></div>
+                    <div class="st-spread"><span class="st-muted">وضعیت حساب</span><StoreBadge Text="@AUI.UserStatus(_user?.Status ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.Status ?? 0, "user")" /></div>
+                    <div class="st-divider" style="margin:0"></div>
+                    <div class="st-spread"><span class="st-muted">احراز هویت</span><StoreBadge Text="@AUI.VerificationStatus(_user?.VerificationStatus ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.VerificationStatus ?? 0, "verify")" /></div>
+                </div>
+                @if ((_user?.VerificationStatus ?? 0) != (byte)VerificationStatus.Verified)
+                {
+                    <a class="st-btn st-btn--outline st-btn--block" style="margin-top:16px" href="/customer/verification"><Icon Name="user-check" Size="16" /> تکمیل احراز هویت</a>
+                }
+            </div>
+        </div>
+
+        <div class="st-card">
+            <div class="st-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</div>
+            <div class="st-card__pad">
+                <div class="st-field"><label class="st-label">رمز عبور فعلی</label><input class="st-input" type="password" @bind="_current" /></div>
+                <div class="st-field"><label class="st-label">رمز عبور جدید</label><input class="st-input" type="password" @bind="_new" /></div>
+                <div class="st-field"><label class="st-label">تکرار رمز عبور جدید</label><input class="st-input" type="password" @bind="_confirm" /></div>
+                <button class="st-btn st-btn--primary" @onclick="ChangePassword" disabled="@_busy">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>تغییر رمز عبور</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true, _busy;
+    private CustomerProfileModel? _user;
+    private string _current = "", _new = "", _confirm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<CustomerProfileModel>("auth/me");
+        _user = result.Data;
+        _loading = false;
+    }
+
+    private async Task ChangePassword()
+    {
+        if (string.IsNullOrWhiteSpace(_current) || string.IsNullOrWhiteSpace(_new))
+        { Toasts.Error("رمز فعلی و جدید را وارد کنید."); return; }
+        if (_new != _confirm) { Toasts.Error("رمز جدید و تکرار آن یکسان نیست."); return; }
+
+        _busy = true;
+        var result = await Api.PostAsync("auth/change-password", new
+        {
+            CurrentPassword = _current,
+            NewPassword = _new,
+            ConfirmNewPassword = _confirm
+        });
+        _busy = false;
+
+        if (result.IsSuccess)
+        {
+            Toasts.Success("رمز عبور با موفقیت تغییر کرد.");
+            _current = _new = _confirm = "";
+        }
+        else Toasts.Error(result.Message);
+    }
+}

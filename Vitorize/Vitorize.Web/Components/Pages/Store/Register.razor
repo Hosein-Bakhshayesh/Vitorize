@@ -1,0 +1,53 @@
+@page "/register"
+
+<PageTitle>ثبت‌نام | ویتورایز</PageTitle>
+
+<div style="max-width:440px;margin:30px auto">
+    <div class="st-card st-card__pad">
+        <div style="text-align:center;margin-bottom:22px">
+            <div class="st-logo" style="justify-content:center;margin-bottom:10px"><span class="st-logo__mark">V</span> <span>VITORIZE</span></div>
+            <h1 style="font-size:20px">ساخت حساب کاربری</h1>
+            <p class="st-muted" style="font-size:13px;margin-top:6px">در چند ثانیه عضو ویتورایز شوید.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@Error</span></div>
+        }
+
+        <form method="post" action="/auth/customer/register">
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <div class="st-field">
+                <label class="st-label">نام و نام خانوادگی</label>
+                <input class="st-input" name="fullName" placeholder="نام کامل" required />
+            </div>
+            <div class="st-field">
+                <label class="st-label">شماره موبایل</label>
+                <input class="st-input" name="mobile" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required />
+            </div>
+            <div class="st-field">
+                <label class="st-label">ایمیل (اختیاری)</label>
+                <input class="st-input" name="email" type="email" placeholder="example@mail.com" />
+            </div>
+            <div class="st-field">
+                <label class="st-label">رمز عبور</label>
+                <input class="st-input" name="password" type="password" placeholder="حداقل ۶ کاراکتر" required />
+            </div>
+            <button type="submit" class="st-btn st-btn--primary st-btn--block st-btn--lg"><Icon Name="user-plus" Size="18" /> ثبت‌نام</button>
+        </form>
+
+        <div class="st-divider"></div>
+        <div style="text-align:center;font-size:13px">
+            قبلاً ثبت‌نام کرده‌اید؟ <a href="@LoginLink" style="color:var(--st-brand-2);font-weight:700">وارد شوید</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private string LoginLink => string.IsNullOrWhiteSpace(ReturnUrl)
+        ? "/login"
+        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+}

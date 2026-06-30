@@ -1,0 +1,69 @@
+@page "/customer/wallet"
+@inject ApiClient Api
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>کیف پول | ویتورایز</PageTitle>
+
+<h1 style="font-size:22px;margin-bottom:18px">کیف پول من</h1>
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else
+{
+    <div class="st-card st-card__pad" style="background:var(--st-hero-bg);color:#fff;margin-bottom:22px">
+        <div class="st-spread">
+            <div>
+                <div style="opacity:.85;font-size:13px">موجودی فعلی</div>
+                <div style="font-size:30px;font-weight:800;margin-top:6px">@AUI.MoneyFa(_balance)</div>
+            </div>
+            <div style="width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><Icon Name="wallet" Size="30" /></div>
+        </div>
+    </div>
+
+    <div class="st-card">
+        <div class="st-card__head"><Icon Name="activity" Size="18" /> تراکنش‌ها</div>
+        @if (_transactions.Count == 0)
+        {
+            <div class="st-state" style="padding:40px"><div class="st-muted">تراکنشی ثبت نشده است.</div></div>
+        }
+        else
+        {
+            <div class="st-table-wrap">
+                <table class="st-table">
+                    <thead><tr><th>نوع</th><th>مبلغ</th><th>موجودی پس از تراکنش</th><th>توضیحات</th><th>تاریخ</th></tr></thead>
+                    <tbody>
+                        @foreach (var t in _transactions)
+                        {
+                            var credit = t.Type == (byte)WalletTransactionType.Credit;
+                            <tr>
+                                <td><StoreBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" /></td>
+                                <td style="color:@(credit ? "var(--st-success)" : "var(--st-danger)");font-weight:700">@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</td>
+                                <td>@AUI.MoneyFa(t.BalanceAfter)</td>
+                                <td class="st-muted">@(string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description)</td>
+                                <td><PersianDateDisplay Value="t.CreatedAt" WithTime="true" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private decimal _balance;
+    private List<CustomerWalletTransactionModel> _transactions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
+        var txTask = Api.GetAsync<List<CustomerWalletTransactionModel>>("wallet/transactions");
+        await Task.WhenAll(walletTask, txTask);
+        _balance = walletTask.Result.Data?.Balance ?? 0;
+        _transactions = (txTask.Result.Data ?? new()).OrderByDescending(t => t.CreatedAt).ToList();
+        _loading = false;
+    }
+}

@@ -1,0 +1,9 @@
+@page "/shop"
+
+<PageTitle>فروشگاه | ویتورایز</PageTitle>
+
+<ShopBrowser Title="فروشگاه" InitialSearch="@Q" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+}

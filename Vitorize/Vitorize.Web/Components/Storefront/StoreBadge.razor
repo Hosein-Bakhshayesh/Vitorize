@@ -1,0 +1,19 @@
+<span class="st-badge st-badge--@Mapped @(Dot ? "" : "plain")">@Text</span>
+
+@code {
+    [Parameter] public string Text { get; set; } = string.Empty;
+    [Parameter] public string Intent { get; set; } = "muted";
+    [Parameter] public bool Dot { get; set; } = true;
+
+    private string Mapped => Intent switch
+    {
+        "success" => "success",
+        "danger" => "danger",
+        "warning" => "warning",
+        "info" => "info",
+        "primary" => "brand",
+        "brand" => "brand",
+        "purple" => "info",
+        _ => "muted"
+    };
+}

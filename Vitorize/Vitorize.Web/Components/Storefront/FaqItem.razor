@@ -1,0 +1,16 @@
+<div class="st-card" style="overflow:hidden">
+    <button class="st-spread" style="width:100%;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--st-text)" @onclick="() => _open = !_open" type="button">
+        <span style="font-weight:700;font-size:14px;text-align:start">@Question</span>
+        <Icon Name="@(_open ? "chevron-up" : "chevron-down")" Size="18" />
+    </button>
+    @if (_open)
+    {
+        <div style="padding:0 20px 18px;color:var(--st-text-2);font-size:13.5px;line-height:2">@Answer</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Question { get; set; } = string.Empty;
+    [Parameter] public string Answer { get; set; } = string.Empty;
+    private bool _open;
+}
