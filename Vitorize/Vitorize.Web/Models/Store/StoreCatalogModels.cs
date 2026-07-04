@@ -18,6 +18,8 @@ namespace Vitorize.Web.Models.Store
         public string? BrandTitle { get; set; }
         public bool HasVariants { get; set; }
         public int AvailableStock { get; set; }
+        public double AverageRating { get; set; }
+        public int ReviewCount { get; set; }
 
         public decimal FinalPrice => DiscountPrice is > 0 && DiscountPrice < BasePrice ? DiscountPrice.Value : BasePrice;
         public bool HasDiscount => DiscountPrice is > 0 && DiscountPrice < BasePrice;

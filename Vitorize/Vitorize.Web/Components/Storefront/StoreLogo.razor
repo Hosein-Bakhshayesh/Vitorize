@@ -1,0 +1,12 @@
+<a class="st-logo" href="@Href">
+    <img class="st-logo__img" src="images/logo.png" alt="ویتورایز" />
+    @if (ShowWord)
+    {
+        <span class="st-logo__word">VITORIZE</span>
+    }
+</a>
+
+@code {
+    [Parameter] public string Href { get; set; } = "/";
+    [Parameter] public bool ShowWord { get; set; } = true;
+}

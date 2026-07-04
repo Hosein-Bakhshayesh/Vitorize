@@ -230,6 +230,21 @@ namespace Vitorize.Api
 
             app.UseStaticFiles();
 
+            // سرو مطمئن فایل‌های آپلودشده (تصاویر محصولات، دسته‌بندی‌ها، بنرها، مدارک)
+            // مستقل از وجود پوشه wwwroot در زمان شروع برنامه.
+            var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
+            Directory.CreateDirectory(uploadsRoot);
+            app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+            {
+                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot),
+                RequestPath = "/uploads",
+                OnPrepareResponse = ctx =>
+                {
+                    // اجازه‌ی نمایش تصاویر در فروشگاه روی دامنه/پورت دیگر
+                    ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                }
+            });
+
             // Security Headers
             app.Use(async (context, next) =>
             {

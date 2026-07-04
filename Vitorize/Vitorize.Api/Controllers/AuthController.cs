@@ -95,6 +95,29 @@ namespace Vitorize.Api.Controllers
         }
 
         [Authorize]
+        [HttpPut("profile")]
+        [SwaggerOperation(
+            Summary = "ویرایش پروفایل",
+            Description = "به‌روزرسانی نام و ایمیل کاربر لاگین‌شده. تغییر ایمیل باعث نیاز به تایید مجدد ایمیل می‌شود.")]
+        [ProducesResponseType(typeof(ApiResult<CurrentUserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiResult<CurrentUserDto>>> UpdateProfile(
+            UpdateProfileRequestDto request)
+        {
+            if (!_currentUserService.UserId.HasValue)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            var result = await _authService.UpdateProfileAsync(
+                _currentUserService.UserId.Value,
+                request);
+
+            return Ok(ApiResult<CurrentUserDto>.Success(
+                result,
+                "پروفایل با موفقیت به‌روزرسانی شد."));
+        }
+
+        [Authorize]
         [HttpPost("logout")]
         [SwaggerOperation(
             Summary = "خروج از حساب",

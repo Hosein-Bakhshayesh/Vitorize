@@ -13,13 +13,16 @@ namespace Vitorize.Api.Controllers
     public class WalletController : ControllerBase
     {
         private readonly IWalletService _walletService;
+        private readonly IWalletTopUpService _walletTopUpService;
         private readonly ICurrentUserService _currentUserService;
 
         public WalletController(
             IWalletService walletService,
+            IWalletTopUpService walletTopUpService,
             ICurrentUserService currentUserService)
         {
             _walletService = walletService;
+            _walletTopUpService = walletTopUpService;
             _currentUserService = currentUserService;
         }
 
@@ -45,6 +48,32 @@ namespace Vitorize.Api.Controllers
             return Ok(ApiResult<List<WalletTransactionDto>>.Success(
                 result,
                 "تراکنش‌های کیف پول با موفقیت دریافت شدند."));
+        }
+
+        [HttpPost("topup")]
+        public async Task<ActionResult<ApiResult<WalletTopUpStartResultDto>>> StartTopUp(
+            WalletTopUpRequestDto request)
+        {
+            var userId = GetUserId();
+
+            var result = await _walletTopUpService.StartAsync(userId, request);
+
+            return Ok(ApiResult<WalletTopUpStartResultDto>.Success(
+                result,
+                "درخواست شارژ کیف پول با موفقیت ایجاد شد."));
+        }
+
+        [HttpPost("topup/mock/verify/{topUpId:guid}")]
+        public async Task<ActionResult<ApiResult<WalletTopUpVerifyResultDto>>> VerifyMockTopUp(
+            Guid topUpId)
+        {
+            var userId = GetUserId();
+
+            var result = await _walletTopUpService.VerifyMockAsync(userId, topUpId);
+
+            return Ok(ApiResult<WalletTopUpVerifyResultDto>.Success(
+                result,
+                "شارژ کیف پول با موفقیت انجام شد."));
         }
 
         private Guid GetUserId()

@@ -1,10 +1,11 @@
 ﻿using Vitorize.Application.DTOs.Products;
+using Vitorize.Shared.Common;
 
 namespace Vitorize.Application.Interfaces
 {
     public interface IProductService
     {
-        Task<List<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter);
+        Task<PagedResult<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter);
 
         Task<ProductDetailDto> GetProductByIdAsync(Guid id);
 

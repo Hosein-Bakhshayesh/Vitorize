@@ -17,12 +17,12 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResult<List<ProductListItemDto>>>> GetProducts(
+        public async Task<ActionResult<ApiResult<PagedResult<ProductListItemDto>>>> GetProducts(
             [FromQuery] ProductFilterDto filter)
         {
             var result = await _productService.GetProductsAsync(filter);
 
-            return Ok(ApiResult<List<ProductListItemDto>>.Success(
+            return Ok(ApiResult<PagedResult<ProductListItemDto>>.Success(
                 result,
                 "لیست محصولات با موفقیت دریافت شد."));
         }

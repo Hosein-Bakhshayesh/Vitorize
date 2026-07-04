@@ -102,6 +102,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<WalletTransaction> WalletTransactions { get; set; }
 
+    public virtual DbSet<WalletTopUp> WalletTopUps { get; set; }
+
     public virtual DbSet<WishList> WishLists { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -1040,6 +1042,24 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_WishList_User");
+        });
+
+        modelBuilder.Entity<WalletTopUp>(entity =>
+        {
+            entity.HasIndex(e => e.UserId, "IX_WalletTopUps_UserId");
+
+            entity.HasIndex(e => e.Authority, "IX_WalletTopUps_Authority");
+
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Gateway).HasMaxLength(100);
+            entity.Property(e => e.Authority).HasMaxLength(300);
+            entity.Property(e => e.ReferenceNumber).HasMaxLength(200);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+
+            entity.HasOne(d => d.User).WithMany(p => p.WalletTopUps)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_WalletTopUps_User");
         });
 
         OnModelCreatingPartial(modelBuilder);

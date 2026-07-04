@@ -52,6 +52,33 @@ namespace Vitorize.Infrastructure.Services
             return MapOrderDetails(order);
         }
 
+        public async Task<List<DeliveredCodeDto>> GetMyDeliveredCodesAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            return await _dbContext.OrderItemDeliveries
+                .AsNoTracking()
+                .Where(x =>
+                    x.IsVisibleToCustomer &&
+                    x.OrderItem.Order.UserId == userId)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => new DeliveredCodeDto
+                {
+                    Id = x.Id,
+                    OrderId = x.OrderItem.OrderId,
+                    OrderNumber = x.OrderItem.Order.OrderNumber,
+                    OrderItemId = x.OrderItemId,
+                    ProductId = x.OrderItem.ProductId,
+                    ProductTitle = x.OrderItem.ProductTitle,
+                    VariantTitle = x.OrderItem.VariantTitle,
+                    DeliveryType = x.DeliveryType,
+                    DeliveredContent = x.DeliveredContent,
+                    CreatedAt = x.CreatedAt
+                })
+                .ToListAsync();
+        }
+
         public async Task<List<OrderDto>> GetAdminOrdersAsync()
         {
             var orders = await _dbContext.Orders

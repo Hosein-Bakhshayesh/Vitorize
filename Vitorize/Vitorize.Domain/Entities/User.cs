@@ -87,6 +87,8 @@ public partial class User
 
     public virtual ICollection<WalletTransaction> WalletTransactions { get; set; } = new List<WalletTransaction>();
 
+    public virtual ICollection<WalletTopUp> WalletTopUps { get; set; } = new List<WalletTopUp>();
+
     public virtual ICollection<WishList> WishLists { get; set; } = new List<WishList>();
 
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();

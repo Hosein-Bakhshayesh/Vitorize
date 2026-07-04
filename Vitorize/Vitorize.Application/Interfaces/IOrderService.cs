@@ -9,6 +9,8 @@ namespace Vitorize.Application.Interfaces
 
         Task<OrderDto> GetMyOrderDetailsAsync(Guid userId, Guid orderId);
 
+        Task<List<DeliveredCodeDto>> GetMyDeliveredCodesAsync(Guid userId);
+
         Task<List<OrderDto>> GetAdminOrdersAsync();
 
         Task<OrderDto> GetAdminOrderDetailsAsync(Guid orderId);

@@ -42,6 +42,23 @@ namespace Vitorize.Api.Controllers
                 "لیست سفارش‌ها با موفقیت دریافت شد."));
         }
 
+        [HttpGet("deliveries")]
+        [SwaggerOperation(
+            Summary = "کتابخانه کدهای من",
+            Description = "دریافت لیست یکجای تمام کدها و محتوای تحویل‌شده به کاربر لاگین‌شده از همه سفارش‌ها.")]
+        [ProducesResponseType(typeof(ApiResult<List<DeliveredCodeDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiResult<List<DeliveredCodeDto>>>> GetMyDeliveredCodes()
+        {
+            var userId = GetUserId();
+
+            var result = await _orderService.GetMyDeliveredCodesAsync(userId);
+
+            return Ok(ApiResult<List<DeliveredCodeDto>>.Success(
+                result,
+                "کدهای تحویل‌شده با موفقیت دریافت شدند."));
+        }
+
         [HttpGet("{orderId:guid}")]
         [SwaggerOperation(
             Summary = "جزئیات سفارش من",

@@ -6,6 +6,7 @@
         ManualAdminWithdraw = 2,
         OrderPayment = 3,
         Refund = 4,
-        Cashback = 5
+        Cashback = 5,
+        WalletTopUp = 6
     }
 }

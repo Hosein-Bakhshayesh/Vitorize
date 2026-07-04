@@ -12,6 +12,8 @@ namespace Vitorize.Application.Interfaces
 
         Task<CurrentUserDto> GetCurrentUserAsync(Guid userId);
 
+        Task<CurrentUserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequestDto request);
+
         Task LogoutAsync(LogoutRequestDto request);
 
         Task ChangePasswordAsync(Guid userId, ChangePasswordRequestDto request);

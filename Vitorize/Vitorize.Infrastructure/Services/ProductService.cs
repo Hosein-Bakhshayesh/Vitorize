@@ -2,6 +2,7 @@
 using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services
@@ -19,7 +20,7 @@ namespace Vitorize.Infrastructure.Services
             _dbContext = dbContext;
         }
 
-        public async Task<List<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter)
+        public async Task<PagedResult<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter)
         {
             var page = filter.Page <= 0 ? 1 : filter.Page;
             var pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
@@ -61,9 +62,78 @@ namespace Vitorize.Infrastructure.Services
                 query = query.Where(x => x.IsFeatured == filter.IsFeatured.Value);
             }
 
+            if (filter.MinPrice.HasValue)
+            {
+                var minPrice = filter.MinPrice.Value;
+
+                query = query.Where(x =>
+                    (x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
+                        ? x.DiscountPrice.Value
+                        : x.BasePrice) >= minPrice);
+            }
+
+            if (filter.MaxPrice.HasValue)
+            {
+                var maxPrice = filter.MaxPrice.Value;
+
+                query = query.Where(x =>
+                    (x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
+                        ? x.DiscountPrice.Value
+                        : x.BasePrice) <= maxPrice);
+            }
+
+            if (filter.HasDiscount.HasValue)
+            {
+                query = filter.HasDiscount.Value
+                    ? query.Where(x =>
+                        x.DiscountPrice != null &&
+                        x.DiscountPrice > 0 &&
+                        x.DiscountPrice < x.BasePrice)
+                    : query.Where(x =>
+                        x.DiscountPrice == null ||
+                        x.DiscountPrice <= 0 ||
+                        x.DiscountPrice >= x.BasePrice);
+            }
+
+            if (filter.InStock == true)
+            {
+                query = query.Where(x =>
+                    x.DeliveryType == DeliveryTypeManualTicket ||
+                    _dbContext.GiftCodes.Any(g =>
+                        g.ProductId == x.Id &&
+                        g.Status == GiftCodeStatusAvailable));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            query = (filter.Sort ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "newest" => query
+                    .OrderByDescending(x => x.CreatedAt),
+                "cheapest" => query
+                    .OrderBy(x =>
+                        x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
+                            ? x.DiscountPrice.Value
+                            : x.BasePrice)
+                    .ThenByDescending(x => x.CreatedAt),
+                "expensive" => query
+                    .OrderByDescending(x =>
+                        x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
+                            ? x.DiscountPrice.Value
+                            : x.BasePrice)
+                    .ThenByDescending(x => x.CreatedAt),
+                "discount" => query
+                    .OrderByDescending(x =>
+                        x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice && x.BasePrice > 0
+                            ? (x.BasePrice - x.DiscountPrice.Value) / x.BasePrice
+                            : 0)
+                    .ThenByDescending(x => x.CreatedAt),
+                _ => query
+                    .OrderBy(x => x.SortOrder)
+                    .ThenByDescending(x => x.CreatedAt)
+            };
+
             var products = await query
-                .OrderBy(x => x.SortOrder)
-                .ThenByDescending(x => x.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(x => new ProductListItemDto
@@ -87,11 +157,29 @@ namespace Vitorize.Infrastructure.Services
                         ? 999999
                         : _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
-                            g.Status == GiftCodeStatusAvailable)
+                            g.Status == GiftCodeStatusAvailable),
+                    AverageRating = _dbContext.ProductReviews
+                        .Where(r =>
+                            r.ProductId == x.Id &&
+                            r.IsApproved &&
+                            !r.IsDeleted)
+                        .Select(r => (double?)r.Rating)
+                        .Average() ?? 0,
+                    ReviewCount = _dbContext.ProductReviews
+                        .Count(r =>
+                            r.ProductId == x.Id &&
+                            r.IsApproved &&
+                            !r.IsDeleted)
                 })
                 .ToListAsync();
 
-            return products;
+            return new PagedResult<ProductListItemDto>
+            {
+                Items = products,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<ProductDetailDto> GetProductByIdAsync(Guid id)
@@ -125,12 +213,14 @@ namespace Vitorize.Infrastructure.Services
             count = count <= 0 ? 10 : count;
             count = count > 50 ? 50 : count;
 
-            return await GetProductsAsync(new ProductFilterDto
+            var result = await GetProductsAsync(new ProductFilterDto
             {
                 IsFeatured = true,
                 Page = 1,
                 PageSize = count
             });
+
+            return result.Items.ToList();
         }
 
         public async Task<List<ProductListItemDto>> GetRelatedProductsAsync(

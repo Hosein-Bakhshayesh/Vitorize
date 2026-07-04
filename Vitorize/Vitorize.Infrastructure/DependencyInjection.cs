@@ -47,6 +47,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
             services.AddScoped<IAdminProductImageService, AdminProductImageService>();
             services.AddScoped<IWalletService, WalletService>();
+            services.AddScoped<IWalletTopUpService, WalletTopUpService>();
+            services.AddScoped<IWishlistService, WishlistService>();
             services.AddScoped<IVerificationService, VerificationService>();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<INotificationService, NotificationService>();

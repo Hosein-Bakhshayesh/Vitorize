@@ -1,14 +1,14 @@
-﻿namespace Vitorize.Application.DTOs.Products
+namespace Vitorize.Application.DTOs.Wishlist
 {
-    public class ProductListItemDto
+    public class WishlistItemDto
     {
         public Guid Id { get; set; }
+
+        public Guid ProductId { get; set; }
 
         public string Title { get; set; } = string.Empty;
 
         public string Slug { get; set; } = string.Empty;
-
-        public string? ShortDescription { get; set; }
 
         public string? ThumbnailImagePath { get; set; }
 
@@ -31,18 +31,14 @@
 
         public bool RequiresVerification { get; set; }
 
-        public bool IsFeatured { get; set; }
-
         public string CategoryTitle { get; set; } = string.Empty;
 
         public string? BrandTitle { get; set; }
 
         public bool HasVariants { get; set; }
 
-        public int AvailableStock { get; set; }
+        public bool IsAvailable { get; set; }
 
-        public double AverageRating { get; set; }
-
-        public int ReviewCount { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

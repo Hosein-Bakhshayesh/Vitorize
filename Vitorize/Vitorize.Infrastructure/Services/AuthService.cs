@@ -282,6 +282,75 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
+        public async Task<CurrentUserDto> UpdateProfileAsync(
+            Guid userId,
+            UpdateProfileRequestDto request)
+        {
+            var user = await _dbContext.Users
+                .FirstOrDefaultAsync(x => x.Id == userId && !x.IsDeleted);
+
+            if (user == null)
+            {
+                throw new NotFoundException("کاربر یافت نشد.");
+            }
+
+            if (user.Status != (byte)UserStatus.Active)
+            {
+                throw new UnauthorizedException("حساب کاربری فعال نیست.");
+            }
+
+            var fullName = request.FullName.Trim();
+
+            var email = string.IsNullOrWhiteSpace(request.Email)
+                ? null
+                : request.Email.Trim();
+
+            if (email != null &&
+                !string.Equals(email, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                var emailTaken = await _dbContext.Users.AnyAsync(x =>
+                    x.Id != userId &&
+                    !x.IsDeleted &&
+                    x.Email == email);
+
+                if (emailTaken)
+                {
+                    throw new BusinessException("این ایمیل قبلا ثبت شده است.");
+                }
+
+                user.Email = email;
+                user.IsEmailConfirmed = false;
+            }
+            else if (email == null && user.Email != null)
+            {
+                user.Email = null;
+                user.IsEmailConfirmed = false;
+            }
+
+            user.FullName = fullName;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id,
+                "PROFILE_UPDATED",
+                true,
+                "User profile updated");
+
+            return new CurrentUserDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Mobile = user.Mobile,
+                Email = user.Email,
+                Status = user.Status,
+                VerificationStatus = user.VerificationStatus,
+                IsMobileConfirmed = user.IsMobileConfirmed,
+                IsEmailConfirmed = user.IsEmailConfirmed
+            };
+        }
+
         public async Task LogoutAsync(LogoutRequestDto request)
         {
             var refreshTokenHash = HashToken(request.RefreshToken);

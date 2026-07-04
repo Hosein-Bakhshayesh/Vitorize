@@ -1,5 +1,6 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
+@using Vitorize.Shared.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <div class="st-bc">
@@ -10,10 +11,11 @@
 <div class="st-spread" style="margin-bottom:18px">
     <h1 style="font-size:22px">@Title</h1>
     <div style="display:flex;gap:10px;align-items:center">
-        <select class="st-select" style="height:42px;min-height:42px;width:auto" @bind="_sort" @bind:after="ApplyClient">
+        <select class="st-select" style="height:42px;min-height:42px;width:auto" @bind="_sort" @bind:after="ReloadFromFilters">
             <option value="newest">جدیدترین</option>
-            <option value="cheap">ارزان‌ترین</option>
+            <option value="cheapest">ارزان‌ترین</option>
             <option value="expensive">گران‌ترین</option>
+            <option value="discount">بیشترین تخفیف</option>
         </select>
     </div>
 </div>
@@ -52,11 +54,13 @@
         <div class="st-fgroup">
             <div class="st-fgroup__t">محدوده قیمت (تومان)</div>
             <div style="display:flex;gap:8px">
-                <input class="st-input" type="number" placeholder="از" @bind="_minPrice" @bind:after="ApplyClient" />
-                <input class="st-input" type="number" placeholder="تا" @bind="_maxPrice" @bind:after="ApplyClient" />
+                <input class="st-input" type="number" placeholder="از" @bind="_minPrice" @bind:after="ReloadFromFilters" />
+                <input class="st-input" type="number" placeholder="تا" @bind="_maxPrice" @bind:after="ReloadFromFilters" />
             </div>
         </div>
         <div class="st-fgroup">
+            <label class="st-check"><input type="checkbox" checked="@_discountOnly" @onchange="async e => { _discountOnly = (bool)e.Value!; await ReloadFromFilters(); }" /> فقط تخفیف‌دار</label>
+            <label class="st-check"><input type="checkbox" checked="@_inStockOnly" @onchange="async e => { _inStockOnly = (bool)e.Value!; await ReloadFromFilters(); }" /> فقط کالاهای موجود</label>
             <label class="st-check"><input type="checkbox" checked="@_verifiedOnly" @onchange="e => { _verifiedOnly = (bool)e.Value!; ApplyClient(); }" /> فقط نیازمند احراز هویت</label>
         </div>
     </aside>
@@ -80,8 +84,12 @@
             </div>
             <div class="st-pager">
                 <button @onclick="() => GoPage(_page - 1)" disabled="@(_page <= 1)"><Icon Name="chevron-right" Size="16" /></button>
-                <button class="active">@AUI.Number(_page)</button>
-                <button @onclick="() => GoPage(_page + 1)" disabled="@(!_hasMore)"><Icon Name="chevron-left" Size="16" /></button>
+                @foreach (var p in PagerPages())
+                {
+                    var pageNo = p;
+                    <button class="@(pageNo == _page ? "active" : null)" @onclick="() => GoPage(pageNo)">@AUI.Number(pageNo)</button>
+                }
+                <button @onclick="() => GoPage(_page + 1)" disabled="@(_page >= _totalPages)"><Icon Name="chevron-left" Size="16" /></button>
             </div>
         }
     </div>
@@ -102,7 +110,8 @@
     private bool _loading = true;
     private int _page = 1;
     private const int _pageSize = 24;
-    private bool _hasMore;
+    private int _totalCount;
+    private int _totalPages = 1;
 
     private string _search = string.Empty;
     private string _categoryId = string.Empty;
@@ -111,6 +120,8 @@
     private readonly HashSet<byte> _types = new();
     private bool _instantOnly;
     private bool _verifiedOnly;
+    private bool _discountOnly;
+    private bool _inStockOnly;
     private decimal? _minPrice;
     private decimal? _maxPrice;
 
@@ -171,14 +182,19 @@
     private async Task Load()
     {
         _loading = true;
-        var query = $"products?page={_page}&pageSize={_pageSize}";
+        var query = $"products?page={_page}&pageSize={_pageSize}&sort={_sort}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
         if (!string.IsNullOrWhiteSpace(_categoryId)) query += $"&categoryId={_categoryId}";
         if (!string.IsNullOrWhiteSpace(_brandId)) query += $"&brandId={_brandId}";
+        if (_minPrice is > 0) query += $"&minPrice={_minPrice}";
+        if (_maxPrice is > 0) query += $"&maxPrice={_maxPrice}";
+        if (_discountOnly) query += "&hasDiscount=true";
+        if (_inStockOnly) query += "&inStock=true";
 
-        var result = await Api.GetAsync<List<StoreProductModel>>(query);
-        _all = result.Data ?? new();
-        _hasMore = _all.Count >= _pageSize;
+        var result = await Api.GetAsync<PagedResult<StoreProductModel>>(query);
+        _all = result.Data?.Items?.ToList() ?? new();
+        _totalCount = result.Data?.TotalCount ?? _all.Count;
+        _totalPages = Math.Max(1, (int)Math.Ceiling((double)_totalCount / _pageSize));
         _loading = false;
         ApplyClient();
     }
@@ -190,18 +206,16 @@
         if (_types.Count > 0) q = q.Where(p => _types.Contains(p.ProductType));
         if (_instantOnly) q = q.Where(p => p.DeliveryType == (byte)DeliveryType.Instant);
         if (_verifiedOnly) q = q.Where(p => p.RequiresVerification);
-        if (_minPrice is > 0) q = q.Where(p => p.FinalPrice >= _minPrice);
-        if (_maxPrice is > 0) q = q.Where(p => p.FinalPrice <= _maxPrice);
-
-        q = _sort switch
-        {
-            "cheap" => q.OrderBy(p => p.FinalPrice),
-            "expensive" => q.OrderByDescending(p => p.FinalPrice),
-            _ => q
-        };
 
         _view = q.ToList();
         StateHasChanged();
+    }
+
+    private IEnumerable<int> PagerPages()
+    {
+        var from = Math.Max(1, _page - 2);
+        var to = Math.Min(_totalPages, _page + 2);
+        for (var p = from; p <= to; p++) yield return p;
     }
 
     private void ToggleType(byte t, bool on)

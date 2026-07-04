@@ -17,15 +17,18 @@ namespace Vitorize.Api.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
+        private readonly IWalletTopUpService _walletTopUpService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdempotencyService _idempotencyService;
 
         public PaymentsController(
             IPaymentService paymentService,
+            IWalletTopUpService walletTopUpService,
             ICurrentUserService currentUserService,
             IIdempotencyService idempotencyService)
         {
             _paymentService = paymentService;
+            _walletTopUpService = walletTopUpService;
             _currentUserService = currentUserService;
             _idempotencyService = idempotencyService;
         }
@@ -145,6 +148,20 @@ namespace Vitorize.Api.Controllers
 
             if (string.IsNullOrWhiteSpace(status))
                 status = "NOK";
+
+            // Authority ممکن است متعلق به شارژ کیف پول باشد نه پرداخت سفارش
+            if (await _walletTopUpService.IsTopUpAuthorityAsync(authority))
+            {
+                var topUpResult = await _walletTopUpService.VerifyZarinpalAsync(
+                    authority,
+                    status);
+
+                return Ok(ApiResult<Vitorize.Application.DTOs.Wallet.WalletTopUpVerifyResultDto>.Success(
+                    topUpResult,
+                    topUpResult.IsPaid
+                        ? "شارژ کیف پول با موفقیت تایید شد."
+                        : "شارژ کیف پول تایید نشد."));
+            }
 
             var result = await _paymentService.VerifyZarinpalPaymentAsync(
                 authority,
