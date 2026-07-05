@@ -2,6 +2,7 @@
 @inject NavigationManager Nav
 @inject ApiClient Api
 @inject CartState Cart
+@inject WishlistState Wishlist
 @using Vitorize.Web.Models.Store
 
 <header class="st-header">
@@ -28,6 +29,17 @@
 
                 <a class="st-iconbtn st-mobile-only" href="/search" title="جستجو"><Icon Name="search" Size="19" /></a>
 
+                @if (_authenticated)
+                {
+                    <a class="st-iconbtn st-mobile-hide" href="/customer/wishlist" title="علاقه‌مندی‌ها">
+                        <Icon Name="heart" Size="19" />
+                        @if (Wishlist.Count > 0)
+                        {
+                            <span class="badge">@AdminUiHelper.Number(Wishlist.Count)</span>
+                        }
+                    </a>
+                }
+
                 <a class="st-iconbtn" href="/cart" title="سبد خرید">
                     <Icon Name="cart" Size="19" />
                     @if (Cart.Count > 0)
@@ -46,6 +58,8 @@
                             <div class="st-dropdown">
                                 <a href="/customer/dashboard"><Icon Name="dashboard" Size="17" /> داشبورد</a>
                                 <a href="/customer/orders"><Icon Name="cart" Size="17" /> سفارش‌های من</a>
+                                <a href="/customer/wishlist"><Icon Name="heart" Size="17" /> علاقه‌مندی‌ها</a>
+                                <a href="/customer/gift-codes"><Icon Name="gift" Size="17" /> کدهای من</a>
                                 <a href="/customer/wallet"><Icon Name="wallet" Size="17" /> کیف پول</a>
                                 <a href="/customer/tickets"><Icon Name="message" Size="17" /> پشتیبانی</a>
                                 <div class="st-dropdown__divider"></div>
@@ -74,7 +88,11 @@
     private string _name = "کاربر";
     private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
 
-    protected override void OnInitialized() => Cart.OnChange += OnCartChange;
+    protected override void OnInitialized()
+    {
+        Cart.OnChange += OnCartChange;
+        Wishlist.OnChange += OnCartChange;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -86,7 +104,7 @@
         if (_authenticated)
         {
             _name = state.User.Identity?.Name ?? "کاربر";
-            await RefreshCartCount();
+            await Task.WhenAll(RefreshCartCount(), RefreshWishlist());
         }
     }
 
@@ -97,6 +115,17 @@
             var result = await Api.GetAsync<CartModel>("cart");
             if (result.IsSuccess && result.Data is not null)
                 Cart.Set(result.Data.TotalQuantity);
+        }
+        catch { }
+    }
+
+    private async Task RefreshWishlist()
+    {
+        try
+        {
+            var result = await Api.GetAsync<List<Guid>>("wishlist/product-ids");
+            if (result.IsSuccess && result.Data is not null)
+                Wishlist.SetIds(result.Data);
         }
         catch { }
     }
@@ -122,5 +151,9 @@
         }
     }
 
-    public void Dispose() => Cart.OnChange -= OnCartChange;
+    public void Dispose()
+    {
+        Cart.OnChange -= OnCartChange;
+        Wishlist.OnChange -= OnCartChange;
+    }
 }

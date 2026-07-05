@@ -1,6 +1,8 @@
+@implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject CartState Cart
+@inject WishlistState Wishlist
 @inject ToastService Toasts
 @inject NavigationManager Nav
 @using Vitorize.Web.Models.Store
@@ -14,6 +16,11 @@
             <span class="st-pcard__off">@AUI.Number(Product.DiscountPercent)٪</span>
         }
     </a>
+    <button class="st-pcard__wish @(InWishlist ? "active" : null)"
+            title="@(InWishlist ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها")"
+            @onclick="ToggleWishlist" @onclick:stopPropagation="true" disabled="@_wishBusy">
+        <Icon Name="heart" Size="16" />
+    </button>
     <div class="st-pcard__body">
         <div class="st-pcard__cat">@Product.CategoryTitle</div>
         <a class="st-pcard__title" href="@($"/product/{Product.Slug}")">@Product.Title</a>
@@ -45,9 +52,46 @@
 
 @code {
     [Parameter, EditorRequired] public StoreProductModel Product { get; set; } = default!;
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private bool _busy;
+    private bool _wishBusy;
     private string Unit => Product.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+    private bool InWishlist => Wishlist.Contains(Product.Id);
+
+    protected override void OnInitialized() => Wishlist.OnChange += OnWishlistChange;
+
+    private void OnWishlistChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Wishlist.OnChange -= OnWishlistChange;
+
+    private async Task ToggleWishlist()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            if (state.User.Identity?.IsAuthenticated != true)
+            {
+                Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Nav.ToBaseRelativePath(Nav.Uri))}");
+                return;
+            }
+        }
+
+        _wishBusy = true;
+        var result = await Api.PostAsync<bool>($"wishlist/{Product.Id}/toggle");
+        _wishBusy = false;
+
+        if (result.IsSuccess)
+        {
+            if (result.Data) Wishlist.Add(Product.Id);
+            else Wishlist.Remove(Product.Id);
+            Toasts.Success(result.Message);
+        }
+        else
+        {
+            Toasts.Error(result.Message);
+        }
+    }
 
     private async Task AddToCart()
     {

@@ -74,6 +74,7 @@ builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<CartState>();
+builder.Services.AddScoped<WishlistState>();
 
 // کلاینت API؛ آدرس پایه شامل /api/ است
 var apiClientBuilder = builder.Services.AddHttpClient<ApiClient>(client =>

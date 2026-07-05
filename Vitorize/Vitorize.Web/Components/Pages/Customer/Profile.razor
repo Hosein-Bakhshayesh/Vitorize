@@ -14,18 +14,33 @@
 else
 {
     <div class="st-split" style="grid-template-columns:1fr 1fr">
-        <div class="st-card">
+        <div class="st-card st-anim">
             <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات حساب</div>
             <div class="st-card__pad">
+                <div class="st-field">
+                    <label class="st-label">نام و نام خانوادگی</label>
+                    <input class="st-input" @bind="_fullName" />
+                </div>
+                <div class="st-field">
+                    <label class="st-label">ایمیل</label>
+                    <input class="st-input" type="email" dir="ltr" placeholder="you@example.com" @bind="_email" />
+                    @if (!string.IsNullOrWhiteSpace(_user?.Email) && _user!.IsEmailConfirmed == false)
+                    {
+                        <div class="st-hint" style="color:var(--st-warning)">ایمیل شما هنوز تایید نشده است.</div>
+                    }
+                </div>
+                <div class="st-field">
+                    <label class="st-label">شماره موبایل</label>
+                    <input class="st-input st-mono" value="@(_user?.Mobile)" disabled />
+                    <div class="st-hint">شماره موبایل قابل تغییر نیست.</div>
+                </div>
+                <button class="st-btn st-btn--primary" @onclick="SaveProfile" disabled="@_savingProfile">
+                    @if (_savingProfile) { <span class="st-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره تغییرات</span> }
+                </button>
+
+                <div class="st-divider"></div>
                 <div class="st-stack" style="gap:14px">
-                    <div class="st-spread"><span class="st-muted">نام و نام خانوادگی</span><span style="font-weight:700">@(_user?.FullName)</span></div>
-                    <div class="st-divider" style="margin:0"></div>
-                    <div class="st-spread"><span class="st-muted">شماره موبایل</span><span class="st-mono" style="font-weight:700">@(_user?.Mobile)</span></div>
-                    <div class="st-divider" style="margin:0"></div>
-                    <div class="st-spread"><span class="st-muted">ایمیل</span><span>@(string.IsNullOrWhiteSpace(_user?.Email) ? "—" : _user!.Email)</span></div>
-                    <div class="st-divider" style="margin:0"></div>
                     <div class="st-spread"><span class="st-muted">وضعیت حساب</span><StoreBadge Text="@AUI.UserStatus(_user?.Status ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.Status ?? 0, "user")" /></div>
-                    <div class="st-divider" style="margin:0"></div>
                     <div class="st-spread"><span class="st-muted">احراز هویت</span><StoreBadge Text="@AUI.VerificationStatus(_user?.VerificationStatus ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.VerificationStatus ?? 0, "verify")" /></div>
                 </div>
                 @if ((_user?.VerificationStatus ?? 0) != (byte)VerificationStatus.Verified)
@@ -35,7 +50,7 @@ else
             </div>
         </div>
 
-        <div class="st-card">
+        <div class="st-card st-anim d1">
             <div class="st-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</div>
             <div class="st-card__pad">
                 <div class="st-field"><label class="st-label">رمز عبور فعلی</label><input class="st-input" type="password" @bind="_current" /></div>
@@ -50,15 +65,47 @@ else
 }
 
 @code {
-    private bool _loading = true, _busy;
+    private bool _loading = true, _busy, _savingProfile;
     private CustomerProfileModel? _user;
     private string _current = "", _new = "", _confirm = "";
+    private string _fullName = "", _email = "";
 
     protected override async Task OnInitializedAsync()
     {
         var result = await Api.GetAsync<CustomerProfileModel>("auth/me");
         _user = result.Data;
+        _fullName = _user?.FullName ?? "";
+        _email = _user?.Email ?? "";
         _loading = false;
+    }
+
+    private async Task SaveProfile()
+    {
+        if (string.IsNullOrWhiteSpace(_fullName))
+        {
+            Toasts.Error("نام و نام خانوادگی را وارد کنید.");
+            return;
+        }
+
+        _savingProfile = true;
+        var result = await Api.PutAsync<CustomerProfileModel>("auth/profile", new
+        {
+            FullName = _fullName.Trim(),
+            Email = string.IsNullOrWhiteSpace(_email) ? null : _email.Trim()
+        });
+        _savingProfile = false;
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            var emailChanged = !string.Equals(_user?.Email, result.Data.Email, StringComparison.OrdinalIgnoreCase);
+            _user = result.Data;
+            _fullName = _user.FullName;
+            _email = _user.Email ?? "";
+            Toasts.Success(emailChanged && !string.IsNullOrWhiteSpace(_user.Email)
+                ? "پروفایل ذخیره شد. ایمیل جدید نیاز به تایید دارد."
+                : "پروفایل با موفقیت ذخیره شد.");
+        }
+        else Toasts.Error(result.Message);
     }
 
     private async Task ChangePassword()

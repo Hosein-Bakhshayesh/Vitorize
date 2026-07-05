@@ -35,6 +35,64 @@ namespace Vitorize.Web.Models.Customer
         public DateTime CreatedAt { get; set; }
     }
 
+    public class CustomerWishlistItemModel
+    {
+        public Guid Id { get; set; }
+        public Guid ProductId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+        public string? ThumbnailImagePath { get; set; }
+        public decimal BasePrice { get; set; }
+        public decimal? DiscountPrice { get; set; }
+        public byte ProductType { get; set; }
+        public byte DeliveryType { get; set; }
+        public byte CurrencyType { get; set; }
+        public bool RequiresVerification { get; set; }
+        public string CategoryTitle { get; set; } = string.Empty;
+        public string? BrandTitle { get; set; }
+        public bool HasVariants { get; set; }
+        public bool IsAvailable { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public decimal FinalPrice => DiscountPrice is > 0 && DiscountPrice < BasePrice ? DiscountPrice.Value : BasePrice;
+        public bool HasDiscount => DiscountPrice is > 0 && DiscountPrice < BasePrice;
+        public int DiscountPercent => HasDiscount && BasePrice > 0
+            ? (int)Math.Round((BasePrice - DiscountPrice!.Value) / BasePrice * 100)
+            : 0;
+    }
+
+    public class CustomerDeliveredCodeModel
+    {
+        public Guid Id { get; set; }
+        public Guid OrderId { get; set; }
+        public string OrderNumber { get; set; } = string.Empty;
+        public Guid OrderItemId { get; set; }
+        public Guid ProductId { get; set; }
+        public string ProductTitle { get; set; } = string.Empty;
+        public string? VariantTitle { get; set; }
+        public byte DeliveryType { get; set; }
+        public string? DeliveredContent { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CustomerTopUpStartModel
+    {
+        public Guid TopUpId { get; set; }
+        public decimal Amount { get; set; }
+        public string Gateway { get; set; } = string.Empty;
+        public string? Authority { get; set; }
+        public string? PaymentUrl { get; set; }
+    }
+
+    public class CustomerTopUpVerifyModel
+    {
+        public Guid TopUpId { get; set; }
+        public bool IsPaid { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public decimal Amount { get; set; }
+        public decimal Balance { get; set; }
+    }
+
     public class CustomerVerificationModel
     {
         public Guid Id { get; set; }

@@ -2,9 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "vitorize-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--no-build", "--project", "Vitorize/Vitorize.Api/Vitorize.Api.csproj", "--urls", "https://localhost:7221;http://localhost:5177"],
+      "port": 7221
+    },
+    {
       "name": "admin-web",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "Vitorize/Vitorize.Web/Vitorize.Web.csproj", "--launch-profile", "http"],
+      "runtimeArgs": ["run", "--no-build", "--project", "Vitorize/Vitorize.Web/Vitorize.Web.csproj", "--launch-profile", "http"],
       "port": 5077
     }
   ]

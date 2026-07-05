@@ -1,0 +1,150 @@
+@page "/customer/wishlist"
+@implements IDisposable
+@inject ApiClient Api
+@inject WishlistState WishState
+@inject CartState Cart
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>علاقه‌مندی‌ها | ویتورایز</PageTitle>
+
+<div class="st-spread" style="margin-bottom:18px">
+    <h1 style="font-size:22px">علاقه‌مندی‌های من</h1>
+    @if (!_loading && _items.Count > 0)
+    {
+        <span class="st-badge st-badge--brand plain">@AUI.Number(_items.Count) محصول</span>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="st-grid">
+        @for (var i = 0; i < 4; i++)
+        {
+            <div class="st-skel-card">
+                <div class="st-skeleton st-skeleton--media"></div>
+                <div class="st-skeleton st-skeleton--title"></div>
+                <div class="st-skeleton st-skeleton--text short"></div>
+                <div class="st-skeleton st-skeleton--btn"></div>
+            </div>
+        }
+    </div>
+}
+else if (_items.Count == 0)
+{
+    <div class="st-state">
+        <div class="st-state__ic"><Icon Name="heart" Size="32" /></div>
+        <div style="font-weight:700">لیست علاقه‌مندی‌ها خالی است</div>
+        <div class="st-muted">محصولات مورد علاقه‌تان را با زدن آیکن قلب ذخیره کنید.</div>
+        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="16" /> رفتن به فروشگاه</a>
+    </div>
+}
+else
+{
+    <div class="st-grid">
+        @foreach (var item in _items)
+        {
+            <div class="st-pcard st-anim">
+                <a class="st-pcard__media" href="@($"/product/{item.Slug}")">
+                    <StoreImage Url="@item.ThumbnailImagePath" Alt="@item.Title" Icon="gamepad" />
+                    @if (item.DiscountPercent > 0)
+                    {
+                        <span class="st-pcard__off">@AUI.Number(item.DiscountPercent)٪</span>
+                    }
+                </a>
+                <button class="st-pcard__wish active" title="حذف از علاقه‌مندی‌ها"
+                        @onclick="() => Remove(item)" disabled="@(_busyId == item.ProductId)">
+                    <Icon Name="x" Size="15" />
+                </button>
+                <div class="st-pcard__body">
+                    <div class="st-pcard__cat">@item.CategoryTitle</div>
+                    <a class="st-pcard__title" href="@($"/product/{item.Slug}")">@item.Title</a>
+                    <div class="st-pcard__meta">
+                        <span class="st-tag">@AUI.ProductType(item.ProductType)</span>
+                        @if (!item.IsAvailable)
+                        {
+                            <span class="st-tag st-tag--warn">ناموجود</span>
+                        }
+                    </div>
+                    <div class="st-pcard__foot">
+                        <div class="st-price">
+                            @if (item.HasDiscount)
+                            {
+                                <span class="st-price__old">@AUI.MoneyFa(item.BasePrice, item.CurrencyType)</span>
+                            }
+                            <span class="st-price__now">@AUI.Number((long)item.FinalPrice) <span class="st-price__unit">@Unit(item)</span></span>
+                        </div>
+                        <button class="st-btn st-btn--primary st-btn--sm" title="افزودن به سبد"
+                                @onclick="() => AddToCart(item)"
+                                disabled="@(_busyId == item.ProductId || !item.IsAvailable)">
+                            @if (_busyId == item.ProductId) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="16" /> }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private Guid? _busyId;
+    private List<CustomerWishlistItemModel> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        WishState.OnChange += OnWishlistChange;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        var result = await Api.GetAsync<List<CustomerWishlistItemModel>>("wishlist");
+        _items = result.Data ?? new();
+        _loading = false;
+    }
+
+    private async Task Remove(CustomerWishlistItemModel item)
+    {
+        _busyId = item.ProductId;
+        var result = await Api.DeleteAsync($"wishlist/{item.ProductId}");
+        _busyId = null;
+
+        if (result.IsSuccess)
+        {
+            _items.RemoveAll(x => x.ProductId == item.ProductId);
+            WishState.Remove(item.ProductId);
+            Toasts.Success("محصول از علاقه‌مندی‌ها حذف شد.");
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task AddToCart(CustomerWishlistItemModel item)
+    {
+        if (item.HasVariants)
+        {
+            Nav.NavigateTo($"/product/{item.Slug}");
+            return;
+        }
+
+        _busyId = item.ProductId;
+        var result = await Api.PostAsync<CartModel>("cart/items",
+            new { ProductId = item.ProductId, ProductVariantId = (Guid?)null, Quantity = 1 });
+        _busyId = null;
+
+        if (result.IsSuccess && result.Data is not null)
+        {
+            Cart.Set(result.Data.TotalQuantity);
+            Toasts.Success("محصول به سبد خرید اضافه شد.");
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private static string Unit(CustomerWishlistItemModel item)
+        => item.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+
+    private void OnWishlistChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => WishState.OnChange -= OnWishlistChange;
+}

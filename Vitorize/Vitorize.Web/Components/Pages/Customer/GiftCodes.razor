@@ -1,0 +1,135 @@
+@page "/customer/gift-codes"
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject IJSRuntime JS
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>کدهای من | ویتورایز</PageTitle>
+
+<div class="st-spread" style="margin-bottom:18px">
+    <h1 style="font-size:22px">کتابخانه کدهای من</h1>
+    @if (!_loading && _codes.Count > 0)
+    {
+        <span class="st-badge st-badge--brand plain">@AUI.Number(_codes.Count) کد</span>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="st-stack">
+        @for (var i = 0; i < 3; i++)
+        {
+            <div class="st-skel-card" style="flex-direction:row;align-items:center;gap:16px">
+                <div class="st-skeleton st-skeleton--circle" style="width:46px;height:46px;flex:0 0 46px"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                    <div class="st-skeleton st-skeleton--title"></div>
+                    <div class="st-skeleton st-skeleton--text short"></div>
+                </div>
+                <div class="st-skeleton st-skeleton--btn" style="width:110px"></div>
+            </div>
+        }
+    </div>
+}
+else if (_codes.Count == 0)
+{
+    <div class="st-state">
+        <div class="st-state__ic"><Icon Name="gift" Size="32" /></div>
+        <div style="font-weight:700">هنوز کدی دریافت نکرده‌اید</div>
+        <div class="st-muted">پس از خرید و پرداخت موفق، کدهای شما اینجا نمایش داده می‌شوند.</div>
+        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="16" /> رفتن به فروشگاه</a>
+    </div>
+}
+else
+{
+    <div class="st-fgroup" style="padding-top:0;border-bottom:none">
+        <input class="st-input" placeholder="جستجو در محصول یا شماره سفارش ..." @bind="_search" @bind:event="oninput" />
+    </div>
+
+    <div class="st-stack">
+        @foreach (var item in Filtered)
+        {
+            var revealed = _revealed.Contains(item.Id);
+            <div class="st-codecard st-anim">
+                <div class="st-codecard__ic"><Icon Name="gift" Size="22" /></div>
+                <div class="st-codecard__info">
+                    <div class="st-codecard__title">
+                        @item.ProductTitle
+                        @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
+                        {
+                            <span class="st-tag" style="margin-inline-start:6px">@item.VariantTitle</span>
+                        }
+                    </div>
+                    <div class="st-codecard__meta">
+                        <a href="@($"/customer/orders/{item.OrderId}")" class="st-codecard__order">
+                            <Icon Name="cart" Size="12" /> سفارش @item.OrderNumber
+                        </a>
+                        <span class="st-muted">·</span>
+                        <PersianDateDisplay Value="item.CreatedAt" />
+                    </div>
+                </div>
+                <div class="st-codecard__code @(revealed ? "revealed" : null)" dir="ltr">
+                    @(revealed ? item.DeliveredContent : MaskCode(item.DeliveredContent))
+                </div>
+                <div class="st-codecard__actions">
+                    <button class="st-iconbtn" style="width:38px;height:38px" title="@(revealed ? "پنهان کردن" : "نمایش کد")"
+                            @onclick="() => ToggleReveal(item.Id)">
+                        <Icon Name="eye" Size="16" />
+                    </button>
+                    <button class="st-iconbtn" style="width:38px;height:38px" title="کپی کد"
+                            @onclick="() => Copy(item)">
+                        <Icon Name="copy" Size="16" />
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private List<CustomerDeliveredCodeModel> _codes = new();
+    private readonly HashSet<Guid> _revealed = new();
+
+    private IEnumerable<CustomerDeliveredCodeModel> Filtered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _codes
+            : _codes.Where(c =>
+                c.ProductTitle.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                c.OrderNumber.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetAsync<List<CustomerDeliveredCodeModel>>("orders/deliveries");
+        _codes = result.Data ?? new();
+        _loading = false;
+    }
+
+    private void ToggleReveal(Guid id)
+    {
+        if (!_revealed.Add(id))
+            _revealed.Remove(id);
+    }
+
+    private async Task Copy(CustomerDeliveredCodeModel entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.DeliveredContent)) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", entry.DeliveredContent);
+            Toasts.Success("کد کپی شد.");
+        }
+        catch
+        {
+            Toasts.Error("کپی کد ممکن نیست.");
+        }
+    }
+
+    private static string MaskCode(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return "—";
+        if (content.Length <= 4) return new string('•', content.Length);
+        return $"{content[..2]}{new string('•', Math.Min(content.Length - 4, 12))}{content[^2..]}";
+    }
+}
