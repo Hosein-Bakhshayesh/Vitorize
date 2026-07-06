@@ -27,51 +27,96 @@ else if (_data is not null)
     var s = _data.Summary;
 
     <div class="vz-stats">
-        <StatCard Label="کاربران" Value="@AUI.Number(s.TotalUsers)" Icon="users" Accent="blue"
+        <StatCard Label="درآمد امروز" Value="@AUI.MoneyFa(s.RevenueToday)" Icon="trending-up" Accent="teal"
+                  Foot="روند فروش ۷ روز اخیر" Spark="SalesSpark" />
+        <StatCard Label="سفارش‌ها" Value="@AUI.Number(s.TotalOrders)" Icon="cart" Accent="blue"
+                  Trend="@AUI.Number(s.OrdersToday)" TrendUp="true" Foot="سفارش امروز"
+                  Spark="OrdersSpark" SparkAccent="blue" />
+        <StatCard Label="کاربران" Value="@AUI.Number(s.TotalUsers)" Icon="users" Accent="green"
                   Trend="@AUI.Number(s.NewUsersToday)" TrendUp="true" Foot="ثبت‌نام امروز" />
-        <StatCard Label="سفارش‌ها" Value="@AUI.Number(s.TotalOrders)" Icon="cart" Accent="teal"
-                  Trend="@AUI.Number(s.OrdersToday)" TrendUp="true" Foot="سفارش امروز" />
-        <StatCard Label="درآمد امروز" Value="@AUI.MoneyFa(s.RevenueToday)" Icon="trending-up" Accent="green" />
+        <StatCard Label="تیکت‌های در انتظار" Value="@AUI.Number(s.PendingTickets)" Icon="message" Accent="orange"
+                  Foot="در انتظار پاسخ پشتیبانی" />
+    </div>
+
+    <div class="vz-stats">
         <StatCard Label="درآمد این ماه" Value="@AUI.MoneyFa(s.RevenueThisMonth)" Icon="bar-chart" Accent="purple" />
         <StatCard Label="موجودی کیف پول‌ها" Value="@AUI.MoneyFa(s.TotalWalletBalance)" Icon="wallet" Accent="teal" />
-        <StatCard Label="تیکت‌های در انتظار" Value="@AUI.Number(s.PendingTickets)" Icon="message" Accent="orange" />
         <StatCard Label="احراز هویت در انتظار" Value="@AUI.Number(s.PendingVerifications)" Icon="user-check" Accent="orange" />
-        <StatCard Label="کدهای گیفت موجود" Value="@AUI.Number(s.AvailableGiftCodes)" Icon="gift" Accent="green" />
+        <StatCard Label="کدهای گیفت موجود" Value="@AUI.Number(s.AvailableGiftCodes)" Icon="gift" Accent="green"
+                  Foot="@($"رزروشده: {AUI.Number(s.ReservedGiftCodes)} · فروخته‌شده: {AUI.Number(s.SoldGiftCodes)}")" />
+    </div>
+
+    <div class="vz-grid-2" style="margin-bottom:20px">
+        <div class="vz-card">
+            <div class="vz-card__head">
+                <Icon Name="trending-up" Size="18" />
+                <div><div class="vz-card__title">فروش ۷ روز اخیر</div></div>
+                <div class="right">
+                    <span class="vz-chip">مجموع: @AUI.MoneyFa(_data.SalesLast7Days.Sum(x => x.Value))</span>
+                </div>
+            </div>
+            <div class="vz-card__body">
+                @if (_data.SalesLast7Days.Count == 0)
+                {
+                    <EmptyState Title="داده‌ای برای نمایش نیست" Icon="bar-chart" />
+                }
+                else
+                {
+                    var max = _data.SalesLast7Days.Max(x => x.Value);
+                    <div class="vz-chart">
+                        @foreach (var point in _data.SalesLast7Days)
+                        {
+                            var h = max > 0 ? Math.Max((int)(point.Value / max * 100), 3) : 3;
+                            <div class="vz-chart__col" title="@AUI.MoneyFa(point.Value)">
+                                <div class="vz-chart__track">
+                                    <div class="vz-chart__bar" style="height:@(h)%"></div>
+                                </div>
+                                <span class="vz-chart__label">
+                                    <PersianDateDisplay Value="point.Date" />
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="vz-card">
+            <div class="vz-card__head">
+                <Icon Name="activity" Size="18" />
+                <div><div class="vz-card__title">فعالیت‌های اخیر</div></div>
+                <div class="right"><a class="vz-btn vz-btn--ghost vz-btn--sm" href="admin/audit-logs">همه فعالیت‌ها</a></div>
+            </div>
+            <div class="vz-card__body">
+                @if (_activity.Count == 0)
+                {
+                    <EmptyState Title="فعالیتی ثبت نشده است" Icon="activity" />
+                }
+                else
+                {
+                    <div class="vz-feed">
+                        @foreach (var log in _activity)
+                        {
+                            <div class="vz-feed__item">
+                                <span class="vz-feed__dot @ActivityIntent(log.ActionType)"></span>
+                                <div>
+                                    <div class="vz-feed__text">@ActivityText(log)</div>
+                                    <div class="vz-feed__meta">
+                                        @(string.IsNullOrWhiteSpace(log.UserFullName) ? "سیستم" : log.UserFullName)
+                                        ·
+                                        <PersianDateDisplay Value="log.CreatedAt" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 
     <div class="vz-grid-2">
         <div class="vz-stack">
-            <div class="vz-card">
-                <div class="vz-card__head">
-                    <Icon Name="trending-up" Size="18" />
-                    <div><div class="vz-card__title">فروش ۷ روز اخیر</div></div>
-                </div>
-                <div class="vz-card__body">
-                    @if (_data.SalesLast7Days.Count == 0)
-                    {
-                        <EmptyState Title="داده‌ای برای نمایش نیست" Icon="bar-chart" />
-                    }
-                    else
-                    {
-                        var max = _data.SalesLast7Days.Max(x => x.Value);
-                        <div style="display:flex;align-items:flex-end;gap:14px;height:200px;padding-top:10px">
-                            @foreach (var point in _data.SalesLast7Days)
-                            {
-                                var h = max > 0 ? (int)(point.Value / max * 160) + 6 : 6;
-                                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%">
-                                    <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-                                        <div title="@AUI.MoneyFa(point.Value)" style="width:100%;height:@(h)px;border-radius:8px 8px 4px 4px;background:var(--admin-primary-grad)"></div>
-                                    </div>
-                                    <span class="vz-muted" style="font-size:11px">
-                                        <PersianDateDisplay Value="point.Date" />
-                                    </span>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-            </div>
-
             <div class="vz-card">
                 <div class="vz-card__head">
                     <Icon Name="box" Size="18" />
@@ -105,6 +150,21 @@ else if (_data is not null)
                     }
                 </div>
             </div>
+
+            <div class="vz-row">
+                <a class="vz-card vz-card--action" style="flex:1;padding:20px" href="admin/products">
+                    <div style="font-weight:800;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                        <Icon Name="box" Size="17" /> دسترسی سریع
+                    </div>
+                    <div class="vz-muted" style="font-size:12.5px">مدیریت محصولات ←</div>
+                </a>
+                <a class="vz-card vz-card--action" style="flex:1;padding:20px" href="admin/gift-codes">
+                    <div style="font-weight:800;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                        <Icon Name="gift" Size="17" /> دسترسی سریع
+                    </div>
+                    <div class="vz-muted" style="font-size:12.5px">وارد کردن کدهای گیفت ←</div>
+                </a>
+            </div>
         </div>
 
         <div class="vz-stack">
@@ -122,6 +182,10 @@ else if (_data is not null)
     private bool _loading = true;
     private string? _error;
     private AdminDashboardModel? _data;
+    private List<AdminAuditLogModel> _activity = new();
+
+    private IReadOnlyList<decimal> SalesSpark => _data?.SalesLast7Days.Select(x => x.Value).ToList() ?? new();
+    private IReadOnlyList<decimal> OrdersSpark => _data?.OrdersLast7Days.Select(x => x.Value).ToList() ?? new();
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -130,14 +194,52 @@ else if (_data is not null)
         _loading = true;
         _error = null;
 
-        var result = await Api.GetAsync<AdminDashboardModel>("admin/dashboard");
+        var dashboardTask = Api.GetAsync<AdminDashboardModel>("admin/dashboard");
+        var activityTask = Api.GetAsync<List<AdminAuditLogModel>>("admin/audit-logs?page=1&pageSize=8");
+
+        var result = await dashboardTask;
+        var activityResult = await activityTask;
 
         if (result.IsSuccess && result.Data is not null)
             _data = result.Data;
         else
             _error = result.Message;
 
+        // The activity feed is complementary — a failure here must not break the dashboard.
+        _activity = activityResult is { IsSuccess: true, Data: not null }
+            ? activityResult.Data
+            : new();
+
         _loading = false;
+    }
+
+    private static string ActivityIntent(string actionType)
+    {
+        var a = actionType.ToLowerInvariant();
+        if (a.Contains("create") || a.Contains("add") || a.Contains("approve")) return "success";
+        if (a.Contains("delete") || a.Contains("remove") || a.Contains("reject")) return "danger";
+        if (a.Contains("update") || a.Contains("edit") || a.Contains("change")) return "info";
+        if (a.Contains("login") || a.Contains("logout") || a.Contains("auth")) return "warning";
+        return "muted";
+    }
+
+    private static string ActivityVerb(string actionType)
+    {
+        var a = actionType.ToLowerInvariant();
+        if (a.Contains("create") || a.Contains("add")) return "ایجاد";
+        if (a.Contains("delete") || a.Contains("remove")) return "حذف";
+        if (a.Contains("update") || a.Contains("edit") || a.Contains("change")) return "ویرایش";
+        if (a.Contains("approve")) return "تأیید";
+        if (a.Contains("reject")) return "رد";
+        if (a.Contains("login")) return "ورود";
+        if (a.Contains("logout")) return "خروج";
+        return actionType;
+    }
+
+    private static string ActivityText(AdminAuditLogModel log)
+    {
+        var verb = ActivityVerb(log.ActionType);
+        return string.IsNullOrWhiteSpace(log.EntityName) ? verb : $"{verb} · {log.EntityName}";
     }
 
     private List<StatusBreakdownCard.Item> OrderStatusItems() =>

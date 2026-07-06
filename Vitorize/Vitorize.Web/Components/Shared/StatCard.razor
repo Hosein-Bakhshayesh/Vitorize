@@ -19,6 +19,17 @@
             }
         </div>
     }
+    @if (Spark is { Count: > 0 })
+    {
+        var max = Spark.Max();
+        <div class="vz-stat__spark @SparkAccent">
+            @foreach (var v in Spark)
+            {
+                var h = max > 0 ? Math.Max((int)(v / max * 100), 8) : 8;
+                <i style="height:@(h)%"></i>
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -29,4 +40,6 @@
     [Parameter] public string? Trend { get; set; }
     [Parameter] public bool TrendUp { get; set; } = true;
     [Parameter] public string? Foot { get; set; }
+    [Parameter] public IReadOnlyList<decimal>? Spark { get; set; }
+    [Parameter] public string SparkAccent { get; set; } = string.Empty;
 }

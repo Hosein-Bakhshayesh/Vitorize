@@ -1,4 +1,5 @@
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <header class="vz-topbar">
     <button class="vz-icon-btn vz-hamburger" @onclick="OnToggleSidebar" title="منو">
@@ -14,6 +15,9 @@
     <div class="vz-topbar__spacer"></div>
 
     <div class="vz-topbar__actions">
+        <button class="vz-icon-btn" @onclick="ToggleTheme" title="@(_dark ? "حالت روشن" : "حالت تاریک")" type="button">
+            <Icon Name="@(_dark ? "sun" : "moon")" Size="19" />
+        </button>
         <a class="vz-icon-btn" href="admin/notifications" title="اعلان‌ها">
             <Icon Name="bell" Size="19" />
         </a>
@@ -66,6 +70,7 @@
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private bool _menuOpen;
+    private bool _dark;
     private string _search = string.Empty;
 
     private string DisplayName { get; set; } = "مدیر سیستم";
@@ -84,6 +89,34 @@
             DisplayName = user.Identity.Name ?? "مدیر سیستم";
             RoleLabel = user.IsInRole("SuperAdmin") ? "مدیر ارشد" : "مدیر سیستم";
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var theme = await JS.InvokeAsync<string>("vzTheme.get");
+                var dark = theme == "dark";
+                if (dark != _dark)
+                {
+                    _dark = dark;
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        try
+        {
+            var theme = await JS.InvokeAsync<string>("vzTheme.toggle");
+            _dark = theme == "dark";
+        }
+        catch { }
     }
 
     private void ToggleMenu() => _menuOpen = !_menuOpen;
