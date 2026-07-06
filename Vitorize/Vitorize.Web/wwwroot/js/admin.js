@@ -38,6 +38,20 @@
                 element._vzOutside = null;
             }
         },
-        focus: function (element) { if (element) try { element.focus(); } catch (e) { } }
+        focus: function (element) { if (element) try { element.focus(); } catch (e) { } },
+        // Client-side file download (used for CSV export — no backend endpoint required).
+        downloadText: function (fileName, text, mime) {
+            try {
+                var blob = new Blob(["﻿" + text], { type: (mime || 'text/csv') + ';charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+            } catch (e) { }
+        }
     };
 })();

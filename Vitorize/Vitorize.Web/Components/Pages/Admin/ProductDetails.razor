@@ -1,0 +1,301 @@
+@page "/admin/products/{Id:guid}/details"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="جزئیات محصول" Subtitle="@(_product?.Title ?? "مشاهده اطلاعات کامل محصول")"
+            Icon="box"
+            Breadcrumbs="@(new(){ ("محصولات", "admin/products"), (_product?.Title ?? "محصول", null), ("جزئیات", null) })">
+    <Actions>
+        <a class="vz-btn vz-btn--ghost" href="admin/products"><Icon Name="arrow-right" Size="17" /> بازگشت</a>
+        @if (_product is not null)
+        {
+            <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/images")"><Icon Name="image" Size="17" /> مدیریت تصاویر</a>
+            <a class="vz-btn vz-btn--primary" href="@($"admin/products/{Id}")"><Icon Name="edit" Size="17" /> ویرایش محصول</a>
+        }
+    </Actions>
+</PageHeader>
+
+@if (_loading) { <LoadingState Text="در حال دریافت اطلاعات محصول ..." /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+else if (_product is not null)
+{
+    var p = _product;
+
+    <div class="vz-card" style="margin-bottom:16px">
+        <div class="vz-card__body">
+            <div class="vz-summary">
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">قیمت نهایی</span>
+                    <span class="vz-summary__value">@AUI.MoneyFa(p.FinalPrice, p.CurrencyType)</span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">موجودی</span>
+                    <span class="vz-summary__value">@(p.HasVariants ? "واریانت‌دار" : AUI.Number(p.AvailableStock))</span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">وضعیت</span>
+                    <span class="vz-summary__value">
+                        <StatusBadge Text="@(p.IsActive ? "منتشر شده" : "پیش‌نویس")" Intent="@(p.IsActive ? "success" : "muted")" />
+                    </span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">تصاویر گالری</span>
+                    <span class="vz-summary__value">@AUI.Number(_images.Count)</span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">واریانت‌ها</span>
+                    <span class="vz-summary__value">@AUI.Number(_variants.Count)</span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">تاریخ ایجاد</span>
+                    <span class="vz-summary__value" style="font-size:13px"><PersianDateDisplay Value="p.CreatedAt" /></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="vz-grid-2">
+        <div class="vz-stack">
+            <div class="vz-card">
+                <div class="vz-card__body">
+                    <div class="vz-section__head">
+                        <span class="vz-section__badge"><Icon Name="file-text" Size="16" /></span>
+                        <span class="vz-section__title">اطلاعات اصلی</span>
+                    </div>
+                    <p class="vz-section__desc">عنوان و دسته‌بندی که در فروشگاه نمایش داده می‌شود.</p>
+                    <dl class="vz-deflist">
+                        <dt>عنوان</dt><dd>@p.Title</dd>
+                        <dt>اسلاگ</dt><dd class="vz-mono">@p.Slug</dd>
+                        <dt>دسته‌بندی</dt><dd>@(string.IsNullOrWhiteSpace(p.CategoryTitle) ? "—" : p.CategoryTitle)</dd>
+                        <dt>برند</dt><dd>@(string.IsNullOrWhiteSpace(p.BrandTitle) ? "—" : p.BrandTitle)</dd>
+                        <dt>نوع محصول</dt><dd><span class="vz-chip">@AUI.ProductType(p.ProductType)</span></dd>
+                        <dt>نوع تحویل</dt><dd><span class="vz-chip">@AUI.DeliveryType(p.DeliveryType)</span></dd>
+                    </dl>
+
+                    @if (!string.IsNullOrWhiteSpace(p.ShortDescription))
+                    {
+                        <div class="vz-divider"></div>
+                        <div class="vz-label" style="margin-bottom:6px">توضیحات کوتاه</div>
+                        <p class="vz-muted" style="font-size:13.5px;line-height:1.9">@p.ShortDescription</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(p.FullDescription))
+                    {
+                        <div class="vz-divider"></div>
+                        <div class="vz-label" style="margin-bottom:6px">توضیحات کامل</div>
+                        <p class="vz-muted" style="font-size:13.5px;line-height:1.9;white-space:pre-wrap">@p.FullDescription</p>
+                    }
+                </div>
+            </div>
+
+            <div class="vz-card">
+                <div class="vz-card__body">
+                    <div class="vz-section__head">
+                        <span class="vz-section__badge"><Icon Name="credit-card" Size="16" /></span>
+                        <span class="vz-section__title">قیمت‌گذاری و موجودی</span>
+                    </div>
+                    <p class="vz-section__desc">قیمت پایه، تخفیف و محدودیت‌های سفارش.</p>
+                    <dl class="vz-deflist">
+                        <dt>واحد پول</dt><dd>@(p.CurrencyType == 1 ? "ریال" : "تومان")</dd>
+                        <dt>قیمت پایه</dt><dd><MoneyDisplay Amount="p.BasePrice" Currency="p.CurrencyType" /></dd>
+                        <dt>قیمت با تخفیف</dt>
+                        <dd>
+                            @if (p.DiscountPrice is > 0 && p.DiscountPrice < p.BasePrice)
+                            {
+                                <MoneyDisplay Amount="p.DiscountPrice.Value" Currency="p.CurrencyType" />
+                                <span class="vz-badge vz-badge-success plain" style="margin-inline-start:8px">@DiscountPercent% تخفیف</span>
+                            }
+                            else { <span class="vz-muted">—</span> }
+                        </dd>
+                        <dt>قیمت نهایی</dt><dd><strong><MoneyDisplay Amount="p.FinalPrice" Currency="p.CurrencyType" /></strong></dd>
+                        <dt>موجودی قابل فروش</dt><dd>@(p.HasVariants ? "بر اساس واریانت‌ها" : AUI.Number(p.AvailableStock))</dd>
+                        <dt>حداقل / حداکثر سفارش</dt><dd>@AUI.Number(p.MinOrderQuantity) / @(p.MaxOrderQuantity is null ? "بدون محدودیت" : AUI.Number(p.MaxOrderQuantity.Value))</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="vz-card">
+                <div class="vz-card__body">
+                    <div class="vz-spread" style="margin-bottom:4px">
+                        <div class="vz-section__head" style="margin-bottom:0">
+                            <span class="vz-section__badge"><Icon Name="layers" Size="16" /></span>
+                            <span class="vz-section__title">واریانت‌ها</span>
+                        </div>
+                        <a class="vz-btn vz-btn--ghost vz-btn--sm" href="@($"admin/products/{Id}")"><Icon Name="edit" Size="14" /> مدیریت</a>
+                    </div>
+                    <p class="vz-section__desc">نسخه‌های مختلف محصول که مشتری می‌تواند انتخاب کند.</p>
+
+                    @if (_variants.Count == 0)
+                    {
+                        <EmptyState Title="واریانتی تعریف نشده" Text="این محصول تنها با قیمت پایه فروخته می‌شود." Icon="layers" />
+                    }
+                    else
+                    {
+                        <div class="vz-table-wrap">
+                            <table class="vz-table">
+                                <thead><tr><th>عنوان</th><th>SKU</th><th>قیمت</th><th>حالت موجودی</th><th>موجودی</th><th>وضعیت</th></tr></thead>
+                                <tbody>
+                                    @foreach (var v in _variants.OrderBy(x => x.SortOrder))
+                                    {
+                                        <tr>
+                                            <td class="vz-cell-title">@v.Title @if (v.IsDefault) { <span class="vz-chip">پیش‌فرض</span> }</td>
+                                            <td class="vz-mono">@(string.IsNullOrWhiteSpace(v.Sku) ? "—" : v.Sku)</td>
+                                            <td><MoneyDisplay Amount="v.Price" Currency="v.CurrencyType" /></td>
+                                            <td><span class="vz-chip">@AUI.VariantStockMode(v.StockMode)</span></td>
+                                            <td class="num">@AUI.Number(v.AvailableStock)</td>
+                                            <td><StatusBadge Text="@(v.IsActive ? "فعال" : "غیرفعال")" Intent="@(v.IsActive ? "success" : "muted")" /></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(p.SeoTitle) || !string.IsNullOrWhiteSpace(p.SeoDescription))
+            {
+                <div class="vz-card">
+                    <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="search" Size="16" /></span>
+                            <span class="vz-section__title">تنظیمات سئو</span>
+                        </div>
+                        <p class="vz-section__desc">عنوان و توضیحات نمایش‌داده‌شده در نتایج جستجو.</p>
+                        <dl class="vz-deflist">
+                            <dt>عنوان سئو</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoTitle) ? "—" : p.SeoTitle)</dd>
+                            <dt>توضیحات متا</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoDescription) ? "—" : p.SeoDescription)</dd>
+                        </dl>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="vz-stack">
+            <div class="vz-card">
+                <div class="vz-card__head"><Icon Name="image" Size="18" /><div><div class="vz-card__title">تصاویر</div></div>
+                    <div class="right"><a class="vz-btn vz-btn--ghost vz-btn--sm" href="@($"admin/products/{Id}/images")">مدیریت</a></div>
+                </div>
+                <div class="vz-card__body">
+                    @if (!string.IsNullOrWhiteSpace(p.ThumbnailImagePath))
+                    {
+                        <img src="@Media.Resolve(p.ThumbnailImagePath)" alt="@p.Title"
+                             style="width:100%;height:180px;object-fit:cover;border-radius:var(--clip-sm);border:1px solid var(--border)" />
+                    }
+                    else
+                    {
+                        <div style="width:100%;height:180px;border-radius:var(--clip-sm);border:1px dashed var(--border-strong);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-3)">
+                            <Icon Name="image" Size="28" /><span style="font-size:12.5px">بدون تصویر شاخص</span>
+                        </div>
+                    }
+
+                    @if (_images.Count > 0)
+                    {
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px">
+                            @foreach (var img in _images.OrderBy(i => i.SortOrder).Take(8))
+                            {
+                                <div style="position:relative;border-radius:var(--clip-xs);overflow:hidden;border:1px solid @(img.IsThumbnail ? "var(--admin-primary)" : "var(--border)")">
+                                    <img src="@Media.Resolve(img.ImagePath)" alt="" style="width:100%;height:52px;object-fit:cover;display:block" />
+                                    @if (img.IsThumbnail)
+                                    {
+                                        <span style="position:absolute;top:3px;inset-inline-start:3px;color:var(--admin-primary)"><Icon Name="star" Size="12" /></span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="vz-card">
+                <div class="vz-card__head"><Icon Name="settings" Size="18" /><div><div class="vz-card__title">وضعیت و گزینه‌ها</div></div></div>
+                <div class="vz-card__body vz-stack" style="gap:12px">
+                    <div class="vz-spread"><span class="vz-muted">محصول فعال</span><StatusBadge Text="@(p.IsActive ? "بله" : "خیر")" Intent="@(p.IsActive ? "success" : "muted")" /></div>
+                    <div class="vz-spread"><span class="vz-muted">محصول ویژه</span><StatusBadge Text="@(p.IsFeatured ? "بله" : "خیر")" Intent="@(p.IsFeatured ? "warning" : "muted")" /></div>
+                    <div class="vz-spread"><span class="vz-muted">نیازمند احراز هویت</span><StatusBadge Text="@(p.RequiresVerification ? "بله" : "خیر")" Intent="@(p.RequiresVerification ? "info" : "muted")" /></div>
+                    <div class="vz-spread"><span class="vz-muted">نیازمند پیام پشتیبانی</span><StatusBadge Text="@(p.RequiresSupportMessage ? "بله" : "خیر")" Intent="@(p.RequiresSupportMessage ? "info" : "muted")" /></div>
+                </div>
+            </div>
+
+            <div class="vz-card">
+                <div class="vz-card__head"><Icon Name="file-text" Size="18" /><div><div class="vz-card__title">اطلاعات سیستمی</div></div></div>
+                <div class="vz-card__body">
+                    <dl class="vz-deflist" style="grid-template-columns:120px 1fr">
+                        <dt>شناسه</dt><dd class="vz-mono" style="font-size:11.5px;word-break:break-all">@p.Id</dd>
+                        <dt>ترتیب نمایش</dt><dd>@AUI.Number(p.SortOrder)</dd>
+                        <dt>تاریخ ایجاد</dt><dd><PersianDateDisplay Value="p.CreatedAt" /></dd>
+                        <dt>آخرین ویرایش</dt><dd>@if (p.UpdatedAt is not null) { <PersianDateDisplay Value="p.UpdatedAt.Value" /> } else { <span class="vz-muted">—</span> }</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <button class="vz-btn vz-btn--danger-soft vz-btn--block" @onclick="AskDelete">
+                <Icon Name="trash" Size="16" /> حذف محصول
+            </button>
+        </div>
+    </div>
+}
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف محصول"
+               Message="@($"آیا از حذف محصول «{_product?.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.")"
+               ConfirmText="حذف محصول" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private string? _error;
+    private AdminProductModel? _product;
+    private List<AdminProductImageModel> _images = new();
+    private List<AdminProductVariantModel> _variants = new();
+
+    private bool _confirmDelete, _deleting;
+
+    private int DiscountPercent =>
+        _product is { DiscountPrice: > 0 } p && p.DiscountPrice < p.BasePrice && p.BasePrice > 0
+            ? (int)Math.Round((1 - p.DiscountPrice!.Value / p.BasePrice) * 100)
+            : 0;
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+
+        var productTask = Api.GetAsync<AdminProductModel>($"admin/products/{Id}");
+        var imagesTask = Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
+        var variantsTask = Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{Id}/variants");
+        await Task.WhenAll(productTask, imagesTask, variantsTask);
+
+        if (!productTask.Result.IsSuccess || productTask.Result.Data is null)
+        {
+            _error = productTask.Result.Message;
+            _loading = false;
+            return;
+        }
+
+        _product = productTask.Result.Data;
+        _images = imagesTask.Result.Data ?? new();
+        _variants = variantsTask.Result.Data ?? new();
+        _loading = false;
+    }
+
+    private void AskDelete() => _confirmDelete = true;
+
+    private async Task ConfirmDelete()
+    {
+        if (_product is null) return;
+        _deleting = true;
+        var r = await Api.DeleteAsync($"admin/products/{_product.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (r.IsSuccess)
+        {
+            Toasts.Success("محصول حذف شد.");
+            Nav.NavigateTo("admin/products");
+        }
+        else Toasts.Error(r.Message);
+    }
+}

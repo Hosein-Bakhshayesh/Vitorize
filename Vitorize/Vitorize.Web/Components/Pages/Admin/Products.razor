@@ -3,6 +3,7 @@
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="مدیریت محصولات" Subtitle="لیست محصولات فروشگاه خود را مدیریت و ویرایش کنید"
@@ -21,14 +22,28 @@ else
         <StatCard Label="همه محصولات" Value="@AUI.Number(_items.Count)" Icon="box" Accent="purple" />
         <StatCard Label="محصولات فعال" Value="@AUI.Number(_items.Count(p => p.IsActive))" Icon="check-circle" Accent="green" />
         <StatCard Label="ویژه" Value="@AUI.Number(_items.Count(p => p.IsFeatured))" Icon="star" Accent="orange" />
-        <StatCard Label="ناموجود" Value="@AUI.Number(_items.Count(p => p.AvailableStock <= 0))" Icon="alert" Accent="red" />
+        <StatCard Label="ناموجود" Value="@AUI.Number(_items.Count(p => p.AvailableStock <= 0 && !p.HasVariants))" Icon="alert" Accent="red" />
+    </div>
+
+    <div class="vz-spread" style="margin-bottom:16px">
+        <div class="vz-pills">
+            @foreach (var f in StockFilters)
+            {
+                <button class="vz-pill @(_stockFilter == f.Key ? "active" : "")" @onclick="() => SelectStock(f.Key)">
+                    @f.Label <span class="vz-pill__count">@AUI.Number(f.Count(_items))</span>
+                </button>
+            }
+        </div>
     </div>
 
     <div class="vz-filterbar">
         <div class="vz-filterbar__row">
             <div class="vz-field">
                 <label class="vz-label">جستجو</label>
-                <input class="vz-input" placeholder="عنوان، اسلاگ ..." @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+                <div class="vz-input-group">
+                    <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، اسلاگ ..." @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+                    <span style="position:absolute;inset-inline-start:13px;color:var(--text-3)"><Icon Name="search" Size="16" /></span>
+                </div>
             </div>
             <div class="vz-field">
                 <label class="vz-label">نوع محصول</label>
@@ -58,17 +73,28 @@ else
                     <option value="active">فعال</option>
                     <option value="inactive">غیرفعال</option>
                     <option value="featured">ویژه</option>
-                    <option value="out">ناموجود</option>
                 </select>
             </div>
         </div>
     </div>
 
+    @if (_selected.Count > 0)
+    {
+        <div class="vz-bulkbar">
+            <span>@AUI.Number(_selected.Count) محصول انتخاب شده</span>
+            <div style="margin-inline-start:auto;display:flex;gap:8px">
+                <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="ExportSelected"><Icon Name="download" Size="14" /> خروجی CSV</button>
+                <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="AskBulkDelete"><Icon Name="trash" Size="14" /> حذف</button>
+                <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن انتخاب</button>
+            </div>
+        </div>
+    }
+
     <div class="vz-card">
         <div class="vz-card__body flush">
             @if (Filtered.Count == 0)
             {
-                <EmptyState Title="محصولی یافت نشد" Text="با فیلترهای انتخابی محصولی پیدا نشد." Icon="box">
+                <EmptyState Title="محصولی یافت نشد" Text="با فیلترهای انتخابی محصولی پیدا نشد. فیلتر دیگری را امتحان کنید یا محصول جدیدی بسازید." Icon="box">
                     <Actions><a class="vz-btn vz-btn--primary vz-btn--sm" href="admin/products/create"><Icon Name="plus" Size="15" /> افزودن محصول</a></Actions>
                 </EmptyState>
             }
@@ -77,12 +103,24 @@ else
                 <div class="vz-table-wrap">
                     <table class="vz-table">
                         <thead>
-                            <tr><th>محصول</th><th>نوع</th><th>برند</th><th>قیمت</th><th>تخفیف</th><th>موجودی</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                            <tr>
+                                <th style="width:40px">
+                                    <span class="vz-check @(AllPageSelected ? "checked" : "")" @onclick="ToggleSelectAllPage" role="checkbox">
+                                        @if (AllPageSelected) { <Icon Name="check" Size="12" /> }
+                                    </span>
+                                </th>
+                                <th>محصول</th><th>نوع</th><th>برند</th><th>قیمت</th><th>تخفیف</th><th>موجودی</th><th>وضعیت</th><th class="col-actions">عملیات</th>
+                            </tr>
                         </thead>
                         <tbody>
                             @foreach (var p in Paged)
                             {
                                 <tr>
+                                    <td>
+                                        <span class="vz-check @(_selected.Contains(p.Id) ? "checked" : "")" @onclick="() => ToggleSelect(p.Id)" role="checkbox">
+                                            @if (_selected.Contains(p.Id)) { <Icon Name="check" Size="12" /> }
+                                        </span>
+                                    </td>
                                     <td>
                                         <div class="vz-cell-main">
                                             @if (!string.IsNullOrWhiteSpace(p.ThumbnailImagePath))
@@ -94,7 +132,7 @@ else
                                                 <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="box" Size="18" /></div>
                                             }
                                             <div>
-                                                <div class="vz-cell-title">@p.Title</div>
+                                                <a class="vz-cell-title" href="@($"admin/products/{p.Id}/details")" style="transition:color .12s" onmouseover="this.style.color='var(--admin-primary)'" onmouseout="this.style.color=''">@p.Title</a>
                                                 <div class="vz-cell-sub">@p.CategoryTitle</div>
                                             </div>
                                         </div>
@@ -117,24 +155,39 @@ else
                                         @if (p.IsFeatured) { <StatusBadge Text="ویژه" Intent="warning" Dot="false" /> }
                                     </td>
                                     <td class="col-actions">
-                                        <a class="vz-iconaction" title="ویرایش" href="@($"admin/products/{p.Id}")"><Icon Name="edit" Size="16" /></a>
-                                        <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(p)"><Icon Name="trash" Size="16" /></button>
+                                        <div class="vz-ctx">
+                                            <button class="vz-ctx__trigger @(_openMenuId == p.Id ? "open" : "")" @onclick="() => ToggleMenu(p.Id)" title="عملیات">
+                                                <Icon Name="dots" Size="18" />
+                                            </button>
+                                            @if (_openMenuId == p.Id)
+                                            {
+                                                <div class="vz-backdrop-click" style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
+                                                <div class="vz-ctx__menu">
+                                                    <a class="vz-ctx__item" href="@($"admin/products/{p.Id}/details")"><Icon Name="eye" Size="15" /> مشاهده جزئیات</a>
+                                                    <a class="vz-ctx__item" href="@($"admin/products/{p.Id}")"><Icon Name="edit" Size="15" /> ویرایش محصول</a>
+                                                    <a class="vz-ctx__item" href="@($"admin/products/{p.Id}/images")"><Icon Name="image" Size="15" /> مدیریت تصاویر</a>
+                                                    <button class="vz-ctx__item" @onclick="() => Duplicate(p)"><Icon Name="copy" Size="15" /> تکثیر محصول</button>
+                                                    <div class="vz-ctx__divider"></div>
+                                                    <button class="vz-ctx__item danger" @onclick="() => AskDelete(p)"><Icon Name="trash" Size="15" /> حذف محصول</button>
+                                                </div>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-                <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+                <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => { _page = p; CloseMenu(); }" />
             }
         </div>
     </div>
 }
 
-<ConfirmDialog Visible="_confirmDelete" Title="حذف محصول"
-               Message="@($"آیا از حذف محصول «{_target?.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.")"
-               ConfirmText="حذف محصول" Busy="_deleting"
-               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+<ConfirmDialog Visible="_confirmDelete" Title="@_deleteTitle"
+               Message="@_deleteMessage"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
 
 @code {
     private bool _loading = true;
@@ -145,12 +198,28 @@ else
     private string _typeFilter = "all";
     private string _categoryFilter = "all";
     private string _statusFilter = "all";
+    private string _stockFilter = "all";
 
     private int _page = 1;
     private const int _pageSize = 10;
 
-    private bool _confirmDelete, _deleting;
+    private readonly HashSet<Guid> _selected = new();
+    private Guid? _openMenuId;
+
+    private bool _confirmDelete, _deleting, _bulkMode;
     private AdminProductModel? _target;
+    private string _deleteTitle = "حذف محصول";
+    private string _deleteMessage = string.Empty;
+
+    private record StockFilter(string Key, string Label, Func<List<AdminProductModel>, int> Count);
+
+    private static readonly StockFilter[] StockFilters =
+    {
+        new("all", "همه", items => items.Count),
+        new("instock", "موجود", items => items.Count(p => p.HasVariants || p.AvailableStock > 0)),
+        new("out", "ناموجود", items => items.Count(p => !p.HasVariants && p.AvailableStock <= 0)),
+        new("variants", "واریانت‌دار", items => items.Count(p => p.HasVariants)),
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,10 +235,13 @@ else
         var result = await Api.GetAsync<List<AdminProductModel>>("admin/products");
         if (result.IsSuccess && result.Data is not null) _items = result.Data;
         else _error = result.Message;
+        _selected.Clear();
+        CloseMenu();
         _loading = false;
     }
 
     private void ResetPage() => _page = 1;
+    private void SelectStock(string key) { _stockFilter = key; _page = 1; }
 
     private List<AdminProductModel> Filtered => _items
         .Where(p => string.IsNullOrWhiteSpace(_search)
@@ -182,7 +254,13 @@ else
             "active" => p.IsActive,
             "inactive" => !p.IsActive,
             "featured" => p.IsFeatured,
-            "out" => p.AvailableStock <= 0 && !p.HasVariants,
+            _ => true
+        })
+        .Where(p => _stockFilter switch
+        {
+            "instock" => p.HasVariants || p.AvailableStock > 0,
+            "out" => !p.HasVariants && p.AvailableStock <= 0,
+            "variants" => p.HasVariants,
             _ => true
         })
         .OrderByDescending(p => p.CreatedAt)
@@ -191,15 +269,128 @@ else
     private List<AdminProductModel> Paged => Filtered
         .Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
 
-    private void AskDelete(AdminProductModel p) { _target = p; _confirmDelete = true; }
+    // ----- selection -----
+    private bool AllPageSelected => Paged.Count > 0 && Paged.All(p => _selected.Contains(p.Id));
+
+    private void ToggleSelect(Guid id)
+    {
+        if (!_selected.Add(id)) _selected.Remove(id);
+    }
+
+    private void ToggleSelectAllPage()
+    {
+        if (AllPageSelected) { foreach (var p in Paged) _selected.Remove(p.Id); }
+        else { foreach (var p in Paged) _selected.Add(p.Id); }
+    }
+
+    private void ClearSelection() => _selected.Clear();
+
+    // ----- context menu -----
+    private void ToggleMenu(Guid id) => _openMenuId = _openMenuId == id ? null : id;
+    private void CloseMenu() => _openMenuId = null;
+
+    // ----- duplicate -----
+    private async Task Duplicate(AdminProductModel p)
+    {
+        CloseMenu();
+        var suffix = DateTime.Now.ToString("HHmmss");
+        var payload = new CreateProductRequestModel
+        {
+            CategoryId = p.CategoryId, BrandId = p.BrandId,
+            Title = $"{p.Title} (کپی)", Slug = $"{p.Slug}-copy-{suffix}",
+            ShortDescription = p.ShortDescription, FullDescription = p.FullDescription,
+            ThumbnailImagePath = p.ThumbnailImagePath, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
+            CurrencyType = p.CurrencyType, BasePrice = p.BasePrice, DiscountPrice = p.DiscountPrice,
+            RequiresVerification = p.RequiresVerification, RequiresSupportMessage = p.RequiresSupportMessage,
+            MinOrderQuantity = p.MinOrderQuantity, MaxOrderQuantity = p.MaxOrderQuantity,
+            IsFeatured = false, IsActive = false, SeoTitle = p.SeoTitle,
+            SeoDescription = p.SeoDescription, SortOrder = p.SortOrder
+        };
+        var r = await Api.PostAsync<AdminProductModel>("admin/products", payload);
+        if (r.IsSuccess && r.Data is not null)
+        {
+            Toasts.Success("نسخه جدید محصول ساخته شد. برای ویرایش هدایت می‌شوید.");
+            Nav.NavigateTo($"admin/products/{r.Data.Id}");
+        }
+        else Toasts.Error(r.Message);
+    }
+
+    // ----- export -----
+    private async Task ExportSelected()
+    {
+        var rows = _items.Where(p => _selected.Contains(p.Id)).ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Title,Slug,Category,Brand,Type,BasePrice,DiscountPrice,Stock,Active,Featured");
+        foreach (var p in rows)
+        {
+            sb.AppendLine(string.Join(",", new[]
+            {
+                Csv(p.Title), Csv(p.Slug), Csv(p.CategoryTitle), Csv(p.BrandTitle ?? ""),
+                Csv(AUI.ProductType(p.ProductType)), p.BasePrice.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                (p.DiscountPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                (p.HasVariants ? "variants" : p.AvailableStock.ToString()),
+                p.IsActive ? "1" : "0", p.IsFeatured ? "1" : "0"
+            }));
+        }
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"products-{DateTime.Now:yyyyMMdd-HHmm}.csv", sb.ToString(), "text/csv");
+        Toasts.Success($"{AUI.Number(rows.Count)} محصول در فایل CSV ذخیره شد.");
+    }
+
+    private static string Csv(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        return value;
+    }
+
+    // ----- delete (single + bulk) -----
+    private void AskDelete(AdminProductModel p)
+    {
+        CloseMenu();
+        _bulkMode = false; _target = p;
+        _deleteTitle = "حذف محصول";
+        _deleteMessage = $"آیا از حذف محصول «{p.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.";
+        _confirmDelete = true;
+    }
+
+    private void AskBulkDelete()
+    {
+        _bulkMode = true; _target = null;
+        _deleteTitle = "حذف گروهی محصولات";
+        _deleteMessage = $"آیا از حذف {AUI.Number(_selected.Count)} محصول انتخاب‌شده مطمئن هستید؟ این عملیات قابل بازگشت نیست.";
+        _confirmDelete = true;
+    }
+
+    private void CancelDelete()
+    {
+        if (_deleting) return;
+        _confirmDelete = false; _target = null;
+    }
 
     private async Task ConfirmDelete()
     {
-        if (_target is null) return;
         _deleting = true;
-        var result = await Api.DeleteAsync($"admin/products/{_target.Id}");
-        _deleting = false; _confirmDelete = false;
-        if (result.IsSuccess) { Toasts.Success("محصول حذف شد."); await Load(); }
-        else Toasts.Error(result.Message);
+        if (_bulkMode)
+        {
+            int ok = 0, fail = 0;
+            foreach (var id in _selected.ToList())
+            {
+                var r = await Api.DeleteAsync($"admin/products/{id}");
+                if (r.IsSuccess) ok++; else fail++;
+            }
+            _deleting = false; _confirmDelete = false;
+            if (ok > 0) Toasts.Success($"{AUI.Number(ok)} محصول حذف شد.");
+            if (fail > 0) Toasts.Error($"{AUI.Number(fail)} محصول حذف نشد.");
+            await Load();
+        }
+        else if (_target is not null)
+        {
+            var result = await Api.DeleteAsync($"admin/products/{_target.Id}");
+            _deleting = false; _confirmDelete = false;
+            if (result.IsSuccess) { Toasts.Success("محصول حذف شد."); await Load(); }
+            else Toasts.Error(result.Message);
+        }
+        else { _deleting = false; _confirmDelete = false; }
     }
 }

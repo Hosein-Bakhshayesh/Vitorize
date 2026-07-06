@@ -1,0 +1,247 @@
+@page "/admin/products/{Id:guid}/images"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="تصاویر محصول" Subtitle="@(_productTitle ?? "مدیریت گالری تصاویر محصول")"
+            Icon="image"
+            Breadcrumbs="@(new(){ ("محصولات", "admin/products"), (_productTitle ?? "محصول", $"admin/products/{Id}"), ("تصاویر", null) })">
+    <Actions>
+        <a class="vz-btn vz-btn--ghost" href="@($"admin/products/{Id}")"><Icon Name="arrow-right" Size="17" /> بازگشت به محصول</a>
+    </Actions>
+</PageHeader>
+
+@if (_loading) { <LoadingState Text="در حال دریافت تصاویر ..." /> }
+else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+else
+{
+    <div style="max-width:900px">
+        <div class="vz-dropzone @(_dragging ? "drag" : "") @(_uploading ? "busy" : "")"
+             @ondragenter:preventDefault="true" @ondragenter="() => _dragging = true"
+             @ondragover:preventDefault="true"
+             @ondragleave:preventDefault="true" @ondragleave="() => _dragging = false"
+             @ondrop:preventDefault="true" @ondrop="() => _dragging = false">
+            <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp" disabled="@_uploading" />
+            <div class="vz-dropzone__icon"><Icon Name="upload" Size="26" /></div>
+            <div class="vz-dropzone__title">تصاویر را اینجا رها کنید یا کلیک کنید</div>
+            <div class="vz-dropzone__hint">PNG، JPG یا WEBP — حداکثر ۲ مگابایت — امکان انتخاب چند فایل</div>
+        </div>
+
+        @if (_uploading)
+        {
+            <div class="vz-uprow" style="margin-top:16px">
+                <div class="vz-uprow__top">
+                    <span>@_uploadCurrentName</span>
+                    <span>@AUI.Number(_uploadDone) از @AUI.Number(_uploadTotal)</span>
+                </div>
+                <div class="vz-uprow__bar">
+                    <div class="vz-uprow__fill" style="width:@(_uploadTotal == 0 ? 0 : (int)(_uploadDone * 100.0 / _uploadTotal))%"></div>
+                </div>
+            </div>
+        }
+
+        <div style="margin-top:24px">
+            <div class="vz-spread" style="margin-bottom:14px">
+                <div>
+                    <div style="font-weight:800;font-size:15px">گالری تصاویر</div>
+                    <div class="vz-muted" style="font-size:12.5px">با ستاره، تصویر شاخص را تعیین کنید و با فلش‌ها ترتیب را تغییر دهید.</div>
+                </div>
+                <span class="vz-chip">@AUI.Number(_images.Count) تصویر</span>
+            </div>
+
+            @if (_images.Count == 0)
+            {
+                <EmptyState Title="هنوز تصویری اضافه نشده" Text="برای شروع، تصاویری را به کادر بالا بکشید یا از دکمه انتخاب فایل استفاده کنید." Icon="image" />
+            }
+            else
+            {
+                var ordered = _images.OrderBy(i => i.SortOrder).ThenBy(i => i.CreatedAt).ToList();
+                <div class="vz-gallery">
+                    @for (var idx = 0; idx < ordered.Count; idx++)
+                    {
+                        var img = ordered[idx];
+                        var i = idx;
+                        <div class="vz-gallery__item @(img.IsThumbnail ? "primary" : "")">
+                            <img class="vz-gallery__img" src="@Media.Resolve(img.ImagePath)" alt="@img.AltText" />
+                            @if (img.IsThumbnail)
+                            {
+                                <span class="vz-gallery__star"><Icon Name="star" Size="11" /> شاخص</span>
+                            }
+                            <div class="vz-gallery__overlay">
+                                <button class="vz-gallery__btn @(img.IsThumbnail ? "active" : "")" title="تعیین به عنوان شاخص"
+                                        disabled="@(img.IsThumbnail || _busy)" @onclick="() => SetPrimary(img)">
+                                    <Icon Name="star" Size="14" />
+                                </button>
+                                <button class="vz-gallery__btn" title="انتقال به قبل"
+                                        disabled="@(i == 0 || _busy)" @onclick="() => Move(ordered, i, -1)">
+                                    <Icon Name="chevron-up" Size="14" />
+                                </button>
+                                <button class="vz-gallery__btn" title="انتقال به بعد"
+                                        disabled="@(i == ordered.Count - 1 || _busy)" @onclick="() => Move(ordered, i, 1)">
+                                    <Icon Name="chevron-down" Size="14" />
+                                </button>
+                                <button class="vz-gallery__btn danger" title="حذف تصویر"
+                                        disabled="@_busy" @onclick="() => AskDelete(img)">
+                                    <Icon Name="trash" Size="14" />
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <label class="vz-gallery__add">
+                        <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp" disabled="@_uploading" />
+                        <Icon Name="plus" Size="22" />
+                        <span style="font-size:12px;font-weight:700">افزودن</span>
+                    </label>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف تصویر"
+               Message="آیا از حذف این تصویر مطمئن هستید؟ این عملیات قابل بازگشت نیست."
+               ConfirmText="حذف تصویر" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true, _busy, _uploading, _dragging;
+    private string? _error;
+    private string? _productTitle;
+    private List<AdminProductImageModel> _images = new();
+
+    private int _uploadTotal, _uploadDone;
+    private string _uploadCurrentName = string.Empty;
+
+    private bool _confirmDelete, _deleting;
+    private AdminProductImageModel? _target;
+
+    private const long MaxSize = 2 * 1024 * 1024;
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+
+        var productTask = Api.GetAsync<AdminProductModel>($"admin/products/{Id}");
+        var imagesTask = Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
+        await Task.WhenAll(productTask, imagesTask);
+
+        if (!productTask.Result.IsSuccess || productTask.Result.Data is null)
+        {
+            _error = productTask.Result.Message;
+            _loading = false;
+            return;
+        }
+
+        _productTitle = productTask.Result.Data.Title;
+        _images = imagesTask.Result.Data ?? new();
+        _loading = false;
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(20);
+        if (files.Count == 0) return;
+
+        _uploading = true;
+        _uploadTotal = files.Count;
+        _uploadDone = 0;
+
+        int ok = 0, fail = 0;
+        foreach (var file in files)
+        {
+            _uploadCurrentName = file.Name;
+            StateHasChanged();
+
+            if (file.Size > MaxSize) { fail++; _uploadDone++; continue; }
+
+            try
+            {
+                await using var stream = file.OpenReadStream(MaxSize);
+                var upload = await Api.UploadAsync<UploadResultModel>(
+                    "admin/uploads/product-image", stream, file.Name, file.ContentType);
+
+                if (upload.IsSuccess && upload.Data is not null)
+                {
+                    var payload = new CreateProductImageRequestModel
+                    {
+                        ImagePath = upload.Data.FilePath,
+                        AltText = null,
+                        SortOrder = _images.Count + ok,
+                        SetAsThumbnail = _images.Count == 0 && ok == 0
+                    };
+                    var create = await Api.PostAsync<AdminProductImageModel>($"admin/products/{Id}/images", payload);
+                    if (create.IsSuccess) ok++; else fail++;
+                }
+                else fail++;
+            }
+            catch { fail++; }
+
+            _uploadDone++;
+            StateHasChanged();
+        }
+
+        _uploading = false;
+        if (ok > 0) Toasts.Success($"{AUI.Number(ok)} تصویر آپلود شد.");
+        if (fail > 0) Toasts.Error($"{AUI.Number(fail)} تصویر آپلود نشد (حجم یا فرمت نامعتبر).");
+        await Load();
+    }
+
+    private async Task SetPrimary(AdminProductImageModel img)
+    {
+        _busy = true;
+        var r = await Api.PostAsync($"admin/product-images/{img.Id}/set-thumbnail");
+        _busy = false;
+        if (r.IsSuccess) { Toasts.Success("تصویر شاخص تغییر کرد."); await Load(); }
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task Move(List<AdminProductImageModel> ordered, int index, int direction)
+    {
+        var target = index + direction;
+        if (target < 0 || target >= ordered.Count) return;
+
+        _busy = true;
+        var a = ordered[index];
+        var b = ordered[target];
+
+        // Swap sort orders and persist both (backend Update takes the full image body).
+        var okA = await UpdateSortOrder(a, b.SortOrder);
+        var okB = await UpdateSortOrder(b, a.SortOrder);
+        _busy = false;
+
+        if (okA && okB) await Load();
+        else { Toasts.Error("تغییر ترتیب تصاویر ناموفق بود."); await Load(); }
+    }
+
+    private async Task<bool> UpdateSortOrder(AdminProductImageModel img, int sortOrder)
+    {
+        var payload = new UpdateProductImageRequestModel
+        {
+            ImagePath = img.ImagePath,
+            AltText = img.AltText,
+            SortOrder = sortOrder,
+            IsThumbnail = img.IsThumbnail
+        };
+        var r = await Api.PutAsync<AdminProductImageModel>($"admin/product-images/{img.Id}", payload);
+        return r.IsSuccess;
+    }
+
+    private void AskDelete(AdminProductImageModel img) { _target = img; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var r = await Api.DeleteAsync($"admin/product-images/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (r.IsSuccess) { Toasts.Success("تصویر حذف شد."); await Load(); }
+        else Toasts.Error(r.Message);
+    }
+}

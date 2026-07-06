@@ -9,9 +9,14 @@
 <PageHeader Title="@(IsEdit ? "ویرایش محصول" : "افزودن محصول جدید")"
             Subtitle="جزئیات محصول دیجیتال و تنظیمات آن را وارد کنید"
             Icon="box"
-            Breadcrumbs="@(new(){ ("محصولات", "admin/products"), (IsEdit ? "ویرایش" : "محصول جدید", null) })">
+            Breadcrumbs="@(new(){ ("محصولات", "admin/products"), (IsEdit ? (_model.Title ?? "ویرایش") : "محصول جدید", null) })">
     <Actions>
         <a class="vz-btn vz-btn--ghost" href="admin/products"><Icon Name="arrow-right" Size="17" /> بازگشت</a>
+        @if (IsEdit)
+        {
+            <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/details")"><Icon Name="eye" Size="17" /> جزئیات</a>
+            <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/images")"><Icon Name="image" Size="17" /> مدیریت تصاویر</a>
+        }
         <button class="vz-btn vz-btn--primary" @onclick="Save" disabled="@_saving">
             @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="17" /> <span>@(IsEdit ? "ذخیره تغییرات" : "ثبت محصول")</span> }
         </button>
@@ -22,17 +27,53 @@
 else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
 else
 {
+    @if (IsEdit)
+    {
+        <div class="vz-card" style="margin-bottom:16px">
+            <div class="vz-card__body">
+                <div class="vz-summary">
+                    <div class="vz-summary__item">
+                        <span class="vz-summary__label">قیمت نهایی</span>
+                        <span class="vz-summary__value">@AUI.MoneyFa(FinalPrice, _model.CurrencyType)</span>
+                    </div>
+                    <div class="vz-summary__item">
+                        <span class="vz-summary__label">موجودی</span>
+                        <span class="vz-summary__value">@(_hasVariants ? "واریانت‌دار" : AUI.Number(_availableStock))</span>
+                    </div>
+                    <div class="vz-summary__item">
+                        <span class="vz-summary__label">وضعیت</span>
+                        <span class="vz-summary__value">
+                            <StatusBadge Text="@(_model.IsActive ? "منتشر شده" : "پیش‌نویس")" Intent="@(_model.IsActive ? "success" : "muted")" />
+                        </span>
+                    </div>
+                    <div class="vz-summary__item">
+                        <span class="vz-summary__label">تصاویر گالری</span>
+                        <span class="vz-summary__value">@AUI.Number(_imageCount)</span>
+                    </div>
+                    <div class="vz-summary__item">
+                        <span class="vz-summary__label">تاریخ ایجاد</span>
+                        <span class="vz-summary__value" style="font-size:13px"><PersianDateDisplay Value="_createdAt" /></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <EditForm Model="_model" OnValidSubmit="Save">
         <DataAnnotationsValidator />
         <div class="vz-grid-2">
             <div class="vz-stack">
                 <div class="vz-card">
-                    <div class="vz-card__head"><Icon Name="file-text" Size="18" /><div><div class="vz-card__title">اطلاعات اصلی</div></div></div>
                     <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="file-text" Size="16" /></span>
+                            <span class="vz-section__title">اطلاعات اصلی</span>
+                        </div>
+                        <p class="vz-section__desc">عنوان و دسته‌بندی که در فروشگاه به مشتری نمایش داده می‌شود.</p>
                         <div class="vz-form-grid">
                             <div class="vz-field span-2">
                                 <label class="vz-label">عنوان محصول <span class="req">*</span></label>
-                                <InputText class="vz-input" @bind-Value="_model.Title" />
+                                <InputText class="vz-input" @bind-Value="_model.Title" @bind-Value:after="OnTitleChanged" />
                                 <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
@@ -67,14 +108,6 @@ else
                                     <option value="5">سایر</option>
                                 </select>
                             </div>
-                            <div class="vz-field">
-                                <label class="vz-label">نوع تحویل</label>
-                                <select class="vz-select" value="@_model.DeliveryType" @onchange="e => _model.DeliveryType = byte.Parse(e.Value!.ToString()!)">
-                                    <option value="1">تحویل آنی</option>
-                                    <option value="2">تحویل دستی</option>
-                                    <option value="3">نیازمند پشتیبانی</option>
-                                </select>
-                            </div>
                             <div class="vz-field span-2">
                                 <label class="vz-label">توضیحات کوتاه</label>
                                 <InputTextArea class="vz-textarea" style="min-height:80px" @bind-Value="_model.ShortDescription" />
@@ -88,8 +121,12 @@ else
                 </div>
 
                 <div class="vz-card">
-                    <div class="vz-card__head"><Icon Name="credit-card" Size="18" /><div><div class="vz-card__title">قیمت‌گذاری و موجودی</div></div></div>
                     <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="credit-card" Size="16" /></span>
+                            <span class="vz-section__title">قیمت‌گذاری و موجودی</span>
+                        </div>
+                        <p class="vz-section__desc">قیمت پایه و قیمت تخفیف‌خورده اختیاری را تعیین کنید.</p>
                         <div class="vz-form-grid three">
                             <div class="vz-field">
                                 <label class="vz-label">واحد پول</label>
@@ -123,8 +160,77 @@ else
                 </div>
 
                 <div class="vz-card">
-                    <div class="vz-card__head"><Icon Name="search" Size="18" /><div><div class="vz-card__title">تنظیمات سئو</div></div></div>
                     <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="zap" Size="16" /></span>
+                            <span class="vz-section__title">تحویل و واریانت‌ها</span>
+                        </div>
+                        <p class="vz-section__desc">نحوه تحویل محصول و نسخه‌هایی که مشتری می‌تواند انتخاب کند.</p>
+
+                        <label class="vz-label" style="margin-bottom:8px">نوع تحویل</label>
+                        <div class="vz-delivery-pills">
+                            @foreach (var d in DeliveryOptions)
+                            {
+                                <button type="button" class="vz-delivery-pill @(_model.DeliveryType == d.Key ? "active" : "")"
+                                        @onclick="() => _model.DeliveryType = d.Key">@d.Label</button>
+                            }
+                        </div>
+
+                        <div class="vz-divider"></div>
+
+                        <div class="vz-spread" style="margin-bottom:12px">
+                            <label class="vz-label" style="margin:0">واریانت‌ها (تنوع محصول)</label>
+                            @if (IsEdit)
+                            {
+                                <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" @onclick="OpenVariantCreate"><Icon Name="plus" Size="14" /> واریانت جدید</button>
+                            }
+                        </div>
+
+                        @if (!IsEdit)
+                        {
+                            <div class="vz-hint" style="padding:14px;border:1px dashed var(--border-strong);border-radius:var(--clip-xs);text-align:center">
+                                برای افزودن واریانت، ابتدا محصول را ذخیره کنید.
+                            </div>
+                        }
+                        else if (_variants.Count == 0)
+                        {
+                            <EmptyState Title="واریانتی تعریف نشده" Text="در صورت داشتن نسخه‌های مختلف (استاندارد، ویژه…) واریانت اضافه کنید." Icon="layers" />
+                        }
+                        else
+                        {
+                            <div class="vz-table-wrap">
+                                <table class="vz-table">
+                                    <thead><tr><th>عنوان</th><th>SKU</th><th>قیمت</th><th>حالت موجودی</th><th>موجودی</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var v in _variants.OrderBy(x => x.SortOrder))
+                                        {
+                                            <tr>
+                                                <td class="vz-cell-title">@v.Title @if (v.IsDefault) { <span class="vz-chip">پیش‌فرض</span> }</td>
+                                                <td class="vz-mono">@(string.IsNullOrWhiteSpace(v.Sku) ? "—" : v.Sku)</td>
+                                                <td><MoneyDisplay Amount="v.Price" Currency="v.CurrencyType" /></td>
+                                                <td><span class="vz-chip">@AUI.VariantStockMode(v.StockMode)</span></td>
+                                                <td class="num">@AUI.Number(v.AvailableStock)</td>
+                                                <td><StatusBadge Text="@(v.IsActive ? "فعال" : "غیرفعال")" Intent="@(v.IsActive ? "success" : "muted")" /></td>
+                                                <td class="col-actions">
+                                                    <button type="button" class="vz-iconaction" @onclick="() => OpenVariantEdit(v)" title="ویرایش"><Icon Name="edit" Size="15" /></button>
+                                                    <button type="button" class="vz-iconaction danger" @onclick="() => AskDeleteVariant(v)" title="حذف"><Icon Name="trash" Size="15" /></button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="vz-card">
+                    <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="search" Size="16" /></span>
+                            <span class="vz-section__title">تنظیمات سئو</span>
+                        </div>
+                        <p class="vz-section__desc">عنوان و توضیحات نمایش‌داده‌شده در نتایج موتورهای جستجو.</p>
                         <div class="vz-form-grid one">
                             <div class="vz-field">
                                 <label class="vz-label">عنوان سئو</label>
@@ -137,73 +243,6 @@ else
                         </div>
                     </div>
                 </div>
-
-                @if (IsEdit)
-                {
-                    <div class="vz-card">
-                        <div class="vz-card__head">
-                            <Icon Name="image" Size="18" /><div><div class="vz-card__title">گالری تصاویر</div></div>
-                            <div class="right"><span class="vz-muted" style="font-size:12px">آپلود و مدیریت تصاویر محصول</span></div>
-                        </div>
-                        <div class="vz-card__body">
-                            <UploadBox Value="null" ValueChanged="AddImage" Label="افزودن تصویر به گالری" />
-                            @if (_images.Count > 0)
-                            {
-                                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:16px">
-                                    @foreach (var img in _images.OrderBy(i => i.SortOrder))
-                                    {
-                                        <div style="position:relative;border:1px solid var(--border);border-radius:12px;overflow:hidden">
-                                            <img src="@Media.Resolve(img.ImagePath)" style="width:100%;height:110px;object-fit:cover" alt="" />
-                                            @if (img.IsThumbnail) { <span class="vz-badge vz-badge-primary" style="position:absolute;top:6px;inset-inline-start:6px">شاخص</span> }
-                                            <div style="display:flex;border-top:1px solid var(--border)">
-                                                <button class="vz-btn vz-btn--ghost vz-btn--sm" style="flex:1;border-radius:0" title="تصویر شاخص" @onclick="() => SetThumbnail(img)"><Icon Name="star" Size="14" /></button>
-                                                <button class="vz-btn vz-btn--ghost vz-btn--sm" style="flex:1;border-radius:0;color:var(--danger)" title="حذف" @onclick="() => DeleteImage(img)"><Icon Name="trash" Size="14" /></button>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="vz-card">
-                        <div class="vz-card__head">
-                            <Icon Name="layers" Size="18" /><div><div class="vz-card__title">واریانت‌ها (تنوع محصول)</div></div>
-                            <div class="right"><button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="OpenVariantCreate"><Icon Name="plus" Size="14" /> واریانت جدید</button></div>
-                        </div>
-                        <div class="vz-card__body flush">
-                            @if (_variants.Count == 0)
-                            {
-                                <EmptyState Title="واریانتی تعریف نشده" Text="در صورت داشتن نسخه‌های مختلف، واریانت اضافه کنید." Icon="layers" />
-                            }
-                            else
-                            {
-                                <div class="vz-table-wrap">
-                                    <table class="vz-table">
-                                        <thead><tr><th>عنوان</th><th>SKU</th><th>قیمت</th><th>حالت موجودی</th><th>موجودی</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr></thead>
-                                        <tbody>
-                                            @foreach (var v in _variants.OrderBy(x => x.SortOrder))
-                                            {
-                                                <tr>
-                                                    <td class="vz-cell-title">@v.Title @if (v.IsDefault) { <span class="vz-chip">پیش‌فرض</span> }</td>
-                                                    <td class="vz-mono">@(string.IsNullOrWhiteSpace(v.Sku) ? "—" : v.Sku)</td>
-                                                    <td><MoneyDisplay Amount="v.Price" Currency="v.CurrencyType" /></td>
-                                                    <td><span class="vz-chip">@AUI.VariantStockMode(v.StockMode)</span></td>
-                                                    <td class="num">@AUI.Number(v.AvailableStock)</td>
-                                                    <td><StatusBadge Text="@(v.IsActive ? "فعال" : "غیرفعال")" Intent="@(v.IsActive ? "success" : "muted")" /></td>
-                                                    <td class="col-actions">
-                                                        <button class="vz-iconaction" @onclick="() => OpenVariantEdit(v)"><Icon Name="edit" Size="15" /></button>
-                                                        <button class="vz-iconaction danger" @onclick="() => DeleteVariant(v)"><Icon Name="trash" Size="15" /></button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
             </div>
 
             <div class="vz-stack">
@@ -211,21 +250,33 @@ else
                     <div class="vz-card__head"><Icon Name="image" Size="18" /><div><div class="vz-card__title">تصویر شاخص</div></div></div>
                     <div class="vz-card__body">
                         <UploadBox @bind-Value="_model.ThumbnailImagePath" Label="آپلود تصویر شاخص" />
+                        @if (IsEdit)
+                        {
+                            <a class="vz-btn vz-btn--outline vz-btn--block" style="margin-top:12px" href="@($"admin/products/{Id}/images")">
+                                <Icon Name="image" Size="16" /> مدیریت گالری تصاویر
+                            </a>
+                        }
                     </div>
                 </div>
 
                 <div class="vz-card">
                     <div class="vz-card__head"><Icon Name="settings" Size="18" /><div><div class="vz-card__title">وضعیت و گزینه‌ها</div></div></div>
                     <div class="vz-card__body vz-stack">
-                        <label class="vz-switch"><input type="checkbox" @bind="_model.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول فعال</span></label>
+                        <label class="vz-switch"><input type="checkbox" @bind="_model.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول فعال (منتشر شده)</span></label>
                         <label class="vz-switch"><input type="checkbox" @bind="_model.IsFeatured" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول ویژه</span></label>
                         <label class="vz-switch"><input type="checkbox" @bind="_model.RequiresVerification" /><span class="vz-switch__track"></span><span class="vz-switch__label">نیازمند احراز هویت</span></label>
                         <label class="vz-switch"><input type="checkbox" @bind="_model.RequiresSupportMessage" /><span class="vz-switch__track"></span><span class="vz-switch__label">نیازمند پیام پشتیبانی</span></label>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <button class="vz-btn vz-btn--primary vz-btn--block" style="height:48px" @onclick="Save" disabled="@_saving" type="button">
-                    @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="18" /> <span>@(IsEdit ? "ذخیره تغییرات" : "ثبت محصول")</span> }
+        <div class="vz-savebar">
+            <span class="vz-savebar__hint"><Icon Name="alert" Size="15" /> پیش از خروج از صفحه، تغییرات را ذخیره کنید.</span>
+            <div style="display:flex;gap:10px">
+                <a class="vz-btn vz-btn--outline" href="admin/products">انصراف</a>
+                <button class="vz-btn vz-btn--primary" type="submit" disabled="@_saving">
+                    @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="17" /> <span>@(IsEdit ? "ذخیره تغییرات" : "ثبت محصول")</span> }
                 </button>
             </div>
         </div>
@@ -285,6 +336,11 @@ else
     </Footer>
 </Modal>
 
+<ConfirmDialog Visible="_confirmVariantDelete" Title="حذف واریانت"
+               Message="@($"آیا از حذف واریانت «{_variantTarget?.Title}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deletingVariant"
+               OnConfirm="ConfirmDeleteVariant" OnCancel="() => _confirmVariantDelete = false" />
+
 @code {
     [Parameter] public Guid? Id { get; set; }
     private bool IsEdit => Id is not null && Id != Guid.Empty;
@@ -295,12 +351,29 @@ else
     private CreateProductRequestModel _model = new();
     private List<AdminCategoryModel> _categories = new();
     private List<AdminBrandModel> _brands = new();
-    private List<AdminProductImageModel> _images = new();
     private List<AdminProductVariantModel> _variants = new();
+
+    // summary (edit mode)
+    private int _availableStock;
+    private bool _hasVariants;
+    private int _imageCount;
+    private DateTime _createdAt;
 
     private bool _variantOpen, _savingVariant;
     private CreateProductVariantRequestModel _variant = new();
     private Guid? _variantEditingId;
+
+    private bool _confirmVariantDelete, _deletingVariant;
+    private AdminProductVariantModel? _variantTarget;
+
+    private decimal FinalPrice => _model.DiscountPrice is > 0 && _model.DiscountPrice < _model.BasePrice
+        ? _model.DiscountPrice.Value : _model.BasePrice;
+
+    private record DeliveryOption(byte Key, string Label);
+    private static readonly DeliveryOption[] DeliveryOptions =
+    {
+        new(1, "تحویل آنی"), new(2, "تحویل دستی"), new(3, "نیازمند پشتیبانی"),
+    };
 
     protected override async Task OnParametersSetAsync() => await Load();
 
@@ -321,6 +394,9 @@ else
             if (!result.IsSuccess || result.Data is null) { _error = result.Message; _loading = false; return; }
 
             var p = result.Data;
+            _availableStock = p.AvailableStock;
+            _hasVariants = p.HasVariants;
+            _createdAt = p.CreatedAt;
             _model = new CreateProductRequestModel
             {
                 CategoryId = p.CategoryId, BrandId = p.BrandId, Title = p.Title, Slug = p.Slug,
@@ -333,8 +409,8 @@ else
                 SeoDescription = p.SeoDescription, SortOrder = p.SortOrder
             };
 
-            await LoadImages();
             await LoadVariants();
+            await LoadImageCount();
         }
         else
         {
@@ -344,16 +420,37 @@ else
         _loading = false;
     }
 
-    private async Task LoadImages()
-    {
-        var r = await Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
-        _images = r.Data ?? new();
-    }
-
     private async Task LoadVariants()
     {
         var r = await Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{Id}/variants");
         _variants = r.Data ?? new();
+    }
+
+    private async Task LoadImageCount()
+    {
+        var r = await Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
+        _imageCount = r.Data?.Count ?? 0;
+    }
+
+    private void OnTitleChanged()
+    {
+        // Auto-suggest a slug for brand-new products only (never overwrite on edit).
+        if (!IsEdit && !string.IsNullOrWhiteSpace(_model.Title))
+            _model.Slug = Slugify(_model.Title);
+    }
+
+    private static string Slugify(string input)
+    {
+        var slug = input.Trim().ToLowerInvariant();
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in slug)
+        {
+            if (ch == ' ' || ch == '_' || ch == '-') sb.Append('-');
+            else if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+        }
+        var result = sb.ToString();
+        while (result.Contains("--")) result = result.Replace("--", "-");
+        return result.Trim('-');
     }
 
     private async Task Save()
@@ -373,29 +470,6 @@ else
             if (!IsEdit) Nav.NavigateTo($"admin/products/{result.Data.Id}");
         }
         else Toasts.Error(result.Message);
-    }
-
-    private async Task AddImage(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return;
-        var payload = new { ImagePath = path, AltText = (string?)null, SortOrder = _images.Count, SetAsThumbnail = _images.Count == 0 };
-        var r = await Api.PostAsync<AdminProductImageModel>($"admin/products/{Id}/images", payload);
-        if (r.IsSuccess) { Toasts.Success("تصویر به گالری اضافه شد."); await LoadImages(); }
-        else Toasts.Error(r.Message);
-    }
-
-    private async Task SetThumbnail(AdminProductImageModel img)
-    {
-        var r = await Api.PostAsync($"admin/product-images/{img.Id}/set-thumbnail");
-        if (r.IsSuccess) { Toasts.Success("تصویر شاخص تغییر کرد."); await LoadImages(); }
-        else Toasts.Error(r.Message);
-    }
-
-    private async Task DeleteImage(AdminProductImageModel img)
-    {
-        var r = await Api.DeleteAsync($"admin/product-images/{img.Id}");
-        if (r.IsSuccess) { Toasts.Success("تصویر حذف شد."); await LoadImages(); }
-        else Toasts.Error(r.Message);
     }
 
     private void OpenVariantCreate()
@@ -428,9 +502,14 @@ else
         else Toasts.Error(r.Message);
     }
 
-    private async Task DeleteVariant(AdminProductVariantModel v)
+    private void AskDeleteVariant(AdminProductVariantModel v) { _variantTarget = v; _confirmVariantDelete = true; }
+
+    private async Task ConfirmDeleteVariant()
     {
-        var r = await Api.DeleteAsync($"admin/product-variants/{v.Id}");
+        if (_variantTarget is null) return;
+        _deletingVariant = true;
+        var r = await Api.DeleteAsync($"admin/product-variants/{_variantTarget.Id}");
+        _deletingVariant = false; _confirmVariantDelete = false;
         if (r.IsSuccess) { Toasts.Success("واریانت حذف شد."); await LoadVariants(); }
         else Toasts.Error(r.Message);
     }
