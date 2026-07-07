@@ -14,20 +14,27 @@
 else if (_error is not null) { <ErrorState Message="@_error" OnRetry="LoadList" /> }
 else
 {
+    <div class="vz-stats">
+        <StatCard Label="کل تیکت‌ها" Value="@AUI.Number(_items.Count)" Icon="inbox" Accent="purple" />
+        <StatCard Label="باز" Value="@AUI.Number(CountStatus(1))" Icon="message" Accent="blue" />
+        <StatCard Label="در انتظار مدیر" Value="@AUI.Number(CountStatus(2))" Icon="clock" Accent="orange" />
+        <StatCard Label="بسته شده" Value="@AUI.Number(CountStatus(4))" Icon="check-circle" Accent="green" />
+    </div>
+
+    <div class="vz-pills" style="margin-bottom:16px">
+        @foreach (var f in StatusChips)
+        {
+            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+                @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
+            </button>
+        }
+    </div>
+
     <div class="vz-grid-2" style="grid-template-columns:380px 1fr">
         <div class="vz-card" style="align-self:start">
             <div class="vz-card__head">
                 <Icon Name="inbox" Size="18" />
                 <div><div class="vz-card__title">تیکت‌ها (@AUI.Number(Filtered.Count))</div></div>
-                <div class="right">
-                    <select class="vz-select" style="height:34px;min-height:34px;font-size:12px" @bind="_status">
-                        <option value="all">همه</option>
-                        <option value="1">باز</option>
-                        <option value="2">در انتظار مدیر</option>
-                        <option value="3">در انتظار مشتری</option>
-                        <option value="4">بسته شده</option>
-                    </select>
-                </div>
             </div>
             <div class="vz-card__body flush" style="max-height:620px;overflow-y:auto">
                 @if (Filtered.Count == 0) { <EmptyState Title="تیکتی یافت نشد" Icon="message" /> }
@@ -108,7 +115,7 @@ else
     .vz-ticket-item.active { background:var(--admin-primary-soft); border-inline-start:3px solid var(--admin-primary); }
     .vz-msg { margin-bottom:16px; display:flex; flex-direction:column; align-items:flex-start; }
     .vz-msg.mine { align-items:flex-end; }
-    .vz-msg__bubble { max-width:78%; background:#fff; border:1px solid var(--border); border-radius:14px; padding:12px 15px; font-size:13px; line-height:1.9; }
+    .vz-msg__bubble { max-width:78%; background:var(--surface-solid); border:1px solid var(--border); border-radius:14px; padding:12px 15px; font-size:13px; line-height:1.9; }
     .vz-msg.mine .vz-msg__bubble { background:var(--admin-primary-soft); border-color:transparent; }
     .vz-msg__bubble.note { background:var(--warning-soft); border-color:transparent; }
     .vz-msg__meta { font-size:11px; color:var(--text-3); margin-top:5px; }
@@ -120,6 +127,12 @@ else
     private List<TicketModel> _items = new();
 
     private string _status = "all";
+
+    private static readonly (string Key, string Label)[] StatusChips =
+    {
+        ("all", "همه"), ("1", "باز"), ("2", "در انتظار مدیر"), ("3", "در انتظار مشتری"), ("4", "بسته شده"),
+    };
+    private int CountStatus(byte s) => _items.Count(t => t.Status == s);
 
     private bool _loadingDetail, _acting;
     private TicketModel? _selected;

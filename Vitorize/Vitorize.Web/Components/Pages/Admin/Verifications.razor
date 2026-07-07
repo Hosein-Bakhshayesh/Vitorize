@@ -11,23 +11,30 @@
     </Actions>
 </PageHeader>
 
-<div class="vz-filterbar">
-    <div class="vz-filterbar__row">
-        <div class="vz-field">
-            <label class="vz-label">جستجو</label>
-            <input class="vz-input" placeholder="نام، موبایل یا کد ملی ..." @bind="_search" @bind:event="oninput" />
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="کل درخواست‌ها" Value="@AUI.Number(_items.Count)" Icon="user-check" Accent="purple" />
+        <StatCard Label="در انتظار بررسی" Value="@AUI.Number(CountStatus(0))" Icon="clock" Accent="orange" />
+        <StatCard Label="تأیید شده" Value="@AUI.Number(CountStatus(1))" Icon="check-circle" Accent="green" />
+        <StatCard Label="رد شده" Value="@AUI.Number(CountStatus(2))" Icon="x-circle" Accent="red" />
+    </div>
+
+    <div class="vz-spread" style="margin-bottom:16px;align-items:flex-end">
+        <div class="vz-pills">
+            @foreach (var f in StatusChips)
+            {
+                <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+                    @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
+                </button>
+            }
         </div>
-        <div class="vz-field">
-            <label class="vz-label">وضعیت</label>
-            <select class="vz-select" @bind="_status">
-                <option value="all">همه</option>
-                <option value="0">در انتظار بررسی</option>
-                <option value="1">تأیید شده</option>
-                <option value="2">رد شده</option>
-            </select>
+        <div style="position:relative;min-width:240px">
+            <input class="vz-input" style="padding-inline-start:38px" placeholder="نام، موبایل یا کد ملی ..." @bind="_search" @bind:event="oninput" />
+            <span style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-3)"><Icon Name="search" Size="17" /></span>
         </div>
     </div>
-</div>
+}
 
 <div class="vz-card">
     <div class="vz-card__body flush">
@@ -56,7 +63,13 @@
                                 <td class="num">@AUI.Number(Docs(v).Count)</td>
                                 <td><StatusBadge Text="@AUI.VerificationStatus(v.Status)" Intent="@AUI.StatusBadgeIntent(v.Status, "verify")" /></td>
                                 <td><PersianDateDisplay Value="v.SubmittedAt" WithTime="true" /></td>
-                                <td class="col-actions"><button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(v.Id)"><Icon Name="eye" Size="15" /> بررسی</button></td>
+                                <td class="col-actions">
+                                    @if (v.Status == (byte)VerificationStatus.Pending)
+                                    {
+                                        <button class="vz-iconaction" title="تأیید سریع" @onclick="() => QuickApprove(v)"><Icon Name="check" Size="16" /></button>
+                                    }
+                                    <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(v.Id)"><Icon Name="eye" Size="15" /> بررسی</button>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -66,7 +79,7 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="بررسی احراز هویت" Icon="user-check" Size="lg" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="بررسی احراز هویت" Subtitle="@(_detail is null ? null : $"{_detail.FirstName} {_detail.LastName}")" Icon="user-check" OnClose="() => _open = false">
     <ChildContent>
         @if (_loadingDetail) { <LoadingState /> }
         else if (_detail is not null)
@@ -136,7 +149,7 @@
         }
         <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -149,7 +162,21 @@
     private VerificationProfileModel? _detail;
     private string _note = string.Empty;
 
+    private static readonly (string Key, string Label)[] StatusChips =
+    {
+        ("all", "همه"), ("0", "در انتظار بررسی"), ("1", "تأیید شده"), ("2", "رد شده"),
+    };
+    private int CountStatus(byte s) => _items.Count(v => v.Status == s);
+
     protected override Task OnInitializedAsync() => Load();
+
+    private async Task QuickApprove(VerificationProfileModel v)
+    {
+        var r = await Api.PostAsync<VerificationProfileModel>($"admin/verifications/{v.Id}/review",
+            new { Approve = true, AdminNote = (string?)null });
+        if (r.IsSuccess) { Toasts.Success("احراز هویت تأیید شد."); await Load(); }
+        else Toasts.Error(r.Message);
+    }
 
     private async Task Load()
     {

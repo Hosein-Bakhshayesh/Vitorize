@@ -9,6 +9,14 @@
     </Actions>
 </PageHeader>
 
+@if (!_loading && _error is null && _items.Count > 0)
+{
+    <div class="vz-stats">
+        <StatCard Label="کل نقش‌ها" Value="@AUI.Number(_items.Count)" Icon="key" Accent="purple" />
+        <StatCard Label="مجموع کاربران" Value="@AUI.Number(_items.Sum(r => r.UsersCount))" Icon="users" Accent="teal" />
+    </div>
+}
+
 <div class="vz-card">
     <div class="vz-card__body flush">
         @if (_loading) { <LoadingState /> }

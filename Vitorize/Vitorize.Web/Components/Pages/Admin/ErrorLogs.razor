@@ -1,10 +1,14 @@
 @page "/admin/error-logs"
 @inject ApiClient Api
+@inject ToastService Toasts
+@inject IJSRuntime JS
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="لاگ خطاها" Subtitle="خطاهای ثبت‌شده در سیستم"
             Icon="alert" Breadcrumbs="@(new(){ ("لاگ خطاها", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
@@ -53,7 +57,7 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="جزئیات خطا" Icon="alert" Size="lg" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="جزئیات خطا" Subtitle="@_current?.Source" Icon="alert" OnClose="() => _open = false">
     <ChildContent>
         @if (_current is not null)
         {
@@ -72,7 +76,7 @@
         }
     </ChildContent>
     <Footer><button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button></Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -105,4 +109,15 @@
     private List<AdminErrorLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
 
     private void Open(AdminErrorLogModel l) { _current = l; _open = true; }
+
+    private async Task Export()
+    {
+        var rows = _items.Select(l => new[]
+        {
+            AdminCsv.Field(l.Message), AdminCsv.Field(l.Source), AdminCsv.Field(PersianDateHelper.ToDateTime(l.CreatedAt))
+        });
+        var csv = AdminCsv.Build(new[] { "Message", "Source", "Date" }, rows);
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"error-logs-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
+        Toasts.Success($"{_items.Count} رکورد در فایل CSV ذخیره شد.");
+    }
 }

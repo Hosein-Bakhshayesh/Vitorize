@@ -39,6 +39,16 @@
     </div>
 </div>
 
+@if (_selected.Count > 0)
+{
+    <div class="vz-bulkbar">
+        <span>@AUI.Number(_selected.Count) نظر انتخاب شد</span>
+        <div style="flex:1"></div>
+        <button class="vz-btn vz-btn--success vz-btn--sm" @onclick="BulkApprove" disabled="@_acting"><Icon Name="check" Size="14" /> تأیید انتخاب‌شده‌ها</button>
+        <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => _selected.Clear()">پاک‌کردن</button>
+    </div>
+}
+
 <div class="vz-card">
     <div class="vz-card__body flush">
         @if (_loading) { <LoadingState /> }
@@ -48,11 +58,14 @@
         {
             <div class="vz-table-wrap">
                 <table class="vz-table">
-                    <thead><tr><th>محصول</th><th>کاربر</th><th>امتیاز</th><th>نظر</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
+                    <thead><tr>
+                        <th style="width:40px"><span class="vz-check @(AllSelected ? "checked" : "")" @onclick="ToggleSelectAll">@if (AllSelected) { <Icon Name="check" Size="12" /> }</span></th>
+                        <th>محصول</th><th>کاربر</th><th>امتیاز</th><th>نظر</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
                     <tbody>
                         @foreach (var r in _items)
                         {
-                            <tr>
+                            <tr class="@(_selected.Contains(r.Id) ? "vz-row-selected" : "")">
+                                <td><span class="vz-check @(_selected.Contains(r.Id) ? "checked" : "")" @onclick="() => ToggleSelect(r.Id)">@if (_selected.Contains(r.Id)) { <Icon Name="check" Size="12" /> }</span></td>
                                 <td class="vz-cell-title">@r.ProductTitle</td>
                                 <td>
                                     <div>@r.UserFullName @if (r.IsBuyer) { <span class="vz-chip">خریدار</span> }</div>
@@ -68,6 +81,8 @@
                                     <button class="vz-iconaction" title="مشاهده" @onclick="() => Open(r)"><Icon Name="eye" Size="16" /></button>
                                     @if (!r.IsApproved)
                                     { <button class="vz-iconaction" title="تأیید" @onclick="() => Approve(r)"><Icon Name="check" Size="16" /></button> }
+                                    @if (!r.IsRejected)
+                                    { <button class="vz-iconaction danger" title="رد" @onclick="() => QuickReject(r)"><Icon Name="x" Size="16" /></button> }
                                     <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(r)"><Icon Name="trash" Size="16" /></button>
                                 </td>
                             </tr>
@@ -142,13 +157,41 @@
     private AdminProductReviewModel? _current;
     private string _rejectReason = string.Empty;
 
+    private readonly HashSet<Guid> _selected = new();
+    private bool AllSelected => _items.Count > 0 && _items.All(r => _selected.Contains(r.Id));
+    private void ToggleSelect(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); }
+    private void ToggleSelectAll()
+    {
+        if (AllSelected) _selected.Clear();
+        else foreach (var r in _items) _selected.Add(r.Id);
+    }
+
     protected override Task OnInitializedAsync() => Load(1);
+
+    private void QuickReject(AdminProductReviewModel r) { _current = r; _rejectReason = string.Empty; _rejectOpen = true; }
+
+    private async Task BulkApprove()
+    {
+        var targets = _items.Where(r => _selected.Contains(r.Id) && !r.IsApproved).ToList();
+        if (targets.Count == 0) { Toasts.Warning("نظر تأییدنشده‌ای انتخاب نشده است."); return; }
+        _acting = true;
+        int ok = 0;
+        foreach (var r in targets)
+        {
+            var res = await Api.PostAsync<AdminProductReviewModel>($"admin/product-reviews/{r.Id}/approve");
+            if (res.IsSuccess) ok++;
+        }
+        _acting = false;
+        _selected.Clear();
+        Toasts.Success($"{AUI.Number(ok)} نظر تأیید شد.");
+        await Load(_page);
+    }
 
     private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await Load(1); }
 
     private async Task Load(int page)
     {
-        _loading = true; _error = null; _page = page;
+        _loading = true; _error = null; _page = page; _selected.Clear();
         var query = $"admin/product-reviews?page={page}&pageSize={_pageSize}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
         if (!string.IsNullOrWhiteSpace(_rating)) query += $"&rating={_rating}";

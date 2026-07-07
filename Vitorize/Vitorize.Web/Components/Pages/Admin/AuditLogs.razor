@@ -1,10 +1,13 @@
 @page "/admin/audit-logs"
 @inject ApiClient Api
 @inject ToastService Toasts
+@inject IJSRuntime JS
+@using Vitorize.Web.Helpers
 
 <PageHeader Title="لاگ عملیات" Subtitle="ثبت تغییرات و عملیات انجام‌شده در سیستم"
             Icon="file-text" Breadcrumbs="@(new(){ ("لاگ عملیات", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
@@ -55,7 +58,7 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="جزئیات عملیات" Icon="file-text" Size="lg" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="جزئیات عملیات" Subtitle="@_current?.ActionType" Icon="file-text" OnClose="() => _open = false">
     <ChildContent>
         @if (_current is not null)
         {
@@ -77,7 +80,7 @@
         }
     </ChildContent>
     <Footer><button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button></Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -110,4 +113,17 @@
     private List<AdminAuditLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
 
     private void Open(AdminAuditLogModel l) { _current = l; _open = true; }
+
+    private async Task Export()
+    {
+        var rows = _items.Select(l => new[]
+        {
+            AdminCsv.Field(l.ActionType), AdminCsv.Field(l.EntityName), AdminCsv.Field(l.EntityId),
+            AdminCsv.Field(l.UserFullName), AdminCsv.Field(l.IpAddress),
+            AdminCsv.Field(PersianDateHelper.ToDateTime(l.CreatedAt))
+        });
+        var csv = AdminCsv.Build(new[] { "Action", "Entity", "EntityId", "User", "IP", "Date" }, rows);
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"audit-logs-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
+        Toasts.Success($"{_items.Count} رکورد در فایل CSV ذخیره شد.");
+    }
 }

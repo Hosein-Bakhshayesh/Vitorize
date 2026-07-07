@@ -73,7 +73,22 @@
                                 <td><MoneyDisplay Amount="u.WalletBalance" /></td>
                                 <td class="num">@AUI.Number(u.OrdersCount)</td>
                                 <td><PersianDateDisplay Value="u.CreatedAt" /></td>
-                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => Open(u.Id)"><Icon Name="eye" Size="16" /></button></td>
+                                <td class="col-actions">
+                                    <div class="vz-ctx">
+                                        <button class="vz-ctx__trigger @(_openMenuId == u.Id ? "open" : "")" @onclick="() => ToggleMenu(u.Id)" title="عملیات"><Icon Name="dots" Size="18" /></button>
+                                        @if (_openMenuId == u.Id)
+                                        {
+                                            <div style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
+                                            <div class="vz-ctx__menu">
+                                                <button class="vz-ctx__item" @onclick="() => Open(u.Id)"><Icon Name="eye" Size="15" /> مشاهده پروفایل</button>
+                                                <div class="vz-ctx__divider"></div>
+                                                <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "activate", "کاربر فعال شد.")'><Icon Name="check-circle" Size="15" /> فعال‌سازی</button>
+                                                <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "suspend", "کاربر معلق شد.")'><Icon Name="clock" Size="15" /> تعلیق</button>
+                                                <button class="vz-ctx__item danger" @onclick='() => QuickStatus(u, "block", "کاربر مسدود شد.")'><Icon Name="lock" Size="15" /> مسدودسازی</button>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -84,7 +99,7 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="پروفایل کاربر" Icon="user" Size="lg" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="پروفایل کاربر" Subtitle="@_detail?.FullName" Icon="user" OnClose="() => _open = false">
     <ChildContent>
         @if (_loadingDetail) { <LoadingState /> }
         else if (_detail is not null)
@@ -151,7 +166,7 @@
         }
         <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -166,6 +181,18 @@
     private AdminUserDetailModel? _detail;
     private List<AdminRoleModel> _roles = new();
     private string _roleToAdd = string.Empty;
+    private Guid? _openMenuId;
+
+    private void ToggleMenu(Guid id) => _openMenuId = _openMenuId == id ? null : id;
+    private void CloseMenu() => _openMenuId = null;
+
+    private async Task QuickStatus(AdminUserModel u, string action, string success)
+    {
+        CloseMenu();
+        var r = await Api.PostAsync($"admin/users/{u.Id}/{action}");
+        if (r.IsSuccess) { Toasts.Success(success); await Load(_page); }
+        else Toasts.Error(r.Message);
+    }
 
     protected override async Task OnInitializedAsync()
     {

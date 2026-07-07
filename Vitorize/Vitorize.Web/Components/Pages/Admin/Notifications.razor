@@ -11,22 +11,29 @@
     </Actions>
 </PageHeader>
 
-<div class="vz-filterbar">
-    <div class="vz-filterbar__row">
-        <div class="vz-field">
-            <label class="vz-label">جستجو</label>
-            <input class="vz-input" placeholder="عنوان، متن یا کاربر ..." @bind="_search" @bind:event="oninput" />
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="کل اعلان‌ها" Value="@AUI.Number(_items.Count)" Icon="bell" Accent="purple" />
+        <StatCard Label="خوانده‌نشده" Value="@AUI.Number(_items.Count(n => !n.IsRead))" Icon="alert" Accent="orange" />
+        <StatCard Label="خوانده‌شده" Value="@AUI.Number(_items.Count(n => n.IsRead))" Icon="check-circle" Accent="green" />
+    </div>
+
+    <div class="vz-spread" style="margin-bottom:16px;align-items:flex-end">
+        <div class="vz-pills">
+            @foreach (var f in ReadChips)
+            {
+                <button class="vz-pill @(_readFilter == f.Key ? "active" : "")" @onclick="() => _readFilter = f.Key">
+                    @f.Label <span class="vz-pill__count">@AUI.Number(CountFor(f.Key))</span>
+                </button>
+            }
         </div>
-        <div class="vz-field">
-            <label class="vz-label">وضعیت</label>
-            <select class="vz-select" @bind="_readFilter">
-                <option value="all">همه</option>
-                <option value="unread">خوانده‌نشده</option>
-                <option value="read">خوانده‌شده</option>
-            </select>
+        <div style="position:relative;min-width:240px">
+            <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، متن یا کاربر ..." @bind="_search" @bind:event="oninput" />
+            <span style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-3)"><Icon Name="search" Size="17" /></span>
         </div>
     </div>
-</div>
+}
 
 <div class="vz-card">
     <div class="vz-card__body flush">
@@ -63,7 +70,7 @@
     </div>
 </div>
 
-<Modal Visible="_sendOpen" Title="ارسال اعلان به کاربر" Icon="send" OnClose="() => _sendOpen = false">
+<SlidePanel Visible="_sendOpen" Title="ارسال اعلان به کاربر" Subtitle="پیام مستقیم به یک کاربر" Icon="send" OnClose="() => _sendOpen = false">
     <ChildContent>
         <div class="vz-form-grid one">
             <div class="vz-field">
@@ -90,7 +97,7 @@
             @if (_sending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال اعلان</span> }
         </button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -98,6 +105,17 @@
     private List<AdminNotificationModel> _items = new();
 
     private string _search = string.Empty, _readFilter = "all";
+
+    private static readonly (string Key, string Label)[] ReadChips =
+    {
+        ("all", "همه"), ("unread", "خوانده‌نشده"), ("read", "خوانده‌شده"),
+    };
+    private int CountFor(string key) => key switch
+    {
+        "unread" => _items.Count(n => !n.IsRead),
+        "read" => _items.Count(n => n.IsRead),
+        _ => _items.Count
+    };
 
     private List<AdminUserModel> _users = new();
     private bool _sendOpen, _sending;
