@@ -15,15 +15,18 @@ namespace Vitorize.Api.Controllers
         private readonly IWalletService _walletService;
         private readonly IWalletTopUpService _walletTopUpService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IWebHostEnvironment _environment;
 
         public WalletController(
             IWalletService walletService,
             IWalletTopUpService walletTopUpService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IWebHostEnvironment environment)
         {
             _walletService = walletService;
             _walletTopUpService = walletTopUpService;
             _currentUserService = currentUserService;
+            _environment = environment;
         }
 
         [HttpGet]
@@ -67,6 +70,10 @@ namespace Vitorize.Api.Controllers
         public async Task<ActionResult<ApiResult<WalletTopUpVerifyResultDto>>> VerifyMockTopUp(
             Guid topUpId)
         {
+            // Dev-only: mock top-up credits the wallet without a real gateway. Never in production.
+            if (!_environment.IsDevelopment())
+                throw new NotFoundException("مسیر مورد نظر یافت نشد.");
+
             var userId = GetUserId();
 
             var result = await _walletTopUpService.VerifyMockAsync(userId, topUpId);

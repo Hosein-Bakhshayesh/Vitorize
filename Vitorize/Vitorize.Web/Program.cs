@@ -26,8 +26,26 @@ builder.Services
     {
         options.ForwardDefaultSelector = context =>
         {
-            var path = context.Request.Path;
-            if (path.StartsWithSegments("/admin"))
+            // Admin panel pages resolve to the admin cookie by path.
+            if (context.Request.Path.StartsWithSegments("/admin"))
+                return VitorizeAuthSchemes.AdminScheme;
+
+            // The Blazor interactive circuit (and other framework endpoints such as
+            // /_blazor) do NOT carry the /admin path segment, so path alone would wrongly
+            // route the admin circuit to the customer scheme — that made the admin panel
+            // bounce back to the login page after a successful sign-in. Decide by the page
+            // that opened the connection (Referer / Origin), then fall back to whichever
+            // auth cookie is actually present in the browser.
+            var origin = context.Request.Headers.Referer.ToString();
+            if (string.IsNullOrEmpty(origin))
+                origin = context.Request.Headers.Origin.ToString();
+
+            if (origin.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                return VitorizeAuthSchemes.AdminScheme;
+
+            var hasAdmin = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.AdminAuthCookie);
+            var hasCustomer = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.CustomerAuthCookie);
+            if (hasAdmin && !hasCustomer)
                 return VitorizeAuthSchemes.AdminScheme;
 
             return VitorizeAuthSchemes.CustomerScheme;
@@ -35,7 +53,7 @@ builder.Services
     })
     .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
     {
-        options.Cookie.Name = "Vitorize.Admin.Auth";
+        options.Cookie.Name = VitorizeAuthSchemes.AdminAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.LoginPath = "/admin/login";
@@ -45,7 +63,7 @@ builder.Services
     })
     .AddCookie(VitorizeAuthSchemes.CustomerScheme, options =>
     {
-        options.Cookie.Name = "Vitorize.Customer.Auth";
+        options.Cookie.Name = VitorizeAuthSchemes.CustomerAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.LoginPath = "/login";

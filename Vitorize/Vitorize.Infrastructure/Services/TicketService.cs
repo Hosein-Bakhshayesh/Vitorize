@@ -140,7 +140,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("متن پیام الزامی است.");
 
             var ticket = await _dbContext.Tickets
-                .Include(x => x.TicketMessages)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
                     x.Id == ticketId &&
                     x.UserId == userId);
@@ -153,13 +153,14 @@ namespace Vitorize.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
-            ticket.Status = (byte)TicketStatus.WaitingForAdmin;
-            ticket.UpdatedAt = now;
-
-            ticket.TicketMessages.Add(new TicketMessage
+            // Insert the new message on its own (same shape as ticket creation) and update the
+            // ticket header with a set-based statement. Doing the header change as a tracked
+            // UPDATE inside this SaveChanges tripped an EF optimistic-concurrency check
+            // ("0 rows affected") against the DB-first schema, so it is kept separate.
+            _dbContext.TicketMessages.Add(new TicketMessage
             {
                 Id = Guid.NewGuid(),
-                TicketId = ticket.Id,
+                TicketId = ticketId,
                 SenderUserId = userId,
                 Message = request.Message.Trim(),
                 AttachmentPath = request.AttachmentPath?.Trim(),
@@ -169,7 +170,13 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
-            return MapTicket(ticket, false);
+            await _dbContext.Tickets
+                .Where(x => x.Id == ticketId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.Status, (byte)TicketStatus.WaitingForAdmin)
+                    .SetProperty(t => t.UpdatedAt, now));
+
+            return await GetByIdAsync(ticketId);
         }
 
         public async Task<List<TicketDto>> GetAllAsync()
@@ -204,7 +211,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("متن پیام الزامی است.");
 
             var ticket = await _dbContext.Tickets
-                .Include(x => x.TicketMessages)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId);
 
             if (ticket == null)
@@ -215,21 +222,18 @@ namespace Vitorize.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
-            if (!request.IsInternalNote)
-                ticket.Status = (byte)TicketStatus.WaitingForCustomer;
-
-            ticket.UpdatedAt = now;
-
-            ticket.TicketMessages.Add(new TicketMessage
+            _dbContext.TicketMessages.Add(new TicketMessage
             {
                 Id = Guid.NewGuid(),
-                TicketId = ticket.Id,
+                TicketId = ticketId,
                 SenderUserId = adminUserId,
                 Message = request.Message.Trim(),
                 AttachmentPath = request.AttachmentPath?.Trim(),
                 IsInternalNote = request.IsInternalNote,
                 CreatedAt = now
             });
+
+            await _dbContext.SaveChangesAsync();
 
             if (!request.IsInternalNote)
             {
@@ -238,27 +242,33 @@ namespace Vitorize.Infrastructure.Services
                     (byte)NotificationType.TicketReply,
                     "پاسخ پشتیبانی",
                     $"برای تیکت «{ticket.Subject}» پاسخ جدید ثبت شد.");
+
+                await _dbContext.Tickets
+                    .Where(x => x.Id == ticketId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.Status, (byte)TicketStatus.WaitingForCustomer)
+                        .SetProperty(t => t.UpdatedAt, now));
+            }
+            else
+            {
+                await _dbContext.Tickets
+                    .Where(x => x.Id == ticketId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(t => t.UpdatedAt, now));
             }
 
-            await _dbContext.SaveChangesAsync();
-
-            return MapTicket(ticket, true);
+            return await GetByIdAsync(ticketId);
         }
 
         public async Task<TicketDto> CloseAsync(Guid ticketId)
         {
             var ticket = await _dbContext.Tickets
-                .Include(x => x.TicketMessages)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId);
 
             if (ticket == null)
                 throw new NotFoundException("تیکت یافت نشد.");
 
             var now = DateTime.UtcNow;
-
-            ticket.Status = (byte)TicketStatus.Closed;
-            ticket.ClosedAt = now;
-            ticket.UpdatedAt = now;
 
             await _notificationService.CreateAsync(
                 ticket.UserId,
@@ -266,15 +276,20 @@ namespace Vitorize.Infrastructure.Services
                 "تیکت بسته شد",
                 $"تیکت «{ticket.Subject}» بسته شد.");
 
-            await _dbContext.SaveChangesAsync();
+            await _dbContext.Tickets
+                .Where(x => x.Id == ticketId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.Status, (byte)TicketStatus.Closed)
+                    .SetProperty(t => t.ClosedAt, now)
+                    .SetProperty(t => t.UpdatedAt, now));
 
-            return MapTicket(ticket, true);
+            return await GetByIdAsync(ticketId);
         }
 
         public async Task<TicketDto> ReopenAsync(Guid ticketId)
         {
             var ticket = await _dbContext.Tickets
-                .Include(x => x.TicketMessages)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId);
 
             if (ticket == null)
@@ -282,19 +297,20 @@ namespace Vitorize.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
-            ticket.Status = (byte)TicketStatus.WaitingForAdmin;
-            ticket.ClosedAt = null;
-            ticket.UpdatedAt = now;
-
             await _notificationService.CreateAsync(
                 ticket.UserId,
                 (byte)NotificationType.TicketReply,
                 "تیکت باز شد",
                 $"تیکت «{ticket.Subject}» دوباره باز شد.");
 
-            await _dbContext.SaveChangesAsync();
+            await _dbContext.Tickets
+                .Where(x => x.Id == ticketId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.Status, (byte)TicketStatus.WaitingForAdmin)
+                    .SetProperty(t => t.ClosedAt, (DateTime?)null)
+                    .SetProperty(t => t.UpdatedAt, now));
 
-            return MapTicket(ticket, true);
+            return await GetByIdAsync(ticketId);
         }
 
         private static void ValidateCreateRequest(CreateTicketRequestDto request)

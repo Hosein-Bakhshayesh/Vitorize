@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Hosting;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 
@@ -9,13 +10,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ISettingService _settingService;
+        private readonly IHostEnvironment _environment;
 
         public ZarinpalGatewayService(
             HttpClient httpClient,
-            ISettingService settingService)
+            ISettingService settingService,
+            IHostEnvironment environment)
         {
             _httpClient = httpClient;
             _settingService = settingService;
+            _environment = environment;
         }
 
         public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
@@ -25,58 +29,78 @@ namespace Vitorize.Infrastructure.Services
             string? email = null,
             string? orderId = null)
         {
-            var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
-            var callbackUrl = await GetRequiredSettingAsync("ZarinpalCallbackUrl");
+            var merchantId = await GetSettingOrDefaultAsync("ZarinpalMerchantId", string.Empty);
 
-            var baseUrl = await GetSettingOrDefaultAsync(
-                "ZarinpalBaseUrl",
-                "https://sandbox.zarinpal.com/pg/v4/payment");
+            // No real gateway configured. In development we return a mock authority with an empty
+            // payment URL so the internal mock-verify flow can complete the order (enabling local
+            // end-to-end testing). In production we must NOT silently "succeed" — that would let
+            // orders complete without a real payment — so we degrade to a failure that surfaces a
+            // friendly "gateway unavailable" message instead of an unhandled 500.
+            if (string.IsNullOrWhiteSpace(merchantId))
+                return _environment.IsDevelopment()
+                    ? (true, $"MOCK-{Guid.NewGuid():N}", string.Empty)
+                    : (false, string.Empty, string.Empty);
 
-            var startPayUrl = await GetSettingOrDefaultAsync(
-                "ZarinpalStartPayUrl",
-                "https://sandbox.zarinpal.com/pg/StartPay");
-
-            baseUrl = baseUrl.TrimEnd('/');
-            startPayUrl = startPayUrl.TrimEnd('/');
-
-            var request = new ZarinpalRequestDto
+            try
             {
-                merchant_id = merchantId,
-                amount = amount,
-                currency = "IRT",
-                description = description,
-                callback_url = callbackUrl,
-                metadata = new ZarinpalMetadataDto
+                var callbackUrl = await GetRequiredSettingAsync("ZarinpalCallbackUrl");
+
+                var baseUrl = await GetSettingOrDefaultAsync(
+                    "ZarinpalBaseUrl",
+                    "https://sandbox.zarinpal.com/pg/v4/payment");
+
+                var startPayUrl = await GetSettingOrDefaultAsync(
+                    "ZarinpalStartPayUrl",
+                    "https://sandbox.zarinpal.com/pg/StartPay");
+
+                baseUrl = baseUrl.TrimEnd('/');
+                startPayUrl = startPayUrl.TrimEnd('/');
+
+                var request = new ZarinpalRequestDto
                 {
-                    mobile = mobile,
-                    email = email,
-                    order_id = orderId
+                    merchant_id = merchantId,
+                    amount = amount,
+                    currency = "IRT",
+                    description = description,
+                    callback_url = callbackUrl,
+                    metadata = new ZarinpalMetadataDto
+                    {
+                        mobile = mobile,
+                        email = email,
+                        order_id = orderId
+                    }
+                };
+
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"{baseUrl}/request.json",
+                    request);
+
+                var responseText = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    return (false, string.Empty, string.Empty);
+
+                var result = Deserialize<ZarinpalRequestResultDto>(responseText);
+
+                if (result?.data == null ||
+                    result.data.code != 100 ||
+                    string.IsNullOrWhiteSpace(result.data.authority))
+                {
+                    return (false, string.Empty, string.Empty);
                 }
-            };
 
-            var response = await _httpClient.PostAsJsonAsync(
-                $"{baseUrl}/request.json",
-                request);
-
-            var responseText = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                return (false, string.Empty, string.Empty);
-
-            var result = Deserialize<ZarinpalRequestResultDto>(responseText);
-
-            if (result?.data == null ||
-                result.data.code != 100 ||
-                string.IsNullOrWhiteSpace(result.data.authority))
+                return (
+                    true,
+                    result.data.authority,
+                    $"{startPayUrl}/{result.data.authority}"
+                );
+            }
+            catch
             {
+                // Network / gateway failure — degrade gracefully so the caller surfaces a
+                // friendly "gateway unavailable" message instead of an unhandled 500.
                 return (false, string.Empty, string.Empty);
             }
-
-            return (
-                true,
-                result.data.authority,
-                $"{startPayUrl}/{result.data.authority}"
-            );
         }
 
         public async Task<(bool Success, long RefId)> VerifyPaymentAsync(

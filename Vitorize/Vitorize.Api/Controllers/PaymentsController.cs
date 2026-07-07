@@ -20,17 +20,20 @@ namespace Vitorize.Api.Controllers
         private readonly IWalletTopUpService _walletTopUpService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdempotencyService _idempotencyService;
+        private readonly IWebHostEnvironment _environment;
 
         public PaymentsController(
             IPaymentService paymentService,
             IWalletTopUpService walletTopUpService,
             ICurrentUserService currentUserService,
-            IIdempotencyService idempotencyService)
+            IIdempotencyService idempotencyService,
+            IWebHostEnvironment environment)
         {
             _paymentService = paymentService;
             _walletTopUpService = walletTopUpService;
             _currentUserService = currentUserService;
             _idempotencyService = idempotencyService;
+            _environment = environment;
         }
 
         [HttpPost("start/{orderId:guid}")]
@@ -62,6 +65,12 @@ namespace Vitorize.Api.Controllers
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiResult<PaymentVerifyResultDto>>> VerifyMock(Guid paymentId)
         {
+            // Mock verification bypasses the real gateway and marks a payment as paid. It must
+            // never be reachable in production (it would let an authenticated user complete their
+            // own order for free); real payments are confirmed via the Zarinpal callback instead.
+            if (!_environment.IsDevelopment())
+                throw new NotFoundException("مسیر مورد نظر یافت نشد.");
+
             var userId = GetUserId();
 
             var result = await _paymentService.VerifyMockPaymentAsync(userId, paymentId);
