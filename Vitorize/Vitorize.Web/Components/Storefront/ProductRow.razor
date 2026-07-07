@@ -1,0 +1,23 @@
+@using Vitorize.Web.Models.Store
+
+<section class="st-section st-reveal">
+    <div class="st-section__head">
+        <div class="st-section__title"><span class="bar"></span> @Title</div>
+        @if (!string.IsNullOrWhiteSpace(MoreHref))
+        {
+            <a class="st-section__more" href="@MoreHref">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+        }
+    </div>
+    <div class="st-grid">
+        @foreach (var p in Products)
+        {
+            <StoreProductCard Product="p" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? MoreHref { get; set; }
+    [Parameter, EditorRequired] public List<StoreProductModel> Products { get; set; } = new();
+}

@@ -12,7 +12,37 @@
 
             <nav class="st-nav">
                 <a href="/" class="@Active("/")">خانه</a>
-                <a href="/shop" class="@Active("/shop")">فروشگاه</a>
+                <div class="st-nav__mega">
+                    <button class="st-nav__trigger @(_megaOpen ? "open" : null)" @onclick="ToggleMega" type="button">
+                        فروشگاه <span class="chev">▾</span>
+                    </button>
+                    @if (_megaOpen)
+                    {
+                        <div class="st-scrim" @onclick="CloseMega"></div>
+                        <div class="st-mega">
+                            <div>
+                                <div class="st-mega__label">دسته‌بندی‌ها</div>
+                                <div class="st-mega__list">
+                                    @foreach (var c in _categories.Take(6))
+                                    {
+                                        <a class="st-mega__item" href="@($"/category/{c.Slug}")" @onclick="CloseMega">
+                                            <span class="st-mega__ic"><StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="16" Contain="true" /></span>
+                                            <div class="st-mega__t">@c.Title</div>
+                                        </a>
+                                    }
+                                    @if (_categories.Count == 0)
+                                    {
+                                        <a class="st-mega__item" href="/categories" @onclick="CloseMega"><span class="st-mega__ic"><Icon Name="grid" Size="16" /></span><div class="st-mega__t">همه دسته‌بندی‌ها</div></a>
+                                    }
+                                </div>
+                            </div>
+                            <a class="st-mega__feat" href="/shop" @onclick="CloseMega">
+                                <div class="tag">ویژه</div>
+                                <div class="ttl">همه محصولات فروشگاه را ببینید ←</div>
+                            </a>
+                        </div>
+                    }
+                </div>
                 <a href="/categories" class="@Active("/categories")">دسته‌بندی‌ها</a>
                 <a href="/blog" class="@Active("/blog")">وبلاگ</a>
                 <a href="/faq" class="@Active("/faq")">سوالات متداول</a>
@@ -21,7 +51,20 @@
             <div class="st-search">
                 <span class="ico"><Icon Name="search" Size="18" /></span>
                 <input type="text" placeholder="جستجو در محصولات، بازی‌ها، گیفت کارت‌ها ..."
-                       @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" />
+                       @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" @onfocus="OpenSearch" />
+                @if (_searchOpen && Suggestions.Count > 0)
+                {
+                    <div class="st-scrim" @onclick="CloseSearch"></div>
+                    <div class="st-search__drop">
+                        <div class="st-search__label">@(string.IsNullOrWhiteSpace(_search) ? "دسته‌بندی‌های محبوب" : "پیشنهادها")</div>
+                        @foreach (var s in Suggestions)
+                        {
+                            <a class="st-search__item" href="@($"/category/{s.Slug}")" @onclick="CloseSearch">
+                                <Icon Name="search" Size="13" /> <span>@s.Title</span>
+                            </a>
+                        }
+                    </div>
+                }
             </div>
 
             <div class="st-header__actions">
@@ -84,9 +127,18 @@
 
     private bool _authenticated;
     private bool _menuOpen;
+    private bool _megaOpen;
+    private bool _searchOpen;
     private string _search = string.Empty;
     private string _name = "کاربر";
     private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
+
+    private List<StoreLookupModel> _categories = new();
+
+    private List<StoreLookupModel> Suggestions => (string.IsNullOrWhiteSpace(_search)
+        ? _categories
+        : _categories.Where(c => c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)))
+        .Take(6).ToList();
 
     protected override void OnInitialized()
     {
@@ -96,6 +148,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Categories feed both the mega menu and the search suggestions (real lookup API).
+        try
+        {
+            var cats = await Api.GetAsync<List<StoreLookupModel>>("products/categories");
+            if (cats.IsSuccess && cats.Data is not null) _categories = cats.Data;
+        }
+        catch { }
+
         if (AuthState is null) return;
 
         var state = await AuthState;
@@ -107,6 +167,11 @@
             await Task.WhenAll(RefreshCartCount(), RefreshWishlist());
         }
     }
+
+    private void ToggleMega() { _megaOpen = !_megaOpen; _searchOpen = false; }
+    private void CloseMega() => _megaOpen = false;
+    private void OpenSearch() { _searchOpen = true; _megaOpen = false; }
+    private void CloseSearch() => _searchOpen = false;
 
     private async Task RefreshCartCount()
     {

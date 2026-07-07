@@ -1,0 +1,70 @@
+@implements IDisposable
+@using Vitorize.Web.Models.Store
+
+<div class="st-hslider" @onmouseenter="Pause" @onmouseleave="Resume">
+    @if (Active is not null)
+    {
+        <div class="st-hslider__img">
+            <StoreImage Url="@Active.ImagePath" Alt="@Active.Title" Icon="gamepad" />
+        </div>
+    }
+    <span class="st-hslider__aurora a1"></span>
+    <span class="st-hslider__aurora a2"></span>
+    <div class="st-hslider__overlay"></div>
+
+    <div class="st-hslide enter" @key="_index">
+        <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
+        <h1 class="st-hslide__title">@(Active?.Title ?? "دنیای بازی و دیجیتال در دستان تو")</h1>
+        <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
+        <a class="st-hslide__cta" href="@CtaHref"><Icon Name="shopping-bag" Size="17" /> @CtaText</a>
+    </div>
+
+    @if (Banners.Count > 1)
+    {
+        <button class="st-hslider__arrow prev" @onclick="Prev" type="button" title="قبلی"><Icon Name="chevron-right" Size="20" /></button>
+        <button class="st-hslider__arrow next" @onclick="Next" type="button" title="بعدی"><Icon Name="chevron-left" Size="20" /></button>
+        <div class="st-hslider__dots">
+            @for (var i = 0; i < Banners.Count; i++)
+            {
+                var idx = i;
+                <button class="st-hslider__dot @(idx == _index ? "active" : null)" @onclick="() => Go(idx)" type="button" aria-label="@($"اسلاید {idx + 1}")"></button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<StoreBannerModel> Banners { get; set; } = new();
+
+    private int _index;
+    private System.Threading.Timer? _timer;
+    private bool _paused;
+
+    private StoreBannerModel? Active => Banners.Count > 0 ? Banners[Math.Clamp(_index, 0, Banners.Count - 1)] : null;
+    private string CtaHref => string.IsNullOrWhiteSpace(Active?.LinkUrl) ? "/shop" : Active!.LinkUrl!;
+    private string CtaText => "ورود به فروشگاه";
+
+    protected override void OnInitialized()
+    {
+        if (Banners.Count > 1)
+            _timer = new System.Threading.Timer(_ => Tick(), null, 6000, 6000);
+    }
+
+    private void Tick()
+    {
+        if (_paused || Banners.Count <= 1) return;
+        _index = (_index + 1) % Banners.Count;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Go(int i) { _index = i; ResetTimer(); }
+    private void Next() { _index = (_index + 1) % Banners.Count; ResetTimer(); }
+    private void Prev() { _index = (_index - 1 + Banners.Count) % Banners.Count; ResetTimer(); }
+
+    private void Pause() => _paused = true;
+    private void Resume() => _paused = false;
+
+    private void ResetTimer() => _timer?.Change(6000, 6000);
+
+    public void Dispose() => _timer?.Dispose();
+}

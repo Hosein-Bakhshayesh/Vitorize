@@ -1,104 +1,177 @@
 @page "/"
 @inject ApiClient Api
 @inject MediaUrlResolver Media
-@inject NavigationManager Nav
+@using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین</PageTitle>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری ...</div></div>
+    <section class="st-hwrap">
+        <div class="st-skel" style="height:460px;border-radius:var(--st-clip-xl)"></div>
+        <div class="st-hstats">
+            <div class="st-skel" style="height:88px;border-radius:var(--st-clip-sm)"></div>
+            <div class="st-skel" style="height:88px;border-radius:var(--st-clip-sm)"></div>
+            <div class="st-skel" style="height:120px;border-radius:var(--st-clip-sm)"></div>
+        </div>
+    </section>
+    <div class="st-grid" style="margin-top:48px">
+        @for (var i = 0; i < 8; i++)
+        {
+            <div class="st-skel" style="height:280px;border-radius:var(--st-clip)"></div>
+        }
+    </div>
 }
 else
 {
-    <section class="st-hero">
-        <div>
-            <span class="st-hero__eyebrow"><Icon Name="zap" Size="14" /> تحویل آنی و خودکار</span>
-            <h1 class="st-hero__title">دنیای بازی و دیجیتال <span class="hl">در دستان تو!</span></h1>
-            <p class="st-hero__desc">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال؛ با بهترین قیمت و پشتیبانی ۲۴ ساعته.</p>
-            <div class="st-hero__cta">
-                <a class="st-btn st-btn--accent st-btn--lg" href="/shop"><Icon Name="shopping-bag" Size="18" /> ورود به فروشگاه</a>
-                <a class="st-btn st-btn--outline st-btn--lg" style="color:#fff;border-color:rgba(255,255,255,.4)" href="/faq">راهنمای خرید</a>
-            </div>
-        </div>
-        <div class="st-hero__art">
-            @if (HeroBanner is not null && !string.IsNullOrWhiteSpace(HeroBanner.ImagePath))
-            {
-                <a class="st-hero__banner" href="@(string.IsNullOrWhiteSpace(HeroBanner.LinkUrl) ? "/shop" : HeroBanner.LinkUrl)">
-                    <StoreImage Url="@HeroBanner.ImagePath" Alt="@HeroBanner.Title" Icon="gamepad" />
-                </a>
-            }
-            else
-            {
-                <div class="st-hero__logo">
-                    <img src="images/logo.png" alt="ویتورایز" />
-                    <div class="st-hero__logo-word">VITORIZE</div>
-                    <div class="st-hero__logo-sub">بازارگاه دیجیتال گیمینگ و خدمات آنلاین</div>
+    @* ---------- Hero: dynamic banner slider + value-prop stack ---------- *@
+    <section class="st-hwrap">
+        @if (HeroBanners.Count > 0)
+        {
+            <HeroSlider Banners="HeroBanners" />
+        }
+        else
+        {
+            <div class="st-hslider">
+                <span class="st-hslider__aurora a1"></span>
+                <span class="st-hslider__aurora a2"></span>
+                <div class="st-hslider__overlay"></div>
+                <div class="st-hslide enter">
+                    <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
+                    <h1 class="st-hslide__title">دنیای بازی و دیجیتال در دستان تو</h1>
+                    <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
+                    <a class="st-hslide__cta" href="/shop"><Icon Name="shopping-bag" Size="17" /> ورود به فروشگاه</a>
                 </div>
-            }
+            </div>
+        }
+        <div class="st-hstats">
+            <div class="st-hstat">
+                <span class="st-hstat__ic"><Icon Name="zap" Size="22" /></span>
+                <div><div class="st-hstat__t">تحویل آنی</div><div class="st-hstat__s">کدها بلافاصله پس از پرداخت</div></div>
+            </div>
+            <div class="st-hstat">
+                <span class="st-hstat__ic"><Icon Name="headphones" Size="22" /></span>
+                <div><div class="st-hstat__t">پشتیبانی ۲۴/۷</div><div class="st-hstat__s">همیشه کنار شما</div></div>
+            </div>
+            <div class="st-hstat accent">
+                <span class="st-hstat__ic"><Icon Name="shield-check" Size="22" /></span>
+                <div><div class="st-hstat__t">ضمانت اصالت</div><div class="st-hstat__s">محصولات رسمی و اورجینال با پرداخت امن</div></div>
+            </div>
         </div>
     </section>
 
-    <div class="st-hero-mini">
-        <div class="st-trust"><span class="st-trust__ic"><Icon Name="shield-check" Size="20" /></span><div><div class="st-trust__t">تضمین اصالت</div><div class="st-trust__s">محصولات رسمی و اورجینال</div></div></div>
-        <div class="st-trust"><span class="st-trust__ic"><Icon Name="zap" Size="20" /></span><div><div class="st-trust__t">تحویل آنی</div><div class="st-trust__s">سریع و بدون انتظار</div></div></div>
-        <div class="st-trust"><span class="st-trust__ic"><Icon Name="headphones" Size="20" /></span><div><div class="st-trust__t">پشتیبانی ۲۴/۷</div><div class="st-trust__s">همیشه کنار شما</div></div></div>
-        <div class="st-trust"><span class="st-trust__ic"><Icon Name="lock" Size="20" /></span><div><div class="st-trust__t">پرداخت امن</div><div class="st-trust__s">درگاه‌های معتبر</div></div></div>
-    </div>
+    @* ---------- Marquee: brands / platforms strip ---------- *@
+    @if (MarqueeItems.Count > 0)
+    {
+        <div class="st-marquee">
+            <div class="st-marquee__track">
+                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
+                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
+            </div>
+        </div>
+    }
 
+    @* ---------- Featured Categories (bento) ---------- *@
     @if (_data.Categories.Count > 0)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <div class="st-section__head">
                 <div class="st-section__title"><span class="bar"></span> دسته‌بندی‌ها</div>
                 <a class="st-section__more" href="/categories">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
             </div>
-            <div class="st-cats">
-                @foreach (var c in _data.Categories.Take(12))
+            <div class="st-bento">
+                @{ var cats = _data.Categories.Take(5).ToList(); }
+                @for (var i = 0; i < cats.Count; i++)
                 {
-                    <a class="st-cat" href="@($"/category/{c.Slug}")">
-                        <div class="st-cat__ic">
-                            <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="22" Contain="true" />
+                    var c = cats[i];
+                    <a class="st-bento__tile @(i == 0 ? "lead" : null)" href="@($"/category/{c.Slug}")">
+                        <div class="st-bento__ic">
+                            <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="18" Contain="true" />
                         </div>
-                        <div class="st-cat__t">@c.Title</div>
+                        <div>
+                            <div class="st-bento__t">@c.Title</div>
+                            @if (i == 0) { <div class="st-bento__c">پرطرفدارترین دسته فروشگاه</div> }
+                        </div>
                     </a>
                 }
             </div>
         </section>
     }
 
+    @* ---------- Featured Products ---------- *@
     @if (_data.FeaturedProducts.Count > 0)
     {
-        <section class="st-section">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> محصولات پرطرفدار</div>
-                <a class="st-section__more" href="/shop">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
-            </div>
-            <div class="st-grid">
-                @foreach (var p in _data.FeaturedProducts)
-                {
-                    <StoreProductCard Product="p" />
-                }
-            </div>
-        </section>
+        <ProductRow Title="محصولات ویژه" MoreHref="/shop" Products="_data.FeaturedProducts" />
     }
 
+    @* ---------- Campaign banner (home-secondary) ---------- *@
     @if (CampaignBanner is not null)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
                 <StoreImage Url="@CampaignBanner.ImagePath" Alt="@CampaignBanner.Title" Icon="gift" />
             </a>
         </section>
     }
 
+    @* ---------- Latest Products ---------- *@
+    @if (_latest.Count > 0)
+    {
+        <ProductRow Title="جدیدترین محصولات" MoreHref="/shop?sort=newest" Products="_latest" />
+    }
+
+    @* ---------- Popular Products ---------- *@
+    @if (_popular.Count > 0)
+    {
+        <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
+    }
+
+    @* ---------- Why Vitorize / How it works ---------- *@
+    <section class="st-section st-reveal">
+        <div class="st-section__center">
+            <div class="st-section__kicker">چرا ویتورایز؟</div>
+            <h2 class="st-section__h">خرید دیجیتال، ساده و مطمئن</h2>
+        </div>
+        <div class="st-steps">
+            <div class="st-step">
+                <div class="st-step__num">۱</div>
+                <div class="st-step__ic"><Icon Name="grid" Size="22" /></div>
+                <div class="st-step__t">انتخاب محصول</div>
+                <div class="st-step__d">از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.</div>
+            </div>
+            <div class="st-step">
+                <div class="st-step__num">۲</div>
+                <div class="st-step__ic"><Icon Name="credit-card" Size="22" /></div>
+                <div class="st-step__t">پرداخت امن</div>
+                <div class="st-step__d">با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.</div>
+            </div>
+            <div class="st-step">
+                <div class="st-step__num">۳</div>
+                <div class="st-step__ic"><Icon Name="zap" Size="22" /></div>
+                <div class="st-step__t">تحویل آنی</div>
+                <div class="st-step__d">کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.</div>
+            </div>
+        </div>
+    </section>
+
+    @* ---------- Trust Section ---------- *@
+    <section class="st-section st-reveal">
+        <div class="st-hero-mini" style="margin:0">
+            <div class="st-trust"><span class="st-trust__ic"><Icon Name="shield-check" Size="20" /></span><div><div class="st-trust__t">تضمین اصالت</div><div class="st-trust__s">محصولات رسمی و اورجینال</div></div></div>
+            <div class="st-trust"><span class="st-trust__ic"><Icon Name="zap" Size="20" /></span><div><div class="st-trust__t">تحویل آنی</div><div class="st-trust__s">سریع و بدون انتظار</div></div></div>
+            <div class="st-trust"><span class="st-trust__ic"><Icon Name="headphones" Size="20" /></span><div><div class="st-trust__t">پشتیبانی ۲۴/۷</div><div class="st-trust__s">همیشه کنار شما</div></div></div>
+            <div class="st-trust"><span class="st-trust__ic"><Icon Name="lock" Size="20" /></span><div><div class="st-trust__t">پرداخت امن</div><div class="st-trust__s">درگاه‌های معتبر</div></div></div>
+        </div>
+    </section>
+
+    @* ---------- Brands ---------- *@
     @if (_data.Brands.Count > 0)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> برندهای محبوب</div></div>
             <div class="st-brands">
-                @foreach (var b in _data.Brands.Take(10))
+                @foreach (var b in _data.Brands.Take(12))
                 {
                     <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
                         @if (!string.IsNullOrWhiteSpace(b.ImagePath))
@@ -114,9 +187,10 @@ else
         </section>
     }
 
+    @* ---------- Latest Blog ---------- *@
     @if (_data.LatestBlogPosts.Count > 0)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <div class="st-section__head">
                 <div class="st-section__title"><span class="bar"></span> آخرین مطالب</div>
                 <a class="st-section__more" href="/blog">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
@@ -138,9 +212,10 @@ else
         </section>
     }
 
+    @* ---------- FAQ Preview ---------- *@
     @if (_data.Faqs.Count > 0)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <div class="st-section__head">
                 <div class="st-section__title"><span class="bar"></span> سوالات متداول</div>
                 <a class="st-section__more" href="/faq">همه سوالات <Icon Name="chevron-left" Size="15" /></a>
@@ -153,25 +228,87 @@ else
             </div>
         </section>
     }
+
+    @* ---------- Newsletter ---------- *@
+    <section class="st-section st-reveal">
+        <div class="st-news">
+            <span class="st-news__aurora"></span>
+            <div class="st-news__in">
+                <h2 class="st-news__t">از تخفیف‌ها جا نمون!</h2>
+                <p class="st-news__s">ایمیلت را وارد کن تا جدیدترین محصولات، کدهای تخفیف و پیشنهادهای ویژه ویتورایز را دریافت کنی.</p>
+                <form class="st-news__form" @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
+                    <input type="email" placeholder="ایمیل خود را وارد کنید" @bind="_newsletterEmail" />
+                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> عضویت</button>
+                </form>
+            </div>
+        </div>
+    </section>
 }
 
 @code {
+    [Inject] private ToastService Toasts { get; set; } = default!;
+
     private bool _loading = true;
     private StoreHomeModel _data = new();
+    private List<StoreProductModel> _latest = new();
+    private List<StoreProductModel> _popular = new();
+    private string _newsletterEmail = string.Empty;
 
-    private StoreBannerModel? HeroBanner =>
-        _data.Banners.FirstOrDefault(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase))
-        ?? _data.Banners.FirstOrDefault();
+    private List<StoreBannerModel> HeroBanners => _data.Banners
+        .Where(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
+        .OrderBy(b => b.SortOrder)
+        .ToList();
 
-    private StoreBannerModel? CampaignBanner =>
-        _data.Banners.FirstOrDefault(b =>
-            !string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrWhiteSpace(b.ImagePath));
+    private StoreBannerModel? CampaignBanner => _data.Banners
+        .FirstOrDefault(b => !string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath));
+
+    private List<string> MarqueeItems
+    {
+        get
+        {
+            var items = _data.Brands.Select(b => b.Title)
+                .Concat(_data.Categories.Select(c => c.Title))
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct()
+                .Take(12)
+                .ToList();
+            return items;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetAsync<StoreHomeModel>("storefront/home");
-        if (result.IsSuccess && result.Data is not null) _data = result.Data;
+        var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
+        var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=newest&pageSize=8");
+        var popularTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=20");
+        await Task.WhenAll(homeTask, latestTask, popularTask);
+
+        if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
+        if (latestTask.Result is { IsSuccess: true, Data: not null }) _latest = latestTask.Result.Data.Items.ToList();
+
+        // "Popular" has no dedicated backend sort — rank the catalogue by real engagement
+        // (review count, then rating). No fabricated data; purely client-side ordering of the API result.
+        if (popularTask.Result is { IsSuccess: true, Data: not null })
+        {
+            _popular = popularTask.Result.Data.Items
+                .OrderByDescending(p => p.ReviewCount)
+                .ThenByDescending(p => p.AverageRating)
+                .Take(8)
+                .ToList();
+        }
+
         _loading = false;
+    }
+
+    private void SubscribeNewsletter()
+    {
+        // No newsletter backend endpoint exists; acknowledge locally without inventing an API.
+        if (string.IsNullOrWhiteSpace(_newsletterEmail) || !_newsletterEmail.Contains('@'))
+        {
+            Toasts.Error("لطفاً یک ایمیل معتبر وارد کنید.");
+            return;
+        }
+        Toasts.Success("از عضویت شما سپاسگزاریم! به‌زودی با شما در تماس خواهیم بود.");
+        _newsletterEmail = string.Empty;
     }
 }
