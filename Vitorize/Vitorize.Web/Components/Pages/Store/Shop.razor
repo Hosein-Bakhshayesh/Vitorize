@@ -2,8 +2,9 @@
 
 <PageTitle>فروشگاه | ویتورایز</PageTitle>
 
-<ShopBrowser Title="فروشگاه" InitialSearch="@Q" />
+<ShopBrowser Title="فروشگاه" InitialSearch="@Q" InitialSort="@Sort" />
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
 }

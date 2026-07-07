@@ -1,21 +1,36 @@
 @page "/product/{Slug}"
+@implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject CartState Cart
+@inject WishlistState Wishlist
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @using Vitorize.Web.Models.Customer
+@using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>@(_p?.Title ?? "محصول") | ویتورایز</PageTitle>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری ...</div></div>
+    <div class="st-pd2">
+        <div>
+            <div class="st-skel" style="height:400px;border-radius:var(--st-clip);margin-bottom:22px"></div>
+            <div class="st-skel" style="height:220px;border-radius:var(--st-clip)"></div>
+        </div>
+        <div class="st-skel" style="height:420px;border-radius:var(--st-clip)"></div>
+    </div>
 }
 else if (_p is null)
 {
-    <div class="st-state"><div class="st-state__ic"><Icon Name="box" Size="32" /></div><div style="font-weight:700">محصول یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/shop">بازگشت به فروشگاه</a></div>
+    <div class="st-empty" style="margin-top:40px">
+        <div class="st-empty__ic"><Icon Name="box" Size="30" /></div>
+        <div class="st-empty__t">محصول یافت نشد</div>
+        <div class="st-empty__s">این محصول حذف شده یا آدرس آن نامعتبر است.</div>
+        <a class="st-btn st-btn--accent st-btn--lg" href="/shop">بازگشت به فروشگاه</a>
+    </div>
 }
 else
 {
@@ -25,130 +40,196 @@ else
         <span>@_p.Title</span>
     </div>
 
-    <div class="st-pd">
+    <div class="st-pd2">
+        @* ---------- LEFT: gallery + tabs ---------- *@
         <div>
-            <div class="st-gallery__main">
-                <StoreImage Url="@_activeImage" Alt="@_p.Title" Icon="gamepad" IconSize="56" />
-            </div>
-            @if (_gallery.Count > 1)
-            {
-                <div class="st-gallery__thumbs">
-                    @foreach (var img in _gallery)
+            <div class="st-gal">
+                <span class="st-gal__glow"></span>
+                @if (_gallery.Count > 1)
+                {
+                    <div class="st-gal__rail">
+                        @foreach (var img in _gallery)
+                        {
+                            <div class="st-gal__thumb @(img == _activeImage ? "active" : null)" @onclick="() => _activeImage = img">
+                                <StoreImage Url="@img" Alt="@_p.Title" Icon="gamepad" IconSize="18" />
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="st-gal__main" @key="_activeImage">
+                    @if (_p.HasDiscount)
                     {
-                        <div class="st-gallery__thumb @(img == _activeImage ? "active" : "")" @onclick="() => _activeImage = img">
-                            <img src="@Media.Resolve(img)" alt="" onerror="this.style.display='none'" />
-                        </div>
+                        <span class="st-gal__badge">@AUI.Number(DiscountPercent)٪ تخفیف</span>
                     }
+                    <StoreImage Url="@_activeImage" Alt="@_p.Title" Icon="gamepad" IconSize="56" />
                 </div>
-            }
+            </div>
 
-            <div class="st-card st-card__pad" style="margin-top:22px">
-                <div class="st-tabs">
-                    <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
-                    <button class="st-tab @(_tab == "specs" ? "active" : "")" @onclick='() => _tab = "specs"'>مشخصات</button>
-                    <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
-                </div>
+            <div class="st-ptabs st-tabs">
+                <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
+                <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
+                <button class="st-tab @(_tab == "faq" ? "active" : "")" @onclick='() => _tab = "faq"'>سوالات متداول</button>
+            </div>
 
+            <div style="margin-top:20px">
                 @if (_tab == "desc")
                 {
-                    <div style="line-height:2;color:var(--st-text-2);font-size:14px">
+                    <div style="line-height:1.95;color:var(--st-text-2);font-size:14.5px">
                         @if (!string.IsNullOrWhiteSpace(_p.FullDescription))
                         { @((MarkupString)_p.FullDescription) }
                         else if (!string.IsNullOrWhiteSpace(_p.ShortDescription))
                         { <p>@_p.ShortDescription</p> }
-                        else { <p class="st-muted">توضیحاتی ثبت نشده است.</p> }
+                        else { <p class="st-muted">توضیحاتی برای این محصول ثبت نشده است.</p> }
                     </div>
-                    @if (_p.Tags.Count > 0)
+
+                    <div class="st-trustchips">
+                        <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="shield-check" Size="14" /></span><div><div class="st-trustchip__t">ضمانت اصالت</div><div class="st-trustchip__s">فروشنده معتبر</div></div></div>
+                        <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="zap" Size="14" /></span><div><div class="st-trustchip__t">تحویل آنی</div><div class="st-trustchip__s">بلافاصله پس از پرداخت</div></div></div>
+                        <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="lock" Size="14" /></span><div><div class="st-trustchip__t">پرداخت امن</div><div class="st-trustchip__s">رمزگذاری ۲۵۶ بیتی</div></div></div>
+                        <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="headphones" Size="14" /></span><div><div class="st-trustchip__t">پشتیبانی ۲۴/۷</div><div class="st-trustchip__s">همیشه در دسترس</div></div></div>
+                    </div>
+
+                    <div class="st-whyband">
+                        <span class="st-whyband__aurora"></span>
+                        <div class="st-whyband__t">چرا از ویتورایز بخریم؟</div>
+                        <div class="st-whyband__grid">
+                            <div class="st-whyitem"><span class="st-whyitem__ic"><Icon Name="shield-check" Size="15" /></span><span class="st-whyitem__t">اصالت تضمینی</span><span class="st-whyitem__s">فقط محصولات رسمی و اورجینال</span></div>
+                            <div class="st-whyitem"><span class="st-whyitem__ic"><Icon Name="zap" Size="15" /></span><span class="st-whyitem__t">تحویل فوری</span><span class="st-whyitem__s">کد در چند ثانیه فعال می‌شود</span></div>
+                            <div class="st-whyitem"><span class="st-whyitem__ic"><Icon Name="credit-card" Size="15" /></span><span class="st-whyitem__t">پرداخت مطمئن</span><span class="st-whyitem__s">درگاه‌های بانکی معتبر</span></div>
+                            <div class="st-whyitem"><span class="st-whyitem__ic"><Icon Name="headphones" Size="15" /></span><span class="st-whyitem__t">پشتیبانی واقعی</span><span class="st-whyitem__s">تیم پاسخگو در هر ساعت</span></div>
+                        </div>
+                    </div>
+
+                    <div class="st-metarow">
+                        <div class="st-metarow__l">
+                            <span>دسته‌بندی: <b>@_p.CategoryTitle</b></span>
+                            @if (!string.IsNullOrWhiteSpace(_p.BrandTitle)) { <span>برند: <b>@_p.BrandTitle</b></span> }
+                            <span>نوع تحویل: <b>@AUI.DeliveryType(_p.DeliveryType)</b></span>
+                        </div>
+                        <div class="st-share">
+                            <span class="st-muted" style="font-size:11.5px;font-weight:600">اشتراک‌گذاری</span>
+                            <a class="st-share__b" href="@TelegramShare" target="_blank" rel="noopener" title="تلگرام"><Icon Name="send" Size="13" /></a>
+                            <button class="st-share__b" @onclick="CopyLink" title="کپی لینک"><Icon Name="copy" Size="13" /></button>
+                        </div>
+                    </div>
+                }
+                else if (_tab == "reviews")
+                {
+                    @if (_summary.TotalApprovedReviews > 0)
                     {
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
-                            @foreach (var t in _p.Tags) { <span class="st-tag">@t</span> }
+                        <div class="st-revsum">
+                            <div class="st-revsum__n">@PersianDateHelper.ToPersianDigits(_summary.AverageRating.ToString("0.0"))</div>
+                            <div>
+                                <div class="st-revsum__stars">@Stars((int)Math.Round(_summary.AverageRating))</div>
+                                <div class="st-revsum__c">@AUI.Number(_summary.TotalApprovedReviews) نظر ثبت‌شده</div>
+                            </div>
                         </div>
                     }
-                }
-                else if (_tab == "specs")
-                {
-                    <table class="st-table">
-                        <tbody>
-                            <tr><td style="width:160px;color:var(--st-muted)">نوع محصول</td><td>@AUI.ProductType(_p.ProductType)</td></tr>
-                            <tr><td style="color:var(--st-muted)">نوع تحویل</td><td>@AUI.DeliveryType(_p.DeliveryType)</td></tr>
-                            <tr><td style="color:var(--st-muted)">دسته‌بندی</td><td>@_p.CategoryTitle</td></tr>
-                            @if (!string.IsNullOrWhiteSpace(_p.BrandTitle))
-                            { <tr><td style="color:var(--st-muted)">برند</td><td>@_p.BrandTitle</td></tr> }
-                            <tr><td style="color:var(--st-muted)">احراز هویت</td><td>@(_p.RequiresVerification ? "نیاز دارد" : "نیاز ندارد")</td></tr>
-                        </tbody>
-                    </table>
+                    <ProductReviews ProductId="_p.Id" Summary="_summary" />
                 }
                 else
                 {
-                    <ProductReviews ProductId="_p.Id" Summary="_summary" />
+                    @if (_faqs.Count == 0)
+                    {
+                        <p class="st-muted" style="font-size:14px">سوال متداولی ثبت نشده است.</p>
+                    }
+                    else
+                    {
+                        <div class="st-stack">
+                            @foreach (var f in _faqs)
+                            {
+                                <FaqItem Question="@f.Question" Answer="@f.Answer" />
+                            }
+                        </div>
+                    }
                 }
             </div>
         </div>
 
-        <div class="st-buybox">
-            <div class="st-pcard__cat">@_p.CategoryTitle@(string.IsNullOrWhiteSpace(_p.BrandTitle) ? "" : $" · {_p.BrandTitle}")</div>
-            <h1 style="font-size:20px;margin:8px 0 12px">@_p.Title</h1>
-
+        @* ---------- RIGHT: sticky buy box ---------- *@
+        <div class="st-buy">
+            <div class="st-buy__kicker">@_p.CategoryTitle@(string.IsNullOrWhiteSpace(_p.BrandTitle) ? "" : $" · {_p.BrandTitle}")</div>
+            <h1 class="st-buy__title">@_p.Title</h1>
             @if (_summary.TotalApprovedReviews > 0)
             {
-                <div class="st-rating" style="margin-bottom:14px">
-                    <span class="st-stars">@Stars((int)Math.Round(_summary.AverageRating))</span>
-                    <span>@PersianDateHelper.ToPersianDigits(_summary.AverageRating.ToString("0.0")) از @AUI.Number(_summary.TotalApprovedReviews) نظر</span>
+                <div class="st-buy__rate">
+                    <span class="stars">@Stars((int)Math.Round(_summary.AverageRating))</span>
+                    <span>@PersianDateHelper.ToPersianDigits(_summary.AverageRating.ToString("0.0")) · @AUI.Number(_summary.TotalApprovedReviews) نظر</span>
                 </div>
             }
 
-            @if (_p.Variants.Count > 0)
-            {
-                <div class="st-field">
-                    <label class="st-label">انتخاب نسخه</label>
-                    <div class="st-variant">
-                        @foreach (var v in _p.Variants.OrderBy(x => x.SortOrder))
-                        {
-                            <button class="@(_variant?.Id == v.Id ? "active" : "")" @onclick="() => SelectVariant(v)">@v.Title</button>
-                        }
-                    </div>
+            <div class="st-buy__card">
+                <div class="st-buy__price">
+                    <span class="st-buy__now">@AUI.Number((long)CurrentPrice)</span>
+                    <span class="st-buy__unit">@Unit</span>
+                    @if (CurrentDiscounted)
+                    {
+                        <span class="st-buy__old">@AUI.Number((long)CurrentBase)</span>
+                    }
                 </div>
-            }
-
-            <div style="display:flex;align-items:flex-end;gap:10px;margin:16px 0">
                 @if (CurrentDiscounted)
                 {
-                    <span class="st-price__old" style="font-size:14px">@AUI.MoneyFa(CurrentBase, _p.CurrencyType)</span>
+                    <div class="st-buy__save">@AUI.Number((long)(CurrentBase - CurrentPrice)) @Unit سود شما (@AUI.Number(DiscountPercent)٪)</div>
                 }
-                <span style="font-size:24px;font-weight:800">@AUI.Number((long)CurrentPrice)</span>
-                <span class="st-muted" style="margin-bottom:4px">@Unit</span>
-            </div>
 
-            @if (_p.RequiresVerification)
-            {
-                <div class="st-alert st-alert--info" style="margin-bottom:14px"><Icon Name="shield" Size="18" /> <span>خرید این محصول نیازمند تکمیل احراز هویت است.</span></div>
-            }
-            @if (_p.DeliveryType == (byte)DeliveryType.Instant)
-            {
-                <div class="st-alert st-alert--success" style="margin-bottom:14px"><Icon Name="zap" Size="18" /> <span>تحویل آنی و خودکار پس از پرداخت.</span></div>
-            }
+                @if (_p.Variants.Count > 0)
+                {
+                    <div class="st-buy__lbl">انتخاب نسخه</div>
+                    <div class="st-vcards">
+                        @foreach (var v in _p.Variants.OrderBy(x => x.SortOrder))
+                        {
+                            <button class="st-vcard @(_variant?.Id == v.Id ? "active" : null)" @onclick="() => SelectVariant(v)">
+                                <div class="st-vcard__t">@v.Title</div>
+                                <div class="st-vcard__p">@AUI.Number((long)v.FinalPrice) @Unit</div>
+                                <div class="st-vcard__stock">@(v.AvailableStock > 0 ? $"{AUI.Number(v.AvailableStock)} موجود" : "ناموجود")</div>
+                            </button>
+                        }
+                    </div>
+                }
 
-            <div class="st-spread" style="margin-bottom:14px">
-                <span class="st-label" style="margin:0">تعداد</span>
-                <div class="st-qty">
-                    <button @onclick="() => SetQty(_qty - 1)">−</button>
-                    <span>@AUI.Number(_qty)</span>
-                    <button @onclick="() => SetQty(_qty + 1)">+</button>
+                @* payment -> delivery flow *@
+                <div class="st-flow">
+                    <div class="st-flow__step"><span class="st-flow__dot on"><Icon Name="check" Size="11" /></span><span class="st-flow__t">پرداخت</span></div>
+                    <div class="st-flow__line"></div>
+                    <div class="st-flow__step"><span class="st-flow__dot off"><Icon Name="zap" Size="12" /></span><span class="st-flow__t">@AUI.DeliveryType(_p.DeliveryType)</span></div>
                 </div>
-            </div>
 
-            <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@_busy">
-                @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>افزودن به سبد خرید</span> }
-            </button>
-            <button class="st-btn st-btn--outline st-btn--block" style="margin-top:10px" @onclick="() => AddToCart(true)" disabled="@_busy">
-                خرید فوری
-            </button>
+                <div class="st-trustbar">
+                    <div class="st-trustbar__row"><span><Icon Name="shield-check" Size="13" /> ضمانت فروشنده معتبر</span><span class="ok">@AUI.Number(TrustScore)٪</span></div>
+                    <div class="st-trustbar__track"><div class="st-trustbar__fill" style="width:@(TrustScore)%"></div></div>
+                </div>
+
+                @if (_p.RequiresVerification)
+                {
+                    <div class="st-alert st-alert--info" style="margin-bottom:12px"><Icon Name="shield" Size="16" /> <span>خرید این محصول نیازمند احراز هویت است.</span></div>
+                }
+
+                <div class="st-buy__qty">
+                    <span class="st-label" style="margin:0">تعداد</span>
+                    <div class="st-qty">
+                        <button @onclick="() => SetQty(_qty - 1)">−</button>
+                        <span>@AUI.Number(_qty)</span>
+                        <button @onclick="() => SetQty(_qty + 1)">+</button>
+                    </div>
+                </div>
+
+                <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@_busy">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>افزودن به سبد خرید</span> }
+                </button>
+                <div style="display:flex;gap:10px;margin-top:10px">
+                    <button class="st-btn st-btn--outline st-btn--block" @onclick="() => AddToCart(true)" disabled="@_busy">خرید فوری</button>
+                    <button class="st-btn st-btn--ghost" style="flex:0 0 auto" @onclick="ToggleWishlist" disabled="@_wishBusy" title="علاقه‌مندی">
+                        <Icon Name="heart" Size="18" Class="@(InWishlist ? "st-heart-on" : null)" />
+                    </button>
+                </div>
+                <div class="st-buy__secure"><Icon Name="lock" Size="13" /> پرداخت امن · رمزگذاری ۲۵۶ بیتی</div>
+            </div>
         </div>
     </div>
 
     @if (_related.Count > 0)
     {
-        <section class="st-section">
+        <section class="st-section st-reveal">
             <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> محصولات مرتبط</div></div>
             <div class="st-grid">
                 @foreach (var r in _related) { <StoreProductCard Product="r" /> }
@@ -159,8 +240,9 @@ else
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    private bool _loading = true, _busy;
+    private bool _loading = true, _busy, _wishBusy;
     private StoreProductDetailModel? _p;
     private StoreVariantModel? _variant;
     private List<string> _gallery = new();
@@ -169,12 +251,22 @@ else
     private int _qty = 1;
     private CustomerReviewSummaryModel _summary = new();
     private List<StoreProductModel> _related = new();
+    private List<StoreFaqModel> _faqs = new();
     private string? _loadedSlug;
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
     private bool CurrentDiscounted => CurrentPrice < CurrentBase;
+    private int DiscountPercent => CurrentBase > 0 && CurrentDiscounted ? (int)Math.Round((CurrentBase - CurrentPrice) / CurrentBase * 100) : 0;
     private string Unit => (_p?.CurrencyType ?? 2) == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+    private bool InWishlist => _p is not null && Wishlist.Contains(_p.Id);
+    // Trust score derived from real review rating; falls back to a guarantee baseline when unrated.
+    private int TrustScore => _summary.TotalApprovedReviews > 0 ? (int)Math.Round(_summary.AverageRating / 5 * 100) : 95;
+    private string ShareUrl => $"{Nav.BaseUri.TrimEnd('/')}/product/{Slug}";
+    private string TelegramShare => $"https://t.me/share/url?url={Uri.EscapeDataString(ShareUrl)}&text={Uri.EscapeDataString(_p?.Title ?? "")}";
+
+    protected override void OnInitialized() => Wishlist.OnChange += OnWishChange;
+    private void OnWishChange() => InvokeAsync(StateHasChanged);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -186,7 +278,7 @@ else
     private async Task Load()
     {
         _loading = true;
-        _p = null; _variant = null; _gallery.Clear(); _activeImage = null; _qty = 1; _tab = "desc";
+        _p = null; _variant = null; _gallery.Clear(); _activeImage = null; _qty = 1; _tab = "desc"; _summary = new(); _related = new();
 
         var result = await Api.GetAsync<StoreProductDetailModel>($"products/slug/{Uri.EscapeDataString(Slug)}");
         if (result.IsSuccess && result.Data is not null)
@@ -199,7 +291,6 @@ else
             _activeImage = _gallery.FirstOrDefault();
             _variant = _p.Variants.FirstOrDefault(v => v.IsDefault) ?? _p.Variants.OrderBy(v => v.SortOrder).FirstOrDefault();
             _qty = Math.Max(1, _p.MinOrderQuantity);
-
             _ = LoadExtras(_p.Id);
         }
         _loading = false;
@@ -209,9 +300,11 @@ else
     {
         var sumTask = Api.GetAsync<CustomerReviewSummaryModel>($"product-reviews/product/{id}/summary");
         var relTask = Api.GetAsync<List<StoreProductModel>>($"products/{id}/related?count=8");
-        await Task.WhenAll(sumTask, relTask);
+        var faqTask = Api.GetAsync<List<StoreFaqModel>>("faqs");
+        await Task.WhenAll(sumTask, relTask, faqTask);
         if (sumTask.Result.Data is not null) _summary = sumTask.Result.Data;
         _related = relTask.Result.Data ?? new();
+        _faqs = (faqTask.Result.Data ?? new()).Take(6).ToList();
         StateHasChanged();
     }
 
@@ -244,11 +337,39 @@ else
         {
             Nav.NavigateTo($"/login?returnUrl=/product/{Slug}", forceLoad: true);
         }
-        else
-        {
-            Toasts.Error(result.Message);
-        }
+        else { Toasts.Error(result.Message); }
     }
+
+    private async Task ToggleWishlist()
+    {
+        if (_p is null) return;
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            if (state.User.Identity?.IsAuthenticated != true)
+            {
+                Nav.NavigateTo($"/login?returnUrl=/product/{Slug}");
+                return;
+            }
+        }
+        _wishBusy = true;
+        var result = await Api.PostAsync<bool>($"wishlist/{_p.Id}/toggle");
+        _wishBusy = false;
+        if (result.IsSuccess)
+        {
+            if (result.Data) Wishlist.Add(_p.Id); else Wishlist.Remove(_p.Id);
+            Toasts.Success(result.Message);
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task CopyLink()
+    {
+        var ok = await JS.InvokeAsync<bool>("vzAdmin.copy", ShareUrl);
+        if (ok) Toasts.Success("لینک محصول کپی شد.");
+    }
+
+    public void Dispose() => Wishlist.OnChange -= OnWishChange;
 
     private static string Stars(int rating) => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', 5 - Math.Clamp(rating, 0, 5));
 }

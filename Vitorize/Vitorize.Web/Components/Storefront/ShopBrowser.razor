@@ -8,75 +8,235 @@
     <span>@Title</span>
 </div>
 
-<div class="st-spread" style="margin-bottom:18px">
-    <h1 style="font-size:22px">@Title</h1>
-    <div style="display:flex;gap:10px;align-items:center">
-        <select class="st-select" style="height:42px;min-height:42px;width:auto" @bind="_sort" @bind:after="ReloadFromFilters">
-            <option value="newest">جدیدترین</option>
-            <option value="cheapest">ارزان‌ترین</option>
-            <option value="expensive">گران‌ترین</option>
-            <option value="discount">بیشترین تخفیف</option>
-        </select>
-    </div>
-</div>
+<h1 style="font-size:24px;font-weight:800;letter-spacing:-0.01em;margin:6px 0 14px">@Title</h1>
 
-<div class="st-shop">
-    <aside class="st-filters">
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">جستجو</div>
-            <input class="st-input" placeholder="نام محصول ..." @bind="_search" @bind:after="ReloadFromFilters" />
+@* ---------- category pill rail ---------- *@
+@if (_categories.Count > 0)
+{
+    <div class="st-catrail">
+        <a class="st-catpill @(string.IsNullOrEmpty(_categoryId) ? "active" : null)" @onclick="() => SelectCategory(null)" style="cursor:pointer">
+            <span class="st-catpill__ic"><Icon Name="grid" Size="13" /></span> همه
+        </a>
+        @foreach (var c in _categories)
+        {
+            <a class="st-catpill @(_categoryId == c.Id.ToString() ? "active" : null)" @onclick="() => SelectCategory(c.Id.ToString())" style="cursor:pointer">
+                <span class="st-catpill__ic"><StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="13" Contain="true" /></span> @c.Title
+            </a>
+        }
+    </div>
+}
+
+@{
+    RenderFragment filters =
+    @<div>
+        <div class="st-fhead">
+            <div class="st-fhead__t">فیلترها @if (ActiveCount > 0) { <span class="st-fhead__count">@AUI.Number(ActiveCount)</span> }</div>
+            @if (ActiveCount > 0) { <button class="st-fhead__clear" @onclick="ClearAll">پاک کردن همه</button> }
         </div>
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">دسته‌بندی</div>
-            <select class="st-select" @bind="_categoryId" @bind:after="ReloadFromFilters">
-                <option value="">همه دسته‌ها</option>
-                @foreach (var c in _categories) { <option value="@c.Id">@c.Title</option> }
-            </select>
+
+        <div class="st-fsearch">
+            <span class="ic"><Icon Name="search" Size="13" /></span>
+            <input placeholder="جستجو در فیلترها ..." @bind="_filterSearch" @bind:event="oninput" />
         </div>
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">برند</div>
-            <select class="st-select" @bind="_brandId" @bind:after="ReloadFromFilters">
-                <option value="">همه برندها</option>
-                @foreach (var b in _brands) { <option value="@b.Id">@b.Title</option> }
-            </select>
-        </div>
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">نوع محصول</div>
-            @foreach (var t in ProductTypes)
+
+        @if (ActiveChips.Count > 0)
+        {
+            <div class="st-fchips">
+                @foreach (var chip in ActiveChips)
+                {
+                    <span class="st-fchip">@chip.Label <button @onclick="chip.Remove"><Icon Name="x" Size="9" /></button></span>
+                }
+            </div>
+        }
+
+        @* Category (single-select) *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gCat = !_gCat">
+                <span class="st-fg__label">دسته‌بندی @if (!string.IsNullOrEmpty(_categoryId)) { <span class="st-fg__sel">۱</span> }</span>
+                <span class="st-fg__chev @(_gCat ? "open" : null)">▾</span>
+            </div>
+            @if (_gCat)
             {
-                <label class="st-check"><input type="checkbox" checked="@_types.Contains(t.Key)" @onchange="e => ToggleType(t.Key, (bool)e.Value!)" /> @t.Value</label>
+                <div class="st-fg__body">
+                    @foreach (var c in FilterList(_categories))
+                    {
+                        var on = _categoryId == c.Id.ToString();
+                        <div class="st-fopt" @onclick="() => SelectCategory(on ? null : c.Id.ToString())">
+                            <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@c.Title</span></span>
+                        </div>
+                    }
+                    @if (FilterList(_categories).Count == 0) { <div class="st-fg__empty">موردی یافت نشد</div> }
+                </div>
             }
         </div>
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">نوع تحویل</div>
-            <label class="st-check"><input type="checkbox" checked="@_instantOnly" @onchange="e => { _instantOnly = (bool)e.Value!; ApplyClient(); }" /> تحویل آنی</label>
-        </div>
-        <div class="st-fgroup">
-            <div class="st-fgroup__t">محدوده قیمت (تومان)</div>
-            <div style="display:flex;gap:8px">
-                <input class="st-input" type="number" placeholder="از" @bind="_minPrice" @bind:after="ReloadFromFilters" />
-                <input class="st-input" type="number" placeholder="تا" @bind="_maxPrice" @bind:after="ReloadFromFilters" />
+
+        @* Brand (single-select) *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gBrand = !_gBrand">
+                <span class="st-fg__label">برند @if (!string.IsNullOrEmpty(_brandId)) { <span class="st-fg__sel">۱</span> }</span>
+                <span class="st-fg__chev @(_gBrand ? "open" : null)">▾</span>
             </div>
+            @if (_gBrand)
+            {
+                <div class="st-fg__body">
+                    @foreach (var b in FilterList(_brands))
+                    {
+                        var on = _brandId == b.Id.ToString();
+                        <div class="st-fopt" @onclick="() => SelectBrand(on ? null : b.Id.ToString())">
+                            <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@b.Title</span></span>
+                        </div>
+                    }
+                    @if (FilterList(_brands).Count == 0) { <div class="st-fg__empty">موردی یافت نشد</div> }
+                </div>
+            }
         </div>
-        <div class="st-fgroup">
-            <label class="st-check"><input type="checkbox" checked="@_discountOnly" @onchange="async e => { _discountOnly = (bool)e.Value!; await ReloadFromFilters(); }" /> فقط تخفیف‌دار</label>
-            <label class="st-check"><input type="checkbox" checked="@_inStockOnly" @onchange="async e => { _inStockOnly = (bool)e.Value!; await ReloadFromFilters(); }" /> فقط کالاهای موجود</label>
-            <label class="st-check"><input type="checkbox" checked="@_verifiedOnly" @onchange="e => { _verifiedOnly = (bool)e.Value!; ApplyClient(); }" /> فقط نیازمند احراز هویت</label>
+
+        @* Product type (client refine, multi) *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gType = !_gType">
+                <span class="st-fg__label">نوع محصول @if (_types.Count > 0) { <span class="st-fg__sel">@AUI.Number(_types.Count)</span> }</span>
+                <span class="st-fg__chev @(_gType ? "open" : null)">▾</span>
+            </div>
+            @if (_gType)
+            {
+                <div class="st-fg__body">
+                    @foreach (var t in ProductTypes)
+                    {
+                        var on = _types.Contains(t.Key);
+                        <div class="st-fopt" @onclick="() => ToggleType(t.Key)">
+                            <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@t.Value</span></span>
+                        </div>
+                    }
+                </div>
+            }
         </div>
-    </aside>
+
+        @* Availability + delivery (client/server) *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gAvail = !_gAvail">
+                <span class="st-fg__label">موجودی و تحویل</span>
+                <span class="st-fg__chev @(_gAvail ? "open" : null)">▾</span>
+            </div>
+            @if (_gAvail)
+            {
+                <div class="st-fg__body">
+                    <div class="st-fopt" @onclick="ToggleInStock">
+                        <span class="st-fopt__l"><span class="st-fbox @(_inStockOnly ? "on" : null)">@if (_inStockOnly) { <Icon Name="check" Size="11" /> }</span><span>فقط کالاهای موجود</span></span>
+                    </div>
+                    <div class="st-fopt" @onclick="() => { _instantOnly = !_instantOnly; ApplyClient(); }">
+                        <span class="st-fopt__l"><span class="st-fbox @(_instantOnly ? "on" : null)">@if (_instantOnly) { <Icon Name="check" Size="11" /> }</span><span>تحویل آنی</span></span>
+                    </div>
+                    <div class="st-fopt" @onclick="() => { _verifiedOnly = !_verifiedOnly; ApplyClient(); }">
+                        <span class="st-fopt__l"><span class="st-fbox @(_verifiedOnly ? "on" : null)">@if (_verifiedOnly) { <Icon Name="check" Size="11" /> }</span><span>نیازمند احراز هویت</span></span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Discount tiers *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gDiscount = !_gDiscount">
+                <span class="st-fg__label">تخفیف</span>
+                <span class="st-fg__chev @(_gDiscount ? "open" : null)">▾</span>
+            </div>
+            @if (_gDiscount)
+            {
+                <div class="st-dpills">
+                    <button class="st-dpill @(_discountTier == 0 && !_discountOnly ? "active" : null)" @onclick="() => SetDiscount(0)">همه</button>
+                    <button class="st-dpill @(_discountTier == 1 ? "active" : null)" @onclick="() => SetDiscount(1)">تخفیف‌دار</button>
+                    <button class="st-dpill @(_discountTier == 10 ? "active" : null)" @onclick="() => SetDiscount(10)">۱۰٪+</button>
+                    <button class="st-dpill @(_discountTier == 25 ? "active" : null)" @onclick="() => SetDiscount(25)">۲۵٪+</button>
+                    <button class="st-dpill @(_discountTier == 50 ? "active" : null)" @onclick="() => SetDiscount(50)">۵۰٪+</button>
+                </div>
+            }
+        </div>
+
+        @* Price range *@
+        <div class="st-fg">
+            <div class="st-fg__head" @onclick="() => _gPrice = !_gPrice">
+                <span class="st-fg__label">محدوده قیمت</span>
+                <span class="st-fg__chev @(_gPrice ? "open" : null)">▾</span>
+            </div>
+            @if (_gPrice)
+            {
+                <div class="st-prange">
+                    <div class="st-prange__inputs">
+                        <input type="number" placeholder="از (تومان)" @bind="_minPrice" @bind:after="ReloadFromFilters" />
+                        <input type="number" placeholder="تا (تومان)" @bind="_maxPrice" @bind:after="ReloadFromFilters" />
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Top rated mini-list *@
+        @if (TopRated.Count > 0)
+        {
+            <div class="st-fg">
+                <div class="st-fg__label" style="margin-bottom:10px">پرامتیازترین‌ها</div>
+                <div class="st-toprated">
+                    @foreach (var tr in TopRated)
+                    {
+                        <a class="st-toprated__item" href="@($"/product/{tr.Slug}")">
+                            <span class="st-toprated__ic"><StoreImage Url="@tr.ThumbnailImagePath" Alt="@tr.Title" Icon="gamepad" IconSize="16" /></span>
+                            <div style="min-width:0">
+                                <div class="st-toprated__t">@tr.Title</div>
+                                <div class="st-toprated__m"><span class="r">★ @PersianDateHelper.ToPersianDigits(tr.AverageRating.ToString("0.0"))</span><span class="p">@AUI.Number((long)tr.FinalPrice)</span></div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>;
+}
+
+<div class="st-listing">
+    <aside class="st-fsidebar">@filters</aside>
 
     <div>
+        <div class="st-results">
+            <div class="st-results__count">
+                @if (_loading) { <span>در حال بارگذاری ...</span> }
+                else { <span>نمایش <b>@AUI.Number(PageStart)</b> تا <b>@AUI.Number(PageEnd)</b> از <b>@AUI.Number(_totalCount)</b> محصول</span> }
+            </div>
+            <div class="st-sort">
+                <button class="st-sort__btn" @onclick="() => _sortOpen = !_sortOpen">
+                    @SortLabel(_sort) <span class="chev">▾</span>
+                </button>
+                @if (_sortOpen)
+                {
+                    <div class="st-scrim" @onclick="() => _sortOpen = false"></div>
+                    <div class="st-sort__menu">
+                        @foreach (var opt in SortOptions)
+                        {
+                            <button class="st-sort__opt @(_sort == opt.Key ? "active" : null)" @onclick="() => SelectSort(opt.Key)">@opt.Value</button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
         @if (_loading)
         {
-            <div class="st-state"><div class="st-spinner"></div><div class="st-muted">در حال بارگذاری محصولات ...</div></div>
+            <div class="st-lgrid">
+                @for (var i = 0; i < 6; i++)
+                {
+                    <div class="st-skel" style="height:300px;border-radius:var(--st-clip)"></div>
+                }
+            </div>
         }
         else if (_view.Count == 0)
         {
-            <div class="st-state"><div class="st-state__ic"><Icon Name="box" Size="32" /></div><div style="font-weight:700">محصولی یافت نشد</div><div class="st-muted">فیلترها را تغییر دهید یا دوباره جستجو کنید.</div></div>
+            <div class="st-empty">
+                <div class="st-empty__ic"><Icon Name="search" Size="30" /></div>
+                <div class="st-empty__t">محصولی با این فیلترها یافت نشد</div>
+                <div class="st-empty__s">محدوده قیمت را گسترده‌تر کنید یا یکی از فیلترها را بردارید.</div>
+                <button class="st-btn st-btn--accent st-btn--lg" @onclick="ClearAll">پاک کردن فیلترها</button>
+            </div>
         }
         else
         {
-            <div class="st-grid">
+            <div class="st-lgrid">
                 @foreach (var p in _view)
                 {
                     <StoreProductCard Product="p" />
@@ -95,11 +255,30 @@
     </div>
 </div>
 
+@* ---------- mobile filter FAB + bottom sheet ---------- *@
+<button class="st-fab" @onclick="() => _sheetOpen = true">
+    <Icon Name="sliders" Size="17" /> فیلترها @if (ActiveCount > 0) { <span class="st-fab__c">@AUI.Number(ActiveCount)</span> }
+</button>
+@if (_sheetOpen)
+{
+    <div class="st-sheet">
+        <div class="st-sheet__bd" @onclick="() => _sheetOpen = false"></div>
+        <div class="st-sheet__panel">
+            <div class="st-sheet__grip"></div>
+            @filters
+            <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="() => _sheetOpen = false">
+                نمایش @AUI.Number(_totalCount) محصول
+            </button>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public string Title { get; set; } = "فروشگاه";
     [Parameter] public string? CategorySlug { get; set; }
     [Parameter] public string? BrandSlug { get; set; }
     [Parameter] public string? InitialSearch { get; set; }
+    [Parameter] public string? InitialSort { get; set; }
 
     private List<StoreLookupModel> _categories = new();
     private List<StoreLookupModel> _brands = new();
@@ -114,23 +293,72 @@
     private int _totalPages = 1;
 
     private string _search = string.Empty;
+    private string _filterSearch = string.Empty;
     private string _categoryId = string.Empty;
     private string _brandId = string.Empty;
     private string _sort = "newest";
     private readonly HashSet<byte> _types = new();
-    private bool _instantOnly;
-    private bool _verifiedOnly;
-    private bool _discountOnly;
-    private bool _inStockOnly;
-    private decimal? _minPrice;
-    private decimal? _maxPrice;
+    private bool _instantOnly, _verifiedOnly, _discountOnly, _inStockOnly;
+    private int _discountTier;   // 0=none, 1=any-discount, 10/25/50 = percent tiers
+    private decimal? _minPrice, _maxPrice;
+
+    private bool _gCat = true, _gBrand = true, _gType, _gAvail = true, _gDiscount = true, _gPrice = true;
+    private bool _sortOpen, _sheetOpen;
 
     private static readonly Dictionary<byte, string> ProductTypes = new()
     {
         { 1, "گیفت کارت" }, { 2, "اکانت بازی" }, { 3, "سرویس بازی" }, { 4, "اشتراک" }, { 5, "سایر" }
     };
+    private static readonly Dictionary<string, string> SortOptions = new()
+    {
+        { "newest", "جدیدترین" }, { "cheapest", "ارزان‌ترین" }, { "expensive", "گران‌ترین" }, { "discount", "بیشترین تخفیف" }
+    };
+    private static string SortLabel(string k) => SortOptions.TryGetValue(k, out var v) ? v : "مرتب‌سازی";
+
+    private int PageStart => _totalCount == 0 ? 0 : (_page - 1) * _pageSize + 1;
+    private int PageEnd => Math.Min(_page * _pageSize, _totalCount);
 
     private string? _appliedKey;
+
+    private List<StoreLookupModel> FilterList(List<StoreLookupModel> src) =>
+        string.IsNullOrWhiteSpace(_filterSearch)
+            ? src
+            : src.Where(x => x.Title.Contains(_filterSearch, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private int ActiveCount =>
+        (string.IsNullOrEmpty(_categoryId) ? 0 : 1) + (string.IsNullOrEmpty(_brandId) ? 0 : 1)
+        + _types.Count + (_instantOnly ? 1 : 0) + (_verifiedOnly ? 1 : 0) + (_inStockOnly ? 1 : 0)
+        + (_discountTier > 0 || _discountOnly ? 1 : 0) + ((_minPrice is > 0 || _maxPrice is > 0) ? 1 : 0);
+
+    private record Chip(string Label, EventCallback Remove);
+    private List<Chip> ActiveChips
+    {
+        get
+        {
+            var chips = new List<Chip>();
+            if (!string.IsNullOrEmpty(_categoryId))
+            {
+                var t = _categories.FirstOrDefault(c => c.Id.ToString() == _categoryId)?.Title ?? "دسته";
+                chips.Add(new(t, EventCallback.Factory.Create(this, () => SelectCategory(null))));
+            }
+            if (!string.IsNullOrEmpty(_brandId))
+            {
+                var t = _brands.FirstOrDefault(b => b.Id.ToString() == _brandId)?.Title ?? "برند";
+                chips.Add(new(t, EventCallback.Factory.Create(this, () => SelectBrand(null))));
+            }
+            foreach (var ty in _types.ToList())
+                chips.Add(new(ProductTypes.GetValueOrDefault(ty, "نوع"), EventCallback.Factory.Create(this, () => ToggleType(ty))));
+            if (_inStockOnly) chips.Add(new("موجود", EventCallback.Factory.Create(this, ToggleInStock)));
+            if (_instantOnly) chips.Add(new("تحویل آنی", EventCallback.Factory.Create(this, () => { _instantOnly = false; ApplyClient(); })));
+            if (_verifiedOnly) chips.Add(new("احراز هویت", EventCallback.Factory.Create(this, () => { _verifiedOnly = false; ApplyClient(); })));
+            if (_discountTier > 0 || _discountOnly) chips.Add(new(_discountTier > 1 ? $"+{AUI.Number(_discountTier)}٪ تخفیف" : "تخفیف‌دار", EventCallback.Factory.Create(this, () => SetDiscount(0))));
+            if (_minPrice is > 0 || _maxPrice is > 0) chips.Add(new("محدوده قیمت", EventCallback.Factory.Create(this, () => { _minPrice = null; _maxPrice = null; _ = ReloadFromFilters(); })));
+            return chips;
+        }
+    }
+
+    private List<StoreProductModel> TopRated =>
+        _all.Where(p => p.ReviewCount > 0).OrderByDescending(p => p.AverageRating).ThenByDescending(p => p.ReviewCount).Take(3).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -143,38 +371,51 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        var key = $"{CategorySlug}|{BrandSlug}|{InitialSearch}";
+        var key = $"{CategorySlug}|{BrandSlug}|{InitialSearch}|{InitialSort}";
         if (key == _appliedKey) return;
         _appliedKey = key;
 
         _search = InitialSearch ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(InitialSort) && SortOptions.ContainsKey(InitialSort)) _sort = InitialSort;
         _categoryId = string.Empty;
         _brandId = string.Empty;
 
         if (!string.IsNullOrWhiteSpace(CategorySlug))
-        {
-            var c = _categories.FirstOrDefault(x => string.Equals(x.Slug, CategorySlug, StringComparison.OrdinalIgnoreCase));
-            if (c is not null) _categoryId = c.Id.ToString();
-        }
+            _categoryId = _categories.FirstOrDefault(x => string.Equals(x.Slug, CategorySlug, StringComparison.OrdinalIgnoreCase))?.Id.ToString() ?? "";
         if (!string.IsNullOrWhiteSpace(BrandSlug))
-        {
-            var b = _brands.FirstOrDefault(x => string.Equals(x.Slug, BrandSlug, StringComparison.OrdinalIgnoreCase));
-            if (b is not null) _brandId = b.Id.ToString();
-        }
+            _brandId = _brands.FirstOrDefault(x => string.Equals(x.Slug, BrandSlug, StringComparison.OrdinalIgnoreCase))?.Id.ToString() ?? "";
 
         _page = 1;
         await Load();
     }
 
-    private async Task ReloadFromFilters()
+    private async Task SelectCategory(string? id) { _categoryId = id ?? string.Empty; await ReloadFromFilters(); }
+    private async Task SelectBrand(string? id) { _brandId = id ?? string.Empty; await ReloadFromFilters(); }
+    private async Task SelectSort(string s) { _sort = s; _sortOpen = false; await ReloadFromFilters(); }
+
+    private async Task SetDiscount(int tier)
     {
-        _page = 1;
-        await Load();
+        _discountTier = tier;
+        _discountOnly = tier == 1;
+        // tiers >1 still need the server "has discount" set; then refine client-side by percent
+        await ReloadFromFilters();
     }
+
+    private async Task ToggleInStock() { _inStockOnly = !_inStockOnly; await ReloadFromFilters(); }
+
+    private async Task ClearAll()
+    {
+        _search = string.Empty; _filterSearch = string.Empty; _categoryId = string.Empty; _brandId = string.Empty;
+        _types.Clear(); _instantOnly = _verifiedOnly = _discountOnly = _inStockOnly = false; _discountTier = 0;
+        _minPrice = _maxPrice = null;
+        await ReloadFromFilters();
+    }
+
+    private async Task ReloadFromFilters() { _page = 1; await Load(); }
 
     private async Task GoPage(int page)
     {
-        if (page < 1) return;
+        if (page < 1 || page > _totalPages) return;
         _page = page;
         await Load();
     }
@@ -182,13 +423,14 @@
     private async Task Load()
     {
         _loading = true;
+        StateHasChanged();
         var query = $"products?page={_page}&pageSize={_pageSize}&sort={_sort}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
         if (!string.IsNullOrWhiteSpace(_categoryId)) query += $"&categoryId={_categoryId}";
         if (!string.IsNullOrWhiteSpace(_brandId)) query += $"&brandId={_brandId}";
         if (_minPrice is > 0) query += $"&minPrice={_minPrice}";
         if (_maxPrice is > 0) query += $"&maxPrice={_maxPrice}";
-        if (_discountOnly) query += "&hasDiscount=true";
+        if (_discountOnly || _discountTier > 0) query += "&hasDiscount=true";
         if (_inStockOnly) query += "&inStock=true";
 
         var result = await Api.GetAsync<PagedResult<StoreProductModel>>(query);
@@ -202,11 +444,10 @@
     private void ApplyClient()
     {
         IEnumerable<StoreProductModel> q = _all;
-
         if (_types.Count > 0) q = q.Where(p => _types.Contains(p.ProductType));
         if (_instantOnly) q = q.Where(p => p.DeliveryType == (byte)DeliveryType.Instant);
         if (_verifiedOnly) q = q.Where(p => p.RequiresVerification);
-
+        if (_discountTier > 1) q = q.Where(p => p.DiscountPercent >= _discountTier);
         _view = q.ToList();
         StateHasChanged();
     }
@@ -218,9 +459,9 @@
         for (var p = from; p <= to; p++) yield return p;
     }
 
-    private void ToggleType(byte t, bool on)
+    private void ToggleType(byte t)
     {
-        if (on) _types.Add(t); else _types.Remove(t);
+        if (!_types.Add(t)) _types.Remove(t);
         ApplyClient();
     }
 }

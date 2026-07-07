@@ -21,18 +21,26 @@
             @onclick="ToggleWishlist" @onclick:stopPropagation="true" disabled="@_wishBusy">
         <Icon Name="heart" Size="16" />
     </button>
+    @if (!InStock)
+    {
+        <span class="st-pcard__stock out">ناموجود</span>
+    }
     <div class="st-pcard__body">
         <div class="st-pcard__cat">@Product.CategoryTitle</div>
         <a class="st-pcard__title" href="@($"/product/{Product.Slug}")">@Product.Title</a>
-        <div class="st-pcard__meta">
-            <span class="st-tag">@AUI.ProductType(Product.ProductType)</span>
+        <div class="st-pcard__rate">
+            @if (Product.ReviewCount > 0)
+            {
+                <span class="st-pcard__stars"><Icon Name="star" Size="12" /> @PersianDateHelper.ToPersianDigits(Product.AverageRating.ToString("0.0"))</span>
+                <span class="st-pcard__reviews">(@AUI.Number(Product.ReviewCount))</span>
+            }
+            else
+            {
+                <span class="st-pcard__reviews">بدون امتیاز</span>
+            }
             @if (Product.DeliveryType == (byte)DeliveryType.Instant)
             {
-                <span class="st-tag st-tag--brand"><Icon Name="zap" Size="12" /> تحویل آنی</span>
-            }
-            @if (Product.RequiresVerification)
-            {
-                <span class="st-tag st-tag--verify">احراز هویت</span>
+                <span class="st-tag st-tag--brand" style="margin-inline-start:auto"><Icon Name="zap" Size="11" /> آنی</span>
             }
         </div>
         <div class="st-pcard__foot">
@@ -58,6 +66,7 @@
     private bool _wishBusy;
     private string Unit => Product.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
     private bool InWishlist => Wishlist.Contains(Product.Id);
+    private bool InStock => Product.HasVariants || Product.AvailableStock > 0;
 
     protected override void OnInitialized() => Wishlist.OnChange += OnWishlistChange;
 
