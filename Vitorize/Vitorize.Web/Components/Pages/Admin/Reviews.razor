@@ -95,7 +95,7 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="جزئیات نظر" Icon="star" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="جزئیات نظر" Subtitle="@_current?.ProductTitle" Icon="star" OnClose="() => _open = false">
     <ChildContent>
         @if (_current is not null)
         {
@@ -125,7 +125,7 @@
         { <button class="vz-btn vz-btn--danger-soft" @onclick="OpenReject" disabled="@_acting">رد نظر</button> }
         <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 <Modal Visible="_rejectOpen" Title="رد نظر" Icon="x-circle" Size="sm" OnClose="() => _rejectOpen = false">
     <ChildContent>

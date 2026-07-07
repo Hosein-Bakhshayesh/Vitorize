@@ -16,30 +16,44 @@
    -------------------------------------------------------------------------- */
 @font-face {
     font-family: "Vazirmatn";
-    src: url("fonts/Vazir/woff2/Vazir-Light.woff2") format("woff2"),
-         url("fonts/Vazir/woff/Vazir-Light.woff") format("woff");
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Light.woff2") format("woff2");
     font-weight: 300;
+    font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Vazirmatn";
-    src: url("fonts/Vazir/woff2/Vazir.woff2") format("woff2"),
-         url("fonts/Vazir/woff/Vazir.woff") format("woff");
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Regular.woff2") format("woff2");
     font-weight: 400;
+    font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Vazirmatn";
-    src: url("fonts/Vazir/woff2/Vazir-Medium.woff2") format("woff2"),
-         url("fonts/Vazir/woff/Vazir-Medium.woff") format("woff");
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Medium.woff2") format("woff2");
     font-weight: 500;
+    font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Vazirmatn";
-    src: url("fonts/Vazir/woff2/Vazir-Bold.woff2") format("woff2"),
-         url("fonts/Vazir/woff/Vazir-Bold.woff") format("woff");
-    font-weight: 700 900; /* Bold also serves the 800-weight scale steps */
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Vazirmatn";
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Vazirmatn";
+    src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-ExtraBold.woff2") format("woff2");
+    font-weight: 800;
+    font-style: normal;
     font-display: swap;
 }
 

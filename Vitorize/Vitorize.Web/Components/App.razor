@@ -21,8 +21,8 @@
             } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
         })();
     </script>
-    <link rel="stylesheet" href="css/admin.css" />
-    <link rel="stylesheet" href="css/storefront.css" />
+    <link rel="stylesheet" href="css/admin.css?v=@AssetVersion" />
+    <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
@@ -50,4 +50,8 @@
 @code {
     private readonly IComponentRenderMode PageRenderMode =
         new InteractiveServerRenderMode(prerender: false);
+
+    // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
+    // so browsers fetch the new CSS (e.g. the Vazirmatn font migration) instead of a stale copy.
+    private const string AssetVersion = "20260707-vazirmatn";
 }
