@@ -1,11 +1,15 @@
 @page "/admin/orders"
 @inject ApiClient Api
 @inject ToastService Toasts
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="مدیریت سفارش‌ها" Subtitle="سفارش‌های مشتریان را پیگیری و مدیریت کنید"
             Icon="cart" Breadcrumbs="@(new(){ ("سفارش‌ها", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="() => Export(Filtered)"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
@@ -16,28 +20,25 @@ else
 {
     <div class="vz-stats">
         <StatCard Label="کل سفارش‌ها" Value="@AUI.Number(_items.Count)" Icon="cart" Accent="teal" />
-        <StatCard Label="در انتظار پرداخت" Value="@AUI.Number(_items.Count(o => o.Status == (byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
-        <StatCard Label="در حال پردازش" Value="@AUI.Number(_items.Count(o => o.Status == (byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
-        <StatCard Label="تکمیل شده" Value="@AUI.Number(_items.Count(o => o.Status == (byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
+        <StatCard Label="در انتظار پرداخت" Value="@AUI.Number(CountStatus((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
+        <StatCard Label="در حال پردازش" Value="@AUI.Number(CountStatus((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
+        <StatCard Label="تکمیل شده" Value="@AUI.Number(CountStatus((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
+    </div>
+
+    <div class="vz-pills" style="margin-bottom:16px">
+        @foreach (var f in StatusChips)
+        {
+            <button class="vz-pill @(_statusFilter == f.Key ? "active" : "")" @onclick="() => SetStatusChip(f.Key)">
+                @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
+            </button>
+        }
     </div>
 
     <div class="vz-filterbar">
         <div class="vz-filterbar__row">
             <div class="vz-field">
                 <label class="vz-label">جستجو</label>
-                <input class="vz-input" placeholder="شماره سفارش، نام یا موبایل ..." @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
-            </div>
-            <div class="vz-field">
-                <label class="vz-label">وضعیت سفارش</label>
-                <select class="vz-select" @bind="_statusFilter" @bind:after="ResetPage">
-                    <option value="all">همه</option>
-                    <option value="1">در انتظار پرداخت</option>
-                    <option value="2">در حال پردازش</option>
-                    <option value="3">تکمیل شده</option>
-                    <option value="4">لغو شده</option>
-                    <option value="5">ناموفق</option>
-                    <option value="6">بازگشت وجه</option>
-                </select>
+                <input id="order-search" class="vz-input" placeholder="شماره سفارش، نام یا موبایل ... ( / )" @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
             </div>
             <div class="vz-field">
                 <label class="vz-label">وضعیت پرداخت</label>
@@ -57,22 +58,52 @@ else
         </div>
     </div>
 
+    @if (_selected.Count > 0)
+    {
+        <div class="vz-bulkbar">
+            <span>@AUI.Number(_selected.Count) سفارش انتخاب شد</span>
+            <div style="flex:1"></div>
+            <button class="vz-btn vz-btn--success vz-btn--sm" @onclick="BulkComplete" disabled="@_bulkBusy"><Icon Name="check" Size="14" /> تکمیل</button>
+            <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="OpenBulkCancel" disabled="@_bulkBusy"><Icon Name="x-circle" Size="14" /> لغو</button>
+            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Export(SelectedItems)"><Icon Name="download" Size="14" /> خروجی CSV</button>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن</button>
+        </div>
+    }
+
     <div class="vz-card">
         <div class="vz-card__body flush">
             @if (Filtered.Count == 0)
             {
-                <EmptyState Title="سفارشی یافت نشد" Icon="cart" />
+                <EmptyState Title="سفارشی یافت نشد" Text="با فیلترهای فعلی سفارشی وجود ندارد." Icon="cart" />
             }
             else
             {
                 <div class="vz-table-wrap">
                     <table class="vz-table">
-                        <thead><tr><th>شماره سفارش</th><th>مشتری</th><th>مبلغ نهایی</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th style="width:40px">
+                                    <span class="vz-check @(AllPageSelected ? "checked" : "")" @onclick="ToggleSelectPage">
+                                        @if (AllPageSelected) { <Icon Name="check" Size="12" /> }
+                                    </span>
+                                </th>
+                                <th>شماره سفارش</th><th>مشتری</th><th>مبلغ نهایی</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             @foreach (var o in Paged)
                             {
-                                <tr>
-                                    <td><span class="vz-chip vz-mono">@o.OrderNumber</span></td>
+                                <tr class="@(_selected.Contains(o.Id) ? "vz-row-selected" : "")">
+                                    <td>
+                                        <span class="vz-check @(_selected.Contains(o.Id) ? "checked" : "")" @onclick="() => ToggleSelect(o.Id)">
+                                            @if (_selected.Contains(o.Id)) { <Icon Name="check" Size="12" /> }
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="vz-copy vz-chip vz-mono" title="کپی شماره سفارش" @onclick="() => Copy(o.OrderNumber)">
+                                            @o.OrderNumber <span class="vz-copy__icon"><Icon Name="copy" Size="12" /></span>
+                                        </span>
+                                    </td>
                                     <td>
                                         <div class="vz-cell-main">
                                             <span class="vz-avatar-sm">@Initial(o.UserFullName)</span>
@@ -87,7 +118,23 @@ else
                                     <td><StatusBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
                                     <td><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></td>
                                     <td class="col-actions">
-                                        <button class="vz-iconaction" title="مشاهده" @onclick="() => OpenDetails(o.Id)"><Icon Name="eye" Size="16" /></button>
+                                        <div class="vz-ctx">
+                                            <button class="vz-ctx__trigger @(_openMenuId == o.Id ? "open" : "")" @onclick="() => ToggleMenu(o.Id)" title="عملیات"><Icon Name="dots" Size="18" /></button>
+                                            @if (_openMenuId == o.Id)
+                                            {
+                                                <div style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
+                                                <div class="vz-ctx__menu">
+                                                    <button class="vz-ctx__item" @onclick="() => OpenDetails(o.Id)"><Icon Name="eye" Size="15" /> مشاهده جزئیات</button>
+                                                    @if (CanAct(o.Status))
+                                                    {
+                                                        <button class="vz-ctx__item" @onclick="() => QuickComplete(o)"><Icon Name="check" Size="15" /> تکمیل سریع</button>
+                                                        <button class="vz-ctx__item" @onclick="() => QuickCancel(o)"><Icon Name="x-circle" Size="15" /> لغو سفارش</button>
+                                                    }
+                                                    <div class="vz-ctx__divider"></div>
+                                                    <button class="vz-ctx__item" @onclick="() => Copy(o.OrderNumber)"><Icon Name="copy" Size="15" /> کپی شماره</button>
+                                                </div>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -100,6 +147,7 @@ else
     </div>
 }
 
+@* ---------- detail ---------- *@
 <Modal Visible="_detailOpen" Title="@($"جزئیات سفارش {_detail?.OrderNumber}")" Icon="cart" Size="lg" OnClose="() => _detailOpen = false">
     <ChildContent>
         @if (_loadingDetail) { <LoadingState /> }
@@ -107,6 +155,12 @@ else
         {
             var d = _detail;
             <div class="vz-stack">
+                <div class="vz-card" style="box-shadow:none">
+                    <div class="vz-card__body">
+                        <Stepper Steps="BuildSteps(d)" />
+                    </div>
+                </div>
+
                 <div class="vz-row" style="gap:14px;flex-wrap:wrap">
                     <div style="flex:1;min-width:200px">
                         <dl class="vz-deflist">
@@ -114,46 +168,51 @@ else
                             <dt>موبایل</dt><dd class="vz-mono">@d.UserMobile</dd>
                             <dt>وضعیت سفارش</dt><dd><StatusBadge Text="@AUI.OrderStatus(d.Status)" Intent="@AUI.StatusBadgeIntent(d.Status, "order")" /></dd>
                             <dt>وضعیت پرداخت</dt><dd><StatusBadge Text="@AUI.PaymentStatus(d.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(d.PaymentStatus, "payment")" /></dd>
-                            <dt>تاریخ ثبت</dt><dd><PersianDateDisplay Value="d.CreatedAt" WithTime="true" /></dd>
-                            <dt>تاریخ پرداخت</dt><dd><PersianDateDisplay Value="d.PaidAt" WithTime="true" /></dd>
                         </dl>
                     </div>
                     <div style="flex:1;min-width:200px">
                         <dl class="vz-deflist">
                             <dt>جمع کل</dt><dd><MoneyDisplay Amount="d.SubtotalAmount" /></dd>
                             <dt>تخفیف</dt><dd><MoneyDisplay Amount="d.DiscountAmount" /></dd>
-                            <dt>مبلغ نهایی</dt><dd style="font-weight:700"><MoneyDisplay Amount="d.FinalAmount" /></dd>
+                            <dt>مبلغ نهایی</dt><dd style="font-weight:800"><MoneyDisplay Amount="d.FinalAmount" /></dd>
                         </dl>
                     </div>
                 </div>
 
-                <div class="vz-divider"></div>
-                <div class="vz-card__title">اقلام سفارش</div>
-                <div class="vz-table-wrap">
-                    <table class="vz-table">
-                        <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th><th>تحویل</th></tr></thead>
-                        <tbody>
-                            @foreach (var item in Items(d))
-                            {
-                                <tr>
-                                    <td class="vz-cell-title">@item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")</td>
-                                    <td class="num">@AUI.Number(item.Quantity)</td>
-                                    <td><MoneyDisplay Amount="item.UnitPrice" /></td>
-                                    <td><MoneyDisplay Amount="item.TotalPrice" /></td>
-                                    <td><StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" /></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                <div>
+                    <div class="vz-card__title" style="margin-bottom:10px">اقلام سفارش</div>
+                    <div class="vz-table-wrap">
+                        <table class="vz-table">
+                            <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th><th>تحویل</th></tr></thead>
+                            <tbody>
+                                @foreach (var item in Items(d))
+                                {
+                                    <tr>
+                                        <td class="vz-cell-title">@item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")</td>
+                                        <td class="num">@AUI.Number(item.Quantity)</td>
+                                        <td><MoneyDisplay Amount="item.UnitPrice" /></td>
+                                        <td><MoneyDisplay Amount="item.TotalPrice" /></td>
+                                        <td><StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" /></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="vz-card__title" style="margin-bottom:12px">سیر وضعیت سفارش</div>
+                    @if (_timeline.Count == 0) { <span class="vz-muted" style="font-size:13px">رویدادی ثبت نشده است.</span> }
+                    else { <Timeline Items="_timeline" /> }
                 </div>
             </div>
         }
     </ChildContent>
     <Footer>
-        @if (_detail is not null && _detail.Status != (byte)OrderStatus.Completed && _detail.Status != (byte)OrderStatus.Cancelled)
+        @if (_detail is not null && CanAct(_detail.Status))
         {
             <button class="vz-btn vz-btn--danger-soft" @onclick="OpenCancel" disabled="@_acting">لغو سفارش</button>
-            <button class="vz-btn vz-btn--success" @onclick="CompleteOrder" disabled="@_acting">
+            <button class="vz-btn vz-btn--success" @onclick="CompleteDetail" disabled="@_acting">
                 @if (_acting) { <span class="vz-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>تکمیل سفارش</span> }
             </button>
         }
@@ -161,7 +220,8 @@ else
     </Footer>
 </Modal>
 
-<Modal Visible="_cancelOpen" Title="لغو سفارش" Icon="x-circle" Size="sm" OnClose="() => _cancelOpen = false">
+@* ---------- cancel (single + bulk) ---------- *@
+<Modal Visible="_cancelOpen" Title="@(_bulkCancel ? $"لغو {AUI.Number(EligibleSelected.Count)} سفارش" : "لغو سفارش")" Icon="x-circle" Size="sm" OnClose="() => _cancelOpen = false">
     <ChildContent>
         <div class="vz-field">
             <label class="vz-label">دلیل لغو سفارش</label>
@@ -170,7 +230,7 @@ else
     </ChildContent>
     <Footer>
         <button class="vz-btn vz-btn--outline" @onclick="() => _cancelOpen = false" disabled="@_acting">انصراف</button>
-        <button class="vz-btn vz-btn--danger" @onclick="CancelOrder" disabled="@_acting">
+        <button class="vz-btn vz-btn--danger" @onclick="ConfirmCancel" disabled="@_acting">
             @if (_acting) { <span class="vz-spinner sm"></span> } else { <span>تأیید لغو</span> }
         </button>
     </Footer>
@@ -188,13 +248,35 @@ else
     private int _page = 1;
     private const int _pageSize = 10;
 
+    private readonly HashSet<Guid> _selected = new();
+    private Guid? _openMenuId;
+
     private bool _detailOpen, _loadingDetail, _acting;
     private AdminOrderModel? _detail;
+    private List<Timeline.Entry> _timeline = new();
 
-    private bool _cancelOpen;
+    private bool _cancelOpen, _bulkCancel, _bulkBusy;
     private string _cancelReason = string.Empty;
+    private AdminOrderModel? _cancelTarget;
+
+    private DotNetObjectReference<Orders>? _selfRef;
+
+    private static readonly (string Key, string Label)[] StatusChips =
+    {
+        ("all", "همه"), ("1", "در انتظار پرداخت"), ("2", "در حال پردازش"),
+        ("3", "تکمیل شده"), ("4", "لغو شده"), ("6", "بازگشت وجه"),
+    };
 
     protected override Task OnInitializedAsync() => Load();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("vzAdmin.registerShortcuts", _selfRef, nameof(OnShortcut)); } catch { }
+        }
+    }
 
     private async Task Load()
     {
@@ -202,10 +284,15 @@ else
         var r = await Api.GetAsync<List<AdminOrderModel>>("admin/orders");
         if (r.IsSuccess && r.Data is not null) _items = r.Data;
         else _error = r.Message;
+        _selected.Clear();
         _loading = false;
     }
 
-    private void ResetPage() => _page = 1;
+    private int CountStatus(byte status) => _items.Count(o => o.Status == status);
+    private static bool CanAct(byte status) => status != (byte)OrderStatus.Completed && status != (byte)OrderStatus.Cancelled;
+
+    private void ResetPage() { _page = 1; }
+    private void SetStatusChip(string key) { _statusFilter = key; ResetPage(); }
 
     private List<AdminOrderModel> Filtered => _items
         .Where(o => string.IsNullOrWhiteSpace(_search)
@@ -224,16 +311,111 @@ else
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
     private static string Initial(string name) => string.IsNullOrWhiteSpace(name) ? "؟" : name.Trim()[..1];
 
+    // ----- selection -----
+    private List<AdminOrderModel> SelectedItems => _items.Where(o => _selected.Contains(o.Id)).ToList();
+    private List<AdminOrderModel> EligibleSelected => SelectedItems.Where(o => CanAct(o.Status)).ToList();
+    private bool AllPageSelected => Paged.Count > 0 && Paged.All(o => _selected.Contains(o.Id));
+
+    private void ToggleSelect(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); }
+    private void ToggleSelectPage()
+    {
+        if (AllPageSelected) foreach (var o in Paged) _selected.Remove(o.Id);
+        else foreach (var o in Paged) _selected.Add(o.Id);
+    }
+    private void ClearSelection() => _selected.Clear();
+
+    // ----- menu -----
+    private void ToggleMenu(Guid id) => _openMenuId = _openMenuId == id ? null : id;
+    private void CloseMenu() => _openMenuId = null;
+
+    // ----- detail -----
     private async Task OpenDetails(Guid id)
     {
-        _detailOpen = true; _loadingDetail = true; _detail = null;
+        CloseMenu();
+        _detailOpen = true; _loadingDetail = true; _detail = null; _timeline = new();
         var r = await Api.GetAsync<AdminOrderModel>($"admin/orders/{id}");
-        if (r.IsSuccess && r.Data is not null) _detail = r.Data;
-        else { Toasts.Error(r.Message); _detailOpen = false; }
-        _loadingDetail = false;
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _detail = r.Data;
+            _loadingDetail = false;
+            await BuildTimeline(_detail);
+        }
+        else { Toasts.Error(r.Message); _detailOpen = false; _loadingDetail = false; }
     }
 
-    private async Task CompleteOrder()
+    private static List<Stepper.Step> BuildSteps(AdminOrderModel d)
+    {
+        bool cancelled = d.Status is (byte)OrderStatus.Cancelled or (byte)OrderStatus.Failed or (byte)OrderStatus.Refunded;
+        bool paid = d.PaidAt is not null || d.PaymentStatus == (byte)PaymentStatus.Paid;
+        bool completed = d.Status == (byte)OrderStatus.Completed;
+
+        Stepper.StepState Pay = paid ? Stepper.StepState.Done : (cancelled ? Stepper.StepState.Cancelled : Stepper.StepState.Current);
+        Stepper.StepState Proc = completed ? Stepper.StepState.Done
+            : d.Status == (byte)OrderStatus.Processing ? Stepper.StepState.Current
+            : cancelled ? Stepper.StepState.Cancelled : Stepper.StepState.Todo;
+        Stepper.StepState Done = completed ? Stepper.StepState.Done : (cancelled ? Stepper.StepState.Cancelled : Stepper.StepState.Todo);
+
+        return new()
+        {
+            new("ثبت سفارش", Stepper.StepState.Done, PersianDateHelper.ToShortDate(d.CreatedAt)),
+            new("پرداخت", Pay, PersianDateHelper.ToShortDate(d.PaidAt)),
+            new("پردازش", Proc),
+            new("تکمیل", Done, PersianDateHelper.ToShortDate(d.CompletedAt)),
+        };
+    }
+
+    private async Task BuildTimeline(AdminOrderModel d)
+    {
+        var events = new List<(DateTime When, Timeline.Entry Entry)>
+        {
+            (d.CreatedAt, new("ثبت سفارش", PersianDateHelper.ToDateTime(d.CreatedAt), "info"))
+        };
+        if (d.PaidAt is not null)
+            events.Add((d.PaidAt.Value, new("پرداخت انجام شد", PersianDateHelper.ToDateTime(d.PaidAt), "success")));
+        if (d.CompletedAt is not null)
+            events.Add((d.CompletedAt.Value, new("تکمیل سفارش", PersianDateHelper.ToDateTime(d.CompletedAt), "success")));
+
+        // Enrich with audit-log events for this order (search matches EntityId). Failure-tolerant.
+        var audit = await Api.GetAsync<List<AdminAuditLogModel>>($"admin/audit-logs?search={d.Id}&page=1&pageSize=15");
+        if (audit is { IsSuccess: true, Data: not null })
+        {
+            var pid = d.Id.ToString();
+            foreach (var log in audit.Data.Where(x => string.Equals(x.EntityId, pid, StringComparison.OrdinalIgnoreCase)))
+            {
+                var intent = ActivityIntent(log.ActionType);
+                events.Add((log.CreatedAt, new(ActivityVerb(log.ActionType), PersianDateHelper.ToDateTime(log.CreatedAt), intent)));
+            }
+        }
+
+        _timeline = events
+            .GroupBy(e => (e.Entry.Title, e.When))
+            .Select(g => g.First())
+            .OrderByDescending(e => e.When)
+            .Select(e => e.Entry)
+            .ToList();
+        StateHasChanged();
+    }
+
+    private static string ActivityIntent(string a)
+    {
+        a = a.ToLowerInvariant();
+        if (a.Contains("complete") || a.Contains("create") || a.Contains("pay")) return "success";
+        if (a.Contains("cancel") || a.Contains("delete") || a.Contains("fail") || a.Contains("refund")) return "danger";
+        return "info";
+    }
+    private static string ActivityVerb(string a)
+    {
+        var l = a.ToLowerInvariant();
+        if (l.Contains("complete")) return "تکمیل سفارش";
+        if (l.Contains("cancel")) return "لغو سفارش";
+        if (l.Contains("refund")) return "بازگشت وجه";
+        if (l.Contains("pay")) return "پرداخت";
+        if (l.Contains("create")) return "ثبت سفارش";
+        return a;
+    }
+
+    // ----- single actions -----
+    private async Task CompleteDetail()
     {
         if (_detail is null) return;
         _acting = true;
@@ -243,15 +425,110 @@ else
         else Toasts.Error(r.Message);
     }
 
-    private void OpenCancel() { _cancelReason = string.Empty; _cancelOpen = true; }
-
-    private async Task CancelOrder()
+    private async Task QuickComplete(AdminOrderModel o)
     {
-        if (_detail is null) return;
-        _acting = true;
-        var r = await Api.PostAsync($"admin/orders/{_detail.Id}/cancel", new { Reason = _cancelReason });
-        _acting = false;
-        if (r.IsSuccess) { Toasts.Success("سفارش لغو شد."); _cancelOpen = false; _detailOpen = false; await Load(); }
+        CloseMenu();
+        var r = await Api.PostAsync($"admin/orders/{o.Id}/complete");
+        if (r.IsSuccess) { Toasts.Success($"سفارش {o.OrderNumber} تکمیل شد."); await Load(); }
         else Toasts.Error(r.Message);
+    }
+
+    private void QuickCancel(AdminOrderModel o) { CloseMenu(); _cancelTarget = o; _bulkCancel = false; _cancelReason = string.Empty; _cancelOpen = true; }
+    private void OpenCancel() { _cancelTarget = _detail; _bulkCancel = false; _cancelReason = string.Empty; _cancelOpen = true; }
+
+    private async Task ConfirmCancel()
+    {
+        _acting = true;
+        if (_bulkCancel)
+        {
+            int ok = 0;
+            foreach (var o in EligibleSelected)
+            {
+                var r = await Api.PostAsync($"admin/orders/{o.Id}/cancel", new { Reason = _cancelReason });
+                if (r.IsSuccess) ok++;
+            }
+            _acting = false; _cancelOpen = false;
+            Toasts.Success($"{AUI.Number(ok)} سفارش لغو شد.");
+            ClearSelection();
+            await Load();
+        }
+        else if (_cancelTarget is not null)
+        {
+            var r = await Api.PostAsync($"admin/orders/{_cancelTarget.Id}/cancel", new { Reason = _cancelReason });
+            _acting = false; _cancelOpen = false;
+            if (r.IsSuccess) { Toasts.Success("سفارش لغو شد."); _detailOpen = false; await Load(); }
+            else Toasts.Error(r.Message);
+        }
+        else { _acting = false; _cancelOpen = false; }
+    }
+
+    // ----- bulk -----
+    private async Task BulkComplete()
+    {
+        var eligible = EligibleSelected;
+        if (eligible.Count == 0) { Toasts.Warning("سفارش قابل تکمیلی انتخاب نشده است."); return; }
+        _bulkBusy = true;
+        int ok = 0;
+        foreach (var o in eligible)
+        {
+            var r = await Api.PostAsync($"admin/orders/{o.Id}/complete");
+            if (r.IsSuccess) ok++;
+        }
+        _bulkBusy = false;
+        Toasts.Success($"{AUI.Number(ok)} سفارش تکمیل شد.");
+        ClearSelection();
+        await Load();
+    }
+
+    private void OpenBulkCancel()
+    {
+        if (EligibleSelected.Count == 0) { Toasts.Warning("سفارش قابل لغوی انتخاب نشده است."); return; }
+        _bulkCancel = true; _cancelReason = string.Empty; _cancelOpen = true;
+    }
+
+    // ----- copy / export -----
+    private async Task Copy(string text)
+    {
+        CloseMenu();
+        var ok = await JS.InvokeAsync<bool>("vzAdmin.copy", text);
+        if (ok) Toasts.Success($"«{text}» کپی شد.");
+    }
+
+    private async Task Export(List<AdminOrderModel> source)
+    {
+        var rows = source.Select(o => new[]
+        {
+            AdminCsv.Field(o.OrderNumber), AdminCsv.Field(o.UserFullName), AdminCsv.Field(o.UserMobile),
+            AdminCsv.Num(o.FinalAmount), AdminCsv.Field(AUI.PaymentStatus(o.PaymentStatus)),
+            AdminCsv.Field(AUI.OrderStatus(o.Status)), AdminCsv.Field(PersianDateHelper.ToDateTime(o.CreatedAt))
+        });
+        var csv = AdminCsv.Build(
+            new[] { "OrderNumber", "Customer", "Mobile", "Final", "Payment", "Status", "Date" }, rows);
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"orders-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
+        Toasts.Success($"{AUI.Number(source.Count)} سفارش در فایل CSV ذخیره شد.");
+    }
+
+    // ----- keyboard shortcuts -----
+    [JSInvokable]
+    public async Task OnShortcut(string key)
+    {
+        switch (key)
+        {
+            case "/": await JS.InvokeVoidAsync("vzAdmin.focusById", "order-search"); break;
+            case "r": await Load(); break;
+            case "Escape":
+                if (_cancelOpen) _cancelOpen = false;
+                else if (_detailOpen) _detailOpen = false;
+                else if (_openMenuId is not null) CloseMenu();
+                else if (_selected.Count > 0) ClearSelection();
+                break;
+        }
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("vzAdmin.unregisterShortcuts"); } catch { }
+        _selfRef?.Dispose();
     }
 }

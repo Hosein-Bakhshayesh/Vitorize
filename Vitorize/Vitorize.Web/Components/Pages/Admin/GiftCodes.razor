@@ -11,6 +11,16 @@
     </Actions>
 </PageHeader>
 
+@if (!_loadingBatches && _batchError is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="بچ‌های کد" Value="@AUI.Number(_batches.Count)" Icon="layers" Accent="purple" />
+        <StatCard Label="کل کدها" Value="@AUI.Number(_batches.Sum(b => b.TotalCodes))" Icon="gift" Accent="teal" />
+        <StatCard Label="موجود" Value="@AUI.Number(_batches.Sum(b => b.AvailableCodes))" Icon="check-circle" Accent="green" />
+        <StatCard Label="فروخته‌شده" Value="@AUI.Number(_batches.Sum(b => b.SoldCodes))" Icon="trending-up" Accent="blue" />
+    </div>
+}
+
 <div class="vz-tabs" style="margin-bottom:18px">
     <button class="vz-tab @(_tab == "batches" ? "active" : "")" @onclick='() => SwitchTab("batches")'>بچ‌های کد</button>
     <button class="vz-tab @(_tab == "codes" ? "active" : "")" @onclick='() => SwitchTab("codes")'>مرور کدها</button>
@@ -141,6 +151,21 @@ else
                 <input class="vz-input" @bind="_import.Notes" />
             </div>
             <div class="vz-field span-2">
+                <label class="vz-label">بارگذاری از فایل</label>
+                <div class="vz-fileimport @(_fileDrag ? "drag" : "")"
+                     @ondragenter:preventDefault="true" @ondragenter="() => _fileDrag = true"
+                     @ondragover:preventDefault="true"
+                     @ondragleave:preventDefault="true" @ondragleave="() => _fileDrag = false"
+                     @ondrop:preventDefault="true" @ondrop="() => _fileDrag = false">
+                    <InputFile OnChange="OnCodesFile" accept=".txt,.csv,text/plain,text/csv" />
+                    <span class="vz-fileimport__icon"><Icon Name="upload" Size="18" /></span>
+                    <div>
+                        <div style="font-weight:700;font-size:12.5px">فایل TXT یا CSV را اینجا رها کنید</div>
+                        <div class="vz-hint">هر کد در یک خط — یا در کادر زیر دستی وارد کنید</div>
+                    </div>
+                </div>
+            </div>
+            <div class="vz-field span-2">
                 <label class="vz-label">کدها <span class="req">*</span></label>
                 <textarea class="vz-textarea" style="min-height:140px" @bind="_codesText" placeholder="هر کد را در یک خط وارد کنید"></textarea>
                 <span class="vz-hint">تعداد کدهای واردشده: @AUI.Number(CodeCount)</span>
@@ -176,7 +201,7 @@ else
 
     private List<AdminProductModel> _products = new();
 
-    private bool _importOpen, _importing;
+    private bool _importOpen, _importing, _fileDrag;
     private GiftCodeImportRequestModel _import = new();
     private string _codesText = string.Empty;
     private int CodeCount => _codesText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
@@ -234,7 +259,36 @@ else
     {
         _import = new GiftCodeImportRequestModel();
         _codesText = string.Empty;
+        _fileDrag = false;
         _importOpen = true;
+    }
+
+    private async Task OnCodesFile(InputFileChangeEventArgs e)
+    {
+        _fileDrag = false;
+        var file = e.File;
+        if (file is null) return;
+
+        // Read the codes file client-side and append its lines into the textarea.
+        // No new backend — import still posts the parsed line list to the existing endpoint.
+        const long maxSize = 2 * 1024 * 1024;
+        if (file.Size > maxSize) { Toasts.Error("حجم فایل نباید بیشتر از ۲ مگابایت باشد."); return; }
+
+        try
+        {
+            using var reader = new StreamReader(file.OpenReadStream(maxSize));
+            var content = await reader.ReadToEndAsync();
+            var lines = content
+                .Replace("\r\n", "\n").Replace('\r', '\n')
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            _codesText = string.IsNullOrWhiteSpace(_codesText)
+                ? string.Join("\n", lines)
+                : _codesText.TrimEnd() + "\n" + string.Join("\n", lines);
+
+            Toasts.Success($"{AUI.Number(lines.Length)} کد از فایل بارگذاری شد.");
+        }
+        catch { Toasts.Error("خواندن فایل با خطا مواجه شد."); }
     }
 
     private async Task DoImport()

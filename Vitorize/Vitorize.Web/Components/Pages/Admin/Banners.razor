@@ -12,6 +12,16 @@
     </Actions>
 </PageHeader>
 
+@if (!_loading && _error is null && _items.Count > 0)
+{
+    <div class="vz-stats">
+        <StatCard Label="همه بنرها" Value="@AUI.Number(_items.Count)" Icon="image" Accent="purple" />
+        <StatCard Label="فعال" Value="@AUI.Number(_items.Count(b => b.IsActive))" Icon="check-circle" Accent="green" />
+        <StatCard Label="اسلایدر اصلی" Value="@AUI.Number(_items.Count(b => b.Position == "home-hero"))" Icon="trending-up" Accent="teal" />
+        <StatCard Label="زمان‌بندی‌شده" Value="@AUI.Number(_items.Count(b => b.StartsAt is not null || b.EndsAt is not null))" Icon="calendar" Accent="orange" />
+    </div>
+}
+
 <div class="vz-card">
     <div class="vz-card__body flush">
         @if (_loading) { <LoadingState /> }

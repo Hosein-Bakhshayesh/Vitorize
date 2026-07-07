@@ -1,0 +1,37 @@
+<div class="vz-stepper">
+    @for (var i = 0; i < Steps.Count; i++)
+    {
+        var step = Steps[i];
+        var index = i + 1;
+        <div class="vz-stepper__step @StateClass(step.State)">
+            <div class="vz-stepper__dot">
+                @switch (step.State)
+                {
+                    case StepState.Done: <Icon Name="check" Size="16" /> break;
+                    case StepState.Cancelled: <Icon Name="x" Size="16" /> break;
+                    default: @index break;
+                }
+            </div>
+            <div class="vz-stepper__label">@step.Label</div>
+            @if (!string.IsNullOrWhiteSpace(step.Meta))
+            {
+                <div class="vz-stepper__meta">@step.Meta</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    public enum StepState { Todo, Current, Done, Cancelled }
+    public record Step(string Label, StepState State, string? Meta = null);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Step> Steps { get; set; } = Array.Empty<Step>();
+
+    private static string StateClass(StepState s) => s switch
+    {
+        StepState.Done => "done",
+        StepState.Current => "current",
+        StepState.Cancelled => "cancelled",
+        _ => "todo"
+    };
+}

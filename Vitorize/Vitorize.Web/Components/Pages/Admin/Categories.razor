@@ -12,6 +12,16 @@
     </Actions>
 </PageHeader>
 
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="همه دسته‌بندی‌ها" Value="@AUI.Number(_items.Count)" Icon="layers" Accent="purple" />
+        <StatCard Label="دسته‌های اصلی" Value="@AUI.Number(_items.Count(c => c.ParentId is null))" Icon="folder" Accent="teal" />
+        <StatCard Label="فعال" Value="@AUI.Number(_items.Count(c => c.IsActive))" Icon="check-circle" Accent="green" />
+        <StatCard Label="مجموع محصولات" Value="@AUI.Number(_items.Sum(c => c.ProductCount))" Icon="box" Accent="blue" />
+    </div>
+}
+
 <div class="vz-filterbar">
     <div class="vz-filterbar__row">
         <div class="vz-field">
@@ -66,14 +76,16 @@
                             <tr>
                                 <td>
                                     <div class="vz-cell-main">
-                                        @if (!string.IsNullOrWhiteSpace(c.ImagePath))
-                                        {
-                                            <img class="vz-thumb" src="@Media.Resolve(c.ImagePath)" alt="@c.Title" />
-                                        }
-                                        else
-                                        {
-                                            <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="folder" Size="18" /></div>
-                                        }
+                                        <div class="vz-entity-tile">
+                                            @if (!string.IsNullOrWhiteSpace(c.ImagePath))
+                                            {
+                                                <img src="@Media.Resolve(c.ImagePath)" alt="@c.Title" />
+                                            }
+                                            else
+                                            {
+                                                <Icon Name="folder" Size="18" />
+                                            }
+                                        </div>
                                         <div>
                                             <div class="vz-cell-title">@c.Title</div>
                                             <div class="vz-cell-sub vz-mono">@c.Slug</div>
@@ -98,12 +110,13 @@
     </div>
 </div>
 
-<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن دسته‌بندی" : "ویرایش دسته‌بندی")"
-       Icon="layers" Size="lg" OnClose="CloseForm">
+<SlidePanel Visible="_formOpen" Title="@(_model.Id is null ? "افزودن دسته‌بندی" : "ویرایش دسته‌بندی")"
+       Subtitle="@(_model.Id is null ? "یک دسته‌بندی جدید بسازید" : _model.Title)"
+       Icon="layers" OnClose="CloseForm">
     <ChildContent>
         <EditForm Model="_model" OnValidSubmit="Save" id="cat-form">
             <DataAnnotationsValidator />
-            <div class="vz-form-grid">
+            <div class="vz-form-grid one">
                 <div class="vz-field">
                     <label class="vz-label">عنوان <span class="req">*</span></label>
                     <InputText class="vz-input" @bind-Value="_model.Title" />
@@ -165,7 +178,7 @@
             @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
         </button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 <ConfirmDialog Visible="_confirmDelete" Title="حذف دسته‌بندی"
                Message="@($"آیا از حذف دسته‌بندی «{_target?.Title}» مطمئن هستید؟")"

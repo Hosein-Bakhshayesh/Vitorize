@@ -1,38 +1,50 @@
 @page "/admin/payments"
 @inject ApiClient Api
 @inject ToastService Toasts
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="پرداخت‌ها" Subtitle="تراکنش‌های پرداخت سفارش‌ها"
             Icon="credit-card" Breadcrumbs="@(new(){ ("پرداخت‌ها", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="() => Load()"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
+
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="کل تراکنش‌ها" Value="@AUI.Number(_items.Count)" Icon="credit-card" Accent="purple" />
+        <StatCard Label="مبلغ پرداخت‌شده" Value="@AUI.MoneyFa(PaidSum)" Icon="trending-up" Accent="green" />
+        <StatCard Label="در انتظار" Value="@AUI.Number(CountStatus(1))" Icon="clock" Accent="orange" />
+        <StatCard Label="ناموفق" Value="@AUI.Number(CountStatus(3))" Icon="x-circle" Accent="red" />
+    </div>
+
+    <div class="vz-pills" style="margin-bottom:16px">
+        @foreach (var f in StatusChips)
+        {
+            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+                @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
+            </button>
+        }
+    </div>
+}
 
 <div class="vz-filterbar">
     <div class="vz-filterbar__row">
         <div class="vz-field">
             <label class="vz-label">جستجو</label>
-            <input class="vz-input" placeholder="شماره سفارش، مشتری، کد رهگیری ..." @bind="_search" />
-        </div>
-        <div class="vz-field">
-            <label class="vz-label">وضعیت</label>
-            <select class="vz-select" @bind="_status">
-                <option value="">همه</option>
-                <option value="1">در انتظار</option>
-                <option value="2">پرداخت شده</option>
-                <option value="3">ناموفق</option>
-                <option value="4">لغو شده</option>
-                <option value="5">بازگشت وجه</option>
-            </select>
+            <input id="pay-search" class="vz-input" placeholder="شماره سفارش، مشتری، کد رهگیری ... ( / )" @bind="_search" @bind:event="oninput" @bind:after="() => _page = 1" />
         </div>
         <div class="vz-field">
             <label class="vz-label">بازه تاریخ</label>
-            <PersianDateRangePicker @bind-From="_from" @bind-To="_to" />
+            <PersianDateRangePicker From="_from" FromChanged="v => { _from = v; }" To="_to" ToChanged="v => { _to = v; }" />
         </div>
         <div class="vz-field" style="align-self:end">
-            <button class="vz-btn vz-btn--primary" @onclick="() => Load()"><Icon Name="filter" Size="16" /> اعمال فیلتر</button>
+            <button class="vz-btn vz-btn--primary" @onclick="() => Load()"><Icon Name="filter" Size="16" /> اعمال بازه</button>
         </div>
     </div>
 </div>
@@ -41,7 +53,7 @@
     <div class="vz-card__body flush">
         @if (_loading) { <LoadingState /> }
         else if (_error is not null) { <ErrorState Message="@_error" OnRetry="() => Load()" /> }
-        else if (Paged.Count == 0) { <EmptyState Title="پرداختی یافت نشد" Icon="credit-card" /> }
+        else if (Paged.Count == 0) { <EmptyState Title="پرداختی یافت نشد" Text="با فیلترهای فعلی تراکنشی وجود ندارد." Icon="credit-card" /> }
         else
         {
             <div class="vz-table-wrap">
@@ -61,45 +73,60 @@
                                 <td class="vz-mono" style="font-size:12px">@(string.IsNullOrWhiteSpace(p.GatewayTrackingCode) ? "—" : p.GatewayTrackingCode)</td>
                                 <td><StatusBadge Text="@AUI.PaymentStatus(p.Status)" Intent="@AUI.StatusBadgeIntent(p.Status, "payment")" /></td>
                                 <td><PersianDateDisplay Value="p.RequestedAt" WithTime="true" /></td>
-                                <td class="col-actions"><button class="vz-iconaction" @onclick="() => OpenDetails(p.Id)"><Icon Name="eye" Size="16" /></button></td>
+                                <td class="col-actions"><button class="vz-iconaction" title="جزئیات" @onclick="() => OpenDetails(p.Id)"><Icon Name="eye" Size="16" /></button></td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
-            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
         }
     </div>
 </div>
 
-<Modal Visible="_detailOpen" Title="جزئیات پرداخت" Icon="credit-card" OnClose="() => _detailOpen = false">
+<SlidePanel Visible="_detailOpen" Title="جزئیات پرداخت" Subtitle="@_detail?.OrderNumber" Icon="credit-card" OnClose="() => _detailOpen = false">
     <ChildContent>
         @if (_detail is not null)
         {
             var d = _detail;
-            <dl class="vz-deflist">
+            <div class="vz-card" style="background:var(--admin-primary-soft);border:none;margin-bottom:18px">
+                <div class="vz-card__body vz-spread">
+                    <div>
+                        <div class="vz-muted" style="font-size:12px">مبلغ تراکنش</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--admin-primary)"><MoneyDisplay Amount="d.Amount" /></div>
+                    </div>
+                    <StatusBadge Text="@AUI.PaymentStatus(d.Status)" Intent="@AUI.StatusBadgeIntent(d.Status, "payment")" />
+                </div>
+            </div>
+
+            <dl class="vz-deflist" style="grid-template-columns:120px 1fr">
                 <dt>شماره سفارش</dt><dd class="vz-mono">@d.OrderNumber</dd>
                 <dt>مشتری</dt><dd>@d.UserFullName (@d.UserMobile)</dd>
-                <dt>مبلغ</dt><dd><MoneyDisplay Amount="d.Amount" /></dd>
-                <dt>درگاه</dt><dd>@d.Gateway</dd>
-                <dt>وضعیت</dt><dd><StatusBadge Text="@AUI.PaymentStatus(d.Status)" Intent="@AUI.StatusBadgeIntent(d.Status, "payment")" /></dd>
-                <dt>کد رهگیری درگاه</dt><dd class="vz-mono">@(d.GatewayTrackingCode ?? "—")</dd>
-                <dt>شناسه تراکنش</dt><dd class="vz-mono">@(d.TransactionId ?? "—")</dd>
-                <dt>شماره مرجع</dt><dd class="vz-mono">@(d.ReferenceNumber ?? "—")</dd>
+                <dt>درگاه</dt><dd>@(string.IsNullOrWhiteSpace(d.Gateway) ? "—" : d.Gateway)</dd>
+                <dt>کد رهگیری</dt><dd>@CopyCell(d.GatewayTrackingCode)</dd>
+                <dt>شناسه تراکنش</dt><dd>@CopyCell(d.TransactionId)</dd>
+                <dt>شماره مرجع</dt><dd>@CopyCell(d.ReferenceNumber)</dd>
                 <dt>تأیید بازگشت</dt><dd>@(d.CallbackVerified ? "بله" : "خیر")</dd>
-                <dt>زمان درخواست</dt><dd><PersianDateDisplay Value="d.RequestedAt" WithTime="true" /></dd>
-                <dt>زمان تأیید</dt><dd><PersianDateDisplay Value="d.VerifiedAt" WithTime="true" /></dd>
-                @if (!string.IsNullOrWhiteSpace(d.ErrorMessage))
-                {
-                    <dt>پیام خطا</dt><dd style="color:var(--danger)">@d.ErrorMessage</dd>
-                }
             </dl>
+
+            @if (!string.IsNullOrWhiteSpace(d.ErrorMessage))
+            {
+                <div class="vz-card" style="background:var(--danger-soft);border:none;margin-top:14px">
+                    <div class="vz-card__body" style="color:var(--danger);font-size:12.5px;padding:14px 16px">
+                        <strong>خطای درگاه:</strong> @d.ErrorMessage
+                    </div>
+                </div>
+            }
+
+            <div class="vz-divider"></div>
+            <div class="vz-card__title" style="margin-bottom:12px">سیر تراکنش</div>
+            <Timeline Items="BuildTimeline(d)" />
         }
     </ChildContent>
     <Footer>
         <button class="vz-btn vz-btn--outline" @onclick="() => _detailOpen = false">بستن</button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -115,14 +142,30 @@
     private bool _detailOpen;
     private AdminPaymentModel? _detail;
 
+    private DotNetObjectReference<Payments>? _selfRef;
+
+    private static readonly (string Key, string Label)[] StatusChips =
+    {
+        ("", "همه"), ("2", "پرداخت شده"), ("1", "در انتظار"), ("3", "ناموفق"), ("5", "بازگشت وجه"),
+    };
+
     protected override Task OnInitializedAsync() => Load();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("vzAdmin.registerShortcuts", _selfRef, nameof(OnShortcut)); } catch { }
+        }
+    }
 
     private async Task Load()
     {
         _loading = true; _error = null; _page = 1;
-        var query = $"admin/payments?page=1&pageSize=500";
-        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
-        if (!string.IsNullOrWhiteSpace(_status)) query += $"&status={_status}";
+        // Load the full window (optionally by date) and do status/search filtering client-side
+        // so the smart-filter chips can show live counts.
+        var query = "admin/payments?page=1&pageSize=500";
         if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
         if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
 
@@ -132,7 +175,19 @@
         _loading = false;
     }
 
-    private List<AdminPaymentModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private int CountStatus(byte s) => _items.Count(p => p.Status == s);
+    private decimal PaidSum => _items.Where(p => p.Status == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid).Sum(p => p.Amount);
+
+    private List<AdminPaymentModel> Filtered => _items
+        .Where(p => string.IsNullOrEmpty(_status) || p.Status.ToString() == _status)
+        .Where(p => string.IsNullOrWhiteSpace(_search)
+            || p.OrderNumber.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (p.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (p.UserMobile ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || (p.GatewayTrackingCode ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private List<AdminPaymentModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
 
     private async Task OpenDetails(Guid id)
     {
@@ -140,5 +195,71 @@
         _detailOpen = true;
         var r = await Api.GetAsync<AdminPaymentModel>($"admin/payments/{id}");
         if (r.IsSuccess && r.Data is not null) { _detail = r.Data; StateHasChanged(); }
+    }
+
+    private RenderFragment CopyCell(string? value) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(value)) { builder.AddContent(0, "—"); return; }
+        builder.OpenElement(1, "span");
+        builder.AddAttribute(2, "class", "vz-copy vz-mono");
+        builder.AddAttribute(3, "title", "کپی");
+        builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this, () => Copy(value!)));
+        builder.AddContent(5, value);
+        builder.CloseElement();
+    };
+
+    private List<Timeline.Entry> BuildTimeline(AdminPaymentModel d)
+    {
+        var list = new List<Timeline.Entry>();
+        bool paid = d.Status == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid;
+        bool failed = d.Status is (byte)Vitorize.Shared.Enums.PaymentStatus.Failed or (byte)Vitorize.Shared.Enums.PaymentStatus.Cancelled;
+
+        if (d.VerifiedAt is not null)
+        {
+            list.Add(new(
+                paid ? "پرداخت تأیید شد" : failed ? "پرداخت ناموفق" : "بازگشت از درگاه",
+                PersianDateHelper.ToDateTime(d.VerifiedAt),
+                paid ? "success" : failed ? "danger" : "warning"));
+        }
+        list.Add(new("درخواست پرداخت", PersianDateHelper.ToDateTime(d.RequestedAt), "info"));
+        return list;
+    }
+
+    private async Task Copy(string text)
+    {
+        var ok = await JS.InvokeAsync<bool>("vzAdmin.copy", text);
+        if (ok) Toasts.Success("کپی شد.");
+    }
+
+    private async Task Export()
+    {
+        var rows = Filtered.Select(p => new[]
+        {
+            AdminCsv.Field(p.OrderNumber), AdminCsv.Field(p.UserFullName), AdminCsv.Field(p.UserMobile),
+            AdminCsv.Num(p.Amount), AdminCsv.Field(p.Gateway), AdminCsv.Field(p.GatewayTrackingCode),
+            AdminCsv.Field(AUI.PaymentStatus(p.Status)), AdminCsv.Field(PersianDateHelper.ToDateTime(p.RequestedAt))
+        });
+        var csv = AdminCsv.Build(
+            new[] { "OrderNumber", "Customer", "Mobile", "Amount", "Gateway", "Tracking", "Status", "RequestedAt" }, rows);
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"payments-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
+        Toasts.Success($"{AUI.Number(Filtered.Count)} تراکنش در فایل CSV ذخیره شد.");
+    }
+
+    [JSInvokable]
+    public async Task OnShortcut(string key)
+    {
+        switch (key)
+        {
+            case "/": await JS.InvokeVoidAsync("vzAdmin.focusById", "pay-search"); break;
+            case "r": await Load(); break;
+            case "Escape": if (_detailOpen) _detailOpen = false; break;
+        }
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("vzAdmin.unregisterShortcuts"); } catch { }
+        _selfRef?.Dispose();
     }
 }

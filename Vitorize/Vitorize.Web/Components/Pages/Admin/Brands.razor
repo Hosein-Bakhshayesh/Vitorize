@@ -12,6 +12,16 @@
     </Actions>
 </PageHeader>
 
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="همه برندها" Value="@AUI.Number(_items.Count)" Icon="tag" Accent="purple" />
+        <StatCard Label="برندهای فعال" Value="@AUI.Number(_items.Count(b => b.IsActive))" Icon="check-circle" Accent="green" />
+        <StatCard Label="مجموع محصولات" Value="@AUI.Number(_items.Sum(b => b.ProductCount))" Icon="box" Accent="blue" />
+        <StatCard Label="بدون محصول" Value="@AUI.Number(_items.Count(b => b.ProductCount == 0))" Icon="alert" Accent="orange" />
+    </div>
+}
+
 <div class="vz-filterbar">
     <div class="vz-filterbar__row">
         <div class="vz-field">
@@ -65,14 +75,16 @@
                             <tr>
                                 <td>
                                     <div class="vz-cell-main">
-                                        @if (!string.IsNullOrWhiteSpace(b.ImagePath))
-                                        {
-                                            <img class="vz-thumb" src="@Media.Resolve(b.ImagePath)" alt="@b.Title" />
-                                        }
-                                        else
-                                        {
-                                            <div class="vz-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><Icon Name="tag" Size="18" /></div>
-                                        }
+                                        <div class="vz-entity-tile @(string.IsNullOrWhiteSpace(b.ImagePath) ? "grad" : "")">
+                                            @if (!string.IsNullOrWhiteSpace(b.ImagePath))
+                                            {
+                                                <img src="@Media.Resolve(b.ImagePath)" alt="@b.Title" />
+                                            }
+                                            else
+                                            {
+                                                <Icon Name="tag" Size="18" />
+                                            }
+                                        </div>
                                         <span class="vz-cell-title">@b.Title</span>
                                     </div>
                                 </td>
@@ -93,12 +105,13 @@
     </div>
 </div>
 
-<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن برند جدید" : "ویرایش برند")"
+<SlidePanel Visible="_formOpen" Title="@(_model.Id is null ? "افزودن برند جدید" : "ویرایش برند")"
+       Subtitle="@(_model.Id is null ? "یک برند جدید ثبت کنید" : _model.Title)"
        Icon="tag" OnClose="CloseForm">
     <ChildContent>
         <EditForm Model="_model" OnValidSubmit="Save" id="brand-form">
             <DataAnnotationsValidator />
-            <div class="vz-form-grid">
+            <div class="vz-form-grid one">
                 <div class="vz-field">
                     <label class="vz-label">عنوان برند <span class="req">*</span></label>
                     <InputText class="vz-input" @bind-Value="_model.Title" placeholder="مثال: PlayStation" />
@@ -129,7 +142,7 @@
             @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره برند</span> }
         </button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 <ConfirmDialog Visible="_confirmDelete" Title="حذف برند"
                Message="@($"آیا از حذف برند «{_target?.Title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.")"

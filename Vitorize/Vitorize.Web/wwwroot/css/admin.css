@@ -538,6 +538,8 @@ input, select, textarea { font-family: inherit; }
 .vz-table tbody tr:last-child td { border-bottom: none; }
 .vz-table tbody tr { transition: background 0.12s; }
 .vz-table tbody tr:hover { background: var(--surface-2); }
+.vz-table tbody tr.vz-row-selected { background: var(--admin-primary-soft); }
+.vz-table tbody tr.vz-row-selected:hover { background: var(--admin-primary-soft); }
 .vz-table .num { font-variant-numeric: tabular-nums; }
 .vz-table .col-actions { text-align: end; white-space: nowrap; }
 .vz-cell-main { display: flex; align-items: center; gap: 11px; }
@@ -787,6 +789,71 @@ input, select, textarea { font-family: inherit; }
 .vz-ctx__divider { height: 1px; background: var(--border); margin: 5px 4px; }
 
 /* ==========================================================================
+   Lifecycle stepper (horizontal progress — order/payment lifecycle)
+   ========================================================================== */
+.vz-stepper { display: flex; align-items: flex-start; }
+.vz-stepper__step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; text-align: center; padding: 0 4px; }
+.vz-stepper__step:not(:last-child)::after {
+    content: ""; position: absolute; top: 16px; height: 2px;
+    inset-inline-start: 50%; width: 100%; background: var(--border-strong);
+    z-index: 0; transition: background 0.3s var(--ease);
+}
+.vz-stepper__step.done::after { background: var(--admin-primary); }
+.vz-stepper__dot {
+    width: 34px; height: 34px; border-radius: 50%; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-solid); border: 2px solid var(--border-strong);
+    color: var(--text-3); font-weight: 800; font-size: 13px; transition: all 0.3s var(--ease);
+}
+.vz-stepper__step.done .vz-stepper__dot { background: var(--admin-primary-grad); border-color: transparent; color: var(--on-primary); }
+.vz-stepper__step.current .vz-stepper__dot { border-color: var(--admin-primary); color: var(--admin-primary); box-shadow: 0 0 0 4px var(--admin-primary-soft); }
+.vz-stepper__step.cancelled .vz-stepper__dot { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.vz-stepper__step.cancelled::after { background: var(--danger); }
+.vz-stepper__label { font-size: 12px; font-weight: 700; color: var(--text); }
+.vz-stepper__step.todo .vz-stepper__label { color: var(--text-3); font-weight: 600; }
+.vz-stepper__meta { font-size: 10.5px; color: var(--text-3); }
+
+/* ==========================================================================
+   Vertical timeline (activity / status history / transactions)
+   ========================================================================== */
+.vz-timeline { display: flex; flex-direction: column; }
+.vz-timeline__item { position: relative; display: flex; gap: 14px; }
+.vz-timeline__rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+.vz-timeline__dot {
+    width: 13px; height: 13px; border-radius: 50%; margin-top: 3px; z-index: 1;
+    background: var(--admin-primary); border: 2px solid var(--surface-solid);
+    box-shadow: 0 0 0 2px var(--admin-primary);
+}
+.vz-timeline__dot.success { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+.vz-timeline__dot.danger { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+.vz-timeline__dot.warning { background: var(--warning); box-shadow: 0 0 0 2px var(--warning); }
+.vz-timeline__dot.info { background: var(--info); box-shadow: 0 0 0 2px var(--info); }
+.vz-timeline__dot.muted { background: var(--text-3); box-shadow: 0 0 0 2px var(--border-strong); }
+.vz-timeline__line { flex: 1; width: 2px; background: var(--border); margin: 4px 0; min-height: 14px; }
+.vz-timeline__item:last-child .vz-timeline__line { display: none; }
+.vz-timeline__body { padding-bottom: 18px; flex: 1; min-width: 0; }
+.vz-timeline__item:last-child .vz-timeline__body { padding-bottom: 0; }
+.vz-timeline__title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vz-timeline__meta { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+
+/* Keyboard shortcut hint chip */
+.vz-kbd {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; color: var(--text-2);
+    font-family: ui-monospace, "Vazirmatn", monospace;
+}
+.vz-shortcuts { display: grid; grid-template-columns: 1fr auto; gap: 12px 20px; align-items: center; }
+.vz-shortcuts__label { font-size: 13px; color: var(--text-2); }
+
+/* Copyable value (click to copy) */
+.vz-copy { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: color 0.12s; }
+.vz-copy:hover { color: var(--admin-primary); }
+.vz-copy__icon { opacity: 0.5; transition: opacity 0.12s; }
+.vz-copy:hover .vz-copy__icon { opacity: 1; }
+
+/* ==========================================================================
    Sectioned form (create/edit) — icon badge headers
    ========================================================================== */
 .vz-section__head { display: flex; align-items: center; gap: 11px; margin-bottom: 4px; }
@@ -887,6 +954,72 @@ input, select, textarea { font-family: inherit; }
 }
 .vz-gallery__add:hover { border-color: var(--admin-primary); color: var(--admin-primary); background: var(--admin-primary-soft); }
 .vz-gallery__add input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* ==========================================================================
+   Slide-in panel (direction-aware side drawer — create/edit)
+   ========================================================================== */
+@keyframes vz-slidein-rtl { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes vz-slidein-ltr { from { transform: translateX(100%); } to { transform: none; } }
+
+.vz-slidepanel__scrim {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--overlay); backdrop-filter: blur(3px);
+    animation: vz-fade 0.2s ease;
+}
+.vz-slidepanel {
+    position: fixed; top: 0; bottom: 0; inset-inline-end: 0; z-index: 201;
+    width: 440px; max-width: 92vw;
+    background: var(--surface-solid); border-inline-start: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column;
+    animation: vz-slidein-rtl 0.3s var(--ease);
+}
+[dir="ltr"] .vz-slidepanel { animation-name: vz-slidein-ltr; }
+.vz-slidepanel__head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 24px; border-bottom: 1px solid var(--border); flex: 0 0 auto;
+}
+.vz-slidepanel__icon {
+    width: 40px; height: 40px; border-radius: var(--clip-xs); flex: 0 0 40px;
+    background: var(--admin-primary-soft); color: var(--admin-primary);
+    display: flex; align-items: center; justify-content: center;
+}
+.vz-slidepanel__title { font-size: 16px; font-weight: 800; }
+.vz-slidepanel__sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.vz-slidepanel__close {
+    margin-inline-start: auto; width: 36px; height: 36px; border-radius: 9px; border: none;
+    background: var(--surface-2); color: var(--text-2); display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.vz-slidepanel__close:hover { background: var(--danger-soft); color: var(--danger); }
+.vz-slidepanel__body { padding: 24px; overflow-y: auto; flex: 1 1 auto; }
+.vz-slidepanel__foot {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 18px 24px; border-top: 1px solid var(--border); background: var(--surface-2); flex: 0 0 auto;
+}
+
+/* Row entity tile (categories / brands) */
+.vz-entity-tile {
+    width: 38px; height: 38px; border-radius: var(--clip-xs); flex: 0 0 38px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: var(--admin-primary-soft); color: var(--admin-primary);
+}
+.vz-entity-tile img { width: 100%; height: 100%; object-fit: cover; }
+.vz-entity-tile.grad { background: var(--admin-primary-grad); color: var(--on-primary); }
+
+/* File-import dropzone (compact — gift codes) */
+.vz-fileimport {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border-radius: var(--clip-xs);
+    border: 1.5px dashed var(--border-strong); background: var(--surface-2);
+    transition: border-color 0.2s, background 0.2s;
+}
+.vz-fileimport.drag { border-color: var(--admin-primary); background: var(--admin-primary-soft); }
+.vz-fileimport input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.vz-fileimport__icon { width: 38px; height: 38px; border-radius: var(--clip-xs); flex: 0 0 38px; background: var(--admin-primary-soft); color: var(--admin-primary); display: flex; align-items: center; justify-content: center; }
+
+@media (max-width: 600px) {
+    .vz-slidepanel { width: 100%; max-width: 100%; }
+}
 
 /* ==========================================================================
    Responsive

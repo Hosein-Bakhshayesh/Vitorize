@@ -1,20 +1,34 @@
 @page "/admin/wallets"
 @inject ApiClient Api
 @inject ToastService Toasts
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="کیف پول‌ها" Subtitle="مدیریت موجودی و تراکنش‌های کیف پول کاربران"
             Icon="wallet" Breadcrumbs="@(new(){ ("کیف پول‌ها", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
+
+@if (!_loading && _error is null)
+{
+    <div class="vz-stats">
+        <StatCard Label="کل کیف پول‌ها" Value="@AUI.Number(_items.Count)" Icon="wallet" Accent="purple" />
+        <StatCard Label="مجموع موجودی" Value="@AUI.MoneyFa(_items.Sum(w => w.Balance))" Icon="trending-up" Accent="teal" />
+        <StatCard Label="دارای موجودی" Value="@AUI.Number(_items.Count(w => w.Balance > 0))" Icon="check-circle" Accent="green" />
+        <StatCard Label="بدون موجودی" Value="@AUI.Number(_items.Count(w => w.Balance <= 0))" Icon="alert" Accent="orange" />
+    </div>
+}
 
 <div class="vz-filterbar">
     <div class="vz-filterbar__row">
         <div class="vz-field">
             <label class="vz-label">جستجو</label>
-            <input class="vz-input" placeholder="نام یا موبایل کاربر ..." @bind="_search" @bind:event="oninput" @bind:after="() => _page = 1" />
+            <input id="wallet-search" class="vz-input" placeholder="نام یا موبایل کاربر ... ( / )" @bind="_search" @bind:event="oninput" @bind:after="() => _page = 1" />
         </div>
     </div>
 </div>
@@ -42,11 +56,11 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td style="font-weight:700"><MoneyDisplay Amount="w.Balance" /></td>
+                                <td style="font-weight:800"><MoneyDisplay Amount="w.Balance" /></td>
                                 <td><PersianDateDisplay Value="w.CreatedAt" /></td>
                                 <td><PersianDateDisplay Value="w.UpdatedAt" WithTime="true" /></td>
                                 <td class="col-actions">
-                                    <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(w)"><Icon Name="eye" Size="15" /> مدیریت</button>
+                                    <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(w)"><Icon Name="wallet" Size="15" /> مدیریت</button>
                                 </td>
                             </tr>
                         }
@@ -58,69 +72,53 @@
     </div>
 </div>
 
-<Modal Visible="_open" Title="@($"کیف پول {_current?.UserFullName}")" Icon="wallet" Size="lg" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="@($"کیف پول {_current?.UserFullName}")" Subtitle="@_current?.UserMobile" Icon="wallet" OnClose="() => _open = false">
     <ChildContent>
         @if (_current is not null)
         {
-            <div class="vz-card" style="background:var(--admin-primary-soft);border:none;margin-bottom:18px">
+            <div class="vz-card" style="background:var(--admin-primary-grad);border:none;margin-bottom:18px">
                 <div class="vz-card__body vz-spread">
                     <div>
-                        <div class="vz-muted" style="font-size:12px">موجودی فعلی</div>
-                        <div style="font-size:26px;font-weight:700;color:var(--admin-primary-strong)"><MoneyDisplay Amount="_current.Balance" /></div>
+                        <div style="font-size:12px;color:var(--on-primary);opacity:0.85">موجودی فعلی</div>
+                        <div style="font-size:26px;font-weight:800;color:var(--on-primary)"><MoneyDisplay Amount="_current.Balance" /></div>
                     </div>
-                    <Icon Name="wallet" Size="40" />
+                    <span style="color:var(--on-primary);opacity:0.9"><Icon Name="wallet" Size="38" /></span>
                 </div>
             </div>
 
-            <div class="vz-form-grid">
-                <div class="vz-field">
-                    <label class="vz-label">مبلغ</label>
-                    <div class="vz-input-group">
-                        <input class="vz-input" type="number" @bind="_amount" />
-                        <span class="suffix">تومان</span>
-                    </div>
+            <div class="vz-field">
+                <label class="vz-label">مبلغ</label>
+                <div class="vz-input-group">
+                    <input class="vz-input" type="number" @bind="_amount" />
+                    <span class="suffix">تومان</span>
                 </div>
-                <div class="vz-field">
-                    <label class="vz-label">توضیحات</label>
-                    <input class="vz-input" @bind="_desc" placeholder="بابت ..." />
+                <div class="vz-pills" style="margin-top:8px">
+                    @foreach (var preset in Presets)
+                    {
+                        <button class="vz-pill" @onclick="() => _amount = preset">+@AUI.Number((long)(preset / 1000))هزار</button>
+                    }
                 </div>
-                <div class="vz-field span-2" style="display:flex;gap:10px">
-                    <button class="vz-btn vz-btn--success" style="flex:1" @onclick="Charge" disabled="@_acting"><Icon Name="plus" Size="16" /> شارژ کیف پول</button>
-                    <button class="vz-btn vz-btn--danger-soft" style="flex:1" @onclick="Withdraw" disabled="@_acting"><Icon Name="arrow-left" Size="16" /> برداشت</button>
-                </div>
+            </div>
+            <div class="vz-field" style="margin-top:12px">
+                <label class="vz-label">توضیحات</label>
+                <input class="vz-input" @bind="_desc" placeholder="بابت ..." />
+            </div>
+            <div style="display:flex;gap:10px;margin-top:14px">
+                <button class="vz-btn vz-btn--success" style="flex:1" @onclick="Charge" disabled="@_acting"><Icon Name="plus" Size="16" /> شارژ</button>
+                <button class="vz-btn vz-btn--danger-soft" style="flex:1" @onclick="Withdraw" disabled="@_acting"><Icon Name="arrow-left" Size="16" /> برداشت</button>
             </div>
 
             <div class="vz-divider"></div>
             <div class="vz-card__title" style="margin-bottom:12px">تراکنش‌های اخیر</div>
             @if (_loadingTx) { <LoadingState Text="در حال دریافت تراکنش‌ها ..." /> }
             else if (_transactions.Count == 0) { <EmptyState Title="تراکنشی ثبت نشده" Icon="activity" /> }
-            else
-            {
-                <div class="vz-table-wrap">
-                    <table class="vz-table">
-                        <thead><tr><th>نوع</th><th>مبلغ</th><th>موجودی بعد</th><th>توضیحات</th><th>تاریخ</th></tr></thead>
-                        <tbody>
-                            @foreach (var t in _transactions)
-                            {
-                                var credit = t.Type == (byte)WalletTransactionType.Credit;
-                                <tr>
-                                    <td><StatusBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" /></td>
-                                    <td style="color:@(credit ? "var(--success)" : "var(--danger)");font-weight:700">@(credit ? "+" : "−")<MoneyDisplay Amount="t.Amount" ShowUnit="false" /></td>
-                                    <td><MoneyDisplay Amount="t.BalanceAfter" /></td>
-                                    <td class="vz-muted">@(string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description)</td>
-                                    <td><PersianDateDisplay Value="t.CreatedAt" WithTime="true" /></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
+            else { <Timeline Items="TxTimeline()" /> }
         }
     </ChildContent>
     <Footer>
         <button class="vz-btn vz-btn--outline" @onclick="() => _open = false">بستن</button>
     </Footer>
-</Modal>
+</SlidePanel>
 
 @code {
     private bool _loading = true;
@@ -137,7 +135,20 @@
     private decimal _amount;
     private string _desc = string.Empty;
 
+    private static readonly decimal[] Presets = { 50000, 100000, 200000, 500000 };
+
+    private DotNetObjectReference<Wallets>? _selfRef;
+
     protected override Task OnInitializedAsync() => Load();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("vzAdmin.registerShortcuts", _selfRef, nameof(OnShortcut)); } catch { }
+        }
+    }
 
     private async Task Load()
     {
@@ -174,6 +185,18 @@
         _loadingTx = false;
     }
 
+    private List<Timeline.Entry> TxTimeline() => _transactions
+        .OrderByDescending(t => t.CreatedAt)
+        .Select(t =>
+        {
+            var credit = t.Type == (byte)WalletTransactionType.Credit;
+            var title = string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description;
+            var badge = (credit ? "+" : "−") + AUI.MoneyFa(t.Amount);
+            var meta = $"موجودی: {AUI.MoneyFa(t.BalanceAfter)} · {PersianDateHelper.ToDateTime(t.CreatedAt)}";
+            return new Timeline.Entry(title, meta, credit ? "success" : "danger", badge);
+        })
+        .ToList();
+
     private async Task Charge() => await Move("charge", "کیف پول شارژ شد.");
     private async Task Withdraw() => await Move("withdraw", "برداشت انجام شد.");
 
@@ -196,5 +219,35 @@
             await Load();
         }
         else Toasts.Error(r.Message);
+    }
+
+    private async Task Export()
+    {
+        var rows = Filtered.Select(w => new[]
+        {
+            AdminCsv.Field(w.UserFullName), AdminCsv.Field(w.UserMobile),
+            AdminCsv.Num(w.Balance), AdminCsv.Field(PersianDateHelper.ToDateTime(w.UpdatedAt))
+        });
+        var csv = AdminCsv.Build(new[] { "Customer", "Mobile", "Balance", "UpdatedAt" }, rows);
+        await JS.InvokeVoidAsync("vzAdmin.downloadText", $"wallets-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
+        Toasts.Success($"{AUI.Number(Filtered.Count)} کیف پول در فایل CSV ذخیره شد.");
+    }
+
+    [JSInvokable]
+    public async Task OnShortcut(string key)
+    {
+        switch (key)
+        {
+            case "/": await JS.InvokeVoidAsync("vzAdmin.focusById", "wallet-search"); break;
+            case "r": await Load(); break;
+            case "Escape": if (_open) _open = false; break;
+        }
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("vzAdmin.unregisterShortcuts"); } catch { }
+        _selfRef?.Dispose();
     }
 }

@@ -1,0 +1,31 @@
+<div class="vz-timeline">
+    @foreach (var item in Items)
+    {
+        <div class="vz-timeline__item">
+            <div class="vz-timeline__rail">
+                <span class="vz-timeline__dot @item.Intent"></span>
+                <span class="vz-timeline__line"></span>
+            </div>
+            <div class="vz-timeline__body">
+                <div class="vz-timeline__title">
+                    @item.Title
+                    @if (item.Badge is not null)
+                    {
+                        <StatusBadge Text="@item.Badge" Intent="@item.Intent" />
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(item.Meta))
+                {
+                    <div class="vz-timeline__meta">@item.Meta</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <param name="Intent">Dot color: primary | success | danger | warning | info | muted.</param>
+    public record Entry(string Title, string? Meta = null, string Intent = "primary", string? Badge = null);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Entry> Items { get; set; } = Array.Empty<Entry>();
+}

@@ -3,6 +3,7 @@
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@using Vitorize.Web.Models.Customer
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="جزئیات محصول" Subtitle="@(_product?.Title ?? "مشاهده اطلاعات کامل محصول")"
@@ -12,6 +13,9 @@
         <a class="vz-btn vz-btn--ghost" href="admin/products"><Icon Name="arrow-right" Size="17" /> بازگشت</a>
         @if (_product is not null)
         {
+            <a class="vz-btn vz-btn--outline" href="@($"/product/{_product.Slug}")" target="_blank" rel="noopener">
+                <Icon Name="external" Size="17" /> پیش‌نمایش در فروشگاه
+            </a>
             <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/images")"><Icon Name="image" Size="17" /> مدیریت تصاویر</a>
             <a class="vz-btn vz-btn--primary" href="@($"admin/products/{Id}")"><Icon Name="edit" Size="17" /> ویرایش محصول</a>
         }
@@ -48,6 +52,18 @@ else if (_product is not null)
                 <div class="vz-summary__item">
                     <span class="vz-summary__label">واریانت‌ها</span>
                     <span class="vz-summary__value">@AUI.Number(_variants.Count)</span>
+                </div>
+                <div class="vz-summary__item">
+                    <span class="vz-summary__label">امتیاز و نظرات</span>
+                    <span class="vz-summary__value">
+                        @if (_reviews.TotalApprovedReviews > 0)
+                        {
+                            <span class="vz-stars" style="font-size:13px">@Stars(_reviews.AverageRating)</span>
+                            @($" {PersianDateHelper.ToPersianDigits(_reviews.AverageRating.ToString("0.0"))}")
+                            <span class="vz-muted" style="font-size:12px;font-weight:600">(@AUI.Number(_reviews.TotalApprovedReviews) نظر)</span>
+                        }
+                        else { <span class="vz-muted" style="font-size:13px">بدون نظر</span> }
+                    </span>
                 </div>
                 <div class="vz-summary__item">
                     <span class="vz-summary__label">تاریخ ایجاد</span>
@@ -171,6 +187,38 @@ else if (_product is not null)
                     </div>
                 </div>
             }
+
+            <div class="vz-card">
+                <div class="vz-card__head">
+                    <Icon Name="activity" Size="18" /><div><div class="vz-card__title">فعالیت‌های اخیر محصول</div></div>
+                    <div class="right"><a class="vz-btn vz-btn--ghost vz-btn--sm" href="admin/audit-logs">همه لاگ‌ها</a></div>
+                </div>
+                <div class="vz-card__body">
+                    @if (_activity.Count == 0)
+                    {
+                        <EmptyState Title="فعالیتی ثبت نشده" Text="تغییرات این محصول پس از ثبت در لاگ عملیات اینجا نمایش داده می‌شود." Icon="activity" />
+                    }
+                    else
+                    {
+                        <div class="vz-feed">
+                            @foreach (var log in _activity)
+                            {
+                                <div class="vz-feed__item">
+                                    <span class="vz-feed__dot @ActivityIntent(log.ActionType)"></span>
+                                    <div>
+                                        <div class="vz-feed__text">@ActivityText(log)</div>
+                                        <div class="vz-feed__meta">
+                                            @(string.IsNullOrWhiteSpace(log.UserFullName) ? "سیستم" : log.UserFullName)
+                                            ·
+                                            <PersianDateDisplay Value="log.CreatedAt" />
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
 
         <div class="vz-stack">
@@ -219,6 +267,41 @@ else if (_product is not null)
                 </div>
             </div>
 
+            @if (_giftTotal > 0)
+            {
+                <div class="vz-card">
+                    <div class="vz-card__head">
+                        <Icon Name="gift" Size="18" /><div><div class="vz-card__title">خلاصه کدهای گیفت</div></div>
+                        <div class="right"><a class="vz-btn vz-btn--ghost vz-btn--sm" href="admin/gift-codes">مدیریت</a></div>
+                    </div>
+                    <div class="vz-card__body">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                            <div style="text-align:center;padding:12px 6px;border-radius:var(--clip-xs);background:var(--success-soft)">
+                                <div style="font-size:22px;font-weight:800;color:var(--success)">@AUI.Number(_giftAvailable)</div>
+                                <div style="font-size:11.5px;font-weight:700;color:var(--text-2)">موجود</div>
+                            </div>
+                            <div style="text-align:center;padding:12px 6px;border-radius:var(--clip-xs);background:var(--warning-soft)">
+                                <div style="font-size:22px;font-weight:800;color:var(--warning)">@AUI.Number(_giftReserved)</div>
+                                <div style="font-size:11.5px;font-weight:700;color:var(--text-2)">رزرو شده</div>
+                            </div>
+                            <div style="text-align:center;padding:12px 6px;border-radius:var(--clip-xs);background:var(--admin-primary-soft)">
+                                <div style="font-size:22px;font-weight:800;color:var(--admin-primary)">@AUI.Number(_giftSold)</div>
+                                <div style="font-size:11.5px;font-weight:700;color:var(--text-2)">فروخته‌شده</div>
+                            </div>
+                        </div>
+                        <div class="vz-divider"></div>
+                        <div class="vz-spread">
+                            <span class="vz-muted" style="font-size:12.5px">فروش محقق‌شده (کدهای فروخته/تحویل‌شده)</span>
+                            <span style="font-weight:800">@AUI.Number(_giftSold) کد</span>
+                        </div>
+                        <div class="vz-spread" style="margin-top:6px">
+                            <span class="vz-muted" style="font-size:12.5px">مجموع کدها</span>
+                            <span style="font-weight:800">@AUI.Number(_giftTotal) کد</span>
+                        </div>
+                    </div>
+                </div>
+            }
+
             <div class="vz-card">
                 <div class="vz-card__head"><Icon Name="file-text" Size="18" /><div><div class="vz-card__title">اطلاعات سیستمی</div></div></div>
                 <div class="vz-card__body">
@@ -252,6 +335,10 @@ else if (_product is not null)
     private List<AdminProductImageModel> _images = new();
     private List<AdminProductVariantModel> _variants = new();
 
+    private CustomerReviewSummaryModel _reviews = new();
+    private int _giftAvailable, _giftReserved, _giftSold, _giftTotal;
+    private List<AdminAuditLogModel> _activity = new();
+
     private bool _confirmDelete, _deleting;
 
     private int DiscountPercent =>
@@ -281,6 +368,75 @@ else if (_product is not null)
         _images = imagesTask.Result.Data ?? new();
         _variants = variantsTask.Result.Data ?? new();
         _loading = false;
+
+        // These panels are complementary — load them after the core render and never let a
+        // failure break the page. Uses only existing read endpoints.
+        await LoadInsights();
+    }
+
+    private async Task LoadInsights()
+    {
+        var reviewTask = Api.GetAsync<CustomerReviewSummaryModel>($"product-reviews/product/{Id}/summary");
+        var availableTask = GiftCountAsync((byte)Vitorize.Shared.Enums.GiftCodeStatus.Available);
+        var reservedTask = GiftCountAsync((byte)Vitorize.Shared.Enums.GiftCodeStatus.Reserved);
+        var soldTask = GiftCountAsync((byte)Vitorize.Shared.Enums.GiftCodeStatus.Sold);
+        var deliveredTask = GiftCountAsync((byte)Vitorize.Shared.Enums.GiftCodeStatus.Delivered);
+        var activityTask = Api.GetAsync<List<AdminAuditLogModel>>($"admin/audit-logs?search={Id}&page=1&pageSize=15");
+
+        await Task.WhenAll(reviewTask, availableTask, reservedTask, soldTask, deliveredTask, activityTask);
+
+        if (reviewTask.Result is { IsSuccess: true, Data: not null })
+            _reviews = reviewTask.Result.Data;
+
+        _giftAvailable = availableTask.Result;
+        _giftReserved = reservedTask.Result;
+        // "Sold" for admin purposes = codes that left inventory as a sale (sold + delivered).
+        _giftSold = soldTask.Result + deliveredTask.Result;
+        _giftTotal = _giftAvailable + _giftReserved + _giftSold;
+
+        if (activityTask.Result is { IsSuccess: true, Data: not null })
+        {
+            var pid = Id.ToString();
+            _activity = activityTask.Result.Data
+                .Where(x => string.Equals(x.EntityId, pid, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task<int> GiftCountAsync(byte status)
+    {
+        var r = await Api.GetAsync<Vitorize.Shared.Common.PagedResult<AdminGiftCodeModel>>(
+            $"admin/giftcodes/codes?productId={Id}&status={status}&page=1&pageSize=1");
+        return r is { IsSuccess: true, Data: not null } ? r.Data.TotalCount : 0;
+    }
+
+    private static string Stars(double rating)
+    {
+        var full = (int)Math.Round(rating);
+        return new string('★', Math.Clamp(full, 0, 5)) + new string('☆', Math.Clamp(5 - full, 0, 5));
+    }
+
+    private static string ActivityIntent(string actionType)
+    {
+        var a = actionType.ToLowerInvariant();
+        if (a.Contains("create") || a.Contains("add") || a.Contains("approve")) return "success";
+        if (a.Contains("delete") || a.Contains("remove") || a.Contains("reject")) return "danger";
+        if (a.Contains("update") || a.Contains("edit") || a.Contains("change")) return "info";
+        return "muted";
+    }
+
+    private static string ActivityText(AdminAuditLogModel log)
+    {
+        var a = log.ActionType.ToLowerInvariant();
+        var verb = a.Contains("create") || a.Contains("add") ? "ایجاد"
+            : a.Contains("delete") || a.Contains("remove") ? "حذف"
+            : a.Contains("update") || a.Contains("edit") || a.Contains("change") ? "ویرایش"
+            : a.Contains("approve") ? "تأیید"
+            : a.Contains("reject") ? "رد"
+            : log.ActionType;
+        return string.IsNullOrWhiteSpace(log.EntityName) ? verb : $"{verb} · {log.EntityName}";
     }
 
     private void AskDelete() => _confirmDelete = true;
