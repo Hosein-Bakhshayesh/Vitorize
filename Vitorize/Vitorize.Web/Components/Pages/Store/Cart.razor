@@ -58,23 +58,87 @@ else
             </button>
         </div>
 
-        <div class="st-card st-card__pad" style="align-self:start;position:sticky;top:calc(var(--st-header-h) + 16px)">
-            <h3 style="font-size:16px;margin-bottom:14px">خلاصه سفارش</h3>
+        <div class="st-card st-card__pad st-cart-sum" style="align-self:start;position:sticky;top:calc(var(--st-header-h) + 16px)">
+            <h3 style="font-size:16px;margin-bottom:16px">خلاصه سفارش</h3>
+
+            <div class="st-promo">
+                <input class="st-input" placeholder="کد تخفیف" @bind="_coupon" disabled="@(_discount > 0)" />
+                @if (_discount > 0)
+                {
+                    <button class="st-btn st-btn--ghost st-btn--sm" @onclick="ClearCoupon">حذف</button>
+                }
+                else
+                {
+                    <button class="st-btn st-btn--outline st-btn--sm" @onclick="ApplyCoupon" disabled="@_couponBusy">
+                        @if (_couponBusy) { <span class="st-spinner sm"></span> } else { <span>اعمال</span> }
+                    </button>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_couponMsg))
+            {
+                <div class="st-promo__msg @(_discount > 0 ? "ok" : "err")">@_couponMsg</div>
+            }
+
             <div class="st-sumrow"><span class="st-muted">تعداد اقلام</span><span>@AUI.Number(_cart.TotalQuantity)</span></div>
-            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
-            <a class="st-btn st-btn--primary st-btn--block st-btn--lg" style="margin-top:14px" href="/checkout">
-                ادامه و پرداخت <Icon Name="arrow-left" Size="18" />
+            <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
+            @if (_discount > 0)
+            {
+                <div class="st-sumrow" style="color:var(--st-success)"><span>تخفیف کد @_appliedCode</span><span>−@AUI.MoneyFa(_discount)</span></div>
+            }
+            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount - _discount)</span></div>
+
+            <a class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" href="@CheckoutHref">
+                <Icon Name="lock" Size="17" /> ادامه و پرداخت امن
             </a>
             <a class="st-btn st-btn--ghost st-btn--block" style="margin-top:8px" href="/shop">ادامه خرید</a>
+
+            <div class="st-cart-trust">
+                <span><Icon Name="lock" Size="14" /> پرداخت امن</span>
+                <span><Icon Name="zap" Size="14" /> تحویل آنی</span>
+                <span><Icon Name="shield-check" Size="14" /> اصالت تضمینی</span>
+            </div>
         </div>
     </div>
 }
 
 @code {
-    private bool _loading = true, _busy;
+    private bool _loading = true, _busy, _couponBusy;
     private CartModel? _cart;
+    private string _coupon = string.Empty;
+    private string _appliedCode = string.Empty;
+    private decimal _discount;
+    private string? _couponMsg;
+
+    private string CheckoutHref => _discount > 0 && !string.IsNullOrWhiteSpace(_appliedCode)
+        ? $"/checkout?coupon={Uri.EscapeDataString(_appliedCode)}"
+        : "/checkout";
 
     protected override Task OnInitializedAsync() => Load();
+
+    private async Task ApplyCoupon()
+    {
+        if (_cart is null || string.IsNullOrWhiteSpace(_coupon)) return;
+        _couponBusy = true; _couponMsg = null;
+        var r = await Api.PostAsync<ValidateCouponResultModel>("coupons/validate",
+            new { Code = _coupon.Trim(), OrderAmount = _cart.SubtotalAmount });
+        _couponBusy = false;
+        if (r.IsSuccess && r.Data is { IsValid: true })
+        {
+            _discount = r.Data.DiscountAmount;
+            _appliedCode = r.Data.Code ?? _coupon.Trim();
+            _couponMsg = $"کد تخفیف اعمال شد: {AUI.MoneyFa(_discount)} تخفیف";
+        }
+        else
+        {
+            _discount = 0; _appliedCode = string.Empty;
+            _couponMsg = r.Data?.Message ?? r.Message ?? "کد تخفیف نامعتبر است.";
+        }
+    }
+
+    private void ClearCoupon()
+    {
+        _discount = 0; _appliedCode = string.Empty; _coupon = string.Empty; _couponMsg = null;
+    }
 
     private async Task Load()
     {

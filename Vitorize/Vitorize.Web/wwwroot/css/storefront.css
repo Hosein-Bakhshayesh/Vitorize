@@ -1136,20 +1136,21 @@
 .st-bento__tile.lead .st-bento__t { font-size: 16px; font-weight: 800; }
 .st-bento__c { font-size: 11px; color: var(--st-muted); margin-top: 2px; }
 
-/* ----- How it works / Why Vitorize (numbered steps) ----- */
-.st-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.st-step {
+/* ----- How it works / Why Vitorize (numbered steps) — note: distinct from
+   the checkout .st-steps stepper above; named .st-hiw to avoid collision ----- */
+.st-hiw { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.st-hiw__step {
     position: relative; padding: 28px 24px; border-radius: var(--st-clip-sm);
     background: var(--st-surface); backdrop-filter: blur(14px); border: 1px solid var(--st-border); box-shadow: var(--st-shadow);
 }
-.st-step__num {
+.st-hiw__num {
     position: absolute; top: -14px; inset-inline-start: 22px; width: 28px; height: 28px; border-radius: 8px;
     background: var(--st-grad-accent); color: var(--st-on-accent); font-weight: 800; font-size: 13px;
     display: flex; align-items: center; justify-content: center; box-shadow: var(--st-shadow-btn);
 }
-.st-step__ic { width: 46px; height: 46px; border-radius: var(--st-clip-btn); background: var(--st-primary-soft); color: var(--st-primary); display: flex; align-items: center; justify-content: center; margin: 6px 0 12px; }
-.st-step__t { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
-.st-step__d { font-size: 13px; color: var(--st-text-2); line-height: 1.7; }
+.st-hiw__ic { width: 46px; height: 46px; border-radius: var(--st-clip-btn); background: var(--st-primary-soft); color: var(--st-primary); display: flex; align-items: center; justify-content: center; margin: 6px 0 12px; }
+.st-hiw__t { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
+.st-hiw__d { font-size: 13px; color: var(--st-text-2); line-height: 1.7; }
 .st-section__center { text-align: center; margin-bottom: 30px; }
 .st-section__kicker { font-size: 12px; font-weight: 800; color: var(--st-primary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 .st-section__h { font-size: clamp(22px, 2.6vw, 30px); font-weight: 800; letter-spacing: -0.02em; margin: 0; }
@@ -1210,7 +1211,7 @@
     .st-hwrap { grid-template-columns: 1fr; }
     .st-hstats { flex-direction: row; }
     .st-hstat.accent { display: none; }
-    .st-steps { grid-template-columns: 1fr; }
+    .st-hiw { grid-template-columns: 1fr; }
     .st-bento { grid-template-columns: repeat(2, 1fr); }
     .st-mega { width: 92vw; grid-template-columns: 1fr; }
 }
@@ -1427,3 +1428,26 @@
 }
 
 .st-heart-on { color: var(--st-danger); fill: var(--st-danger); }
+
+/* ----- Cart / Checkout v2 ----- */
+.st-promo { display: flex; gap: 8px; margin-bottom: 8px; }
+.st-promo input { flex: 1; min-width: 0; }
+.st-promo__msg { font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.st-promo__msg.ok { color: var(--st-success); }
+.st-promo__msg.err { color: var(--st-danger); }
+.st-cart-trust { display: flex; justify-content: center; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--st-border); flex-wrap: wrap; }
+.st-cart-trust span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--st-muted); font-weight: 600; }
+.st-paycards { display: flex; flex-direction: column; gap: 10px; }
+.st-paycard { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--st-clip-media); border: 2px solid var(--st-border); background: var(--st-surface-2); cursor: pointer; transition: border-color var(--st-t-fast) var(--st-ease), background var(--st-t-fast) var(--st-ease); }
+.st-paycard:hover { border-color: var(--st-border-2); }
+.st-paycard.active { border-color: var(--st-primary); background: var(--st-primary-soft); }
+.st-paycard.disabled { opacity: 0.55; cursor: not-allowed; }
+.st-paycard__ic { width: 40px; height: 40px; flex: 0 0 40px; border-radius: var(--st-clip-btn); background: var(--st-chip); color: var(--st-primary); display: flex; align-items: center; justify-content: center; }
+.st-paycard__t { font-weight: 700; font-size: 14px; }
+.st-paycard__s { font-size: 12px; color: var(--st-text-2); margin-top: 2px; }
+.st-paycard__radio { margin-inline-start: auto; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--st-border-2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.st-paycard.active .st-paycard__radio { border-color: var(--st-primary); }
+.st-paycard.active .st-paycard__radio::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--st-grad-accent); }
+.st-secure { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11.5px; color: var(--st-muted); margin-top: 12px; }
+.st-delivery-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--st-text-2); padding: 12px 14px; border-radius: var(--st-clip-media); background: var(--st-primary-soft); margin-top: 12px; }
+.st-delivery-note .ic { color: var(--st-primary); flex-shrink: 0; }

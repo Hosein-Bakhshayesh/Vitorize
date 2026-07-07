@@ -53,22 +53,50 @@ else
 
             <div class="st-card">
                 <div class="st-card__head"><Icon Name="percent" Size="18" /> کد تخفیف</div>
-                <div class="st-card__pad" style="display:flex;gap:10px">
-                    <input class="st-input" placeholder="کد تخفیف خود را وارد کنید" @bind="_coupon" />
+                <div class="st-card__pad">
+                    <div class="st-promo">
+                        <input class="st-input" placeholder="کد تخفیف خود را وارد کنید" @bind="_coupon" disabled="@(_discount > 0)" />
+                        @if (_discount > 0)
+                        {
+                            <button class="st-btn st-btn--ghost st-btn--sm" @onclick="ClearCoupon">حذف</button>
+                        }
+                        else
+                        {
+                            <button class="st-btn st-btn--outline st-btn--sm" @onclick="ApplyCoupon" disabled="@_couponBusy">
+                                @if (_couponBusy) { <span class="st-spinner sm"></span> } else { <span>اعمال</span> }
+                            </button>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_couponMsg))
+                    {
+                        <div class="st-promo__msg @(_discount > 0 ? "ok" : "err")">@_couponMsg</div>
+                    }
                 </div>
             </div>
 
             <div class="st-card">
                 <div class="st-card__head"><Icon Name="credit-card" Size="18" /> روش پرداخت</div>
-                <div class="st-card__pad st-stack">
-                    <label class="st-check" style="padding:12px;border:1.5px solid @(_method == "gateway" ? "var(--st-brand-2)" : "var(--st-border)");border-radius:12px">
-                        <input type="radio" name="pm" checked="@(_method == "gateway")" @onchange='() => _method = "gateway"' />
-                        <Icon Name="credit-card" Size="18" /> پرداخت اینترنتی (درگاه بانکی)
-                    </label>
-                    <label class="st-check" style="padding:12px;border:1.5px solid @(_method == "wallet" ? "var(--st-brand-2)" : "var(--st-border)");border-radius:12px;@(WalletEnough ? "" : "opacity:.6")">
-                        <input type="radio" name="pm" checked="@(_method == "wallet")" disabled="@(!WalletEnough)" @onchange='() => _method = "wallet"' />
-                        <Icon Name="wallet" Size="18" /> کیف پول (موجودی: @AUI.MoneyFa(_walletBalance))
-                    </label>
+                <div class="st-card__pad">
+                    <div class="st-paycards">
+                        <div class="st-paycard @(_method == "gateway" ? "active" : null)" @onclick='() => _method = "gateway"'>
+                            <span class="st-paycard__ic"><Icon Name="credit-card" Size="19" /></span>
+                            <div><div class="st-paycard__t">پرداخت اینترنتی</div><div class="st-paycard__s">درگاه بانکی امن</div></div>
+                            <span class="st-paycard__radio"></span>
+                        </div>
+                        <div class="st-paycard @(_method == "wallet" ? "active" : null) @(WalletEnough ? "" : "disabled")"
+                             @onclick='() => { if (WalletEnough) _method = "wallet"; }'>
+                            <span class="st-paycard__ic"><Icon Name="wallet" Size="19" /></span>
+                            <div>
+                                <div class="st-paycard__t">کیف پول ویتورایز</div>
+                                <div class="st-paycard__s">موجودی: @AUI.MoneyFa(_walletBalance)@(WalletEnough ? "" : " (ناکافی)")</div>
+                            </div>
+                            <span class="st-paycard__radio"></span>
+                        </div>
+                    </div>
+                    <div class="st-delivery-note">
+                        <span class="ic"><Icon Name="zap" Size="16" /></span>
+                        محصولات با تحویل آنی، بلافاصله پس از پرداخت در «سفارش‌های من» و «کدهای من» فعال می‌شوند.
+                    </div>
                 </div>
             </div>
         </div>
@@ -85,26 +113,42 @@ else
                 }
             </div>
             <div class="st-sumrow"><span class="st-muted">تعداد اقلام</span><span>@AUI.Number(_cart.TotalQuantity)</span></div>
-            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
+            <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
+            @if (_discount > 0)
+            {
+                <div class="st-sumrow" style="color:var(--st-success)"><span>تخفیف کد @_appliedCode</span><span>−@AUI.MoneyFa(_discount)</span></div>
+            }
+            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
 
-            <button class="st-btn st-btn--primary st-btn--block st-btn--lg" style="margin-top:14px" @onclick="PlaceOrder" disabled="@_placing">
+            <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="PlaceOrder" disabled="@_placing">
                 @if (_placing) { <span class="st-spinner sm"></span> <span>در حال پردازش ...</span> }
-                else { <Icon Name="lock" Size="18" /> <span>ثبت و پرداخت سفارش</span> }
+                else { <Icon Name="lock" Size="18" /> <span>پرداخت امن @AUI.MoneyFa(Payable)</span> }
             </button>
-            <div class="st-muted" style="font-size:11.5px;text-align:center;margin-top:10px">با ثبت سفارش، قوانین و مقررات ویتورایز را می‌پذیرید.</div>
+            <div class="st-secure"><Icon Name="lock" Size="13" /> رمزگذاری ۲۵۶ بیتی · ضمانت فروشنده معتبر</div>
+            <div class="st-cart-trust">
+                <span><Icon Name="shield-check" Size="14" /> اصالت تضمینی</span>
+                <span><Icon Name="zap" Size="14" /> تحویل آنی</span>
+                <span><Icon Name="headphones" Size="14" /> پشتیبانی ۲۴/۷</span>
+            </div>
         </div>
     </div>
 }
 
 @code {
-    private bool _loading = true, _placing;
+    [SupplyParameterFromQuery(Name = "coupon")] public string? CouponFromQuery { get; set; }
+
+    private bool _loading = true, _placing, _couponBusy;
     private CartModel? _cart;
     private CustomerProfileModel? _user;
     private decimal _walletBalance;
     private string _coupon = string.Empty;
+    private string _appliedCode = string.Empty;
+    private decimal _discount;
+    private string? _couponMsg;
     private string _method = "gateway";
 
-    private bool WalletEnough => _cart is not null && _walletBalance >= _cart.SubtotalAmount && _cart.SubtotalAmount > 0;
+    private decimal Payable => _cart is null ? 0 : Math.Max(0, _cart.SubtotalAmount - _discount);
+    private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,6 +161,38 @@ else
         _user = meTask.Result.Data;
         _walletBalance = walletTask.Result.Data?.Balance ?? 0;
         _loading = false;
+
+        // Re-validate a coupon carried over from the cart so its discount shows on the summary.
+        if (!string.IsNullOrWhiteSpace(CouponFromQuery) && _cart is not null && _cart.Items.Count > 0)
+        {
+            _coupon = CouponFromQuery.Trim();
+            await ApplyCoupon();
+        }
+    }
+
+    private async Task ApplyCoupon()
+    {
+        if (_cart is null || string.IsNullOrWhiteSpace(_coupon)) return;
+        _couponBusy = true; _couponMsg = null;
+        var r = await Api.PostAsync<ValidateCouponResultModel>("coupons/validate",
+            new { Code = _coupon.Trim(), OrderAmount = _cart.SubtotalAmount });
+        _couponBusy = false;
+        if (r.IsSuccess && r.Data is { IsValid: true })
+        {
+            _discount = r.Data.DiscountAmount;
+            _appliedCode = r.Data.Code ?? _coupon.Trim();
+            _couponMsg = $"کد تخفیف اعمال شد: {AUI.MoneyFa(_discount)} تخفیف";
+        }
+        else
+        {
+            _discount = 0; _appliedCode = string.Empty;
+            _couponMsg = r.Data?.Message ?? r.Message ?? "کد تخفیف نامعتبر است.";
+        }
+    }
+
+    private void ClearCoupon()
+    {
+        _discount = 0; _appliedCode = string.Empty; _coupon = string.Empty; _couponMsg = null;
     }
 
     private async Task PlaceOrder()
@@ -129,7 +205,7 @@ else
 
         var checkout = await Api.PostAsync<CheckoutResultModel>(
             "checkout",
-            new { Description = (string?)null, CouponCode = string.IsNullOrWhiteSpace(_coupon) ? null : _coupon.Trim() },
+            new { Description = (string?)null, CouponCode = string.IsNullOrWhiteSpace(_appliedCode) ? null : _appliedCode },
             headers);
 
         if (!checkout.IsSuccess || checkout.Data is null)
