@@ -106,9 +106,16 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<WishList> WishLists { get; set; }
 
+    // The connection string is NOT configured here. It is provided through Dependency Injection
+    // from configuration (appsettings.json → "ConnectionStrings:DefaultConnection"), wired in
+    // Vitorize.Infrastructure.DependencyInjection.AddInfrastructure via UseSqlServer(...).
+    // OnConfiguring is intentionally left as a no-op guard so the Database-First / scaffolded
+    // shape is preserved and re-scaffolding stays compatible, without any hardcoded credentials.
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=.;Database=VitorizeDb;Trusted_Connection=True;TrustServerCertificate=True");
+    {
+        if (optionsBuilder.IsConfigured)
+            return;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
