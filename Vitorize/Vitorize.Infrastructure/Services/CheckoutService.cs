@@ -76,7 +76,8 @@ namespace Vitorize.Infrastructure.Services
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    OrderNumber = $"VT-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    // پسوند تصادفی برای جلوگیری از برخورد شماره سفارش در ثبت هم‌زمان (ایندکس یکتا دارد)
+                    OrderNumber = $"VT-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
                     Status = (byte)OrderStatus.PendingPayment,
                     PaymentStatus = (byte)PaymentStatus.Pending,
                     SubtotalAmount = subtotalAmount,
@@ -125,13 +126,19 @@ namespace Vitorize.Infrastructure.Services
 
                     for (var i = 0; i < orderItem.Quantity; i++)
                     {
-                        var giftCode = await _dbContext.GiftCodes
-                            .Where(x =>
-                                x.ProductId == orderItem.ProductId &&
-                                x.ProductVariantId == orderItem.ProductVariantId &&
-                                x.Status == (byte)GiftCodeStatus.Available)
-                            .OrderBy(x => x.CreatedAt)
-                            .FirstOrDefaultAsync();
+                        // UPDLOCK/READPAST: دو Checkout هم‌زمان هرگز یک کد را رزرو نمی‌کنند
+                        // (بدون قفل، خواندن-سپس-نوشتن باعث فروش دوباره‌ی یک کد می‌شد).
+                        var giftCode = (await _dbContext.GiftCodes
+                            .FromSqlInterpolated($@"
+                                SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, READPAST)
+                                WHERE ProductId = {orderItem.ProductId}
+                                  AND ((ProductVariantId IS NULL AND {orderItem.ProductVariantId} IS NULL)
+                                       OR ProductVariantId = {orderItem.ProductVariantId})
+                                  AND Status = {(byte)GiftCodeStatus.Available}
+                                ORDER BY CreatedAt")
+                            .AsTracking()
+                            .ToListAsync())
+                            .FirstOrDefault();
 
                         if (giftCode == null)
                             throw new BusinessException(

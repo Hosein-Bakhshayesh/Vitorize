@@ -213,11 +213,17 @@ else
                     </div>
                 </div>
 
-                <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@_busy">
-                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>افزودن به سبد خرید</span> }
+                @if (OutOfStock)
+                {
+                    <div class="st-alert st-alert--warn" style="margin-bottom:12px">
+                        <Icon Name="package" Size="16" /> <span>این محصول در حال حاضر ناموجود است.</span>
+                    </div>
+                }
+                <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@(_busy || OutOfStock)">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>@(OutOfStock ? "ناموجود" : "افزودن به سبد خرید")</span> }
                 </button>
                 <div style="display:flex;gap:10px;margin-top:10px">
-                    <button class="st-btn st-btn--outline st-btn--block" @onclick="() => AddToCart(true)" disabled="@_busy">خرید فوری</button>
+                    <button class="st-btn st-btn--outline st-btn--block" @onclick="() => AddToCart(true)" disabled="@(_busy || OutOfStock)">خرید فوری</button>
                     <button class="st-btn st-btn--ghost" style="flex:0 0 auto" @onclick="ToggleWishlist" disabled="@_wishBusy" title="علاقه‌مندی">
                         <Icon Name="heart" Size="18" Class="@(InWishlist ? "st-heart-on" : null)" />
                     </button>
@@ -260,6 +266,16 @@ else
     private int DiscountPercent => CurrentBase > 0 && CurrentDiscounted ? (int)Math.Round((CurrentBase - CurrentPrice) / CurrentBase * 100) : 0;
     private string Unit => (_p?.CurrencyType ?? 2) == (byte)CurrencyType.Rial ? "ریال" : "تومان";
     private bool InWishlist => _p is not null && Wishlist.Contains(_p.Id);
+
+    // فقط تحویل آنی موجودی واقعی (کد) دارد؛ تحویل دستی/پشتیبانی همیشه قابل سفارش است.
+    private bool OutOfStock =>
+        _p is not null &&
+        _p.DeliveryType == (byte)DeliveryType.Instant &&
+        (_variant is not null
+            ? _variant.AvailableStock <= 0
+            : (_p.Variants.Count > 0
+                ? _p.Variants.All(v => v.AvailableStock <= 0)
+                : _p.AvailableStock <= 0));
     // Trust score derived from real review rating; falls back to a guarantee baseline when unrated.
     private int TrustScore => _summary.TotalApprovedReviews > 0 ? (int)Math.Round(_summary.AverageRating / 5 * 100) : 95;
     private string ShareUrl => $"{Nav.BaseUri.TrimEnd('/')}/product/{Slug}";

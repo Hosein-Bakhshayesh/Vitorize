@@ -80,12 +80,12 @@
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">تصویر اصلی (دسکتاپ) <span class="req">*</span></label>
-                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر بنر" />
+                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر بنر" Endpoint="admin/uploads/banner-image" />
                     <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">تصویر موبایل</label>
-                    <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" />
+                    <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" Endpoint="admin/uploads/banner-image" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>

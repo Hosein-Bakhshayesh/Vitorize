@@ -1,14 +1,28 @@
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+
 <footer class="st-footer">
     <div class="st-container">
         <div class="st-footer__main">
             <div class="st-footer__brand">
                 <StoreLogo />
-                <p>بازارگاه دیجیتال گیمینگ و خدمات آنلاین؛ خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی.</p>
+                <p>@_b.FooterDescription</p>
                 <div class="st-socials">
-                    <a href="#" title="اینستاگرام"><Icon Name="instagram" Size="18" /></a>
-                    <a href="#" title="تلگرام"><Icon Name="send" Size="18" /></a>
-                    <a href="#" title="تماس"><Icon Name="phone" Size="18" /></a>
-                    <a href="#" title="ایمیل"><Icon Name="mail" Size="18" /></a>
+                    @if (!string.IsNullOrWhiteSpace(_b.InstagramUrl))
+                    {
+                        <a href="@_b.InstagramUrl" target="_blank" rel="noopener" title="اینستاگرام"><Icon Name="instagram" Size="18" /></a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.TelegramUrl))
+                    {
+                        <a href="@_b.TelegramUrl" target="_blank" rel="noopener" title="تلگرام"><Icon Name="send" Size="18" /></a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
+                    {
+                        <a href="tel:@_b.SupportPhone" title="تماس"><Icon Name="phone" Size="18" /></a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
+                    {
+                        <a href="mailto:@_b.SupportEmail" title="ایمیل"><Icon Name="mail" Size="18" /></a>
+                    }
                 </div>
             </div>
             <div class="st-footer__col">
@@ -34,8 +48,18 @@
             </div>
         </div>
         <div class="st-footer__bottom">
-            <span>© @PersianDateHelper.ToPersianDigits(DateTime.Now.Year.ToString()) — تمامی حقوق برای ویتورایز محفوظ است.</span>
+            <span>© @PersianDateHelper.ToPersianDigits(DateTime.Now.Year.ToString()) — @_b.CopyrightText</span>
             <span style="display:flex;align-items:center;gap:8px"><Icon Name="shield-check" Size="16" /> پرداخت امن و رمزگذاری‌شده</span>
         </div>
     </div>
 </footer>
+
+@code {
+    private Vitorize.Web.Services.UI.StoreBranding _b =
+        new(new Dictionary<string, string>());
+
+    protected override async Task OnInitializedAsync()
+    {
+        _b = await Branding.GetAsync();
+    }
+}

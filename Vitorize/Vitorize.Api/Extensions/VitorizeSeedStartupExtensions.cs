@@ -8,7 +8,10 @@ namespace Vitorize.Api.Extensions
         {
             using var scope = app.Services.CreateScope();
             var seeder = scope.ServiceProvider.GetRequiredService<IVitorizeSeedService>();
-            seeder.SeedAsync();
+
+            // اجرای blocking در Startup؛ نسخه‌ی قبلی fire-and-forget بود و scope پیش از
+            // پایان Seed آزاد می‌شد (خطای «connection to database ''» در شروع برنامه).
+            seeder.SeedAsync().GetAwaiter().GetResult();
         }
     }
 }

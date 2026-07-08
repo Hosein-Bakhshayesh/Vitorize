@@ -248,11 +248,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var threshold = DateTime.UtcNow.AddMinutes(-30);
 
-            var payments = await _dbContext.Payments
-                .Include(x => x.Order)
-                    .ThenInclude(x => x.GiftCodeReservations)
-                .Include(x => x.Order)
-                    .ThenInclude(x => x.OrderItems)
+            var paymentIds = await _dbContext.Payments
                 .Where(x =>
                     x.Gateway == ZarinpalGatewayName &&
                     x.Status == (byte)PaymentStatus.Pending &&
@@ -260,12 +256,29 @@ namespace Vitorize.Infrastructure.Services
                     x.RequestedAt <= threshold)
                 .OrderBy(x => x.RequestedAt)
                 .Take(50)
+                .Select(x => x.Id)
                 .ToListAsync();
 
             var processed = 0;
 
-            foreach (var payment in payments)
+            foreach (var paymentId in paymentIds)
             {
+                // هر پرداخت به‌صورت تازه و در تراکنش خودش پردازش می‌شود تا شکست تکمیل سفارش،
+                // وضعیت Paid ناقص یا تغییرات پرداخت‌های بعدی را آلوده نکند.
+                _dbContext.ChangeTracker.Clear();
+
+                var payment = await _dbContext.Payments
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.GiftCodeReservations)
+                    .Include(x => x.Order)
+                        .ThenInclude(x => x.OrderItems)
+                    .FirstOrDefaultAsync(x => x.Id == paymentId);
+
+                if (payment == null || payment.Status != (byte)PaymentStatus.Pending)
+                    continue;
+
+                await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
                 try
                 {
                     var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
@@ -307,14 +320,27 @@ namespace Vitorize.Infrastructure.Services
                         await _dbContext.SaveChangesAsync();
                     }
 
+                    await transaction.CommitAsync();
+
                     processed++;
                 }
                 catch (Exception ex)
                 {
-                    payment.ErrorMessage = $"Reconcile error: {ex.Message}";
-                    payment.UpdatedAt = DateTime.UtcNow;
+                    await transaction.RollbackAsync();
 
-                    await _dbContext.SaveChangesAsync();
+                    // تغییرات ردیابی‌شده‌ی ناموفق (مثلاً Paid ناقص) نباید در ذخیره‌ی بعدی نشت کنند.
+                    _dbContext.ChangeTracker.Clear();
+
+                    var failedPayment = await _dbContext.Payments
+                        .FirstOrDefaultAsync(x => x.Id == payment.Id);
+
+                    if (failedPayment != null)
+                    {
+                        failedPayment.ErrorMessage = $"Reconcile error: {ex.Message}";
+                        failedPayment.UpdatedAt = DateTime.UtcNow;
+
+                        await _dbContext.SaveChangesAsync();
+                    }
                 }
             }
 
@@ -492,7 +518,11 @@ namespace Vitorize.Infrastructure.Services
                 .Where(x => x.Status == (byte)GiftCodeReservationStatus.Active)
                 .ToList();
 
-            if (!activeReservations.Any())
+            // فقط آیتم‌های تحویل آنی رزرو کد دارند؛ سفارش کاملاً دستی رزرو ندارد و نباید خطا بدهد.
+            var hasInstantItems = order.OrderItems
+                .Any(x => x.DeliveryType == (byte)DeliveryType.Instant);
+
+            if (hasInstantItems && !activeReservations.Any())
                 throw new BusinessException("رزرو فعالی برای این سفارش یافت نشد.");
 
             foreach (var reservation in activeReservations)
@@ -520,13 +550,16 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
-            await _giftCodeDeliveryService.DeliverOrderAsync(order.Id, userId);
+            if (activeReservations.Any())
+            {
+                await _giftCodeDeliveryService.DeliverOrderAsync(order.Id, userId);
 
-            await _notificationService.CreateAsync(
-                userId,
-                (byte)NotificationType.GiftCodeDelivered,
-                "تحویل سفارش",
-                $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
+                await _notificationService.CreateAsync(
+                    userId,
+                    (byte)NotificationType.GiftCodeDelivered,
+                    "تحویل سفارش",
+                    $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
+            }
         }
 
         private static PaymentVerifyResultDto CreateVerifyResult(Payment payment, Order order)

@@ -177,7 +177,7 @@ else
         var r = await Api.PostAsync<ValidateCouponResultModel>("coupons/validate",
             new { Code = _coupon.Trim(), OrderAmount = _cart.SubtotalAmount });
         _couponBusy = false;
-        if (r.IsSuccess && r.Data is { IsValid: true })
+        if (r.IsSuccess && r.Data is { CouponId: not null })
         {
             _discount = r.Data.DiscountAmount;
             _appliedCode = r.Data.Code ?? _coupon.Trim();
@@ -186,7 +186,7 @@ else
         else
         {
             _discount = 0; _appliedCode = string.Empty;
-            _couponMsg = r.Data?.Message ?? r.Message ?? "کد تخفیف نامعتبر است.";
+            _couponMsg = string.IsNullOrWhiteSpace(r.Message) ? "کد تخفیف نامعتبر است." : r.Message;
         }
     }
 

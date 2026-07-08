@@ -91,6 +91,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<StoreBrandingService>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<WishlistState>();
 
@@ -126,6 +127,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+
+// UseRouting صریح بعد از StaticFiles: صفحه‌ی Catch-all (۴۰۴) نباید فایل‌های استاتیک را ببلعد.
+// بدون این خط، Routing خودکارِ ابتدای Pipeline مسیر فایل‌ها را به Endpoint صفحه‌ی ۴۰۴ می‌داد
+// و StaticFiles (که Endpoint-aware است) از سرو کردن فایل صرف‌نظر می‌کرد.
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -47,42 +47,10 @@ namespace Vitorize.Api.Controllers
                 "مدرک با موفقیت آپلود شد."));
         }
 
-        private async Task<UploadFileResultDto> SaveImageAsync(IFormFile file, string folderName)
+        private Task<UploadFileResultDto> SaveImageAsync(IFormFile file, string folderName)
         {
-            if (file == null || file.Length == 0)
-                throw new Exception("فایل ارسال نشده است.");
-
-            if (file.Length > MaxFileSize)
-                throw new Exception("حجم فایل نباید بیشتر از ۵ مگابایت باشد.");
-
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-            if (!AllowedExtensions.Contains(extension))
-                throw new Exception("فرمت فایل مجاز نیست.");
-
-            if (!AllowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
-                throw new Exception("نوع فایل معتبر نیست.");
-
-            var uploadRoot = Path.Combine(_environment.WebRootPath, "uploads", folderName);
-
-            if (!Directory.Exists(uploadRoot))
-                Directory.CreateDirectory(uploadRoot);
-
-            var fileName = $"{Guid.NewGuid():N}{extension}";
-            var fullPath = Path.Combine(uploadRoot, fileName);
-
-            await using var stream = new FileStream(fullPath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            var relativePath = $"/uploads/{folderName}/{fileName}";
-
-            return new UploadFileResultDto
-            {
-                FileName = fileName,
-                FilePath = relativePath,
-                ContentType = file.ContentType,
-                Size = file.Length
-            };
+            return Vitorize.Api.Controllers.Admin.UploadHelper.SaveImageAsync(
+                _environment, file, folderName, MaxFileSize, AllowedExtensions, AllowedContentTypes);
         }
     }
 }

@@ -36,10 +36,12 @@ namespace Vitorize.Web.Models.Store
 
     public class ValidateCouponResultModel
     {
-        public bool IsValid { get; set; }
+        // پاسخ API فیلد IsValid ندارد؛ اعتبار کوپن یعنی پاسخ موفق همراه CouponId.
+        public Guid? CouponId { get; set; }
         public string? Code { get; set; }
+        public decimal OrderAmount { get; set; }
         public decimal DiscountAmount { get; set; }
-        public string? Message { get; set; }
+        public decimal FinalAmount { get; set; }
     }
 
     public class PaymentStartResultModel

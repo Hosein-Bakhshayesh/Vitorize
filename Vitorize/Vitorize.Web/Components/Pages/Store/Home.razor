@@ -1,10 +1,11 @@
 @page "/"
 @inject ApiClient Api
 @inject MediaUrlResolver Media
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<PageTitle>ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین</PageTitle>
+<PageTitle>@_branding.PageTitle()</PageTitle>
 
 @if (_loading)
 {
@@ -38,10 +39,10 @@ else
                 <span class="st-hslider__aurora a2"></span>
                 <div class="st-hslider__overlay"></div>
                 <div class="st-hslide enter">
-                    <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
-                    <h1 class="st-hslide__title">دنیای بازی و دیجیتال در دستان تو</h1>
-                    <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
-                    <a class="st-hslide__cta" href="/shop"><Icon Name="shopping-bag" Size="17" /> ورود به فروشگاه</a>
+                    <span class="st-hslide__kicker"><span class="dot"></span> @_branding.HeroKicker</span>
+                    <h1 class="st-hslide__title">@_branding.HeroTitle</h1>
+                    <p class="st-hslide__sub">@_branding.HeroSubtitle</p>
+                    <a class="st-hslide__cta" href="/shop"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
                 </div>
             </div>
         }
@@ -276,12 +277,18 @@ else
         }
     }
 
+    private Vitorize.Web.Services.UI.StoreBranding _branding =
+        new(new Dictionary<string, string>());
+
     protected override async Task OnInitializedAsync()
     {
         var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
         var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=newest&pageSize=8");
         var popularTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=20");
-        await Task.WhenAll(homeTask, latestTask, popularTask);
+        var brandingTask = Branding.GetAsync();
+        await Task.WhenAll(homeTask, latestTask, popularTask, brandingTask);
+
+        _branding = brandingTask.Result;
 
         if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
         if (latestTask.Result is { IsSuccess: true, Data: not null }) _latest = latestTask.Result.Data.Items.ToList();

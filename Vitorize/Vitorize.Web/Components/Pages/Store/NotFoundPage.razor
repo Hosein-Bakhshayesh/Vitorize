@@ -1,0 +1,22 @@
+@page "/{*PageRoute}"
+
+@* در Blazor Web App (.NET 8) بخش NotFound روتر برای مسیرهای ناموجود رندر نمی‌شود؛
+   این صفحه‌ی Catch-all (کم‌اولویت‌ترین مسیر) نقش ۴۰۴ فروشگاه را دارد. *@
+
+<PageTitle>صفحه پیدا نشد | ویتورایز</PageTitle>
+
+<div class="st-state" style="padding:90px 24px">
+    <div class="st-state__ic"><Icon Name="search" Size="34" /></div>
+    <div style="font-weight:800;font-size:20px">صفحه پیدا نشد</div>
+    <p class="st-muted" style="max-width:420px;text-align:center">
+        صفحه‌ای که دنبال آن هستید وجود ندارد یا منتقل شده است.
+    </p>
+    <div style="display:flex;gap:10px">
+        <a class="st-btn st-btn--primary" href="/"><Icon Name="home" Size="17" /> صفحه اصلی</a>
+        <a class="st-btn st-btn--outline" href="/shop"><Icon Name="shopping-bag" Size="17" /> فروشگاه</a>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? PageRoute { get; set; }
+}

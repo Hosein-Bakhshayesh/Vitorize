@@ -82,7 +82,12 @@ else
         var r = await Api.PostAsync<SettingModel>("admin/settings",
             new { s.Key, s.Value, s.GroupName, s.ValueType, s.Description });
         _saving = false;
-        if (r.IsSuccess) Toasts.Success("تنظیمات ذخیره شد.");
+        if (r.IsSuccess)
+        {
+            // برندینگ فروشگاه از همین تنظیمات تغذیه می‌شود؛ کش باید تازه شود.
+            Vitorize.Web.Services.UI.StoreBrandingService.Invalidate();
+            Toasts.Success("تنظیمات ذخیره شد.");
+        }
         else Toasts.Error(r.Message);
     }
 }

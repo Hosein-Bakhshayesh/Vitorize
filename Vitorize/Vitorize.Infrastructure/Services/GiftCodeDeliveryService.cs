@@ -49,7 +49,11 @@ namespace Vitorize.Infrastructure.Services
                     x.GiftCode.Status == (byte)GiftCodeStatus.Sold)
                 .ToList();
 
-            if (!soldReservations.Any())
+            // سفارش‌های تحویل دستی رزرو کد ندارند؛ فقط وقتی آیتم تحویل آنی وجود دارد نبودِ کد خطاست.
+            var hasInstantItems = order.OrderItems
+                .Any(x => x.DeliveryType == (byte)DeliveryType.Instant);
+
+            if (hasInstantItems && !soldReservations.Any())
                 throw new BusinessException("کد قابل تحویلی برای این سفارش یافت نشد.");
 
             foreach (var reservation in soldReservations)
