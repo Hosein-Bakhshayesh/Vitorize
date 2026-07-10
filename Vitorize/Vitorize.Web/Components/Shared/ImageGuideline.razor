@@ -1,0 +1,20 @@
+@using Vitorize.Web.Helpers
+
+@if (Spec is not null)
+{
+    <div class="vz-imgspec" role="note">
+        <span class="vz-imgspec__lead"><Icon Name="info" Size="13" /> مشخصات پیشنهادی</span>
+        <span class="vz-imgspec__chip"><b>ابعاد</b> @Spec.Dimensions</span>
+        <span class="vz-imgspec__chip"><b>نسبت</b> @Spec.Ratio</span>
+        <span class="vz-imgspec__chip"><b>فرمت</b> @Spec.Format</span>
+        <span class="vz-imgspec__chip"><b>حداکثر حجم</b> @Spec.MaxSize</span>
+        @if (!string.IsNullOrWhiteSpace(Spec.Note))
+        {
+            <span class="vz-imgspec__note">@Spec.Note</span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public ImageSpec? Spec { get; set; }
+}

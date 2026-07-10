@@ -121,10 +121,14 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/error", createScopeForErrors: true);
+    app.UseExceptionHandler("/error/500", createScopeForErrors: true);
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+
+// صفحات وضعیت برنددار: پاسخ‌های ۴۰۰–۵۹۹ بدون بدنه به /error/{code} بازاجرا می‌شوند
+// (۴۰۳/۴۰۱/۴۰۰/۵۰۰ ...). صفحه‌ی Catch-all همچنان ۴۰۴ مسیرهای ناموجود را پوشش می‌دهد.
+app.UseStatusCodePagesWithReExecute("/error/{0}");
 
 app.UseStaticFiles();
 

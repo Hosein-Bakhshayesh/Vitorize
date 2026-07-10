@@ -1,12 +1,62 @@
-<a class="st-logo" href="@Href">
-    <img class="st-logo__img" src="images/logo.png" alt="ویتورایز" />
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject MediaUrlResolver Media
+
+<a class="st-logo" href="@Href" aria-label="@_alt">
+    <img class="st-logo__img @(_hasDark ? "st-logo__img--light" : null)" src="@_src" alt="@_alt" />
+    @if (_hasDark)
+    {
+        <img class="st-logo__img st-logo__img--dark" src="@_darkSrc" alt="@_alt" />
+    }
     @if (ShowWord)
     {
-        <span class="st-logo__word">VITORIZE</span>
+        <span class="st-logo__word">@_word</span>
     }
 </a>
 
 @code {
     [Parameter] public string Href { get; set; } = "/";
     [Parameter] public bool ShowWord { get; set; } = true;
+    /// <summary>header | footer | small — کدام لوگو از تنظیمات استفاده شود.</summary>
+    [Parameter] public string Variant { get; set; } = "header";
+
+    private const string DefaultLogo = "images/logo.png";
+    private string _src = DefaultLogo;
+    private string _darkSrc = DefaultLogo;
+    private bool _hasDark;
+    private string _alt = "ویتورایز";
+    private string _word = "ویتورایز";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var b = await Branding.GetAsync();
+
+        if (!string.IsNullOrWhiteSpace(b.SiteName))
+        {
+            _alt = b.SiteName;
+            _word = b.SiteName;
+        }
+
+        var path = Variant switch
+        {
+            "footer" => b.FooterLogoPath,
+            "small" => FirstNonEmpty(b.LogoSmallPath, b.LogoPath, b.SiteLogoPath),
+            _ => b.HeaderLogoPath
+        };
+
+        if (!string.IsNullOrWhiteSpace(path))
+            _src = Media.Resolve(path);
+
+        if (!string.IsNullOrWhiteSpace(b.LogoDarkPath))
+        {
+            _darkSrc = Media.Resolve(b.LogoDarkPath);
+            _hasDark = true;
+        }
+    }
+
+    private static string FirstNonEmpty(params string[] values)
+    {
+        foreach (var v in values)
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        return string.Empty;
+    }
 }

@@ -1,0 +1,40 @@
+@inject MediaUrlResolver Media
+
+@if (!string.IsNullOrWhiteSpace(Path))
+{
+    <img class="st-mascot @Class" src="@Media.Resolve(Path)" alt="@Alt" />
+}
+else
+{
+    <svg class="st-mascot st-mascot--svg @Class" viewBox="0 0 512 512" fill="none"
+         role="img" aria-label="@Alt" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="vzMascotG" x1="80" y1="120" x2="440" y2="496" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#5EEAD4" />
+                <stop offset="0.55" stop-color="#2DD4BF" />
+                <stop offset="1" stop-color="#10B981" />
+            </linearGradient>
+        </defs>
+        <path d="M132 96 Q248 24 392 92" stroke="#CBD5E1" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.7" />
+        <path d="M176 118 Q262 70 356 116" stroke="#CBD5E1" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.45" />
+        <g class="st-mascot__sparks" fill="#FCD34D" stroke="#F59E0B" stroke-width="4" stroke-linejoin="round">
+            <path d="M150 26 L159 55 L188 64 L159 73 L150 102 L141 73 L112 64 L141 55 Z" />
+            <path d="M276 14 L283 38 L307 45 L283 52 L276 76 L269 52 L245 45 L269 38 Z" />
+            <path d="M252 104 L257 122 L275 127 L257 132 L252 150 L247 132 L229 127 L247 122 Z" />
+            <path d="M392 44 L399 68 L423 75 L399 82 L392 106 L385 82 L361 75 L385 68 Z" />
+        </g>
+        <rect x="48" y="112" width="416" height="384" rx="60" fill="url(#vzMascotG)" />
+        <g stroke="#0B3B49" stroke-width="24" stroke-linecap="round">
+            <path d="M140 268 L206 334" /><path d="M206 268 L140 334" />
+            <path d="M306 268 L372 334" /><path d="M372 268 L306 334" />
+        </g>
+        <rect x="242" y="392" width="28" height="28" rx="8" fill="#0B3B49" />
+    </svg>
+}
+
+@code {
+    /// <summary>مسیر تصویر از تنظیمات؛ خالی = ماسکات SVG پیش‌فرض.</summary>
+    [Parameter] public string? Path { get; set; }
+    [Parameter] public string Alt { get; set; } = "ویتورایز";
+    [Parameter] public string? Class { get; set; }
+}

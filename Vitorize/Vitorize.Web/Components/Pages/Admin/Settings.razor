@@ -1,82 +1,209 @@
 @page "/admin/settings"
+@using Vitorize.Web.Helpers
+@using Vitorize.Web.Models.Admin.Settings
 @inject ApiClient Api
 @inject ToastService Toasts
 
-<PageHeader Title="تنظیمات سیستم" Subtitle="پیکربندی پارامترهای فروشگاه"
+<PageHeader Title="تنظیمات فروشگاه" Subtitle="پیکربندی کامل برند، ظاهر و رفتار فروشگاه"
             Icon="settings" Breadcrumbs="@(new(){ ("تنظیمات", null) })">
     <Actions>
-        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <div class="vz-input-group" style="min-width:220px">
+            <input class="vz-input" placeholder="جستجوی تنظیمات..." @bind="_search" @bind:event="oninput" />
+            <span class="suffix"><Icon Name="search" Size="15" /></span>
+        </div>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بازخوانی</button>
     </Actions>
 </PageHeader>
 
 @if (_loading) { <LoadingState /> }
 else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
-else if (_groups.Count == 0) { <EmptyState Title="تنظیماتی ثبت نشده است" Icon="settings" /> }
+else if (_all.Count == 0) { <EmptyState Title="تنظیماتی ثبت نشده است" Icon="settings" /> }
+else if (!string.IsNullOrWhiteSpace(_search))
+{
+    <div class="vz-card">
+        <div class="vz-card__body">
+            @{ var results = Search(_search); }
+            @if (results.Count == 0)
+            {
+                <EmptyState Title="نتیجه‌ای یافت نشد" Message="@($"موردی برای «{_search}» پیدا نشد.")" Icon="search" />
+            }
+            else
+            {
+                <div class="vz-setgroup__title">@results.Count مورد یافت شد</div>
+                @foreach (var s in results) { @Field(s) }
+            }
+        </div>
+    </div>
+}
 else
 {
-    <div class="vz-stack">
-        @foreach (var group in _groups)
-        {
+    <div class="vz-settings">
+        <nav class="vz-settabs">
+            @foreach (var t in Tabs)
+            {
+                var count = SettingsForTab(t).Count;
+                <button class="vz-settab @(t.Key == _active ? "active" : null)" @onclick="() => _active = t.Key">
+                    <span class="vz-settab__ic"><Icon Name="@t.Icon" Size="16" /></span>
+                    <span>@t.Title</span>
+                    @if (count > 0) { <span class="vz-settab__count">@count</span> }
+                </button>
+            }
+        </nav>
+
+        <div>
+            @{ var tab = Tabs.First(x => x.Key == _active); var items = SettingsForTab(tab); }
             <div class="vz-card">
                 <div class="vz-card__head">
-                    <Icon Name="settings" Size="18" />
-                    <div><div class="vz-card__title">@(string.IsNullOrWhiteSpace(group.Title) ? group.GroupName : group.Title)</div></div>
-                </div>
-                <div class="vz-card__body">
-                    <div class="vz-stack" style="gap:14px">
-                        @foreach (var s in Items(group))
-                        {
-                            <div class="vz-spread" style="gap:16px">
-                                <div style="flex:1">
-                                    <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
-                                    <div class="vz-hint vz-mono">@s.Key</div>
-                                </div>
-                                <div style="flex:1;display:flex;gap:8px">
-                                    @if (string.Equals(s.ValueType, "bool", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <label class="vz-switch">
-                                            <input type="checkbox" checked="@IsTrue(s.Value)" @onchange='e => s.Value = ((bool)e.Value! ? "true" : "false")' />
-                                            <span class="vz-switch__track"></span>
-                                        </label>
-                                    }
-                                    else
-                                    {
-                                        <input class="vz-input" @bind="s.Value" />
-                                    }
-                                    <button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="() => Save(s)" disabled="@_saving">
-                                        <Icon Name="save" Size="14" /> ذخیره
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="vz-divider" style="margin:0"></div>
-                        }
+                    <div class="vz-section__badge"><Icon Name="@tab.Icon" Size="17" /></div>
+                    <div>
+                        <div class="vz-card__title">@tab.Title</div>
+                        <div class="vz-hint">@tab.Desc</div>
                     </div>
                 </div>
+                <div class="vz-card__body">
+                    @if (items.Count == 0)
+                    {
+                        <EmptyState Title="موردی در این بخش نیست" Icon="@tab.Icon" />
+                    }
+                    else
+                    {
+                        foreach (var grp in items.GroupBy(x => x.GroupName ?? "").OrderBy(g => GroupOrder(tab, g.Key)))
+                        {
+                            @if (tab.Groups.Length > 1 && GroupLabels.TryGetValue(grp.Key, out var gl))
+                            {
+                                <div class="vz-setgroup__title">@gl</div>
+                            }
+                            foreach (var s in Ordered(grp)) { @Field(s) }
+                        }
+                    }
+                </div>
             </div>
-        }
+
+            @if (_dirty.Count > 0)
+            {
+                <div class="vz-savebar">
+                    <span class="vz-savebar__hint"><Icon Name="alert" Size="15" /> @_dirty.Count تغییر ذخیره‌نشده دارید</span>
+                    <div style="display:flex;gap:10px">
+                        <button class="vz-btn vz-btn--ghost" @onclick="Discard" disabled="@_saving"><Icon Name="x" Size="15" /> انصراف</button>
+                        <button class="vz-btn vz-btn--primary" @onclick="SaveAll" disabled="@_saving">
+                            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="15" /> }
+                            ذخیره همه تغییرات
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 }
 
 @code {
     private bool _loading = true, _saving;
     private string? _error;
+    private string _search = "";
+    private string _active = "general";
     private List<SettingGroupModel> _groups = new();
+    private List<SettingModel> _all = new();
+    private readonly HashSet<string> _dirty = new();
+    private readonly HashSet<string> _justSaved = new();
+
+    private sealed record TabDef(string Key, string Title, string Icon, string Desc, string[] Groups);
+
+    private static readonly TabDef[] Tabs =
+    {
+        new("general",  "عمومی",           "settings",     "نام، توضیح و وضعیت کلی فروشگاه", new[] { "General", "Features" }),
+        new("branding", "برند",             "palette",      "شعار، لوگوی اصلی و رنگ برند", new[] { "Branding" }),
+        new("logos",    "لوگو و تصاویر",    "image",        "لوگوها، فاوآیکون، تصاویر اشتراک‌گذاری و ماسکات", new[] { "Logos" }),
+        new("seo",      "سئو",              "search",       "عنوان، توضیح و کلمات کلیدی پیش‌فرض", new[] { "SEO" }),
+        new("homepage", "صفحه اصلی",        "grid",         "Hero، خبرنامه، درباره ما و نشان‌های اعتماد", new[] { "Homepage", "About", "Trust" }),
+        new("footer",   "فوتر",             "layout",       "متن و توضیحات فوتر", new[] { "Footer" }),
+        new("social",   "شبکه‌های اجتماعی", "share",        "لینک شبکه‌های اجتماعی", new[] { "Social" }),
+        new("contact",  "تماس و پشتیبانی",  "headphones",   "ایمیل، تلفن، آدرس و ساعات کاری", new[] { "Contact", "Support" }),
+        new("texts",    "متن‌ها و پیام‌ها", "message",      "متن حالت‌های خالی و صفحات خطا", new[] { "Empty", "Errors" }),
+        new("email",    "ایمیل",            "mail",         "پیکربندی SMTP", new[] { "Email" }),
+        new("payment",  "پرداخت",           "credit-card",  "درگاه پرداخت زرین‌پال", new[] { "Payment" }),
+        new("security", "امنیت",            "shield",       "قوانین ورود و رمز عبور", new[] { "Security" }),
+        new("uploads",  "آپلودها",          "upload",       "محدودیت حجم و فرمت تصاویر", new[] { "Uploads" }),
+        new("notif",    "اعلان‌ها",          "bell",         "پیامک و اعلان‌ها", new[] { "SMS" }),
+        new("advanced", "پیشرفته",          "code",         "اسکریپت‌ها، کیف پول و موارد متفرقه", new[] { "Scripts", "Wallet" }),
+    };
+
+    private static readonly Dictionary<string, string> GroupLabels = new()
+    {
+        ["Homepage"] = "بخش Hero و خبرنامه", ["About"] = "درباره ما", ["Trust"] = "نشان‌های اعتماد و ویژگی‌ها",
+        ["Empty"] = "متن حالت‌های خالی", ["Errors"] = "متن صفحات خطا",
+        ["Contact"] = "اطلاعات تماس", ["Support"] = "پشتیبانی",
+        ["Scripts"] = "اسکریپت سفارشی", ["Wallet"] = "کیف پول",
+    };
+
+    // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
+    private static readonly string[] FieldOrder =
+    {
+        "SiteName", "SiteDescription", "SiteTagline",
+        "HeroKicker", "HeroTitle", "HeroSubtitle", "HeroCtaText", "HeroCtaUrl", "HeroSecondaryCtaText", "HeroSecondaryCtaUrl",
+        "NewsletterTitle", "NewsletterSubtitle", "NewsletterPlaceholder", "NewsletterCtaText",
+        "MetaTitle", "MetaDescription", "MetaKeywords", "SeoTitleTemplate",
+        "LogoPath", "LogoDarkPath", "LogoSmallPath", "HeaderLogoPath", "FooterLogoPath",
+        "FaviconPath", "AppleTouchIconPath", "OgImagePath", "TwitterImagePath", "SocialPreviewImagePath",
+        "HeroBackgroundPath", "Error404IllustrationPath", "Error500IllustrationPath", "MaintenanceIllustrationPath", "EmptyStateIllustrationPath",
+    };
+
+    private static readonly HashSet<string> Assigned = new(
+        Tabs.Where(t => t.Key != "advanced").SelectMany(t => t.Groups).Concat(new[] { "Scripts", "Wallet" }),
+        StringComparer.OrdinalIgnoreCase);
 
     protected override Task OnInitializedAsync() => Load();
 
     private async Task Load()
     {
-        _loading = true; _error = null;
+        _loading = true; _error = null; _dirty.Clear(); _justSaved.Clear();
         var r = await Api.GetAsync<List<SettingGroupModel>>("admin/settings");
-        if (r.IsSuccess && r.Data is not null) _groups = r.Data;
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _groups = r.Data;
+            _all = _groups.SelectMany(g => g.Settings.Count > 0 ? g.Settings : g.Items).ToList();
+        }
         else _error = r.Message;
         _loading = false;
     }
 
-    private static List<SettingModel> Items(SettingGroupModel g) => g.Settings.Count > 0 ? g.Settings : g.Items;
-    private static bool IsTrue(string? v) => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || v == "1";
+    private List<SettingModel> SettingsForTab(TabDef tab)
+    {
+        if (tab.Key == "advanced")
+            return _all.Where(s => IsIn(s, tab.Groups) || (s.GroupName != null && !Assigned.Contains(s.GroupName))).ToList();
+        return _all.Where(s => IsIn(s, tab.Groups)).ToList();
+    }
 
-    private async Task Save(SettingModel s)
+    private static bool IsIn(SettingModel s, string[] groups) =>
+        s.GroupName != null && groups.Any(g => string.Equals(g, s.GroupName, StringComparison.OrdinalIgnoreCase));
+
+    private List<SettingModel> Search(string q)
+    {
+        q = q.Trim();
+        return _all.Where(s =>
+                (s.Key?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (s.Description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (s.Value?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(s => s.Key).Take(40).ToList();
+    }
+
+    private static int GroupOrder(TabDef tab, string group)
+    {
+        var idx = Array.FindIndex(tab.Groups, g => string.Equals(g, group, StringComparison.OrdinalIgnoreCase));
+        return idx < 0 ? 999 : idx;
+    }
+
+    private static IEnumerable<SettingModel> Ordered(IEnumerable<SettingModel> items) =>
+        items.OrderBy(s => { var i = Array.IndexOf(FieldOrder, s.Key); return i < 0 ? 999 : i; })
+             .ThenBy(s => s.Key);
+
+    private void MarkDirty(SettingModel s)
+    {
+        if (s.Key is null) return;
+        _dirty.Add(s.Key);
+        _justSaved.Remove(s.Key);
+    }
+
+    private async Task SaveKey(SettingModel s)
     {
         _saving = true;
         var r = await Api.PostAsync<SettingModel>("admin/settings",
@@ -84,10 +211,129 @@ else
         _saving = false;
         if (r.IsSuccess)
         {
-            // برندینگ فروشگاه از همین تنظیمات تغذیه می‌شود؛ کش باید تازه شود.
+            _dirty.Remove(s.Key);
+            _justSaved.Add(s.Key);
             Vitorize.Web.Services.UI.StoreBrandingService.Invalidate();
-            Toasts.Success("تنظیمات ذخیره شد.");
         }
         else Toasts.Error(r.Message);
     }
+
+    private async Task SaveAll()
+    {
+        var pending = _all.Where(s => _dirty.Contains(s.Key)).ToList();
+        _saving = true;
+        var ok = 0;
+        foreach (var s in pending)
+        {
+            var r = await Api.PostAsync<SettingModel>("admin/settings",
+                new { s.Key, s.Value, s.GroupName, s.ValueType, s.Description });
+            if (r.IsSuccess) { _dirty.Remove(s.Key); _justSaved.Add(s.Key); ok++; }
+        }
+        _saving = false;
+        Vitorize.Web.Services.UI.StoreBrandingService.Invalidate();
+        if (ok > 0) Toasts.Success($"{ok} تنظیم ذخیره شد.");
+        if (ok < pending.Count) Toasts.Error("برخی تنظیمات ذخیره نشدند.");
+    }
+
+    private Task Discard() => Load();
+
+    private async Task OnImageChanged(SettingModel s, string? path)
+    {
+        s.Value = path;
+        await SaveKey(s); // تصاویر بلافاصله ذخیره می‌شوند تا پیش‌نمایش با واقعیت هماهنگ بماند.
+    }
+
+    private async Task OnToggle(SettingModel s, bool value)
+    {
+        s.Value = value ? "true" : "false";
+        await SaveKey(s); // سوییچ‌ها فوری ذخیره می‌شوند.
+    }
+
+    private static bool IsTrue(string? v) => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || v == "1";
+
+    private static bool IsMultiline(SettingModel s)
+    {
+        if (string.Equals(s.ValueType, "json", StringComparison.OrdinalIgnoreCase)) return true;
+        var k = s.Key ?? "";
+        if (k.Contains("Description") || k.Contains("Subtitle") || k.Contains("Message") || k.Contains("Html") || k.Contains("About")) return true;
+        return (s.Value?.Length ?? 0) > 55;
+    }
+
+    private RenderFragment Field(SettingModel s) =>
+        @<div class="vz-setfield" @key="s.Key">
+            <div class="vz-setfield__meta">
+                <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
+                <div class="vz-setfield__key">@s.Key</div>
+            </div>
+            <div class="vz-setfield__ctl">
+                @switch (s.ValueType?.ToLowerInvariant())
+                {
+                    case "bool":
+                        <label class="vz-switch">
+                            <input type="checkbox" checked="@IsTrue(s.Value)"
+                                   @onchange="e => OnToggle(s, (bool)e.Value!)" disabled="@_saving" />
+                            <span class="vz-switch__track"></span>
+                            <span class="vz-switch__label">@(IsTrue(s.Value) ? "فعال" : "غیرفعال")</span>
+                        </label>
+                        break;
+
+                    case "image":
+                        <UploadBox Value="@s.Value" Endpoint="admin/uploads/settings-image"
+                                   ValueChanged="v => OnImageChanged(s, v)" Label="آپلود تصویر" />
+                        <ImageGuideline Spec="ImageSpecs.ForKey(s.Key)" />
+                        break;
+
+                    case "color":
+                        <div class="vz-colorfield">
+                            <input type="color" value="@(string.IsNullOrWhiteSpace(s.Value) ? "#0a8276" : s.Value)"
+                                   @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                            <input class="vz-input" placeholder="#0a8276" value="@s.Value"
+                                   @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                            @SaveInline(s)
+                        </div>
+                        break;
+
+                    case "int":
+                    case "decimal":
+                        <div class="vz-setfield__row">
+                            <input class="vz-input" type="number" value="@s.Value"
+                                   @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                            @SaveInline(s)
+                        </div>
+                        break;
+
+                    default:
+                        @if (IsMultiline(s))
+                        {
+                            <textarea class="vz-textarea" rows="3" value="@s.Value"
+                                      @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }"></textarea>
+                            <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
+                        }
+                        else
+                        {
+                            <div class="vz-setfield__row">
+                                <input class="vz-input" value="@s.Value"
+                                       @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                                @SaveInline(s)
+                            </div>
+                        }
+                        break;
+                }
+            </div>
+        </div>;
+
+    private RenderFragment SaveInline(SettingModel s) =>
+        @<span class="vz-setfield__save">
+            @if (_justSaved.Contains(s.Key) && !_dirty.Contains(s.Key))
+            {
+                <span class="vz-saved-tick"><Icon Name="check" Size="14" /> ذخیره شد</span>
+            }
+            else
+            {
+                <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => SaveKey(s)"
+                        disabled="@(_saving || !_dirty.Contains(s.Key))" title="ذخیره">
+                    <Icon Name="save" Size="14" />
+                </button>
+            }
+        </span>;
 }

@@ -81,11 +81,13 @@
                 <div class="vz-field">
                     <label class="vz-label">تصویر اصلی (دسکتاپ) <span class="req">*</span></label>
                     <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر بنر" Endpoint="admin/uploads/banner-image" />
+                    <ImageGuideline Spec="ImageSpecs.BannerDesktop" />
                     <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">تصویر موبایل</label>
                     <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" Endpoint="admin/uploads/banner-image" />
+                    <ImageGuideline Spec="ImageSpecs.BannerMobile" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>

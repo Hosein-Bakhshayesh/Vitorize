@@ -1,15 +1,58 @@
 @inherits LayoutComponentBase
 @using Vitorize.Web.Components.Storefront
+@using Vitorize.Web.Helpers
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 
-<div class="st-shell">
-    <StoreHeader />
-    <main class="st-main">
-        <div class="st-container">
-            @Body
-        </div>
-    </main>
-    <StoreFooter />
-    <StoreBottomNav />
-</div>
+@if (_maintenance)
+{
+    <div class="st-shell">
+        <main class="st-main">
+            <div class="st-container"><StoreState Info="_info" /></div>
+        </main>
+    </div>
+}
+else
+{
+    <div class="st-shell">
+        <StoreHeader />
+        <main class="st-main">
+            <div class="st-container">
+                @Body
+            </div>
+        </main>
+        <StoreFooter />
+        <StoreBottomNav />
+    </div>
+}
 
 <ToastHost />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private bool _maintenance;
+    private ErrorStateInfo _info =
+        ErrorStates.Resolve("503", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var b = await Branding.GetAsync();
+        if (!b.MaintenanceMode) return;
+
+        var isAdmin = false;
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            isAdmin = state.User.IsInRole("Admin") || state.User.IsInRole("SuperAdmin");
+        }
+
+        if (!isAdmin)
+        {
+            _maintenance = true;
+            _info = ErrorStates.Resolve("503", b) with
+            {
+                Message = b.Get("MaintenanceMessage", b.Get("Error503Text", "سایت موقتاً در دسترس نیست."))
+            };
+        }
+    }
+}

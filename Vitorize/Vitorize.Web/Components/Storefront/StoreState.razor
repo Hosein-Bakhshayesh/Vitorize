@@ -1,0 +1,62 @@
+@using Vitorize.Web.Helpers
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="st-errpage @Class">
+    <div class="st-errpage__art">
+        <Mascot Path="@Info.IllustrationPath" Alt="@Info.Title" />
+        @if (!string.IsNullOrWhiteSpace(Info.CodeDisplay))
+        {
+            <span class="st-errpage__code">@Info.CodeDisplay</span>
+        }
+    </div>
+    <h1 class="st-errpage__title">@Info.Title</h1>
+    @if (!string.IsNullOrWhiteSpace(Info.Message))
+    {
+        <p class="st-errpage__msg">@Info.Message</p>
+    }
+    @if (ExtraContent is not null)
+    {
+        <div class="st-errpage__extra">@ExtraContent</div>
+    }
+    @if (Info.Actions.Length > 0)
+    {
+        <div class="st-errpage__actions">
+            @for (var i = 0; i < Info.Actions.Length; i++)
+            {
+                @Action(Info.Actions[i], i == 0)
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ErrorStateInfo Info { get; set; } = default!;
+    [Parameter] public RenderFragment? ExtraContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private RenderFragment Action(string key, bool primary)
+    {
+        var cls = primary ? "st-btn st-btn--primary st-btn--lg" : "st-btn st-btn--outline st-btn--lg";
+        return key switch
+        {
+            "home"       => @<a class="@cls" href="/"><Icon Name="home" Size="18" /> صفحه اصلی</a>,
+            "shop"       => @<a class="@cls" href="/shop"><Icon Name="shopping-bag" Size="18" /> فروشگاه</a>,
+            "search"     => @<a class="@cls" href="/search"><Icon Name="search" Size="18" /> جستجو</a>,
+            "categories" => @<a class="@cls" href="/categories"><Icon Name="grid" Size="18" /> دسته‌بندی‌ها</a>,
+            "login"      => @<a class="@cls" href="/login"><Icon Name="log-in" Size="18" /> ورود به حساب</a>,
+            "contact"    => @<a class="@cls" href="/customer/tickets"><Icon Name="headphones" Size="18" /> تماس با پشتیبانی</a>,
+            "retry"      => @<button class="@cls" @onclick="Retry"><Icon Name="refresh" Size="18" /> تلاش دوباره</button>,
+            "back"       => @<button class="@cls" @onclick="Back"><Icon Name="arrow-right" Size="18" /> بازگشت</button>,
+            _            => @<text></text>
+        };
+    }
+
+    private void Retry() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+
+    private async Task Back()
+    {
+        try { await JS.InvokeVoidAsync("history.back"); }
+        catch { Nav.NavigateTo("/"); }
+    }
+}

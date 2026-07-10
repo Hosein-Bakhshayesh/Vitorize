@@ -1,4 +1,6 @@
 @inject IConfiguration Configuration
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject MediaUrlResolver Media
 
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -8,8 +10,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <base href="/" />
-    <title>ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین</title>
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <title>@_b.PageTitle()</title>
+    @if (!string.IsNullOrWhiteSpace(_b.MetaDescription))
+    {
+        <meta name="description" content="@_b.MetaDescription" />
+    }
+    @if (!string.IsNullOrWhiteSpace(_b.MetaKeywords))
+    {
+        <meta name="keywords" content="@_b.MetaKeywords" />
+    }
+
+    <link rel="icon" href="@_favicon" />
+    @if (!string.IsNullOrWhiteSpace(_appleIcon))
+    {
+        <link rel="apple-touch-icon" href="@_appleIcon" />
+    }
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="@_b.SiteName" />
+    <meta property="og:title" content="@_b.PageTitle()" />
+    <meta property="og:description" content="@_b.MetaDescription" />
+    @if (!string.IsNullOrWhiteSpace(_ogImage))
+    {
+        <meta property="og:image" content="@_ogImage" />
+    }
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@_b.PageTitle()" />
+    <meta name="twitter:description" content="@_b.MetaDescription" />
+    @if (!string.IsNullOrWhiteSpace(_twitterImage))
+    {
+        <meta name="twitter:image" content="@_twitterImage" />
+    }
+
     <script>
         (function () {
             try {
@@ -23,12 +55,28 @@
     </script>
     <link rel="stylesheet" href="css/admin.css?v=@AssetVersion" />
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
+
+    @if (!string.IsNullOrWhiteSpace(_b.GoogleAnalyticsId))
+    {
+        <script async src="https://www.googletagmanager.com/gtag/js?id=@_b.GoogleAnalyticsId"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() { dataLayer.push(arguments); }
+            gtag('js', new Date());
+            gtag('config', '@_b.GoogleAnalyticsId');
+        </script>
+    }
+    @if (!string.IsNullOrWhiteSpace(_b.CustomHeadHtml))
+    {
+        @((MarkupString)_b.CustomHeadHtml)
+    }
+
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
 <body>
     <div id="vz-initial-loader" class="vz-splash">
-        <div class="vz-splash-mark"><img src="images/logo.png" alt="Vitorize" /></div>
+        <div class="vz-splash-mark"><img src="@_logoSrc" alt="@_b.SiteName" /></div>
         <div class="vz-spinner"></div>
     </div>
 
@@ -43,6 +91,10 @@
     <script src="_framework/blazor.web.js"></script>
     <script src="js/admin.js"></script>
     <script src="js/storefront-theme.js"></script>
+    @if (!string.IsNullOrWhiteSpace(_b.CustomFooterHtml))
+    {
+        @((MarkupString)_b.CustomFooterHtml)
+    }
 </body>
 
 </html>
@@ -52,6 +104,26 @@
         new InteractiveServerRenderMode(prerender: false);
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
-    // so browsers fetch the new CSS (e.g. the Vazirmatn font migration) instead of a stale copy.
-    private const string AssetVersion = "20260707-vazirmatn";
+    // so browsers fetch the new CSS instead of a stale copy.
+    private const string AssetVersion = "20260708-uiux";
+
+    private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
+    private string _favicon = "favicon.ico";
+    private string _logoSrc = "images/logo.png";
+    private string? _appleIcon, _ogImage, _twitterImage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // برندینگ عمومی از API خوانده می‌شود (کش استاتیک ۲ دقیقه‌ای)؛ در صورت خطا پیش‌فرض‌ها استفاده می‌شوند.
+        _b = await Branding.GetAsync();
+
+        if (!string.IsNullOrWhiteSpace(_b.FaviconPath)) _favicon = Media.Resolve(_b.FaviconPath);
+        if (!string.IsNullOrWhiteSpace(_b.AppleTouchIconPath)) _appleIcon = Media.Resolve(_b.AppleTouchIconPath);
+        if (!string.IsNullOrWhiteSpace(_b.OgImagePath)) _ogImage = Media.Resolve(_b.OgImagePath);
+        if (!string.IsNullOrWhiteSpace(_b.TwitterImagePath)) _twitterImage = Media.Resolve(_b.TwitterImagePath);
+
+        var logo = _b.LogoPath;
+        if (string.IsNullOrWhiteSpace(logo)) logo = _b.SiteLogoPath;
+        if (!string.IsNullOrWhiteSpace(logo)) _logoSrc = Media.Resolve(logo);
+    }
 }

@@ -4,17 +4,34 @@
     <div class="st-container">
         <div class="st-footer__main">
             <div class="st-footer__brand">
-                <StoreLogo />
+                <StoreLogo Variant="footer" />
                 <p>@_b.FooterDescription</p>
+                @if (!string.IsNullOrWhiteSpace(_b.FooterText))
+                {
+                    <p class="st-footer__note">@_b.FooterText</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_b.ContactAddress) || !string.IsNullOrWhiteSpace(_b.WorkingHours))
+                {
+                    <div class="st-footer__contact">
+                        @if (!string.IsNullOrWhiteSpace(_b.ContactAddress))
+                        {
+                            <span><Icon Name="map-pin" Size="15" /> @_b.ContactAddress</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_b.WorkingHours))
+                        {
+                            <span><Icon Name="clock" Size="15" /> @_b.WorkingHours</span>
+                        }
+                    </div>
+                }
                 <div class="st-socials">
-                    @if (!string.IsNullOrWhiteSpace(_b.InstagramUrl))
-                    {
-                        <a href="@_b.InstagramUrl" target="_blank" rel="noopener" title="اینستاگرام"><Icon Name="instagram" Size="18" /></a>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(_b.TelegramUrl))
-                    {
-                        <a href="@_b.TelegramUrl" target="_blank" rel="noopener" title="تلگرام"><Icon Name="send" Size="18" /></a>
-                    }
+                    @Social(_b.InstagramUrl, "instagram", "اینستاگرام")
+                    @Social(_b.TelegramUrl, "send", "تلگرام")
+                    @Social(_b.WhatsAppUrl, "message-circle", "واتساپ")
+                    @Social(_b.XUrl, "twitter", "X")
+                    @Social(_b.LinkedInUrl, "linkedin", "لینکدین")
+                    @Social(_b.YouTubeUrl, "youtube", "یوتیوب")
+                    @Social(_b.DiscordUrl, "message-circle", "دیسکورد")
+                    @Social(_b.FacebookUrl, "facebook", "فیسبوک")
                     @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
                     {
                         <a href="tel:@_b.SupportPhone" title="تماس"><Icon Name="phone" Size="18" /></a>
@@ -62,4 +79,9 @@
     {
         _b = await Branding.GetAsync();
     }
+
+    private RenderFragment Social(string url, string icon, string title) =>
+        string.IsNullOrWhiteSpace(url)
+            ? _ => { }
+            : @<a href="@url" target="_blank" rel="noopener" title="@title"><Icon Name="@icon" Size="18" /></a>;
 }

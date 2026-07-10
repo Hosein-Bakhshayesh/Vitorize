@@ -768,6 +768,9 @@
 .st-logo__mark { width: 38px; height: 38px; border-radius: 11px; background: var(--st-grad); color: var(--st-on-grad); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: var(--st-glow); }
 .st-logo__img { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(13, 148, 136, 0.25)); }
 :root[data-theme="dark"] .st-logo__img { filter: drop-shadow(0 0 12px rgba(45, 212, 191, 0.45)); }
+.st-logo__img--dark { display: none; }
+:root[data-theme="dark"] .st-logo__img--light { display: none; }
+:root[data-theme="dark"] .st-logo__img--dark { display: block; }
 .st-logo__word { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
 .st-nav { display: flex; align-items: center; gap: 4px; }
 .st-nav a { padding: 9px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--st-text-2); transition: all var(--st-t-fast) var(--st-ease); }
@@ -980,6 +983,9 @@
 :root[data-theme="dark"] .st-footer { background: #0A121C; }
 .st-footer__main { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 26px; padding: 44px 0 30px; }
 .st-footer__brand p { color: var(--st-muted); font-size: 13px; line-height: 2; margin-top: 12px; max-width: 280px; }
+.st-footer__note { font-size: 12.5px !important; color: var(--st-text-2) !important; }
+.st-footer__contact { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.st-footer__contact span { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--st-muted); }
 .st-footer__col h4 { font-size: 14px; margin-bottom: 14px; }
 .st-footer__col a { display: block; color: var(--st-text-2); font-size: 13px; padding: 5px 0; transition: color var(--st-t-fast) var(--st-ease); }
 .st-footer__col a:hover { color: var(--st-primary); }
@@ -1077,6 +1083,16 @@
     transition: transform var(--st-t-fast) var(--st-ease), box-shadow var(--st-t-fast) var(--st-ease);
 }
 .st-hslide__cta:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(45,212,191,0.45); }
+.st-hslide__ctas { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.st-hslide__cta2 {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 24px; border-radius: var(--st-clip-btn);
+    background: var(--st-surface-2); color: var(--st-text); font-weight: 700; font-size: 14px;
+    border: 1px solid var(--st-border); text-decoration: none;
+    transition: transform var(--st-t-fast) var(--st-ease), border-color var(--st-t-fast) var(--st-ease);
+}
+.st-hslide__cta2:hover { transform: translateY(-2px); border-color: var(--st-primary); color: var(--st-primary); }
+.st-hslide.enter .st-hslide__ctas { animation: st-reveal 550ms var(--st-ease) 180ms both; }
 .st-hslide.enter .st-hslide__kicker { animation: st-reveal 500ms var(--st-ease) both; }
 .st-hslide.enter .st-hslide__title { animation: st-reveal 550ms var(--st-ease) 60ms both; }
 .st-hslide.enter .st-hslide__sub { animation: st-reveal 550ms var(--st-ease) 120ms both; }
@@ -1451,3 +1467,55 @@
 .st-secure { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11.5px; color: var(--st-muted); margin-top: 12px; }
 .st-delivery-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--st-text-2); padding: 12px 14px; border-radius: var(--st-clip-media); background: var(--st-primary-soft); margin-top: 12px; }
 .st-delivery-note .ic { color: var(--st-primary); flex-shrink: 0; }
+
+/* ==========================================================================
+   Branded error / empty-state pages (F4) — mascot-driven
+   ========================================================================== */
+.st-errpage {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 8px; padding: 64px 22px 72px; max-width: 560px; margin: 0 auto;
+}
+.st-errpage__art { position: relative; margin-bottom: 14px; display: flex; justify-content: center; }
+.st-mascot {
+    width: clamp(150px, 42vw, 224px); height: auto; display: block;
+    filter: drop-shadow(0 22px 40px rgba(13, 148, 136, 0.28));
+    animation: st-float 4.5s ease-in-out infinite;
+}
+:root[data-theme="dark"] .st-mascot { filter: drop-shadow(0 22px 44px rgba(45, 212, 191, 0.30)); }
+.st-mascot--svg .st-mascot__sparks path { transform-box: fill-box; transform-origin: center; animation: st-twinkle 2.6s ease-in-out infinite; }
+.st-mascot--svg .st-mascot__sparks path:nth-child(2) { animation-delay: 0.5s; }
+.st-mascot--svg .st-mascot__sparks path:nth-child(3) { animation-delay: 1s; }
+.st-mascot--svg .st-mascot__sparks path:nth-child(4) { animation-delay: 1.5s; }
+.st-errpage__code {
+    position: absolute; inset-inline-end: -6px; bottom: -10px;
+    font-size: clamp(44px, 12vw, 76px); font-weight: 900; line-height: 1;
+    background: var(--st-grad-accent); -webkit-background-clip: text; background-clip: text; color: transparent;
+    opacity: 0.9; letter-spacing: -2px; pointer-events: none;
+}
+.st-errpage__title { font-size: clamp(22px, 5vw, 30px); font-weight: 800; margin-top: 6px; }
+.st-errpage__msg { color: var(--st-muted); font-size: 15px; line-height: 2; max-width: 440px; }
+.st-errpage__extra { width: 100%; margin: 4px 0; }
+.st-errpage__actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 18px; }
+.st-errpage .st-mascot, .st-errpage__title, .st-errpage__msg, .st-errpage__actions { animation: st-reveal 600ms var(--st-ease) both; }
+.st-errpage__title { animation-delay: 60ms; }
+.st-errpage__msg { animation-delay: 120ms; }
+.st-errpage__actions { animation-delay: 180ms; }
+.st-errpage .st-mascot { animation: st-float 4.5s ease-in-out infinite, st-reveal 600ms var(--st-ease) both; }
+
+/* Inline (in-card) empty state variant — smaller mascot, no page padding */
+.st-errpage--inline { padding: 40px 18px; max-width: 420px; }
+.st-errpage--inline .st-mascot { width: clamp(110px, 30vw, 150px); }
+
+@keyframes st-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+}
+@keyframes st-twinkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.82); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .st-mascot, .st-errpage .st-mascot, .st-mascot--svg .st-mascot__sparks path { animation: none !important; }
+}
+.st-empty__mascot { width: clamp(104px, 26vw, 148px) !important; height: auto; margin: 0 auto 8px; }

@@ -106,26 +106,155 @@ namespace Vitorize.Infrastructure.Services
         {
             var settings = new[]
             {
+                // ───────────── General ─────────────
                 S("SiteName", "ویتورایز", "General", "string", "نام فروشگاه"),
                 S("SiteDescription", "فروشگاه گیفت کارت و سرویس‌های دیجیتال", "General", "string", "توضیح کوتاه فروشگاه"),
+                S("MaintenanceMode", "false", "General", "bool", "حالت تعمیر و نگهداری (نمایش صفحه ۵۰۳ به بازدیدکنندگان)"),
+                S("MaintenanceMessage", "به‌زودی با نسخه‌ای بهتر برمی‌گردیم. از صبوری شما سپاسگزاریم.", "General", "string", "پیام صفحه حالت تعمیر"),
+
+                // ───────────── Branding ─────────────
                 S("SiteTagline", "بازارگاه دیجیتال گیمینگ و خدمات آنلاین", "Branding", "string", "شعار سایت (کنار لوگو و عنوان صفحات)"),
                 S("SiteLogoPath", "", "Branding", "string", "مسیر لوگوی سایت (خالی = لوگوی پیش‌فرض)"),
-                S("HeroKicker", "ویتورایز · بازارگاه دیجیتال", "Branding", "string", "متن کوچک بالای عنوان Hero"),
-                S("HeroTitle", "دنیای بازی و دیجیتال در دستان تو", "Branding", "string", "عنوان اصلی Hero صفحه اول"),
-                S("HeroSubtitle", "خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.", "Branding", "string", "زیرعنوان Hero صفحه اول"),
-                S("HeroCtaText", "ورود به فروشگاه", "Branding", "string", "متن دکمه Hero"),
+                S("BrandPrimaryColor", "", "Branding", "color", "رنگ اصلی برند (خالی = رنگ پیش‌فرض تم)"),
                 S("FooterDescription", "بازارگاه دیجیتال گیمینگ و خدمات آنلاین؛ خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی.", "Branding", "string", "توضیح فوتر"),
                 S("CopyrightText", "تمامی حقوق برای ویتورایز محفوظ است.", "Branding", "string", "متن کپی‌رایت فوتر"),
-                S("SupportEmail", "support@vitorize.com", "Support", "string", "ایمیل پشتیبانی"),
-                S("SupportPhone", "02100000000", "Support", "string", "شماره پشتیبانی"),
+
+                // ───────────── Logos & Images ─────────────
+                S("LogoPath", "", "Logos", "image", "لوگوی اصلی (تم روشن) — خالی = لوگوی پیش‌فرض"),
+                S("LogoDarkPath", "", "Logos", "image", "لوگوی تم تیره"),
+                S("LogoSmallPath", "", "Logos", "image", "لوگوی کوچک / آیکون (نوار بالا، موبایل)"),
+                S("HeaderLogoPath", "", "Logos", "image", "لوگوی هدر (خالی = لوگوی اصلی)"),
+                S("FooterLogoPath", "", "Logos", "image", "لوگوی فوتر (خالی = لوگوی اصلی)"),
+                S("FaviconPath", "", "Logos", "image", "فاوآیکون سایت"),
+                S("AppleTouchIconPath", "", "Logos", "image", "آیکون Apple Touch"),
+                S("OgImagePath", "", "Logos", "image", "تصویر OpenGraph (اشتراک‌گذاری)"),
+                S("TwitterImagePath", "", "Logos", "image", "تصویر توییتر / X"),
+                S("SocialPreviewImagePath", "", "Logos", "image", "تصویر پیش‌نمایش شبکه‌های اجتماعی"),
+                S("HeroBackgroundPath", "", "Logos", "image", "تصویر پس‌زمینه Hero صفحه اول"),
+                S("Error404IllustrationPath", "", "Logos", "image", "تصویر صفحه ۴۰۴ (خالی = ماسکات پیش‌فرض)"),
+                S("Error500IllustrationPath", "", "Logos", "image", "تصویر صفحه ۵۰۰ (خالی = ماسکات پیش‌فرض)"),
+                S("MaintenanceIllustrationPath", "", "Logos", "image", "تصویر صفحه تعمیر و نگهداری"),
+                S("EmptyStateIllustrationPath", "", "Logos", "image", "تصویر پیش‌فرض حالت‌های خالی"),
+
+                // ───────────── SEO ─────────────
+                S("MetaTitle", "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین", "SEO", "string", "عنوان متای پیش‌فرض"),
+                S("MetaDescription", "خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.", "SEO", "string", "توضیح متای پیش‌فرض"),
+                S("MetaKeywords", "گیفت کارت, اشتراک, خدمات دیجیتال, بازی, گیمینگ, ویتورایز", "SEO", "string", "کلمات کلیدی پیش‌فرض"),
+                S("SeoTitleTemplate", "{page} | {site}", "SEO", "string", "قالب عنوان صفحات ({page} و {site})"),
+                S("GoogleAnalyticsId", "", "SEO", "string", "شناسه Google Analytics"),
+
+                // ───────────── Homepage ─────────────
+                S("HeroKicker", "ویتورایز · بازارگاه دیجیتال", "Homepage", "string", "متن کوچک بالای عنوان Hero"),
+                S("HeroTitle", "دنیای بازی و دیجیتال در دستان تو", "Homepage", "string", "عنوان اصلی Hero صفحه اول"),
+                S("HeroSubtitle", "خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.", "Homepage", "string", "زیرعنوان Hero صفحه اول"),
+                S("HeroCtaText", "ورود به فروشگاه", "Homepage", "string", "متن دکمه اصلی Hero"),
+                S("HeroCtaUrl", "/shop", "Homepage", "string", "لینک دکمه اصلی Hero"),
+                S("HeroSecondaryCtaText", "دسته‌بندی‌ها", "Homepage", "string", "متن دکمه دوم Hero"),
+                S("HeroSecondaryCtaUrl", "/categories", "Homepage", "string", "لینک دکمه دوم Hero"),
+                S("NewsletterTitle", "از جدیدترین‌ها باخبر شو", "Homepage", "string", "عنوان بخش خبرنامه"),
+                S("NewsletterSubtitle", "با عضویت در خبرنامه، از تخفیف‌ها و محصولات تازه زودتر از همه مطلع شو.", "Homepage", "string", "زیرعنوان بخش خبرنامه"),
+                S("NewsletterCtaText", "عضویت", "Homepage", "string", "متن دکمه خبرنامه"),
+                S("NewsletterPlaceholder", "ایمیل خود را وارد کنید", "Homepage", "string", "متن راهنمای ورودی خبرنامه"),
+
+                // ───────────── About ─────────────
+                S("AboutTitle", "درباره ویتورایز", "About", "string", "عنوان بخش درباره ما"),
+                S("AboutText", "ویتورایز بازارگاهی دیجیتال برای خرید امن و آنی گیفت کارت، اشتراک و خدمات آنلاین است.", "About", "string", "متن درباره ما"),
+
+                // ───────────── Trust badges & features (JSON) ─────────────
+                S("TrustBadgesJson",
+                  "[{\"icon\":\"shield-check\",\"title\":\"تضمین اصالت\",\"text\":\"محصولات رسمی و اورجینال\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"سریع و بدون انتظار\"},{\"icon\":\"headphones\",\"title\":\"پشتیبانی ۲۴/۷\",\"text\":\"همیشه کنار شما\"},{\"icon\":\"lock\",\"title\":\"پرداخت امن\",\"text\":\"درگاه‌های معتبر\"}]",
+                  "Trust", "json", "نشان‌های اعتماد (آرایه JSON: icon,title,text)"),
+                S("HomeFeaturesKicker", "چرا ویتورایز؟", "Trust", "string", "برچسب کوچک بخش «چرا ما»"),
+                S("HomeFeaturesTitle", "خرید دیجیتال، ساده و مطمئن", "Trust", "string", "عنوان بخش «چرا ما»"),
+                S("HomeFeaturesJson",
+                  "[{\"icon\":\"grid\",\"title\":\"انتخاب محصول\",\"text\":\"از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.\"},{\"icon\":\"credit-card\",\"title\":\"پرداخت امن\",\"text\":\"با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.\"}]",
+                  "Trust", "json", "مراحل / ویژگی‌های صفحه اول (آرایه JSON: icon,title,text)"),
+
+                // ───────────── Footer ─────────────
+                S("FooterText", "", "Footer", "string", "متن آزاد اضافی فوتر"),
+
+                // ───────────── Social media ─────────────
                 S("InstagramUrl", "https://instagram.com/vitorize", "Social", "string", "صفحه اینستاگرام"),
                 S("TelegramUrl", "https://t.me/vitorize", "Social", "string", "کانال تلگرام"),
+                S("WhatsAppUrl", "", "Social", "string", "واتساپ"),
+                S("XUrl", "", "Social", "string", "X (توییتر)"),
+                S("LinkedInUrl", "", "Social", "string", "لینکدین"),
+                S("DiscordUrl", "", "Social", "string", "دیسکورد"),
+                S("YouTubeUrl", "", "Social", "string", "یوتیوب"),
+                S("FacebookUrl", "", "Social", "string", "فیسبوک"),
+
+                // ───────────── Contact ─────────────
+                S("SupportEmail", "support@vitorize.com", "Contact", "string", "ایمیل پشتیبانی"),
+                S("SupportPhone", "02100000000", "Contact", "string", "شماره پشتیبانی"),
+                S("ContactAddress", "", "Contact", "string", "آدرس"),
+                S("WorkingHours", "شنبه تا پنجشنبه، ۹ تا ۱۸", "Contact", "string", "ساعات کاری"),
+
+                // ───────────── Empty-state texts ─────────────
+                S("EmptyCartText", "سبد خرید شما خالی است.", "Empty", "string", "متن سبد خرید خالی"),
+                S("EmptyWishlistText", "هنوز محصولی به علاقه‌مندی‌ها اضافه نکرده‌اید.", "Empty", "string", "متن علاقه‌مندی خالی"),
+                S("EmptyOrdersText", "هنوز سفارشی ثبت نکرده‌اید.", "Empty", "string", "متن سفارش‌های خالی"),
+                S("EmptySearchText", "نتیجه‌ای برای جستجوی شما پیدا نشد.", "Empty", "string", "متن جستجوی بدون نتیجه"),
+                S("EmptyNotificationsText", "اعلان جدیدی ندارید.", "Empty", "string", "متن اعلان خالی"),
+                S("EmptyTicketsText", "تیکتی ثبت نکرده‌اید.", "Empty", "string", "متن تیکت خالی"),
+                S("EmptyReviewsText", "هنوز نظری ثبت نشده است.", "Empty", "string", "متن نظرات خالی"),
+                S("NoProductsText", "محصولی برای نمایش وجود ندارد.", "Empty", "string", "متن نبود محصول"),
+
+                // ───────────── Error / status page texts ─────────────
+                S("Error404Title", "صفحه پیدا نشد", "Errors", "string", "عنوان صفحه ۴۰۴"),
+                S("Error404Text", "صفحه‌ای که دنبال آن هستید وجود ندارد یا منتقل شده است.", "Errors", "string", "متن صفحه ۴۰۴"),
+                S("Error400Title", "درخواست نامعتبر", "Errors", "string", "عنوان صفحه ۴۰۰"),
+                S("Error400Text", "درخواست شما معتبر نیست. لطفاً دوباره تلاش کنید.", "Errors", "string", "متن صفحه ۴۰۰"),
+                S("Error401Title", "نیاز به ورود", "Errors", "string", "عنوان صفحه ۴۰۱"),
+                S("Error401Text", "برای مشاهده این صفحه ابتدا وارد حساب کاربری شوید.", "Errors", "string", "متن صفحه ۴۰۱"),
+                S("Error403Title", "دسترسی مجاز نیست", "Errors", "string", "عنوان صفحه ۴۰۳"),
+                S("Error403Text", "شما اجازه دسترسی به این بخش را ندارید.", "Errors", "string", "متن صفحه ۴۰۳"),
+                S("Error500Title", "خطای غیرمنتظره", "Errors", "string", "عنوان صفحه ۵۰۰"),
+                S("Error500Text", "مشکلی در سرور رخ داد. تیم ما در حال بررسی است.", "Errors", "string", "متن صفحه ۵۰۰"),
+                S("Error503Title", "در حال به‌روزرسانی", "Errors", "string", "عنوان صفحه ۵۰۳ (تعمیر)"),
+                S("Error503Text", "سایت موقتاً در دسترس نیست. به‌زودی برمی‌گردیم.", "Errors", "string", "متن صفحه ۵۰۳"),
+                S("SessionExpiredTitle", "نشست شما منقضی شد", "Errors", "string", "عنوان نشست منقضی"),
+                S("SessionExpiredText", "برای ادامه دوباره وارد شوید.", "Errors", "string", "متن نشست منقضی"),
+                S("NetworkErrorTitle", "خطای ارتباط", "Errors", "string", "عنوان خطای شبکه"),
+                S("NetworkErrorText", "ارتباط با سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید.", "Errors", "string", "متن خطای شبکه"),
+                S("OfflineTitle", "اتصال اینترنت قطع است", "Errors", "string", "عنوان حالت آفلاین"),
+                S("OfflineText", "به نظر می‌رسد اینترنت شما قطع شده است.", "Errors", "string", "متن حالت آفلاین"),
+                S("PageRemovedTitle", "این صفحه حذف شده است", "Errors", "string", "عنوان صفحه حذف‌شده"),
+                S("PageRemovedText", "محتوایی که دنبال آن بودید دیگر در دسترس نیست.", "Errors", "string", "متن صفحه حذف‌شده"),
+
+                // ───────────── Custom scripts (public head/footer) ─────────────
+                S("CustomHeadHtml", "", "Scripts", "string", "کد سفارشی داخل <head> (تحلیل، تگ‌ها)"),
+                S("CustomFooterHtml", "", "Scripts", "string", "کد سفارشی انتهای صفحه"),
+
+                // ───────────── Features (public flags) ─────────────
                 S("EnableRegistration", "true", "Features", "bool", "ثبت‌نام کاربران"),
                 S("EnableWallet", "true", "Features", "bool", "کیف پول کاربران"),
+
+                // ───────────── Newsletter / SMS ─────────────
                 S("SmsEnabled", "false", "SMS", "bool", "ارسال پیامک"),
                 S("SmsProvider", "Mock", "SMS", "string", "ارائه‌دهنده پیامک"),
+
+                // ───────────── Email (SMTP) ─────────────
+                S("SmtpHost", "", "Email", "string", "میزبان SMTP"),
+                S("SmtpPort", "587", "Email", "int", "پورت SMTP"),
+                S("SmtpUsername", "", "Email", "string", "نام کاربری SMTP"),
+                S("SmtpFromEmail", "", "Email", "string", "ایمیل فرستنده"),
+                S("SmtpFromName", "ویتورایز", "Email", "string", "نام فرستنده"),
+                S("SmtpEnableSsl", "true", "Email", "bool", "استفاده از SSL"),
+
+                // ───────────── Security ─────────────
+                S("RequireEmailConfirmation", "false", "Security", "bool", "الزام تأیید ایمیل"),
+                S("MinPasswordLength", "8", "Security", "int", "حداقل طول رمز عبور"),
+                S("MaxLoginAttempts", "5", "Security", "int", "حداکثر تلاش ناموفق ورود"),
+
+                // ───────────── Uploads ─────────────
+                S("MaxUploadSizeMb", "2", "Uploads", "int", "حداکثر حجم آپلود (مگابایت)"),
+                S("AllowedImageFormats", "jpg,jpeg,png,webp", "Uploads", "string", "فرمت‌های مجاز تصویر"),
+
+                // ───────────── Wallet ─────────────
                 S("WalletMinCharge", "100000", "Wallet", "decimal", "حداقل شارژ کیف پول"),
                 S("WalletMaxCharge", "100000000", "Wallet", "decimal", "حداکثر شارژ کیف پول"),
+
+                // ───────────── Payment ─────────────
                 S("ZarinpalMerchantId", "", "Payment", "string", "شناسه پذیرنده زرین‌پال"),
                 S("ZarinpalSandbox", "true", "Payment", "bool", "حالت آزمایشی زرین‌پال"),
                 S("ZarinpalStartPayUrl", "https://sandbox.zarinpal.com/pg/StartPay", "Payment", "string", "آدرس شروع پرداخت زرین‌پال"),

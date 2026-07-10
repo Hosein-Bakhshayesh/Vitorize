@@ -250,6 +250,7 @@ else
                     <div class="vz-card__head"><Icon Name="image" Size="18" /><div><div class="vz-card__title">تصویر شاخص</div></div></div>
                     <div class="vz-card__body">
                         <UploadBox @bind-Value="_model.ThumbnailImagePath" Label="آپلود تصویر شاخص" />
+                        <ImageGuideline Spec="ImageSpecs.ProductThumbnail" />
                         @if (IsEdit)
                         {
                             <a class="vz-btn vz-btn--outline vz-btn--block" style="margin-top:12px" href="@($"admin/products/{Id}/images")">

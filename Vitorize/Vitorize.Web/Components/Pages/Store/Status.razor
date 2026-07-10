@@ -1,0 +1,24 @@
+@page "/error"
+@page "/error/{Code}"
+@using Vitorize.Web.Helpers
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+
+@* صفحه‌ی وضعیت/خطای برنددار — برای UseExceptionHandler، StatusCodePages و لینک‌های دستی. *@
+
+<PageTitle>@_info.Title | @_b.SiteName</PageTitle>
+
+<StoreState Info="_info" />
+
+@code {
+    [Parameter] public string? Code { get; set; }
+
+    private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
+    private ErrorStateInfo _info =
+        ErrorStates.Resolve("500", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _b = await Branding.GetAsync();
+        _info = ErrorStates.Resolve(string.IsNullOrWhiteSpace(Code) ? "500" : Code, _b);
+    }
+}

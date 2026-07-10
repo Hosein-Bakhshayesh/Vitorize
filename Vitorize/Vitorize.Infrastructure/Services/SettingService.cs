@@ -35,35 +35,28 @@ namespace Vitorize.Infrastructure.Services
                 .ToList();
         }
 
+        // گروه‌هایی که برای مشتری/فروشگاه قابل نمایش‌اند. هر تنظیم داخل این گروه‌ها از
+        // طریق «settings/public» بدون احراز هویت در دسترس است؛ بنابراین هرگز نباید مقادیر
+        // محرمانه (پرداخت، پیامک، ایمیل، امنیت، آپلود، کیف‌پول) در این گروه‌ها قرار گیرند.
+        private static readonly HashSet<string> PublicGroups = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "General", "Branding", "Logos", "SEO", "Homepage", "About", "Trust",
+            "Footer", "Social", "Contact", "Support", "Empty", "Errors",
+            "Features", "Scripts"
+        };
+
         public async Task<List<SettingDto>> GetPublicSettingsAsync()
         {
-            var publicKeys = new[]
-            {
-                "SiteName",
-                "SiteDescription",
-                "SiteTagline",
-                "SiteLogoPath",
-                "HeroKicker",
-                "HeroTitle",
-                "HeroSubtitle",
-                "HeroCtaText",
-                "FooterDescription",
-                "CopyrightText",
-                "SupportPhone",
-                "SupportEmail",
-                "TelegramUrl",
-                "InstagramUrl",
-                "EnableRegistration",
-                "EnableWallet"
-            };
-
-            return await _dbContext.Settings
+            var all = await _dbContext.Settings
                 .AsNoTracking()
-                .Where(x => publicKeys.Contains(x.Key))
                 .OrderBy(x => x.GroupName)
                 .ThenBy(x => x.Key)
                 .Select(x => Map(x))
                 .ToListAsync();
+
+            return all
+                .Where(x => x.GroupName != null && PublicGroups.Contains(x.GroupName))
+                .ToList();
         }
 
         public async Task<SettingDto?> GetByKeyAsync(string key)

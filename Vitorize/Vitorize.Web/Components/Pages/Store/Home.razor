@@ -42,7 +42,13 @@ else
                     <span class="st-hslide__kicker"><span class="dot"></span> @_branding.HeroKicker</span>
                     <h1 class="st-hslide__title">@_branding.HeroTitle</h1>
                     <p class="st-hslide__sub">@_branding.HeroSubtitle</p>
-                    <a class="st-hslide__cta" href="/shop"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
+                    <div class="st-hslide__ctas">
+                        <a class="st-hslide__cta" href="@_branding.HeroCtaUrl"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
+                        @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
+                        {
+                            <a class="st-hslide__cta2" href="@_branding.HeroSecondaryCtaUrl">@_branding.HeroSecondaryCtaText</a>
+                        }
+                    </div>
                 </div>
             </div>
         }
@@ -128,43 +134,45 @@ else
         <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
     }
 
-    @* ---------- Why Vitorize / How it works ---------- *@
-    <section class="st-section st-reveal">
-        <div class="st-section__center">
-            <div class="st-section__kicker">چرا ویتورایز؟</div>
-            <h2 class="st-section__h">خرید دیجیتال، ساده و مطمئن</h2>
-        </div>
-        <div class="st-hiw">
-            <div class="st-hiw__step">
-                <div class="st-hiw__num">۱</div>
-                <div class="st-hiw__ic"><Icon Name="grid" Size="22" /></div>
-                <div class="st-hiw__t">انتخاب محصول</div>
-                <div class="st-hiw__d">از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.</div>
+    @* ---------- Why Vitorize / How it works (from Settings: HomeFeaturesJson) ---------- *@
+    @if (_branding.HomeFeatures.Count > 0)
+    {
+        <section class="st-section st-reveal">
+            <div class="st-section__center">
+                <div class="st-section__kicker">@_branding.HomeFeaturesKicker</div>
+                <h2 class="st-section__h">@_branding.HomeFeaturesTitle</h2>
             </div>
-            <div class="st-hiw__step">
-                <div class="st-hiw__num">۲</div>
-                <div class="st-hiw__ic"><Icon Name="credit-card" Size="22" /></div>
-                <div class="st-hiw__t">پرداخت امن</div>
-                <div class="st-hiw__d">با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.</div>
+            <div class="st-hiw">
+                @{ var stepNo = 0; }
+                @foreach (var f in _branding.HomeFeatures)
+                {
+                    stepNo++;
+                    <div class="st-hiw__step">
+                        <div class="st-hiw__num">@AUI.Number(stepNo)</div>
+                        <div class="st-hiw__ic"><Icon Name="@f.Icon" Size="22" /></div>
+                        <div class="st-hiw__t">@f.Title</div>
+                        <div class="st-hiw__d">@f.Text</div>
+                    </div>
+                }
             </div>
-            <div class="st-hiw__step">
-                <div class="st-hiw__num">۳</div>
-                <div class="st-hiw__ic"><Icon Name="zap" Size="22" /></div>
-                <div class="st-hiw__t">تحویل آنی</div>
-                <div class="st-hiw__d">کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.</div>
-            </div>
-        </div>
-    </section>
+        </section>
+    }
 
-    @* ---------- Trust Section ---------- *@
-    <section class="st-section st-reveal">
-        <div class="st-hero-mini" style="margin:0">
-            <div class="st-trust"><span class="st-trust__ic"><Icon Name="shield-check" Size="20" /></span><div><div class="st-trust__t">تضمین اصالت</div><div class="st-trust__s">محصولات رسمی و اورجینال</div></div></div>
-            <div class="st-trust"><span class="st-trust__ic"><Icon Name="zap" Size="20" /></span><div><div class="st-trust__t">تحویل آنی</div><div class="st-trust__s">سریع و بدون انتظار</div></div></div>
-            <div class="st-trust"><span class="st-trust__ic"><Icon Name="headphones" Size="20" /></span><div><div class="st-trust__t">پشتیبانی ۲۴/۷</div><div class="st-trust__s">همیشه کنار شما</div></div></div>
-            <div class="st-trust"><span class="st-trust__ic"><Icon Name="lock" Size="20" /></span><div><div class="st-trust__t">پرداخت امن</div><div class="st-trust__s">درگاه‌های معتبر</div></div></div>
-        </div>
-    </section>
+    @* ---------- Trust Section (from Settings: TrustBadgesJson) ---------- *@
+    @if (_branding.TrustBadges.Count > 0)
+    {
+        <section class="st-section st-reveal">
+            <div class="st-hero-mini" style="margin:0">
+                @foreach (var t in _branding.TrustBadges)
+                {
+                    <div class="st-trust">
+                        <span class="st-trust__ic"><Icon Name="@t.Icon" Size="20" /></span>
+                        <div><div class="st-trust__t">@t.Title</div><div class="st-trust__s">@t.Text</div></div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
 
     @* ---------- Brands ---------- *@
     @if (_data.Brands.Count > 0)
@@ -235,11 +243,11 @@ else
         <div class="st-news">
             <span class="st-news__aurora"></span>
             <div class="st-news__in">
-                <h2 class="st-news__t">از تخفیف‌ها جا نمون!</h2>
-                <p class="st-news__s">ایمیلت را وارد کن تا جدیدترین محصولات، کدهای تخفیف و پیشنهادهای ویژه ویتورایز را دریافت کنی.</p>
+                <h2 class="st-news__t">@_branding.NewsletterTitle</h2>
+                <p class="st-news__s">@_branding.NewsletterSubtitle</p>
                 <form class="st-news__form" @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
-                    <input type="email" placeholder="ایمیل خود را وارد کنید" @bind="_newsletterEmail" />
-                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> عضویت</button>
+                    <input type="email" placeholder="@_branding.NewsletterPlaceholder" @bind="_newsletterEmail" />
+                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> @_branding.NewsletterCtaText</button>
                 </form>
             </div>
         </div>

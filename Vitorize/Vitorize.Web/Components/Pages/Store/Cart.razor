@@ -4,6 +4,8 @@
 @inject CartState CartSvc
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>سبد خرید | ویتورایز</PageTitle>
@@ -17,12 +19,7 @@
 }
 else if (_cart is null || _cart.Items.Count == 0)
 {
-    <div class="st-state" style="padding:70px 24px">
-        <div class="st-state__ic"><Icon Name="cart" Size="34" /></div>
-        <div style="font-weight:700;font-size:16px">سبد خرید شما خالی است</div>
-        <p class="st-muted">محصولات مورد علاقه خود را به سبد اضافه کنید.</p>
-        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="17" /> رفتن به فروشگاه</a>
-    </div>
+    <StoreState Info="_emptyInfo" Class="st-errpage--inline" />
 }
 else
 {
@@ -113,7 +110,14 @@ else
         ? $"/checkout?coupon={Uri.EscapeDataString(_appliedCode)}"
         : "/checkout";
 
-    protected override Task OnInitializedAsync() => Load();
+    private ErrorStateInfo _emptyInfo =
+        ErrorStates.Resolve("empty-cart", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _emptyInfo = ErrorStates.Resolve("empty-cart", await Branding.GetAsync());
+        await Load();
+    }
 
     private async Task ApplyCoupon()
     {

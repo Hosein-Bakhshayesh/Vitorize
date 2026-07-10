@@ -228,10 +228,10 @@
         else if (_view.Count == 0)
         {
             <div class="st-empty">
-                <div class="st-empty__ic"><Icon Name="search" Size="30" /></div>
+                <Mascot Class="st-empty__mascot" />
                 <div class="st-empty__t">محصولی با این فیلترها یافت نشد</div>
                 <div class="st-empty__s">محدوده قیمت را گسترده‌تر کنید یا یکی از فیلترها را بردارید.</div>
-                <button class="st-btn st-btn--accent st-btn--lg" @onclick="ClearAll">پاک کردن فیلترها</button>
+                <button class="st-btn st-btn--accent st-btn--lg" @onclick="ClearAll"><Icon Name="refresh" Size="17" /> پاک کردن فیلترها</button>
             </div>
         }
         else

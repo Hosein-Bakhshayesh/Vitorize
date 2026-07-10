@@ -5,6 +5,8 @@
 @inject CartState Cart
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@using Vitorize.Web.Helpers
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>علاقه‌مندی‌ها | ویتورایز</PageTitle>
@@ -33,12 +35,7 @@
 }
 else if (_items.Count == 0)
 {
-    <div class="st-state">
-        <div class="st-state__ic"><Icon Name="heart" Size="32" /></div>
-        <div style="font-weight:700">لیست علاقه‌مندی‌ها خالی است</div>
-        <div class="st-muted">محصولات مورد علاقه‌تان را با زدن آیکن قلب ذخیره کنید.</div>
-        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="16" /> رفتن به فروشگاه</a>
-    </div>
+    <StoreState Info="_emptyInfo" Class="st-errpage--inline" />
 }
 else
 {
@@ -92,9 +89,13 @@ else
     private Guid? _busyId;
     private List<CustomerWishlistItemModel> _items = new();
 
+    private ErrorStateInfo _emptyInfo =
+        ErrorStates.Resolve("empty-wishlist", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
+
     protected override async Task OnInitializedAsync()
     {
         WishState.OnChange += OnWishlistChange;
+        _emptyInfo = ErrorStates.Resolve("empty-wishlist", await Branding.GetAsync());
         await Load();
     }
 
