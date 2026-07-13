@@ -25,5 +25,17 @@ namespace Vitorize.Application.Interfaces
         Task SendOtpAsync(SendOtpRequestDto request);
 
         Task VerifyOtpAsync(VerifyOtpRequestDto request);
+
+        // ---- ورود با کد یکبار‌مصرف (OTP Login) ----
+
+        Task<RequestOtpLoginResponseDto> RequestLoginOtpAsync(
+            RequestOtpLoginRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null);
+
+        Task<AuthResponseDto> VerifyLoginOtpAsync(
+            VerifyOtpLoginRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null);
     }
 }

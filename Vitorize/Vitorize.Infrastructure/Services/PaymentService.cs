@@ -19,6 +19,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly IWalletService _walletService;
         private readonly INotificationService _notificationService;
         private readonly IZarinpalGatewayService _zarinpalGatewayService;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
 
         public PaymentService(
             VitorizeDbContext dbContext,
@@ -26,7 +27,8 @@ namespace Vitorize.Infrastructure.Services
             ICouponService couponService,
             IWalletService walletService,
             INotificationService notificationService,
-            IZarinpalGatewayService zarinpalGatewayService)
+            IZarinpalGatewayService zarinpalGatewayService,
+            ISmsOutboxEnqueuer smsOutbox)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
@@ -34,6 +36,7 @@ namespace Vitorize.Infrastructure.Services
             _walletService = walletService;
             _notificationService = notificationService;
             _zarinpalGatewayService = zarinpalGatewayService;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
@@ -542,11 +545,30 @@ namespace Vitorize.Infrastructure.Services
                 giftCode.UpdatedAt = now;
             }
 
+            var mobile = await _dbContext.Users
+                .Where(x => x.Id == userId)
+                .Select(x => x.Mobile)
+                .FirstOrDefaultAsync();
+
             await _notificationService.CreateAsync(
                 userId,
                 (byte)NotificationType.PaymentSucceeded,
                 "پرداخت موفق",
                 $"پرداخت سفارش {order.OrderNumber} با موفقیت انجام شد.");
+
+            // پیامک رویداد تجاری از طریق Outbox؛ شکست ارسال هرگز پرداخت را برنمی‌گرداند.
+            await _smsOutbox.EnqueueTemplateAsync(
+                mobile,
+                Vitorize.Application.Common.SmsTemplateKeys.OrderPaid,
+                new[]
+                {
+                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                        Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber),
+                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                        Vitorize.Application.Common.SmsTemplateParams.Amount, order.FinalAmount.ToString("#,0"))
+                },
+                purpose: "OrderPaid",
+                aggregateId: order.Id);
 
             await _dbContext.SaveChangesAsync();
 
@@ -559,6 +581,19 @@ namespace Vitorize.Infrastructure.Services
                     (byte)NotificationType.GiftCodeDelivered,
                     "تحویل سفارش",
                     $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
+
+                await _smsOutbox.EnqueueTemplateAsync(
+                    mobile,
+                    Vitorize.Application.Common.SmsTemplateKeys.GiftCodeDelivered,
+                    new[]
+                    {
+                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                            Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber)
+                    },
+                    purpose: "GiftCodeDelivered",
+                    aggregateId: order.Id);
+
+                await _dbContext.SaveChangesAsync();
             }
         }
 

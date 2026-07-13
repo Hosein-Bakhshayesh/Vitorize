@@ -12,13 +12,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
 
         public VerificationService(
             VitorizeDbContext dbContext,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ISmsOutboxEnqueuer smsOutbox)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
@@ -234,6 +237,17 @@ namespace Vitorize.Infrastructure.Services
 
             if (request.Approve)
             {
+                await _smsOutbox.EnqueueTemplateAsync(
+                    user.Mobile,
+                    Vitorize.Application.Common.SmsTemplateKeys.VerificationApproved,
+                    new[]
+                    {
+                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                            Vitorize.Application.Common.SmsTemplateParams.Name, user.FullName)
+                    },
+                    purpose: "VerificationApproved",
+                    aggregateId: profile.Id);
+
                 await _notificationService.CreateAsync(
                     user.Id,
                     (byte)NotificationType.VerificationApproved,
@@ -242,6 +256,20 @@ namespace Vitorize.Infrastructure.Services
             }
             else
             {
+                await _smsOutbox.EnqueueTemplateAsync(
+                    user.Mobile,
+                    Vitorize.Application.Common.SmsTemplateKeys.VerificationRejected,
+                    new[]
+                    {
+                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                            Vitorize.Application.Common.SmsTemplateParams.Name, user.FullName),
+                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                            Vitorize.Application.Common.SmsTemplateParams.Reason,
+                            string.IsNullOrWhiteSpace(request.AdminNote) ? "—" : request.AdminNote!)
+                    },
+                    purpose: "VerificationRejected",
+                    aggregateId: profile.Id);
+
                 await _notificationService.CreateAsync(
                     user.Id,
                     (byte)NotificationType.VerificationRejected,

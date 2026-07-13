@@ -1,10 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
 using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Auth;
 using Vitorize.Application.Interfaces;
+using Vitorize.Application.Models.Sms;
 using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
@@ -18,17 +20,26 @@ namespace Vitorize.Infrastructure.Services
         private readonly IJwtTokenService _jwtTokenService;
         private readonly JwtSettings _jwtSettings;
         private readonly ISecurityLogService _securityLogService;
+        private readonly ISmsService _smsService;
+        private readonly ISmsSettingsProvider _smsSettingsProvider;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             VitorizeDbContext dbContext,
             IJwtTokenService jwtTokenService,
             IOptions<JwtSettings> jwtSettings,
-            ISecurityLogService securityLogService)
+            ISecurityLogService securityLogService,
+            ISmsService smsService,
+            ISmsSettingsProvider smsSettingsProvider,
+            ILogger<AuthService> logger)
         {
             _dbContext = dbContext;
             _jwtTokenService = jwtTokenService;
             _jwtSettings = jwtSettings.Value;
             _securityLogService = securityLogService;
+            _smsService = smsService;
+            _smsSettingsProvider = smsSettingsProvider;
+            _logger = logger;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
@@ -137,11 +148,9 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("حساب کاربری شما فعال نیست.");
             }
 
-            // TODO: Enable after SMS provider integration
-            // if (!user.IsMobileConfirmed)
-            // {
-            //     throw new BusinessException("شماره موبایل شما تایید نشده است.");
-            // }
+            // الزام تایید موبایل برای ورود با رمز، یک تصمیم محصولی است و عمداً اعمال نمی‌شود تا
+            // کاربران قدیمی قفل نشوند. ورود با کد یکبار‌مصرف به‌صورت ضمنی موبایل را تایید می‌کند
+            // و کاربران می‌توانند از طریق OTP موبایل خود را تایید کنند.
 
             user.LastLoginAt = DateTime.UtcNow;
 
@@ -536,11 +545,17 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("نوع کد تایید معتبر نیست.");
             }
 
+            if (!IranMobile.TryNormalize(request.Mobile, out var mobile))
+            {
+                throw new BusinessException("شماره موبایل معتبر نیست.");
+            }
+
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x =>
-                    x.Mobile == request.Mobile &&
+                    x.Mobile == mobile &&
                     !x.IsDeleted);
 
+            // برای جلوگیری از افشای وجود حساب، در نبود کاربر بی‌صدا برمی‌گردیم.
             if (user == null)
             {
                 return;
@@ -551,45 +566,271 @@ namespace Vitorize.Infrastructure.Services
                 throw new UnauthorizedException("حساب کاربری فعال نیست.");
             }
 
-            var activeOtpExists = await _dbContext.OtpCodes
-                .AnyAsync(x =>
-                    x.Mobile == request.Mobile &&
-                    x.Purpose == request.Purpose &&
+            var purpose = (OtpPurpose)request.Purpose;
+            await IssueAndSendOtpAsync(user, mobile, purpose, ip: null, userAgent: null);
+        }
+
+        /// <summary>
+        /// تولید امن کد، ابطال کدهای فعال قبلی، ذخیره‌ی هش و ارسال از طریق سرویس متمرکز پیامک.
+        /// اعمال محدودیت روزانه و فاصله‌ی ارسال مجدد (cooldown) نیز اینجا انجام می‌شود.
+        /// </summary>
+        private async Task IssueAndSendOtpAsync(
+            User user,
+            string mobile,
+            OtpPurpose purpose,
+            string? ip,
+            string? userAgent)
+        {
+            var opts = await _smsSettingsProvider.GetAsync();
+
+            await EnforceOtpRateLimitsAsync(mobile, (byte)purpose, opts);
+
+            // ابطال کدهای فعال قبلی برای همان شماره و هدف (تک‌کد فعال).
+            var now = DateTime.UtcNow;
+            var previous = await _dbContext.OtpCodes
+                .Where(x =>
+                    x.Mobile == mobile &&
+                    x.Purpose == (byte)purpose &&
                     x.ConsumedAt == null &&
-                    x.ExpiresAt > DateTime.UtcNow);
+                    x.ExpiresAt > now)
+                .ToListAsync();
 
-            if (activeOtpExists)
-            {
-                throw new BusinessException("کد تایید قبلاً ارسال شده است. لطفاً چند دقیقه بعد دوباره تلاش کنید.");
-            }
+            foreach (var prev in previous)
+                prev.ConsumedAt = now;
 
-            var code = Random.Shared.Next(100000, 999999).ToString();
-            var codeHash = HashToken(code);
-
+            var code = OtpSecurity.Generate();
             var otp = new OtpCode
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
-                Mobile = user.Mobile,
-                Purpose = request.Purpose,
-                CodeHash = codeHash,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(5),
-                CreatedAt = DateTime.UtcNow,
+                Mobile = mobile,
+                Purpose = (byte)purpose,
+                CodeHash = OtpSecurity.Hash(code),
+                ExpiresAt = now.AddMinutes(Math.Max(1, opts.OtpExpiryMinutes)),
+                CreatedAt = now,
                 AttemptCount = 0,
-                MaxAttempt = 5
+                MaxAttempt = Math.Max(1, opts.OtpMaxAttempts),
+                IpAddress = ip,
+                UserAgent = userAgent
             };
 
             await _dbContext.OtpCodes.AddAsync(otp);
             await _dbContext.SaveChangesAsync();
 
+            var templateKey = TemplateKeyForPurpose(purpose);
+            var sendResult = await _smsService.SendOtpAsync(
+                mobile, templateKey, code, Math.Max(1, opts.OtpExpiryMinutes));
+
             await _securityLogService.LogAsync(
                 user.Id,
-                "OTP_SEND",
-                true,
-                $"OTP sent for purpose {request.Purpose}");
+                sendResult.IsSuccess ? "OTP_SEND" : "SMS_PROVIDER_FAILURE",
+                sendResult.IsSuccess,
+                $"OTP {purpose} to {IranMobile.Mask(mobile)} ({(sendResult.IsSuccess ? "sent" : sendResult.FailureReason.ToString())})",
+                ip,
+                userAgent);
 
-            Console.WriteLine($"Vitorize OTP Code: {code}");
+            // اگر ارسال پیامک شکست بخورد، کد یکبار‌مصرف عمل اصلی است؛ خطای امن برمی‌گردانیم.
+            if (!sendResult.IsSuccess)
+            {
+                throw new BusinessException(
+                    "ارسال کد تایید با مشکل مواجه شد. لطفاً چند لحظه بعد دوباره تلاش کنید.");
+            }
         }
+
+        private async Task EnforceOtpRateLimitsAsync(string mobile, byte purpose, SmsOptions opts)
+        {
+            var now = DateTime.UtcNow;
+
+            // محدودیت روزانه برای هر شماره (همه‌ی هدف‌ها).
+            var since = now.Date;
+            var todayCount = await _dbContext.OtpCodes
+                .CountAsync(x => x.Mobile == mobile && x.CreatedAt >= since);
+
+            if (todayCount >= Math.Max(1, opts.DailyOtpLimitPerMobile))
+            {
+                throw new BusinessException(
+                    "تعداد درخواست‌های کد تایید برای امروز به حداکثر رسیده است. لطفاً فردا دوباره تلاش کنید.");
+            }
+
+            // فاصله‌ی ارسال مجدد (cooldown).
+            var lastCreatedAt = await _dbContext.OtpCodes
+                .Where(x => x.Mobile == mobile && x.Purpose == purpose)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => (DateTime?)x.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastCreatedAt.HasValue)
+            {
+                var elapsed = now - lastCreatedAt.Value;
+                var cooldown = TimeSpan.FromSeconds(Math.Max(0, opts.OtpResendCooldownSeconds));
+
+                if (elapsed < cooldown)
+                {
+                    throw new BusinessException(
+                        "کد تایید اخیراً ارسال شده است. لطفاً پس از پایان شمارش معکوس دوباره تلاش کنید.");
+                }
+            }
+        }
+
+        public async Task<RequestOtpLoginResponseDto> RequestLoginOtpAsync(
+            RequestOtpLoginRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null)
+        {
+            if (!IranMobile.TryNormalize(request.Mobile, out var mobile))
+            {
+                throw new BusinessException("شماره موبایل معتبر نیست.");
+            }
+
+            var opts = await _smsSettingsProvider.GetAsync();
+
+            var response = new RequestOtpLoginResponseDto
+            {
+                MaskedMobile = IranMobile.Mask(mobile),
+                ExpirySeconds = Math.Max(1, opts.OtpExpiryMinutes) * 60,
+                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds)
+            };
+
+            var user = await _dbContext.Users
+                .FirstOrDefaultAsync(x => x.Mobile == mobile && !x.IsDeleted);
+
+            // سیاست: ورود با کد فقط برای مشتریان فعال موجود است. برای جلوگیری از افشای
+            // وجود حساب، پاسخ در همه‌ی حالت‌ها یکسان است و در نبود کاربر پیامکی ارسال نمی‌شود.
+            if (user is null || user.Status != (byte)UserStatus.Active)
+            {
+                await _securityLogService.LogAsync(
+                    user?.Id, "OTP_LOGIN_REQUEST", false,
+                    $"Login OTP requested for {IranMobile.Mask(mobile)} (no active account)",
+                    ipAddress, userAgent);
+
+                return response;
+            }
+
+            await IssueAndSendOtpAsync(user, mobile, OtpPurpose.Login, ipAddress, userAgent);
+
+            await _securityLogService.LogAsync(
+                user.Id, "OTP_LOGIN_REQUEST", true,
+                $"Login OTP requested for {IranMobile.Mask(mobile)}",
+                ipAddress, userAgent);
+
+            return response;
+        }
+
+        public async Task<AuthResponseDto> VerifyLoginOtpAsync(
+            VerifyOtpLoginRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null)
+        {
+            if (!IranMobile.TryNormalize(request.Mobile, out var mobile))
+            {
+                throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
+            }
+
+            var now = DateTime.UtcNow;
+
+            var otp = await _dbContext.OtpCodes
+                .Where(x =>
+                    x.Mobile == mobile &&
+                    x.Purpose == (byte)OtpPurpose.Login &&
+                    x.ConsumedAt == null &&
+                    x.ExpiresAt > now)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (otp == null)
+            {
+                await _securityLogService.LogAsync(
+                    null, "OTP_LOGIN_FAILED", false,
+                    $"No active login OTP for {IranMobile.Mask(mobile)}", ipAddress, userAgent);
+                throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
+            }
+
+            if (otp.AttemptCount >= otp.MaxAttempt)
+            {
+                throw new BusinessException("تعداد تلاش‌های مجاز برای این کد تمام شده است.");
+            }
+
+            if (!OtpSecurity.Verify(request.Code, otp.CodeHash))
+            {
+                otp.AttemptCount += 1;
+                if (otp.AttemptCount >= otp.MaxAttempt)
+                    otp.ConsumedAt = now;
+
+                await _dbContext.SaveChangesAsync();
+
+                await _securityLogService.LogAsync(
+                    otp.UserId, "OTP_LOGIN_FAILED", false,
+                    $"Invalid login OTP for {IranMobile.Mask(mobile)}", ipAddress, userAgent);
+
+                throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
+            }
+
+            var user = await _dbContext.Users
+                .Include(x => x.Roles)
+                .FirstOrDefaultAsync(x => x.Id == otp.UserId && !x.IsDeleted);
+
+            if (user == null)
+            {
+                otp.ConsumedAt = now;
+                await _dbContext.SaveChangesAsync();
+                throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
+            }
+
+            if (user.Status != (byte)UserStatus.Active)
+            {
+                otp.ConsumedAt = now;
+                await _dbContext.SaveChangesAsync();
+                await _securityLogService.LogAsync(
+                    user.Id, "OTP_LOGIN_FAILED", false,
+                    "Inactive account attempted OTP login", ipAddress, userAgent);
+                throw new BusinessException("حساب کاربری شما فعال نیست.");
+            }
+
+            // مصرف کد (تک‌بارمصرف) + تایید ضمنی موبایل.
+            otp.ConsumedAt = now;
+            if (!user.IsMobileConfirmed)
+                user.IsMobileConfirmed = true;
+            user.LastLoginAt = now;
+
+            var refreshToken = _jwtTokenService.GenerateRefreshToken();
+            var userRefreshToken = new UserRefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = HashToken(refreshToken),
+                ExpiresAt = now.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+                CreatedAt = now
+            };
+
+            await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
+            await _dbContext.SaveChangesAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id, "OTP_LOGIN_SUCCESS", true,
+                "Customer OTP login successful", ipAddress, userAgent);
+
+            var accessToken = _jwtTokenService.GenerateAccessToken(user);
+
+            return new AuthResponseDto
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                Mobile = user.Mobile,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                AccessTokenExpiresAt = now.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+                RefreshTokenExpiresAt = userRefreshToken.ExpiresAt
+            };
+        }
+
+        private static string TemplateKeyForPurpose(OtpPurpose purpose) => purpose switch
+        {
+            OtpPurpose.Login => SmsTemplateKeys.LoginOtp,
+            OtpPurpose.MobileVerification => SmsTemplateKeys.RegisterOtp,
+            OtpPurpose.ForgotPassword => SmsTemplateKeys.ForgotPassword,
+            _ => SmsTemplateKeys.GenericOtp
+        };
+
 
         public async Task VerifyOtpAsync(VerifyOtpRequestDto request)
         {

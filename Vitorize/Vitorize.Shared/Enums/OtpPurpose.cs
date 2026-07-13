@@ -4,6 +4,9 @@ namespace Vitorize.Shared.Enums
     {
         MobileVerification = 1,
         ForgotPassword = 2,
-        TwoFactorAuthentication = 3
+        TwoFactorAuthentication = 3,
+
+        /// <summary>ورود بدون رمز عبور با کد یکبار‌مصرف (OTP Login).</summary>
+        Login = 4
     }
 }

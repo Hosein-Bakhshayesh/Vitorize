@@ -12,13 +12,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
 
         public TicketService(
             VitorizeDbContext dbContext,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ISmsOutboxEnqueuer smsOutbox)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<List<TicketDto>> GetMyTicketsAsync(Guid userId)
@@ -237,6 +240,23 @@ namespace Vitorize.Infrastructure.Services
 
             if (!request.IsInternalNote)
             {
+                var mobile = await _dbContext.Users
+                    .Where(x => x.Id == ticket.UserId)
+                    .Select(x => x.Mobile)
+                    .FirstOrDefaultAsync();
+
+                // idempotency بر اساس شناسه‌ی همین پیام پاسخ (نه شناسه تیکت) تا هر پاسخ یک پیامک بدهد.
+                await _smsOutbox.EnqueueTemplateAsync(
+                    mobile,
+                    Vitorize.Application.Common.SmsTemplateKeys.TicketReply,
+                    new[]
+                    {
+                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                            Vitorize.Application.Common.SmsTemplateParams.Ticket, ticket.Subject)
+                    },
+                    purpose: "TicketReply",
+                    aggregateId: null);
+
                 await _notificationService.CreateAsync(
                     ticket.UserId,
                     (byte)NotificationType.TicketReply,

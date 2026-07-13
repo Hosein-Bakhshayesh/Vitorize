@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -229,9 +230,42 @@ namespace Vitorize.Infrastructure.Services
                 S("EnableRegistration", "true", "Features", "bool", "ثبت‌نام کاربران"),
                 S("EnableWallet", "true", "Features", "bool", "کیف پول کاربران"),
 
-                // ───────────── Newsletter / SMS ─────────────
-                S("SmsEnabled", "false", "SMS", "bool", "ارسال پیامک"),
-                S("SmsProvider", "Mock", "SMS", "string", "ارائه‌دهنده پیامک"),
+                // ───────────── Newsletter / SMS (legacy flags) ─────────────
+                S("SmsEnabled", "false", "SMS", "bool", "ارسال پیامک (کلید قدیمی؛ از Sms.IsEnabled استفاده کنید)"),
+                S("SmsProvider", "Mock", "SMS", "string", "ارائه‌دهنده پیامک (کلید قدیمی)"),
+
+                // ───────────── SMS.ir (تنظیمات اصلی پیامک) ─────────────
+                // نکته امنیتی: گروه «SMS» در endpoint عمومی تنظیمات قرار ندارد و هرگز آشکار نمی‌شود.
+                S(SmsSettingKeys.IsEnabled, "false", "SMS", "bool", "فعال‌سازی سرویس پیامک SMS.ir"),
+                S(SmsSettingKeys.Provider, "SMS.ir", "SMS", "string", "ارائه‌دهنده پیامک"),
+                S(SmsSettingKeys.ApiKey, "", "SMS", "secret", "کلید API پنل SMS.ir (محرمانه)"),
+                S(SmsSettingKeys.DefaultLineNumber, "", "SMS", "string", "شماره خط اختصاصی برای پیامک متنی (محرمانه)"),
+                S(SmsSettingKeys.SenderName, "ویتورایز", "SMS", "string", "نام فرستنده (برای متن پیام)"),
+
+                // Template IDs (شناسه قالب‌های تاییدشده در پنل SMS.ir)
+                S(SmsSettingKeys.OtpTemplateId, "", "SMS", "int", "شناسه قالب پیش‌فرض کد یکبار‌مصرف (CODE، EXPIRE)"),
+                S(SmsSettingKeys.LoginOtpTemplateId, "", "SMS", "int", "شناسه قالب کد ورود (CODE، EXPIRE)"),
+                S(SmsSettingKeys.RegisterOtpTemplateId, "", "SMS", "int", "شناسه قالب کد ثبت‌نام/تایید موبایل (CODE، EXPIRE)"),
+                S(SmsSettingKeys.ForgotPasswordTemplateId, "", "SMS", "int", "شناسه قالب کد بازیابی رمز (CODE، EXPIRE)"),
+                S(SmsSettingKeys.OrderPaidTemplateId, "", "SMS", "int", "شناسه قالب پرداخت موفق سفارش (ORDER، AMOUNT)"),
+                S(SmsSettingKeys.OrderCompletedTemplateId, "", "SMS", "int", "شناسه قالب تکمیل سفارش (ORDER)"),
+                S(SmsSettingKeys.OrderStatusChangedTemplateId, "", "SMS", "int", "شناسه قالب تغییر وضعیت سفارش (ORDER، STATUS)"),
+                S(SmsSettingKeys.GiftCodeDeliveredTemplateId, "", "SMS", "int", "شناسه قالب تحویل کد (ORDER)"),
+                S(SmsSettingKeys.TicketReplyTemplateId, "", "SMS", "int", "شناسه قالب پاسخ تیکت (TICKET)"),
+                S(SmsSettingKeys.VerificationApprovedTemplateId, "", "SMS", "int", "شناسه قالب تایید احراز هویت (NAME)"),
+                S(SmsSettingKeys.VerificationRejectedTemplateId, "", "SMS", "int", "شناسه قالب رد احراز هویت (NAME، REASON)"),
+                S(SmsSettingKeys.WalletTopUpSuccessTemplateId, "", "SMS", "int", "شناسه قالب شارژ موفق کیف پول (AMOUNT، BALANCE)"),
+
+                // سیاست کد یکبار‌مصرف و پایداری
+                S(SmsSettingKeys.OtpExpiryMinutes, "3", "SMS", "int", "مدت اعتبار کد یکبار‌مصرف (دقیقه)"),
+                S(SmsSettingKeys.OtpResendCooldownSeconds, "90", "SMS", "int", "فاصله ارسال مجدد کد (ثانیه)"),
+                S(SmsSettingKeys.OtpMaxAttempts, "5", "SMS", "int", "حداکثر تلاش مجاز برای هر کد"),
+                S(SmsSettingKeys.DailyOtpLimitPerMobile, "10", "SMS", "int", "سقف کد روزانه برای هر شماره"),
+                S(SmsSettingKeys.DailySmsLimitPerMobile, "30", "SMS", "int", "سقف پیامک روزانه برای هر شماره"),
+                S(SmsSettingKeys.MaxRetryCount, "5", "SMS", "int", "حداکثر تعداد بازتلاش ارسال"),
+                S(SmsSettingKeys.RetryDelaySeconds, "30", "SMS", "int", "پایه تأخیر بازتلاش (ثانیه)"),
+                S(SmsSettingKeys.UseOutbox, "true", "SMS", "bool", "ارسال پیامک رویدادهای تجاری از طریق Outbox"),
+                S(SmsSettingKeys.LogSensitiveData, "false", "SMS", "bool", "لاگ‌کردن داده حساس (فقط برای توسعه؛ در Production خاموش)"),
 
                 // ───────────── Email (SMTP) ─────────────
                 S("SmtpHost", "", "Email", "string", "میزبان SMTP"),

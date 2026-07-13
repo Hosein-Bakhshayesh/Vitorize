@@ -1,0 +1,200 @@
+@inject ApiClient Api
+@inject ToastService Toasts
+
+@* پنل بررسی وضعیت و ارسال پیامک آزمایشی (فقط ادمین). هیچ مقدار محرمانه‌ای نمایش داده نمی‌شود. *@
+<div class="vz-card" style="margin-bottom:16px">
+    <div class="vz-card__head">
+        <div class="vz-section__badge"><Icon Name="message" Size="17" /></div>
+        <div>
+            <div class="vz-card__title">سرویس پیامک SMS.ir</div>
+            <div class="vz-hint">وضعیت اتصال، اعتبار حساب و ارسال پیامک آزمایشی</div>
+        </div>
+        <div style="margin-inline-start:auto">
+            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="LoadStatus" disabled="@_loadingStatus">
+                @if (_loadingStatus) { <span class="vz-spinner sm"></span> } else { <Icon Name="refresh" Size="14" /> }
+                بررسی وضعیت
+            </button>
+        </div>
+    </div>
+    <div class="vz-card__body">
+        @if (_status is not null)
+        {
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+                @Pill(_status.IsEnabled, _status.IsEnabled ? "فعال" : "غیرفعال", _status.IsEnabled ? "check" : "x")
+                @Pill(_status.IsConfigured, _status.IsConfigured ? "پیکربندی معتبر" : "پیکربندی ناقص", "settings")
+                @Pill(_status.ConnectionOk, _status.ConnectionOk ? "اتصال برقرار" : "بدون اتصال", _status.ConnectionOk ? "wifi" : "alert")
+                @if (_status.Credit is not null)
+                {
+                    @Pill(true, $"اعتبار: {_status.Credit.Value.ToString("#,0")}", "credit-card")
+                }
+                @if (_status.Lines is { Count: > 0 })
+                {
+                    @Pill(true, $"خطوط: {string.Join("، ", _status.Lines)}", "phone")
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_status.Message))
+            {
+                <div class="vz-hint" style="margin-bottom:12px">@_status.Message</div>
+            }
+        }
+
+        <div class="vz-setgroup__title">ارسال پیامک آزمایشی</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="vz-field">
+                <label class="vz-label">شماره موبایل</label>
+                <input class="vz-input" @bind="_mobile" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">قالب</label>
+                <select class="vz-input" @bind="_templateKey">
+                    @foreach (var t in Templates)
+                    {
+                        <option value="@t.Key">@t.Value</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (TemplateParams.TryGetValue(_templateKey, out var pnames) && pnames.Length > 0)
+        {
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:8px">
+                @foreach (var p in pnames)
+                {
+                    <div class="vz-field">
+                        <label class="vz-label">@p</label>
+                        <input class="vz-input" value="@GetParam(p)" @onchange="e => SetParam(p, e.Value?.ToString())" placeholder="@p" />
+                    </div>
+                }
+            </div>
+        }
+
+        <div style="margin-top:14px">
+            <button class="vz-btn vz-btn--primary" @onclick="SendTest" disabled="@_sending">
+                @if (_sending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="15" /> }
+                ارسال پیامک آزمایشی
+            </button>
+        </div>
+
+        @if (_result is not null)
+        {
+            var col = _result.Success ? "#16a34a" : "#dc2626";
+            <div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;
+                        border:1px solid @col;color:@col;background:color-mix(in srgb, @col 10%, transparent);font-size:13px">
+                <Icon Name="@(_result.Success ? "check-circle" : "x-circle")" Size="16" />
+                <span>
+                    @_result.Message
+                    @if (_result.Success && !string.IsNullOrWhiteSpace(_result.MessageId))
+                    {
+                        <text> (شناسه پیام: @_result.MessageId)</text>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+</div>
+
+@* پیل وضعیت با رنگ‌بندی سبز/قرمز درون‌خطی تا به کلاس‌های موجود وابسته نباشد. *@
+
+
+@code {
+    private bool _loadingStatus, _sending;
+    private string _mobile = string.Empty;
+    private string _templateKey = "LoginOtp";
+    private readonly Dictionary<string, string> _params = new();
+    private SmsStatusModel? _status;
+    private SmsTestModel? _result;
+
+    private static readonly Dictionary<string, string> Templates = new()
+    {
+        ["LoginOtp"] = "کد ورود",
+        ["RegisterOtp"] = "کد ثبت‌نام / تایید موبایل",
+        ["ForgotPassword"] = "کد بازیابی رمز",
+        ["Otp"] = "کد عمومی",
+        ["OrderPaid"] = "پرداخت سفارش",
+        ["OrderCompleted"] = "تکمیل سفارش",
+        ["GiftCodeDelivered"] = "تحویل کد",
+        ["TicketReply"] = "پاسخ تیکت",
+        ["VerificationApproved"] = "تایید احراز هویت",
+        ["VerificationRejected"] = "رد احراز هویت",
+        ["WalletTopUpSuccess"] = "شارژ کیف پول",
+    };
+
+    private static readonly Dictionary<string, string[]> TemplateParams = new()
+    {
+        ["LoginOtp"] = new[] { "CODE", "EXPIRE" },
+        ["RegisterOtp"] = new[] { "CODE", "EXPIRE" },
+        ["ForgotPassword"] = new[] { "CODE", "EXPIRE" },
+        ["Otp"] = new[] { "CODE", "EXPIRE" },
+        ["OrderPaid"] = new[] { "ORDER", "AMOUNT" },
+        ["OrderCompleted"] = new[] { "ORDER" },
+        ["GiftCodeDelivered"] = new[] { "ORDER" },
+        ["TicketReply"] = new[] { "TICKET" },
+        ["VerificationApproved"] = new[] { "NAME" },
+        ["VerificationRejected"] = new[] { "NAME", "REASON" },
+        ["WalletTopUpSuccess"] = new[] { "AMOUNT", "BALANCE" },
+    };
+
+    protected override Task OnInitializedAsync() => LoadStatus();
+
+    private string GetParam(string name) => _params.TryGetValue(name, out var v) ? v : "";
+    private void SetParam(string name, string? v) => _params[name] = v ?? "";
+
+    private RenderFragment Pill(bool ok, string text, string icon) =>
+        @<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;
+                      border:1px solid @(ok ? "#16a34a" : "#d97706");
+                      color:@(ok ? "#16a34a" : "#d97706");
+                      background:color-mix(in srgb, @(ok ? "#16a34a" : "#d97706") 10%, transparent)">
+            <Icon Name="@icon" Size="13" /> @text
+        </span>;
+
+    private async Task LoadStatus()
+    {
+        _loadingStatus = true;
+        var r = await Api.GetAsync<SmsStatusModel>("admin/sms/status");
+        _loadingStatus = false;
+        if (r.IsSuccess && r.Data is not null) _status = r.Data;
+        else Toasts.Error(r.Message);
+    }
+
+    private async Task SendTest()
+    {
+        if (string.IsNullOrWhiteSpace(_mobile)) { Toasts.Error("شماره موبایل را وارد کنید."); return; }
+
+        _result = null;
+        _sending = true;
+
+        var parameters = TemplateParams.TryGetValue(_templateKey, out var pnames)
+            ? pnames.Select(p => new { Name = p, Value = GetParam(p) }).ToList()
+            : new();
+
+        var r = await Api.PostAsync<SmsTestModel>("admin/sms/test", new
+        {
+            Mobile = _mobile.Trim(),
+            TemplateKey = _templateKey,
+            Parameters = parameters
+        });
+        _sending = false;
+
+        if (r.IsSuccess && r.Data is not null) _result = r.Data;
+        else Toasts.Error(r.Message);
+    }
+
+    private sealed class SmsStatusModel
+    {
+        public bool IsConfigured { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool ConnectionOk { get; set; }
+        public decimal? Credit { get; set; }
+        public List<long> Lines { get; set; } = new();
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private sealed class SmsTestModel
+    {
+        public bool Success { get; set; }
+        public string? MessageId { get; set; }
+        public decimal? Cost { get; set; }
+        public string? FailureReason { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+}

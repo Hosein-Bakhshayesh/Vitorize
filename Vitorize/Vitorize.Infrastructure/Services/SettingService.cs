@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Settings;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -9,12 +10,22 @@ namespace Vitorize.Infrastructure.Services
 {
     public class SettingService : ISettingService
     {
-        private readonly VitorizeDbContext _dbContext;
+        // مقدار نمایشی برای کلیدهای محرمانه؛ هرگز مقدار واقعی به کلاینت/ادمین برنمی‌گردد.
+        private const string SecretMask = "********";
 
-        public SettingService(VitorizeDbContext dbContext)
+        private readonly VitorizeDbContext _dbContext;
+        private readonly ISmsSettingsProvider _smsSettingsProvider;
+
+        public SettingService(
+            VitorizeDbContext dbContext,
+            ISmsSettingsProvider smsSettingsProvider)
         {
             _dbContext = dbContext;
+            _smsSettingsProvider = smsSettingsProvider;
         }
+
+        private static bool IsSecret(string key) =>
+            SmsSettingKeys.SecretKeys.Contains(key);
 
         public async Task<List<SettingGroupDto>> GetAllGroupedAsync()
         {
@@ -56,6 +67,7 @@ namespace Vitorize.Infrastructure.Services
 
             return all
                 .Where(x => x.GroupName != null && PublicGroups.Contains(x.GroupName))
+                .Where(x => !IsSecret(x.Key)) // دفاع در عمق: هرگز کلید محرمانه در پاسخ عمومی نباشد
                 .ToList();
         }
 
@@ -93,13 +105,27 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.Settings.AddAsync(setting);
             }
 
-            setting.Value = request.Value;
+            // برای کلید محرمانه: اگر مقدار ارسالی همان ماسک باشد یعنی «بدون تغییر»؛ مقدار فعلی حفظ می‌شود
+            // تا سهواً کلید واقعی با ماسک بازنویسی نشود.
+            if (IsSecret(key) && request.Value == SecretMask)
+            {
+                // مقدار را دست‌نخورده نگه می‌داریم.
+            }
+            else
+            {
+                setting.Value = request.Value;
+            }
+
             setting.GroupName = request.GroupName?.Trim();
             setting.ValueType = request.ValueType?.Trim();
             setting.Description = request.Description?.Trim();
             setting.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
+
+            // باطل‌کردن کش تنظیمات پیامک تا تغییرات بلافاصله اعمال شود.
+            if (key.StartsWith("Sms.", StringComparison.OrdinalIgnoreCase))
+                _smsSettingsProvider.Invalidate();
 
             return Map(setting);
         }
@@ -118,15 +144,23 @@ namespace Vitorize.Infrastructure.Services
             _dbContext.Settings.Remove(setting);
 
             await _dbContext.SaveChangesAsync();
+
+            if (setting.Key.StartsWith("Sms.", StringComparison.OrdinalIgnoreCase))
+                _smsSettingsProvider.Invalidate();
         }
 
         private static SettingDto Map(Setting setting)
         {
+            // کلیدهای محرمانه به‌صورت ماسک‌شده برگردانده می‌شوند (اگر مقدار داشته باشند).
+            var value = setting.Value;
+            if (IsSecret(setting.Key) && !string.IsNullOrEmpty(value))
+                value = SecretMask;
+
             return new SettingDto
             {
                 Id = setting.Id,
                 Key = setting.Key,
-                Value = setting.Value,
+                Value = value,
                 GroupName = setting.GroupName,
                 ValueType = setting.ValueType,
                 Description = setting.Description,

@@ -61,6 +61,10 @@ else
                     </div>
                 </div>
                 <div class="vz-card__body">
+                    @if (tab.Key == "notif")
+                    {
+                        <AdminSmsTestPanel />
+                    }
                     @if (items.Count == 0)
                     {
                         <EmptyState Title="موردی در این بخش نیست" Icon="@tab.Icon" />
@@ -300,6 +304,16 @@ else
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                             @SaveInline(s)
                         </div>
+                        break;
+
+                    case "secret":
+                        <div class="vz-setfield__row">
+                            <input class="vz-input" type="password" autocomplete="new-password"
+                                   placeholder="برای تغییر، مقدار جدید وارد کنید" value="@s.Value"
+                                   @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                            @SaveInline(s)
+                        </div>
+                        <div class="vz-hint" style="margin-top:4px">مقدار ذخیره‌شده به‌صورت محرمانه نگهداری و هرگز کامل نمایش داده نمی‌شود.</div>
                         break;
 
                     default:

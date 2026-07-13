@@ -8,6 +8,7 @@ using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Interceptors;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
+using Vitorize.Infrastructure.Services.Sms;
 
 namespace Vitorize.Infrastructure
 {
@@ -59,6 +60,14 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
+
+            // ───────────── SMS (SMS.ir) ─────────────
+            // Sender و SettingsProvider به‌صورت Singleton ثبت می‌شوند تا HttpClient داخلی SDK
+            // و کش تنظیمات میان درخواست‌ها بازاستفاده شود. SmsService و Enqueuer در سطح درخواست هستند.
+            services.AddSingleton<ISmsSender, SmsIrSender>();
+            services.AddSingleton<ISmsSettingsProvider, SmsSettingsProvider>();
+            services.AddScoped<ISmsService, SmsService>();
+            services.AddScoped<ISmsOutboxEnqueuer, SmsOutboxEnqueuer>();
             services.AddScoped<IAdminReportService, AdminReportService>();
             services.AddScoped<IStorefrontService, StorefrontService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();

@@ -18,17 +18,20 @@ namespace Vitorize.Infrastructure.Services
         private readonly IWalletService _walletService;
         private readonly INotificationService _notificationService;
         private readonly IZarinpalGatewayService _zarinpalGatewayService;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
 
         public WalletTopUpService(
             VitorizeDbContext dbContext,
             IWalletService walletService,
             INotificationService notificationService,
-            IZarinpalGatewayService zarinpalGatewayService)
+            IZarinpalGatewayService zarinpalGatewayService,
+            ISmsOutboxEnqueuer smsOutbox)
         {
             _dbContext = dbContext;
             _walletService = walletService;
             _notificationService = notificationService;
             _zarinpalGatewayService = zarinpalGatewayService;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<WalletTopUpStartResultDto> StartAsync(
@@ -283,6 +286,24 @@ namespace Vitorize.Infrastructure.Services
                 (byte)NotificationType.PaymentSucceeded,
                 "شارژ کیف پول",
                 "کیف پول شما با موفقیت شارژ شد.");
+
+            var mobile = await _dbContext.Users
+                .Where(x => x.Id == topUp.UserId)
+                .Select(x => x.Mobile)
+                .FirstOrDefaultAsync();
+
+            await _smsOutbox.EnqueueTemplateAsync(
+                mobile,
+                Vitorize.Application.Common.SmsTemplateKeys.WalletTopUpSuccess,
+                new[]
+                {
+                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                        Vitorize.Application.Common.SmsTemplateParams.Amount, topUp.Amount.ToString("#,0")),
+                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                        Vitorize.Application.Common.SmsTemplateParams.Balance, wallet.Balance.ToString("#,0"))
+                },
+                purpose: "WalletTopUpSuccess",
+                aggregateId: topUp.Id);
 
             return wallet;
         }

@@ -181,7 +181,7 @@ namespace Vitorize.Api.Controllers
         [HttpPost("send-otp")]
         [SwaggerOperation(
             Summary = "ارسال کد تایید",
-            Description = "ارسال OTP برای تایید موبایل یا بازیابی رمز عبور. فعلاً در حالت تست کد در Console چاپ می‌شود.")]
+            Description = "ارسال OTP برای تایید موبایل یا بازیابی رمز عبور از طریق سرویس پیامک (SMS.ir).")]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResult>> SendOtp(SendOtpRequestDto request)
@@ -202,6 +202,53 @@ namespace Vitorize.Api.Controllers
             await _authService.VerifyOtpAsync(request);
 
             return Ok(ApiResult.Success("کد تایید با موفقیت تایید شد."));
+        }
+
+        [EnableRateLimiting("otp")]
+        [HttpPost("login/otp/request")]
+        [SwaggerOperation(
+            Summary = "درخواست کد ورود یکبار‌مصرف",
+            Description = "ارسال کد ورود به شماره موبایل مشتری. پاسخ عمومی است و وجود/عدم‌وجود حساب را افشا نمی‌کند.")]
+        [ProducesResponseType(typeof(ApiResult<RequestOtpLoginResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult<ApiResult<RequestOtpLoginResponseDto>>> RequestLoginOtp(
+            RequestOtpLoginRequestDto request)
+        {
+            var result = await _authService.RequestLoginOtpAsync(
+                request, GetClientIp(), GetUserAgent());
+
+            return Ok(ApiResult<RequestOtpLoginResponseDto>.Success(
+                result,
+                "در صورت وجود حساب کاربری فعال، کد ورود ارسال خواهد شد."));
+        }
+
+        [EnableRateLimiting("login")]
+        [HttpPost("login/otp/verify")]
+        [SwaggerOperation(
+            Summary = "تایید کد ورود و ورود مشتری",
+            Description = "بررسی کد ورود و صدور AccessToken و RefreshToken مانند ورود با رمز عبور.")]
+        [ProducesResponseType(typeof(ApiResult<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult<ApiResult<AuthResponseDto>>> VerifyLoginOtp(
+            VerifyOtpLoginRequestDto request)
+        {
+            var result = await _authService.VerifyLoginOtpAsync(
+                request, GetClientIp(), GetUserAgent());
+
+            return Ok(ApiResult<AuthResponseDto>.Success(
+                result,
+                "ورود با موفقیت انجام شد."));
+        }
+
+        private string? GetClientIp() =>
+            HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        private string? GetUserAgent()
+        {
+            var ua = Request.Headers.UserAgent.ToString();
+            return string.IsNullOrWhiteSpace(ua) ? null : ua;
         }
     }
 }

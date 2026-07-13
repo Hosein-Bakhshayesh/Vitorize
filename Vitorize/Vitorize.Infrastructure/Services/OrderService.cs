@@ -12,10 +12,12 @@ namespace Vitorize.Infrastructure.Services
     public class OrderService : IOrderService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
 
-        public OrderService(VitorizeDbContext dbContext)
+        public OrderService(VitorizeDbContext dbContext, ISmsOutboxEnqueuer smsOutbox)
         {
             _dbContext = dbContext;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -270,6 +272,22 @@ namespace Vitorize.Infrastructure.Services
                 Note = "سفارش توسط ادمین تکمیل شد.",
                 CreatedAt = now
             });
+
+            var mobile = await _dbContext.Users
+                .Where(x => x.Id == order.UserId)
+                .Select(x => x.Mobile)
+                .FirstOrDefaultAsync();
+
+            await _smsOutbox.EnqueueTemplateAsync(
+                mobile,
+                Vitorize.Application.Common.SmsTemplateKeys.OrderCompleted,
+                new[]
+                {
+                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
+                        Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber)
+                },
+                purpose: "OrderCompleted",
+                aggregateId: order.Id);
 
             await _dbContext.SaveChangesAsync();
         }

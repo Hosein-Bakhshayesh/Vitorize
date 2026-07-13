@@ -16,8 +16,42 @@ namespace Vitorize.Web.Endpoints
         public static void MapCustomerAuthEndpoints(this WebApplication app)
         {
             app.MapPost("/auth/customer/login", LoginAsync).DisableAntiforgery();
+            app.MapPost("/auth/customer/login/otp/complete", OtpCompleteAsync).DisableAntiforgery();
             app.MapPost("/auth/customer/register", RegisterAsync).DisableAntiforgery();
             app.MapPost("/auth/customer/logout", LogoutAsync).DisableAntiforgery();
+        }
+
+        /// <summary>
+        /// مرحله نهایی ورود با کد یکبار‌مصرف: توکن‌های صادرشده توسط API (پس از تایید موفق کد در
+        /// مدار تعاملی) را می‌گیرد و کوکی احراز هویت مشتری را می‌نویسد. هیچ کد یا رمزی اینجا نیست.
+        /// </summary>
+        private static async Task OtpCompleteAsync(HttpContext http)
+        {
+            var form = await http.Request.ReadFormAsync();
+            var accessToken = form["accessToken"].ToString();
+            var refreshToken = form["refreshToken"].ToString();
+            var mobile = form["mobile"].ToString().Trim();
+            var fullName = form["fullName"].ToString().Trim();
+            var userId = form["userId"].ToString().Trim();
+            var returnUrl = form["returnUrl"].ToString();
+
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                http.Response.Redirect(FailUrl("/login", "ورود ناموفق بود. لطفاً دوباره تلاش کنید.", returnUrl) + "&otp=1");
+                return;
+            }
+
+            var data = new AdminLoginResponseModel
+            {
+                UserId = Guid.TryParse(userId, out var uid) ? uid : Guid.Empty,
+                FullName = string.IsNullOrWhiteSpace(fullName) ? null : fullName,
+                Mobile = string.IsNullOrWhiteSpace(mobile) ? null : mobile,
+                AccessToken = accessToken,
+                RefreshToken = string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken
+            };
+
+            await SignInCustomerAsync(http, data, mobile);
+            http.Response.Redirect(SafeReturn(returnUrl));
         }
 
         private static async Task LoginAsync(HttpContext http, ApiClient apiClient)

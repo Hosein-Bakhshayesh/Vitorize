@@ -1,10 +1,14 @@
 @page "/login"
+@implements IDisposable
+@inject ApiClient Api
+@inject IJSRuntime JS
+@using Vitorize.Web.Models.Admin.Auth
 
 <PageTitle>ورود | ویتورایز</PageTitle>
 
 <div style="max-width:440px;margin:30px auto">
     <div class="st-card st-card__pad">
-        <div style="text-align:center;margin-bottom:22px">
+        <div style="text-align:center;margin-bottom:20px">
             <div style="display:flex;justify-content:center;margin-bottom:10px"><StoreLogo /></div>
             <h1 style="font-size:20px">ورود به حساب کاربری</h1>
             <p class="st-muted" style="font-size:13px;margin-top:6px">برای ادامه، وارد حساب خود شوید.</p>
@@ -15,21 +19,118 @@
             <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@Error</span></div>
         }
 
-        <form method="post" action="/auth/customer/login">
-            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-            <div class="st-field">
-                <label class="st-label">شماره موبایل</label>
-                <input class="st-input" name="mobile" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" required />
-            </div>
-            <div class="st-field">
-                <label class="st-label">رمز عبور</label>
-                <input class="st-input" name="password" type="password" placeholder="رمز عبور" required />
-            </div>
-            <div style="text-align:start;margin-bottom:16px">
-                <a href="/forgot-password" style="font-size:12.5px;color:var(--st-brand-2)">رمز عبور را فراموش کرده‌اید؟</a>
-            </div>
-            <button type="submit" class="st-btn st-btn--primary st-btn--block st-btn--lg"><Icon Name="log-in" Size="18" /> ورود</button>
-        </form>
+        @* ── انتخاب روش ورود ── *@
+        <div role="tablist" aria-label="روش ورود"
+             style="display:flex;gap:6px;background:var(--st-chip);padding:5px;border-radius:12px;margin-bottom:18px">
+            <button type="button" role="tab" aria-selected="@(_tab == LoginTab.Password)"
+                    @onclick="() => _tab = LoginTab.Password"
+                    class="st-btn @(_tab == LoginTab.Password ? "st-btn--primary" : "st-btn--ghost")"
+                    style="flex:1;font-size:13px">
+                <Icon Name="lock" Size="16" /> رمز عبور
+            </button>
+            <button type="button" role="tab" aria-selected="@(_tab == LoginTab.Otp)"
+                    @onclick="() => _tab = LoginTab.Otp"
+                    class="st-btn @(_tab == LoginTab.Otp ? "st-btn--primary" : "st-btn--ghost")"
+                    style="flex:1;font-size:13px">
+                <Icon Name="message" Size="16" /> کد یکبار مصرف
+            </button>
+        </div>
+
+        @if (_tab == LoginTab.Password)
+        {
+            @* ── روش ۱: موبایل + رمز عبور (POST سرور برای ست‌شدن کوکی) ── *@
+            <form method="post" action="/auth/customer/login">
+                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                <div class="st-field">
+                    <label class="st-label" for="pw-mobile">شماره موبایل</label>
+                    <input id="pw-mobile" class="st-input" name="mobile" inputmode="tel" autocomplete="tel"
+                           placeholder="۰۹۱۲۳۴۵۶۷۸۹" required />
+                </div>
+                <div class="st-field">
+                    <label class="st-label" for="pw-pass">رمز عبور</label>
+                    <input id="pw-pass" class="st-input" name="password" type="password" autocomplete="current-password"
+                           placeholder="رمز عبور" required />
+                </div>
+                <div style="text-align:start;margin-bottom:16px">
+                    <a href="/forgot-password" style="font-size:12.5px;color:var(--st-brand-2)">رمز عبور را فراموش کرده‌اید؟</a>
+                </div>
+                <button type="submit" class="st-btn st-btn--primary st-btn--block st-btn--lg">
+                    <Icon Name="log-in" Size="18" /> ورود
+                </button>
+            </form>
+        }
+        else
+        {
+            @* ── روش ۲: ورود با کد یکبار مصرف ── *@
+            @if (!string.IsNullOrWhiteSpace(_otpError))
+            {
+                <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
+            }
+
+            @if (_step == OtpStep.Mobile)
+            {
+                <div class="st-field">
+                    <label class="st-label" for="otp-mobile">شماره موبایل</label>
+                    <input id="otp-mobile" class="st-input" @bind="_mobile" @bind:event="oninput"
+                           inputmode="tel" autocomplete="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                           @onkeydown="@(e => { if (e.Key == "Enter") return; })" />
+                </div>
+                <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="RequestOtp" disabled="@_busy">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <span><Icon Name="send" Size="17" /> دریافت کد ورود</span> }
+                </button>
+            }
+            else
+            {
+                <div style="text-align:center;margin-bottom:14px">
+                    <p class="st-muted" style="font-size:13px">
+                        کد ورود به شماره <bdi style="font-weight:700;color:var(--st-text)">@_masked</bdi> پیامک شد.
+                    </p>
+                </div>
+
+                <div class="st-field">
+                    <label class="st-label" for="otp-code">کد تایید</label>
+                    <input id="otp-code" class="st-input" @bind="_code" @bind:event="oninput"
+                           inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+                           placeholder="------"
+                           style="text-align:center;letter-spacing:8px;font-size:20px;font-weight:700"
+                           @onkeydown="OnCodeKeyDown" />
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:12.5px">
+                    @if (_expiryRemaining > 0)
+                    {
+                        <span class="st-muted">اعتبار کد: <bdi>@FormatTime(_expiryRemaining)</bdi></span>
+                    }
+                    else
+                    {
+                        <span style="color:#dc2626">کد منقضی شد</span>
+                    }
+
+                    @if (_cooldownRemaining > 0)
+                    {
+                        <span class="st-muted">ارسال مجدد تا <bdi>@_cooldownRemaining</bdi> ثانیه دیگر</span>
+                    }
+                    else
+                    {
+                        <button type="button" class="st-btn st-btn--ghost" style="font-size:12.5px;padding:2px 8px"
+                                @onclick="RequestOtp" disabled="@_busy">
+                            <Icon Name="refresh" Size="14" /> ارسال مجدد کد
+                        </button>
+                    }
+                </div>
+
+                <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="VerifyOtp"
+                        disabled="@(_busy || string.IsNullOrWhiteSpace(_code))">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <span><Icon Name="log-in" Size="18" /> تایید و ورود</span> }
+                </button>
+
+                <div style="text-align:center;margin-top:12px">
+                    <button type="button" class="st-btn st-btn--ghost" style="font-size:12.5px" @onclick="ChangeMobile">
+                        <Icon Name="edit" Size="14" /> تغییر شماره موبایل
+                    </button>
+                </div>
+            }
+        }
 
         <div class="st-divider"></div>
         <div style="text-align:center;font-size:13px">
@@ -38,11 +139,166 @@
     </div>
 </div>
 
+@* فرم پنهان نهایی: پس از تایید موفق کد، توکن‌ها را به سرور می‌فرستد تا کوکی مشتری ست شود. *@
+<form id="otp-complete" method="post" action="/auth/customer/login/otp/complete" style="display:none">
+    <input name="userId" value="@_cUserId" />
+    <input name="fullName" value="@_cFullName" />
+    <input name="mobile" value="@_cMobile" />
+    <input name="accessToken" value="@_cAccess" />
+    <input name="refreshToken" value="@_cRefresh" />
+    <input name="returnUrl" value="@ReturnUrl" />
+</form>
+
 @code {
     [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery(Name = "otp")] public string? OtpFlag { get; set; }
+
+    private enum LoginTab { Password, Otp }
+    private enum OtpStep { Mobile, Code }
+
+    private LoginTab _tab = LoginTab.Password;
+    private OtpStep _step = OtpStep.Mobile;
+
+    private string _mobile = string.Empty;
+    private string _code = string.Empty;
+    private string _masked = string.Empty;
+    private string? _otpError;
+    private bool _busy;
+
+    private int _expiryRemaining;
+    private int _cooldownRemaining;
+    private System.Threading.Timer? _timer;
+
+    // مقادیر فرم نهایی (ست‌کردن کوکی)
+    private string _cUserId = "", _cFullName = "", _cMobile = "", _cAccess = "", _cRefresh = "";
 
     private string RegisterLink => string.IsNullOrWhiteSpace(ReturnUrl)
         ? "/register"
         : $"/register?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(OtpFlag))
+            _tab = LoginTab.Otp;
+    }
+
+    private async Task RequestOtp()
+    {
+        _otpError = null;
+
+        if (string.IsNullOrWhiteSpace(_mobile))
+        {
+            _otpError = "شماره موبایل را وارد کنید.";
+            return;
+        }
+
+        _busy = true;
+        var r = await Api.PostAsync<OtpRequestResult>("auth/login/otp/request", new { Mobile = _mobile.Trim() });
+        _busy = false;
+
+        if (!r.IsSuccess || r.Data is null)
+        {
+            _otpError = string.IsNullOrWhiteSpace(r.Message) ? "ارسال کد ناموفق بود." : r.Message;
+            return;
+        }
+
+        _masked = r.Data.MaskedMobile;
+        _expiryRemaining = r.Data.ExpirySeconds > 0 ? r.Data.ExpirySeconds : 180;
+        _cooldownRemaining = r.Data.ResendCooldownSeconds;
+        _code = string.Empty;
+        _step = OtpStep.Code;
+        StartTimer();
+
+        await FocusCodeAsync();
+    }
+
+    private async Task VerifyOtp()
+    {
+        _otpError = null;
+
+        if (string.IsNullOrWhiteSpace(_code))
+        {
+            _otpError = "کد تایید را وارد کنید.";
+            return;
+        }
+
+        _busy = true;
+        var r = await Api.PostAsync<AdminLoginResponseModel>(
+            "auth/login/otp/verify",
+            new { Mobile = _mobile.Trim(), Code = _code.Trim() });
+
+        if (!r.IsSuccess || r.Data is null)
+        {
+            _busy = false;
+            _otpError = string.IsNullOrWhiteSpace(r.Message) ? "کد وارد شده معتبر نیست یا منقضی شده است." : r.Message;
+            return;
+        }
+
+        // موفق: توکن‌ها را به فرم پنهان می‌دهیم و آن را POST می‌کنیم تا کوکی مشتری ست شود.
+        _cUserId = r.Data.GetUserId();
+        _cFullName = r.Data.GetDisplayName(_mobile.Trim());
+        _cMobile = r.Data.Mobile ?? _mobile.Trim();
+        _cAccess = r.Data.GetAccessToken();
+        _cRefresh = r.Data.RefreshToken ?? string.Empty;
+
+        StopTimer();
+        await InvokeAsync(StateHasChanged);
+        await JS.InvokeVoidAsync("vzOtp.submitForm", "otp-complete");
+    }
+
+    private void ChangeMobile()
+    {
+        StopTimer();
+        _step = OtpStep.Mobile;
+        _code = string.Empty;
+        _otpError = null;
+    }
+
+    private async Task OnCodeKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_code) && !_busy)
+            await VerifyOtp();
+    }
+
+    private async Task FocusCodeAsync()
+    {
+        try { await JS.InvokeVoidAsync("vzOtp.focus", "otp-code"); } catch { }
+    }
+
+    private void StartTimer()
+    {
+        StopTimer();
+        _timer = new System.Threading.Timer(_ => Tick(), null, 1000, 1000);
+    }
+
+    private void StopTimer()
+    {
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    private void Tick()
+    {
+        var changed = false;
+        if (_expiryRemaining > 0) { _expiryRemaining--; changed = true; }
+        if (_cooldownRemaining > 0) { _cooldownRemaining--; changed = true; }
+        if (changed) InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatTime(int seconds)
+    {
+        var m = seconds / 60;
+        var s = seconds % 60;
+        return $"{m:D2}:{s:D2}";
+    }
+
+    public void Dispose() => StopTimer();
+
+    private sealed class OtpRequestResult
+    {
+        public string MaskedMobile { get; set; } = string.Empty;
+        public int ExpirySeconds { get; set; }
+        public int ResendCooldownSeconds { get; set; }
+    }
 }
