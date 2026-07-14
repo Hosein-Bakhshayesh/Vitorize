@@ -1,250 +1,215 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Cart;
+using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
 
-namespace Vitorize.Infrastructure.Services
+namespace Vitorize.Infrastructure.Services;
+
+public class CartService : ICartService
 {
-    public class CartService : ICartService
+    private readonly VitorizeDbContext _dbContext;
+    private readonly IEncryptionService _encryptionService;
+
+    public CartService(VitorizeDbContext dbContext, IEncryptionService encryptionService)
     {
-        private readonly VitorizeDbContext _dbContext;
+        _dbContext = dbContext;
+        _encryptionService = encryptionService;
+    }
 
-        public CartService(VitorizeDbContext dbContext)
+    public async Task<CartDto> GetAsync(Guid userId) => MapToDto(await GetOrCreateCartAsync(userId));
+
+    public async Task<CartDto> AddItemAsync(Guid userId, AddToCartRequestDto request)
+    {
+        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        if (request.ProductId == Guid.Empty) throw new BusinessException("محصول الزامی است.");
+        if (request.Quantity <= 0) throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
+
+        var product = await _dbContext.Products.AsNoTracking()
+            .Include(x => x.ProductVariants)
+            .Include(x => x.ProductInputFields.Where(f => f.IsActive))
+            .FirstOrDefaultAsync(x => x.Id == request.ProductId && x.IsActive && !x.IsDeleted)
+            ?? throw new BusinessException("محصول معتبر نیست.");
+
+        ProductVariant? variant = null;
+        if (request.ProductVariantId.HasValue)
         {
-            _dbContext = dbContext;
+            variant = product.ProductVariants.FirstOrDefault(x => x.Id == request.ProductVariantId && x.IsActive)
+                ?? throw new BusinessException("تنوع محصول معتبر نیست.");
         }
 
-        public async Task<CartDto> GetAsync(Guid userId)
+        var unitPrice = variant is null
+            ? ResolveFinalPrice(product.BasePrice, product.DiscountPrice)
+            : ResolveFinalPrice(variant.Price, variant.DiscountPrice);
+        var values = ValidateInputs(product.ProductInputFields, request.InputValues, includeAllStages: false);
+        var fingerprint = ProductInputRules.Fingerprint(values);
+        var cart = await GetOrCreateCartAsync(userId);
+        var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
+            x.ProductVariantId == request.ProductVariantId && x.InputFingerprint == fingerprint);
+
+        if (existing is not null)
         {
-            var cart = await GetOrCreateCartAsync(userId);
-            return MapToDto(cart);
+            existing.Quantity += request.Quantity;
+            existing.UnitPrice = unitPrice;
+            existing.UpdatedAt = DateTime.UtcNow;
         }
-
-        public async Task<CartDto> AddItemAsync(
-            Guid userId,
-            AddToCartRequestDto request)
+        else
         {
-            if (userId == Guid.Empty)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            if (request.ProductId == Guid.Empty)
-                throw new BusinessException("محصول الزامی است.");
-
-            if (request.Quantity <= 0)
-                throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
-
-            var product = await _dbContext.Products
-                .AsNoTracking()
-                .Include(x => x.ProductVariants)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == request.ProductId &&
-                    x.IsActive &&
-                    !x.IsDeleted);
-
-            if (product == null)
-                throw new BusinessException("محصول معتبر نیست.");
-
-            ProductVariant? variant = null;
-
-            if (request.ProductVariantId.HasValue)
+            var item = new CartItem
             {
-                variant = product.ProductVariants.FirstOrDefault(x =>
-                    x.Id == request.ProductVariantId.Value &&
-                    x.IsActive);
-
-                if (variant == null)
-                    throw new BusinessException("تنوع محصول معتبر نیست.");
-            }
-
-            var unitPrice = variant != null
-                ? ResolveFinalPrice(variant.Price, variant.DiscountPrice)
-                : ResolveFinalPrice(product.BasePrice, product.DiscountPrice);
-
-            var cart = await GetOrCreateCartAsync(userId);
-
-            var existingItem = cart.CartItems.FirstOrDefault(x =>
-                x.ProductId == request.ProductId &&
-                x.ProductVariantId == request.ProductVariantId);
-
-            if (existingItem != null)
-            {
-                existingItem.Quantity += request.Quantity;
-                existingItem.UnitPrice = unitPrice;
-                existingItem.UpdatedAt = DateTime.UtcNow;
-            }
-            else
-            {
-                var newItem = new CartItem
-                {
-                    Id = Guid.NewGuid(),
-                    CartId = cart.Id,
-                    ProductId = request.ProductId,
-                    ProductVariantId = request.ProductVariantId,
-                    Quantity = request.Quantity,
-                    UnitPrice = unitPrice,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _dbContext.CartItems.AddAsync(newItem);
-            }
-
-            await _dbContext.SaveChangesAsync();
-
-            var updatedCart = await LoadCartAsync(userId);
-            return MapToDto(updatedCart);
-        }
-
-        public async Task<CartDto> UpdateItemAsync(
-            Guid userId,
-            Guid cartItemId,
-            UpdateCartItemRequestDto request)
-        {
-            if (userId == Guid.Empty)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            if (cartItemId == Guid.Empty)
-                throw new BusinessException("آیتم سبد خرید معتبر نیست.");
-
-            if (request.Quantity <= 0)
-                throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
-
-            var item = await _dbContext.CartItems
-                .Include(x => x.Cart)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == cartItemId &&
-                    x.Cart.UserId == userId);
-
-            if (item == null)
-                throw new NotFoundException("آیتم سبد خرید یافت نشد.");
-
-            item.Quantity = request.Quantity;
-            item.UpdatedAt = DateTime.UtcNow;
-
-            await _dbContext.SaveChangesAsync();
-
-            var updatedCart = await LoadCartAsync(userId);
-            return MapToDto(updatedCart);
-        }
-
-        public async Task<CartDto> RemoveItemAsync(
-            Guid userId,
-            Guid cartItemId)
-        {
-            if (userId == Guid.Empty)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            if (cartItemId == Guid.Empty)
-                throw new BusinessException("آیتم سبد خرید معتبر نیست.");
-
-            var item = await _dbContext.CartItems
-                .Include(x => x.Cart)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == cartItemId &&
-                    x.Cart.UserId == userId);
-
-            if (item == null)
-                throw new NotFoundException("آیتم سبد خرید یافت نشد.");
-
-            _dbContext.CartItems.Remove(item);
-
-            await _dbContext.SaveChangesAsync();
-
-            var updatedCart = await LoadCartAsync(userId);
-            return MapToDto(updatedCart);
-        }
-
-        public async Task ClearAsync(Guid userId)
-        {
-            if (userId == Guid.Empty)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            var cart = await LoadCartAsync(userId);
-
-            if (!cart.CartItems.Any())
-                return;
-
-            _dbContext.CartItems.RemoveRange(cart.CartItems);
-
-            await _dbContext.SaveChangesAsync();
-        }
-
-        private async Task<Cart> GetOrCreateCartAsync(Guid userId)
-        {
-            var cart = await LoadCartOrDefaultAsync(userId);
-
-            if (cart != null)
-                return cart;
-
-            var newCart = new Cart
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                CreatedAt = DateTime.UtcNow
+                Id = Guid.NewGuid(), CartId = cart.Id, ProductId = request.ProductId,
+                ProductVariantId = request.ProductVariantId, InputFingerprint = fingerprint,
+                Quantity = request.Quantity, UnitPrice = unitPrice, CreatedAt = DateTime.UtcNow
             };
-
-            await _dbContext.Carts.AddAsync(newCart);
-            await _dbContext.SaveChangesAsync();
-
-            return await LoadCartAsync(userId);
+            AddInputValues(item, product.ProductInputFields, values);
+            await _dbContext.CartItems.AddAsync(item);
         }
 
-        private async Task<Cart> LoadCartAsync(Guid userId)
+        await _dbContext.SaveChangesAsync();
+        return MapToDto(await LoadCartAsync(userId));
+    }
+
+    public async Task<CartDto> UpdateItemAsync(Guid userId, Guid cartItemId, UpdateCartItemRequestDto request)
+    {
+        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        if (cartItemId == Guid.Empty) throw new BusinessException("آیتم سبد خرید معتبر نیست.");
+        if (request.Quantity <= 0) throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
+
+        var item = await _dbContext.CartItems
+            .Include(x => x.Cart).Include(x => x.InputValues)
+            .Include(x => x.Product).ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
+            .FirstOrDefaultAsync(x => x.Id == cartItemId && x.Cart.UserId == userId)
+            ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
+
+        item.Quantity = request.Quantity;
+        item.UpdatedAt = DateTime.UtcNow;
+        if (request.InputValues is not null)
         {
-            var cart = await LoadCartOrDefaultAsync(userId);
-
-            if (cart == null)
-                throw new NotFoundException("سبد خرید یافت نشد.");
-
-            return cart;
+            var values = ValidateInputs(item.Product.ProductInputFields, request.InputValues, includeAllStages: true);
+            item.InputFingerprint = ProductInputRules.Fingerprint(values);
+            _dbContext.CartItemInputValues.RemoveRange(item.InputValues);
+            AddInputValues(item, item.Product.ProductInputFields, values);
         }
+        await _dbContext.SaveChangesAsync();
+        return MapToDto(await LoadCartAsync(userId));
+    }
 
-        private async Task<Cart?> LoadCartOrDefaultAsync(Guid userId)
+    public async Task<CartDto> RemoveItemAsync(Guid userId, Guid cartItemId)
+    {
+        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        var item = await _dbContext.CartItems.Include(x => x.Cart)
+            .FirstOrDefaultAsync(x => x.Id == cartItemId && x.Cart.UserId == userId)
+            ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
+        _dbContext.CartItems.Remove(item);
+        await _dbContext.SaveChangesAsync();
+        return MapToDto(await LoadCartAsync(userId));
+    }
+
+    public async Task ClearAsync(Guid userId)
+    {
+        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        var cart = await LoadCartAsync(userId);
+        if (cart.CartItems.Count == 0) return;
+        _dbContext.CartItems.RemoveRange(cart.CartItems);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task<Cart> GetOrCreateCartAsync(Guid userId)
+    {
+        var cart = await LoadCartOrDefaultAsync(userId);
+        if (cart is not null) return cart;
+        await _dbContext.Carts.AddAsync(new Cart { Id = Guid.NewGuid(), UserId = userId, CreatedAt = DateTime.UtcNow });
+        await _dbContext.SaveChangesAsync();
+        return await LoadCartAsync(userId);
+    }
+
+    private async Task<Cart> LoadCartAsync(Guid userId) =>
+        await LoadCartOrDefaultAsync(userId) ?? throw new NotFoundException("سبد خرید یافت نشد.");
+
+    private Task<Cart?> LoadCartOrDefaultAsync(Guid userId) => _dbContext.Carts
+        .Include(x => x.CartItems).ThenInclude(x => x.Product).ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
+        .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
+        .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
+        .FirstOrDefaultAsync(x => x.UserId == userId);
+
+    private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
+        discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
+
+    private static CartDto MapToDto(Cart cart)
+    {
+        var items = cart.CartItems.OrderBy(x => x.CreatedAt).Select(x => new CartItemDto
         {
-            return await _dbContext.Carts
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.Product)
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.ProductVariant)
-                .FirstOrDefaultAsync(x => x.UserId == userId);
-        }
-
-        private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice)
-        {
-            return discountPrice.HasValue &&
-                   discountPrice.Value > 0 &&
-                   discountPrice.Value < basePrice
-                ? discountPrice.Value
-                : basePrice;
-        }
-
-        private static CartDto MapToDto(Cart cart)
-        {
-            var items = cart.CartItems
-                .OrderBy(x => x.CreatedAt)
-                .Select(x => new CartItemDto
-                {
-                    Id = x.Id,
-                    ProductId = x.ProductId,
-                    ProductVariantId = x.ProductVariantId,
-                    ProductTitle = x.Product.Title,
-                    VariantTitle = x.ProductVariant?.Title,
-                    ThumbnailImagePath = x.Product.ThumbnailImagePath,
-                    Quantity = x.Quantity,
-                    UnitPrice = x.UnitPrice,
-                    TotalPrice = x.UnitPrice * x.Quantity
-                })
-                .ToList();
-
-            return new CartDto
+            Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,
+            ProductTitle = x.Product.Title, VariantTitle = x.ProductVariant?.Title,
+            ThumbnailImagePath = x.Product.ThumbnailImagePath, Quantity = x.Quantity,
+            UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity,
+            InputFields = x.Product.ProductInputFields.Where(f => f.IsActive).OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
+                .Select(ToDefinitionDto).ToList(),
+            InputValues = x.InputValues.OrderBy(v => v.FieldKey).Select(v => new ProductInputValueDto
             {
-                Id = cart.Id,
-                UserId = cart.UserId,
-                Items = items,
-                TotalQuantity = items.Sum(x => x.Quantity),
-                SubtotalAmount = items.Sum(x => x.TotalPrice)
-            };
+                Id = v.Id, ProductInputFieldId = v.ProductInputFieldId, FieldKey = v.FieldKey,
+                FieldLabel = v.FieldLabel, FieldType = v.FieldType,
+                Value = v.IsSensitive ? ProductInputRules.Mask(null) : v.Value,
+                IsSensitive = v.IsSensitive, IsMasked = v.IsSensitive
+            }).ToList()
+        }).ToList();
+        return new CartDto
+        {
+            Id = cart.Id, UserId = cart.UserId, Items = items,
+            TotalQuantity = items.Sum(x => x.Quantity), SubtotalAmount = items.Sum(x => x.TotalPrice)
+        };
+    }
+
+    internal static Dictionary<string, string?> ValidateInputs(
+        IEnumerable<ProductInputField> definitions,
+        IReadOnlyDictionary<string, string?>? supplied,
+        bool includeAllStages)
+    {
+        var active = definitions.Where(x => x.IsActive && (includeAllStages || x.DisplayStage == 1))
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
+        var input = supplied ?? new Dictionary<string, string?>();
+        var known = active.Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (input.Keys.Any(x => !known.Contains(x)))
+            throw new BusinessException("یکی از اطلاعات ارسال‌شده برای این محصول تعریف نشده است.");
+
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var definition in active)
+        {
+            input.TryGetValue(definition.Key, out var value);
+            result[definition.Key] = ProductInputRules.ValidateValue(ToDefinitionDto(definition), value);
+        }
+        return result;
+    }
+
+    private void AddInputValues(CartItem item, IEnumerable<ProductInputField> definitions,
+        IReadOnlyDictionary<string, string?> values)
+    {
+        foreach (var field in definitions.Where(x => values.ContainsKey(x.Key)))
+        {
+            var value = values[field.Key];
+            item.InputValues.Add(new CartItemInputValue
+            {
+                Id = Guid.NewGuid(), ProductInputFieldId = field.Id, FieldKey = field.Key,
+                FieldLabel = field.Label, FieldType = field.FieldType,
+                Value = field.IsSensitive ? null : value,
+                EncryptedValue = field.IsSensitive && value is not null ? _encryptionService.Encrypt(value) : null,
+                IsSensitive = field.IsSensitive, CreatedAt = DateTime.UtcNow
+            });
         }
     }
+
+    internal static ProductInputFieldDto ToDefinitionDto(ProductInputField field) => new()
+    {
+        Id = field.Id, Key = field.Key, Label = field.Label, Description = field.Description,
+        Placeholder = field.Placeholder, FieldType = field.FieldType, IsRequired = field.IsRequired,
+        Options = string.IsNullOrWhiteSpace(field.OptionsJson) ? new() : JsonSerializer.Deserialize<List<string>>(field.OptionsJson) ?? new(),
+        DefaultValue = field.DefaultValue, MinLength = field.MinLength, MaxLength = field.MaxLength,
+        ValidationPattern = field.ValidationPattern, ValidationMessage = field.ValidationMessage,
+        IsSensitive = field.IsSensitive, RequiresConfirmation = field.RequiresConfirmation,
+        DisplayStage = field.DisplayStage, SortOrder = field.SortOrder, IsActive = field.IsActive
+    };
 }

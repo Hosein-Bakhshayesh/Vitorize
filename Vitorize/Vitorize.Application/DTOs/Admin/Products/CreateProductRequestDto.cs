@@ -34,5 +34,7 @@
         public string? ThumbnailImagePath { get; set; }
 
         public int SortOrder { get; set; }
+        public List<Vitorize.Application.DTOs.Products.ProductFeatureDto> Features { get; set; } = new();
+        public List<Vitorize.Application.DTOs.Products.ProductInputFieldDto> InputFields { get; set; } = new();
     }
 }

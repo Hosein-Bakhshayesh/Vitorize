@@ -54,6 +54,7 @@
         })();
     </script>
     <link rel="stylesheet" href="css/admin.css?v=@AssetVersion" />
+    <link rel="stylesheet" href="lib/quill/quill.snow.css?v=2.0.3" />
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
 
     @if (!string.IsNullOrWhiteSpace(_b.GoogleAnalyticsId))
@@ -66,10 +67,7 @@
             gtag('config', '@_b.GoogleAnalyticsId');
         </script>
     }
-    @if (!string.IsNullOrWhiteSpace(_b.CustomHeadHtml))
-    {
-        @((MarkupString)_b.CustomHeadHtml)
-    }
+    @if (!string.IsNullOrWhiteSpace(_fontFaceCss)) { <style>@((MarkupString)_fontFaceCss)</style> }
 
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
@@ -89,12 +87,10 @@
     </div>
 
     <script src="_framework/blazor.web.js"></script>
+    <script src="lib/quill/quill.js?v=2.0.3"></script>
+    <script src="js/rich-editor.js?v=@AssetVersion"></script>
     <script src="js/admin.js"></script>
     <script src="js/storefront-theme.js"></script>
-    @if (!string.IsNullOrWhiteSpace(_b.CustomFooterHtml))
-    {
-        @((MarkupString)_b.CustomFooterHtml)
-    }
 </body>
 
 </html>
@@ -105,25 +101,37 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260708-uiux";
+    private const string AssetVersion = "20260714-product-experience";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";
     private string _logoSrc = "images/logo.png";
     private string? _appleIcon, _ogImage, _twitterImage;
+    private string? _fontFaceCss;
 
     protected override async Task OnInitializedAsync()
     {
         // برندینگ عمومی از API خوانده می‌شود (کش استاتیک ۲ دقیقه‌ای)؛ در صورت خطا پیش‌فرض‌ها استفاده می‌شوند.
         _b = await Branding.GetAsync();
 
-        if (!string.IsNullOrWhiteSpace(_b.FaviconPath)) _favicon = Media.Resolve(_b.FaviconPath);
-        if (!string.IsNullOrWhiteSpace(_b.AppleTouchIconPath)) _appleIcon = Media.Resolve(_b.AppleTouchIconPath);
-        if (!string.IsNullOrWhiteSpace(_b.OgImagePath)) _ogImage = Media.Resolve(_b.OgImagePath);
-        if (!string.IsNullOrWhiteSpace(_b.TwitterImagePath)) _twitterImage = Media.Resolve(_b.TwitterImagePath);
+        if (!string.IsNullOrWhiteSpace(_b.FaviconPath)) _favicon = Versioned(Media.Resolve(_b.FaviconPath), _b.AssetVersion);
+        if (!string.IsNullOrWhiteSpace(_b.AppleTouchIconPath)) _appleIcon = Versioned(Media.Resolve(_b.AppleTouchIconPath), _b.AssetVersion);
+        if (!string.IsNullOrWhiteSpace(_b.OgImagePath)) _ogImage = Versioned(Media.Resolve(_b.OgImagePath), _b.AssetVersion);
+        if (!string.IsNullOrWhiteSpace(_b.TwitterImagePath)) _twitterImage = Versioned(Media.Resolve(_b.TwitterImagePath), _b.AssetVersion);
 
         var logo = _b.LogoPath;
         if (string.IsNullOrWhiteSpace(logo)) logo = _b.SiteLogoPath;
-        if (!string.IsNullOrWhiteSpace(logo)) _logoSrc = Media.Resolve(logo);
+        if (!string.IsNullOrWhiteSpace(logo)) _logoSrc = Versioned(Media.Resolve(logo), _b.AssetVersion);
+        if (!string.IsNullOrWhiteSpace(_b.FontPath) && IsSafeFont(_b.FontPath, _b.FontFormat))
+        {
+            var family = CssString(_b.FontFamily);
+            var url = CssString(Versioned(Media.Resolve(_b.FontPath), _b.FontVersion));
+            var selector = _b.FontScope switch { 1 => ".st-shell", 2 => ".vz-shell", _ => ":root" };
+            _fontFaceCss = $"@font-face{{font-family:'{family}';src:url('{url}') format('{CssString(_b.FontFormat)}');font-display:swap;}}{selector}{{--font:'{family}',Vazirmatn,Tahoma,sans-serif;--st-font:'{family}',Vazirmatn,Tahoma,sans-serif;}}";
+        }
     }
+
+    private static string Versioned(string url, string version) => $"{url}{(url.Contains('?') ? '&' : '?')}v={Uri.EscapeDataString(version)}";
+    private static string CssString(string value) => new(value.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_' or '.' or '/' or ':' or '?' or '&' or '=').ToArray());
+    private static bool IsSafeFont(string path, string format) => path.StartsWith("/uploads/fonts/", StringComparison.OrdinalIgnoreCase) && format is "woff2" or "woff" or "ttf";
 }

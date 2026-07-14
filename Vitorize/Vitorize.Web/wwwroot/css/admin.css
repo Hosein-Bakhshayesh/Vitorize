@@ -114,6 +114,12 @@
 
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
     --font: "Vazirmatn", "Tahoma", system-ui, sans-serif;
+    --bg-page: var(--bg); --bg-surface: var(--surface); --bg-surface-elevated: var(--surface-solid);
+    --bg-input: var(--input-bg); --bg-dropdown: var(--surface-solid); --bg-hover: var(--surface-2);
+    --bg-selected: var(--admin-primary-soft); --text-primary: var(--text); --text-secondary: var(--text-2);
+    --text-muted: var(--text-3); --text-placeholder: var(--muted); --text-disabled: var(--muted);
+    --border-default: var(--border); --border-strong-semantic: var(--border-strong);
+    --focus-ring: var(--admin-primary); --shadow-elevated: var(--shadow-lg);
 }
 
 /* RTL flip of the signature corner (top-start stays the small one) */
@@ -245,6 +251,11 @@ h1, h2, h3, h4, h5 { margin: 0; font-weight: 700; color: var(--text); }
 p { margin: 0; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
+select, option, optgroup { color: var(--text); background-color: var(--surface-solid); color-scheme: light; }
+:root[data-theme="dark"] select, :root[data-theme="dark"] option, :root[data-theme="dark"] optgroup { color-scheme: dark; }
+select:disabled, option:disabled { color: var(--muted); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacity: .72; cursor: not-allowed; }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 20px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -819,10 +830,12 @@ input, select, textarea { font-family: inherit; }
 }
 .vz-ctx__trigger:hover, .vz-ctx__trigger.open { background: var(--surface-2); color: var(--admin-primary); border-color: var(--border); }
 .vz-ctx__menu {
-    position: absolute; top: calc(100% + 6px); inset-inline-end: 0; min-width: 190px; z-index: 30;
+    position: fixed; inset: auto; min-width: 190px; z-index: 2147483000;
     background: var(--surface-solid); border: 1px solid var(--border); border-radius: var(--clip-sm);
     box-shadow: var(--shadow-lg); padding: 6px; animation: vz-pop 0.16s var(--ease);
 }
+.vz-ctx__menu:not(:popover-open):not([data-vz-open="true"]) { display: none; }
+.vz-ctx__menu::backdrop { background: transparent; }
 .vz-ctx__item {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: start;
     padding: 9px 12px; border-radius: 8px; border: none; background: none;
@@ -832,6 +845,30 @@ input, select, textarea { font-family: inherit; }
 .vz-ctx__item.danger { color: var(--danger); }
 .vz-ctx__item.danger:hover { background: var(--danger-soft); }
 .vz-ctx__divider { height: 1px; background: var(--border); margin: 5px 4px; }
+
+/* Rich editor, structured builders and typography manager */
+.vz-rich-editor { min-height: 280px; background: var(--input-bg); color: var(--text); border-radius: 0 0 var(--radius) var(--radius); }
+.vz-rich-editor .ql-editor { min-height: 280px; font-family: var(--font); font-size: 14px; line-height: 1.9; text-align: start; }
+.ql-toolbar.ql-snow, .ql-container.ql-snow { border-color: var(--input-border); background: var(--input-bg); color: var(--text); }
+.ql-toolbar.ql-snow { border-radius: var(--radius) var(--radius) 0 0; background: var(--surface-2); }
+.ql-snow .ql-stroke { stroke: var(--text-2); } .ql-snow .ql-fill { fill: var(--text-2); }
+.ql-snow .ql-picker { color: var(--text-2); } .ql-snow .ql-picker-options { background: var(--surface-solid); border-color: var(--border); box-shadow: var(--shadow-lg); z-index: 50; }
+.ql-snow .ql-tooltip { background: var(--surface-solid); border-color: var(--border); color: var(--text); box-shadow: var(--shadow-lg); }
+.ql-editor.ql-blank::before { color: var(--muted); font-style: normal; }
+.ql-toolbar .ql-undo::after { content: "↶"; }.ql-toolbar .ql-redo::after { content: "↷"; }.ql-toolbar .ql-divider::after { content: "―"; }.ql-toolbar .ql-table::after { content: "▦"; }.ql-toolbar .ql-fullscreen::after { content: "⛶"; }
+.ql-toolbar :is(.ql-undo,.ql-redo,.ql-divider,.ql-table,.ql-fullscreen) { color: var(--text-2); font-size: 18px; line-height: 1; }
+.vz-editor-fullscreen { position: fixed; inset: 12px; z-index: 2147482000; padding: 14px; background: var(--surface-solid); overflow: auto; border-radius: var(--clip); box-shadow: var(--shadow-lg); }
+.vz-builder-row { margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--clip-xs); background: var(--surface-2); }
+.vz-builder-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.vz-font-manager { display: grid; gap: 16px; margin-bottom: 20px; }
+.vz-font-preview { padding: 20px; border: 1px solid var(--border); border-radius: var(--clip-sm); background: var(--surface-2); }
+.vz-font-preview p { margin: 8px 0 12px; color: var(--text-2); }
+.vz-font-list { display: grid; gap: 8px; }
+.vz-font-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--clip-xs); background: var(--surface-solid); }
+.vz-font-item.active { border-color: var(--admin-primary); background: var(--admin-primary-soft); }
+.vz-font-item strong, .vz-font-item span { display: block; } .vz-font-item span { color: var(--text-3); font-size: 12px; }
+.vz-order-inputs { margin: 8px 0 0; font-size: 12px; font-weight: 400; }
+.vz-order-inputs div { display: flex; gap: 6px; }.vz-order-inputs dt { color: var(--text-3); }.vz-order-inputs dd { margin: 0; color: var(--text); }.vz-order-inputs .masked { letter-spacing: 2px; }
 
 /* ==========================================================================
    Lifecycle stepper (horizontal progress — order/payment lifecycle)

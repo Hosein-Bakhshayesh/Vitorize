@@ -28,6 +28,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<CartItem> CartItems { get; set; }
 
+    public virtual DbSet<CartItemInputValue> CartItemInputValues { get; set; }
+
     public virtual DbSet<Category> Categories { get; set; }
 
     public virtual DbSet<Coupon> Coupons { get; set; }
@@ -54,6 +56,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<OrderItemDelivery> OrderItemDeliveries { get; set; }
 
+    public virtual DbSet<OrderItemInputValue> OrderItemInputValues { get; set; }
+
     public virtual DbSet<OrderStatusHistory> OrderStatusHistories { get; set; }
 
     public virtual DbSet<OtpCode> OtpCodes { get; set; }
@@ -69,6 +73,10 @@ public partial class VitorizeDbContext : DbContext
     public virtual DbSet<Product> Products { get; set; }
 
     public virtual DbSet<ProductImage> ProductImages { get; set; }
+
+    public virtual DbSet<ProductFeature> ProductFeatures { get; set; }
+
+    public virtual DbSet<ProductInputField> ProductInputFields { get; set; }
 
     public virtual DbSet<ProductReview> ProductReviews { get; set; }
 
@@ -87,6 +95,8 @@ public partial class VitorizeDbContext : DbContext
     public virtual DbSet<SmsMessageAttempt> SmsMessageAttempts { get; set; }
 
     public virtual DbSet<Setting> Settings { get; set; }
+
+    public virtual DbSet<FontAsset> FontAssets { get; set; }
 
     public virtual DbSet<Ticket> Tickets { get; set; }
 
@@ -198,11 +208,13 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<CartItem>(entity =>
         {
             entity.HasIndex(e => e.CartId, "IX_CartItems_CartId");
+            entity.HasIndex(e => new { e.CartId, e.ProductId, e.ProductVariantId, e.InputFingerprint }, "IX_CartItems_Identity");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Quantity).HasDefaultValue(1);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.InputFingerprint).HasMaxLength(64).HasDefaultValue("NONE");
 
             entity.HasOne(d => d.Cart).WithMany(p => p.CartItems)
                 .HasForeignKey(d => d.CartId)
@@ -217,6 +229,39 @@ public partial class VitorizeDbContext : DbContext
             entity.HasOne(d => d.ProductVariant).WithMany(p => p.CartItems)
                 .HasForeignKey(d => d.ProductVariantId)
                 .HasConstraintName("FK_CartItems_ProductVariants");
+        });
+
+        modelBuilder.Entity<CartItemInputValue>(entity =>
+        {
+            entity.HasIndex(e => e.CartItemId, "IX_CartItemInputValues_CartItemId");
+            entity.HasIndex(e => new { e.CartItemId, e.FieldKey }, "UX_CartItemInputValues_Item_Key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.FieldKey).HasMaxLength(64);
+            entity.Property(e => e.FieldLabel).HasMaxLength(120);
+            entity.Property(e => e.Value).HasMaxLength(2000);
+            entity.Property(e => e.EncryptedValue).HasMaxLength(4000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.CartItem).WithMany(p => p.InputValues)
+                .HasForeignKey(d => d.CartItemId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_CartItemInputValues_CartItems");
+            entity.HasOne(d => d.ProductInputField).WithMany(p => p.CartValues)
+                .HasForeignKey(d => d.ProductInputFieldId).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_CartItemInputValues_ProductInputFields");
+        });
+
+        modelBuilder.Entity<FontAsset>(entity =>
+        {
+            entity.HasIndex(e => e.FamilyName, "UX_FontAssets_FamilyName").IsUnique();
+            entity.HasIndex(e => e.IsActive, "UX_FontAssets_OneActive").IsUnique().HasFilter("[IsActive] = 1");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.FamilyName).HasMaxLength(100);
+            entity.Property(e => e.FilePath).HasMaxLength(500);
+            entity.Property(e => e.FileFormat).HasMaxLength(10);
+            entity.Property(e => e.MimeType).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.CreatedByUser).WithMany(p => p.FontAssetsCreatedByUser)
+                .HasForeignKey(d => d.CreatedByUserId).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_FontAssets_CreatedByUser");
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -760,6 +805,58 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ProductImages_Products");
+        });
+
+        modelBuilder.Entity<ProductFeature>(entity =>
+        {
+            entity.HasIndex(e => new { e.ProductId, e.SortOrder, e.Id }, "IX_ProductFeatures_Product_Order");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Title).HasMaxLength(120);
+            entity.Property(e => e.Value).HasMaxLength(500);
+            entity.Property(e => e.IconKey).HasMaxLength(64);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductFeatures)
+                .HasForeignKey(d => d.ProductId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ProductFeatures_Products");
+        });
+
+        modelBuilder.Entity<ProductInputField>(entity =>
+        {
+            entity.HasIndex(e => new { e.ProductId, e.Key }, "UX_ProductInputFields_Product_Key").IsUnique();
+            entity.HasIndex(e => new { e.ProductId, e.SortOrder, e.Id }, "IX_ProductInputFields_Product_Order");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Key).HasMaxLength(64);
+            entity.Property(e => e.Label).HasMaxLength(120);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Placeholder).HasMaxLength(200);
+            entity.Property(e => e.DefaultValue).HasMaxLength(2000);
+            entity.Property(e => e.ValidationPattern).HasMaxLength(200);
+            entity.Property(e => e.ValidationMessage).HasMaxLength(300);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.DisplayStage).HasDefaultValue((byte)1);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductInputFields)
+                .HasForeignKey(d => d.ProductId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ProductInputFields_Products");
+        });
+
+        modelBuilder.Entity<OrderItemInputValue>(entity =>
+        {
+            entity.HasIndex(e => e.OrderItemId, "IX_OrderItemInputValues_OrderItemId");
+            entity.HasIndex(e => new { e.OrderItemId, e.FieldKey }, "UX_OrderItemInputValues_Item_Key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.FieldKey).HasMaxLength(64);
+            entity.Property(e => e.FieldLabel).HasMaxLength(120);
+            entity.Property(e => e.Value).HasMaxLength(2000);
+            entity.Property(e => e.EncryptedValue).HasMaxLength(4000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.OrderItem).WithMany(p => p.InputValues)
+                .HasForeignKey(d => d.OrderItemId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_OrderItemInputValues_OrderItems");
+            entity.HasOne(d => d.ProductInputField).WithMany(p => p.OrderValues)
+                .HasForeignKey(d => d.ProductInputFieldId).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_OrderItemInputValues_ProductInputFields");
         });
 
         modelBuilder.Entity<ProductReview>(entity =>

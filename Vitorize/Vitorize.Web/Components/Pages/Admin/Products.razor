@@ -155,23 +155,14 @@ else
                                         @if (p.IsFeatured) { <StatusBadge Text="ویژه" Intent="warning" Dot="false" /> }
                                     </td>
                                     <td class="col-actions">
-                                        <div class="vz-ctx">
-                                            <button class="vz-ctx__trigger @(_openMenuId == p.Id ? "open" : "")" @onclick="() => ToggleMenu(p.Id)" title="عملیات">
-                                                <Icon Name="dots" Size="18" />
-                                            </button>
-                                            @if (_openMenuId == p.Id)
-                                            {
-                                                <div class="vz-backdrop-click" style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
-                                                <div class="vz-ctx__menu">
+                                        <AdminContextMenu>
                                                     <a class="vz-ctx__item" href="@($"admin/products/{p.Id}/details")"><Icon Name="eye" Size="15" /> مشاهده جزئیات</a>
                                                     <a class="vz-ctx__item" href="@($"admin/products/{p.Id}")"><Icon Name="edit" Size="15" /> ویرایش محصول</a>
                                                     <a class="vz-ctx__item" href="@($"admin/products/{p.Id}/images")"><Icon Name="image" Size="15" /> مدیریت تصاویر</a>
                                                     <button class="vz-ctx__item" @onclick="() => Duplicate(p)"><Icon Name="copy" Size="15" /> تکثیر محصول</button>
                                                     <div class="vz-ctx__divider"></div>
                                                     <button class="vz-ctx__item danger" @onclick="() => AskDelete(p)"><Icon Name="trash" Size="15" /> حذف محصول</button>
-                                                </div>
-                                            }
-                                        </div>
+                                        </AdminContextMenu>
                                     </td>
                                 </tr>
                             }

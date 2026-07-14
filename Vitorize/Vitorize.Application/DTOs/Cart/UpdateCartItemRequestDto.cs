@@ -3,5 +3,6 @@
     public class UpdateCartItemRequestDto
     {
         public int Quantity { get; set; }
+        public Dictionary<string, string?>? InputValues { get; set; }
     }
 }

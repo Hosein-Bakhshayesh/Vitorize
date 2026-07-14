@@ -41,5 +41,7 @@
         public int AvailableStock { get; set; }
         public bool HasVariants { get; set; }
         public DateTime CreatedAt { get; set; }
+        public List<Vitorize.Application.DTOs.Products.ProductFeatureDto> Features { get; set; } = new();
+        public List<Vitorize.Application.DTOs.Products.ProductInputFieldDto> InputFields { get; set; } = new();
     }
 }

@@ -44,11 +44,11 @@
         };
 
         if (!string.IsNullOrWhiteSpace(path))
-            _src = Media.Resolve(path);
+            _src = Versioned(Media.Resolve(path), b.AssetVersion);
 
         if (!string.IsNullOrWhiteSpace(b.LogoDarkPath))
         {
-            _darkSrc = Media.Resolve(b.LogoDarkPath);
+            _darkSrc = Versioned(Media.Resolve(b.LogoDarkPath), b.AssetVersion);
             _hasDark = true;
         }
     }
@@ -59,4 +59,5 @@
             if (!string.IsNullOrWhiteSpace(v)) return v;
         return string.Empty;
     }
+    private static string Versioned(string url, string version) => $"{url}{(url.Contains('?') ? '&' : '?')}v={Uri.EscapeDataString(version)}";
 }

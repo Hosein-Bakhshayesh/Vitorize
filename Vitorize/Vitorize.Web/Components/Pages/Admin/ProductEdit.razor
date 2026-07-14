@@ -114,9 +114,76 @@ else
                             </div>
                             <div class="vz-field span-2">
                                 <label class="vz-label">توضیحات کامل</label>
-                                <InputTextArea class="vz-textarea" style="min-height:140px" @bind-Value="_model.FullDescription" />
+                                <RichTextEditor @bind-Value="_model.FullDescription" />
+                                <span class="vz-hint">HTML خروجی هنگام ذخیره در سرور با فهرست سخت‌گیرانه تگ‌ها و ویژگی‌های مجاز پاک‌سازی می‌شود.</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="vz-card">
+                    <div class="vz-card__body">
+                        <div class="vz-spread">
+                            <div><div class="vz-section__head"><span class="vz-section__badge"><Icon Name="star" Size="16" /></span><span class="vz-section__title">ویژگی‌ها و مشخصات</span></div>
+                            <p class="vz-section__desc">کارت‌های مرتب‌شده‌ای که در صفحه محصول نمایش داده می‌شوند.</p></div>
+                            <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" @onclick="AddFeature"><Icon Name="plus" Size="14" /> افزودن ویژگی</button>
+                        </div>
+                        @if (_model.Features.Count == 0) { <EmptyState Title="ویژگی‌ای تعریف نشده" Text="عنوان و مقدار مشخصات محصول را اضافه کنید." Icon="star" /> }
+                        @for (var i = 0; i < _model.Features.Count; i++)
+                        {
+                            var index = i; var feature = _model.Features[index];
+                            <div class="vz-builder-row" @key="feature">
+                                <div class="vz-form-grid three">
+                                    <div class="vz-field"><label class="vz-label">عنوان *</label><InputText class="vz-input" @bind-Value="feature.Title" /></div>
+                                    <div class="vz-field"><label class="vz-label">مقدار *</label><InputText class="vz-input" @bind-Value="feature.Value" /></div>
+                                    <div class="vz-field"><label class="vz-label">آیکن</label><select class="vz-select" @bind="feature.IconKey"><option value="">بدون آیکن</option>@foreach (var icon in FeatureIcons) { <option value="@icon">@icon</option> }</select></div>
+                                </div>
+                                <div class="vz-builder-actions">
+                                    <label class="vz-switch"><input type="checkbox" @bind="feature.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">فعال</span></label>
+                                    <button type="button" class="vz-iconaction" disabled="@(index == 0)" @onclick="() => MoveFeature(index, -1)"><Icon Name="arrow-up" Size="15" /></button>
+                                    <button type="button" class="vz-iconaction" disabled="@(index == _model.Features.Count - 1)" @onclick="() => MoveFeature(index, 1)"><Icon Name="arrow-down" Size="15" /></button>
+                                    <button type="button" class="vz-iconaction danger" @onclick="() => _model.Features.RemoveAt(index)"><Icon Name="trash" Size="15" /></button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="vz-card">
+                    <div class="vz-card__body">
+                        <div class="vz-spread">
+                            <div><div class="vz-section__head"><span class="vz-section__badge"><Icon Name="file-text" Size="16" /></span><span class="vz-section__title">اطلاعات موردنیاز خریدار</span></div>
+                            <p class="vz-section__desc">فرم پویا برای دریافت یک یا چند مقدار پیش از خرید یا در سبد خرید.</p></div>
+                            <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" @onclick="AddInputField"><Icon Name="plus" Size="14" /> افزودن فیلد</button>
+                        </div>
+                        @if (_model.InputFields.Count == 0) { <EmptyState Title="اطلاعاتی لازم نیست" Text="برای این محصول فرم اختصاصی تعریف نشده است." Icon="file-text" /> }
+                        @for (var i = 0; i < _model.InputFields.Count; i++)
+                        {
+                            var index = i; var field = _model.InputFields[index];
+                            <div class="vz-builder-row" @key="field">
+                                <div class="vz-form-grid three">
+                                    <div class="vz-field"><label class="vz-label">نام داخلی *</label><InputText class="vz-input vz-mono" @bind-Value="field.Key" /></div>
+                                    <div class="vz-field"><label class="vz-label">برچسب فارسی *</label><InputText class="vz-input" @bind-Value="field.Label" /></div>
+                                    <div class="vz-field"><label class="vz-label">نوع</label><select class="vz-select" @bind="field.FieldType">@foreach (var type in InputTypes) { <option value="@type.Key">@type.Label</option> }</select></div>
+                                    <div class="vz-field"><label class="vz-label">Placeholder</label><InputText class="vz-input" @bind-Value="field.Placeholder" /></div>
+                                    <div class="vz-field"><label class="vz-label">مرحله نمایش</label><select class="vz-select" @bind="field.DisplayStage"><option value="1">صفحه محصول</option><option value="2">سبد/تسویه</option></select></div>
+                                    <div class="vz-field"><label class="vz-label">پیام اعتبارسنجی</label><InputText class="vz-input" @bind-Value="field.ValidationMessage" /></div>
+                                    <div class="vz-field"><label class="vz-label">حداقل طول</label><InputNumber class="vz-input" @bind-Value="field.MinLength" /></div>
+                                    <div class="vz-field"><label class="vz-label">حداکثر طول</label><InputNumber class="vz-input" @bind-Value="field.MaxLength" /></div>
+                                    <div class="vz-field"><label class="vz-label">الگوی Regex امن</label><InputText class="vz-input vz-mono" @bind-Value="field.ValidationPattern" /></div>
+                                    @if (field.FieldType is 6 or 7) { <div class="vz-field span-2"><label class="vz-label">گزینه‌ها (هر خط یک گزینه)</label><InputTextArea class="vz-textarea" @bind-Value="field.OptionsText" /></div> }
+                                </div>
+                                <div class="vz-builder-actions">
+                                    <label class="vz-switch"><input type="checkbox" @bind="field.IsRequired" /><span class="vz-switch__track"></span><span class="vz-switch__label">الزامی</span></label>
+                                    <label class="vz-switch"><input type="checkbox" @bind="field.IsSensitive" /><span class="vz-switch__track"></span><span class="vz-switch__label">حساس/رمزشده</span></label>
+                                    <label class="vz-switch"><input type="checkbox" @bind="field.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">فعال</span></label>
+                                    <button type="button" class="vz-iconaction" disabled="@(index == 0)" @onclick="() => MoveInput(index, -1)"><Icon Name="arrow-up" Size="15" /></button>
+                                    <button type="button" class="vz-iconaction" disabled="@(index == _model.InputFields.Count - 1)" @onclick="() => MoveInput(index, 1)"><Icon Name="arrow-down" Size="15" /></button>
+                                    <button type="button" class="vz-iconaction danger" @onclick="() => _model.InputFields.RemoveAt(index)"><Icon Name="trash" Size="15" /></button>
+                                </div>
+                            </div>
+                        }
+                        <div class="vz-alert vz-alert--warning">رمز عبور سرویس‌های شخص ثالث را دریافت نکنید. داده حساس فقط در صورت ضرورت قانونی و با دوره نگهداری مشخص فعال شود.</div>
                     </div>
                 </div>
 
@@ -407,7 +474,8 @@ else
                 RequiresVerification = p.RequiresVerification, RequiresSupportMessage = p.RequiresSupportMessage,
                 MinOrderQuantity = p.MinOrderQuantity, MaxOrderQuantity = p.MaxOrderQuantity,
                 IsFeatured = p.IsFeatured, IsActive = p.IsActive, SeoTitle = p.SeoTitle,
-                SeoDescription = p.SeoDescription, SortOrder = p.SortOrder
+                SeoDescription = p.SeoDescription, SortOrder = p.SortOrder,
+                Features = p.Features ?? new(), InputFields = p.InputFields ?? new()
             };
 
             await LoadVariants();
@@ -459,6 +527,10 @@ else
         if (_model.CategoryId == Guid.Empty) { Toasts.Error("انتخاب دسته‌بندی الزامی است."); return; }
         if (string.IsNullOrWhiteSpace(_model.Title) || string.IsNullOrWhiteSpace(_model.Slug)) { Toasts.Error("عنوان و اسلاگ محصول الزامی است."); return; }
 
+        if (_model.Features.Any(x => string.IsNullOrWhiteSpace(x.Title) || string.IsNullOrWhiteSpace(x.Value))) { Toasts.Error("عنوان و مقدار همه ویژگی‌ها الزامی است."); return; }
+        if (_model.InputFields.Any(x => string.IsNullOrWhiteSpace(x.Key) || string.IsNullOrWhiteSpace(x.Label))) { Toasts.Error("نام داخلی و برچسب همه فیلدها الزامی است."); return; }
+        for (var i = 0; i < _model.Features.Count; i++) _model.Features[i].SortOrder = (i + 1) * 10;
+        for (var i = 0; i < _model.InputFields.Count; i++) _model.InputFields[i].SortOrder = (i + 1) * 10;
         _saving = true;
         var result = IsEdit
             ? await Api.PutAsync<AdminProductModel>($"admin/products/{Id}", _model)
@@ -471,6 +543,27 @@ else
             if (!IsEdit) Nav.NavigateTo($"admin/products/{result.Data.Id}");
         }
         else Toasts.Error(result.Message);
+    }
+
+    private static readonly string[] FeatureIcons =
+        { "gamepad", "monitor", "globe", "shield", "star", "zap", "clock", "truck", "gift", "download", "layers", "tag", "check-circle", "box", "smartphone", "headphones", "credit-card", "user", "calendar", "lock", "key", "wifi" };
+    private record InputTypeOption(byte Key, string Label);
+    private static readonly InputTypeOption[] InputTypes =
+    {
+        new(1,"متن"), new(2,"ایمیل"), new(3,"موبایل"), new(4,"عدد"), new(5,"متن چندخطی"),
+        new(6,"انتخابی"), new(7,"رادیویی"), new(8,"تأیید/چک‌باکس"), new(9,"نام کاربری تلگرام"),
+        new(10,"نشانی وب"), new(11,"تاریخ"), new(12,"محرمانه")
+    };
+
+    private void AddFeature() => _model.Features.Add(new ProductFeatureModel { IsActive = true, SortOrder = (_model.Features.Count + 1) * 10 });
+    private void MoveFeature(int index, int offset) => Move(_model.Features, index, offset);
+    private void AddInputField() => _model.InputFields.Add(new ProductInputFieldModel { IsActive = true, FieldType = 1, DisplayStage = 1, SortOrder = (_model.InputFields.Count + 1) * 10 });
+    private void MoveInput(int index, int offset) => Move(_model.InputFields, index, offset);
+    private static void Move<T>(List<T> list, int index, int offset)
+    {
+        var target = index + offset;
+        if (index < 0 || index >= list.Count || target < 0 || target >= list.Count) return;
+        (list[index], list[target]) = (list[target], list[index]);
     }
 
     private void OpenVariantCreate()

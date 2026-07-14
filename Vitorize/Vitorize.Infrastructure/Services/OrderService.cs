@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Orders;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -46,6 +47,8 @@ namespace Vitorize.Infrastructure.Services
                 .AsNoTracking()
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.OrderItemDeliveries)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.InputValues)
                 .FirstOrDefaultAsync(x =>
                     x.Id == orderId &&
                     x.UserId == userId);
@@ -100,6 +103,8 @@ namespace Vitorize.Infrastructure.Services
                 .AsNoTracking()
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.OrderItemDeliveries)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.InputValues)
                 .FirstOrDefaultAsync(x => x.Id == orderId);
 
             if (order == null)
@@ -352,6 +357,7 @@ namespace Vitorize.Infrastructure.Services
                     RequiresVerification = i.RequiresVerification,
                     CreatedAt = i.CreatedAt,
                     DeliveredAt = i.DeliveredAt,
+                    InputValues = i.InputValues.Select(MapInputValue).ToList(),
                     Deliveries = i.OrderItemDeliveries
                         .Where(d => d.IsVisibleToCustomer)
                         .Select(d => new OrderDeliveryDto
@@ -368,5 +374,17 @@ namespace Vitorize.Infrastructure.Services
                 }).ToList()
             };
         }
+
+        private static Vitorize.Application.DTOs.Products.ProductInputValueDto MapInputValue(OrderItemInputValue value) => new()
+        {
+            Id = value.Id,
+            ProductInputFieldId = value.ProductInputFieldId,
+            FieldKey = value.FieldKey,
+            FieldLabel = value.FieldLabel,
+            FieldType = value.FieldType,
+            Value = value.IsSensitive ? ProductInputRules.Mask(null) : value.Value,
+            IsSensitive = value.IsSensitive,
+            IsMasked = value.IsSensitive
+        };
     }
 }

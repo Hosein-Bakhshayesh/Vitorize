@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Products;
+using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -11,10 +14,12 @@ namespace Vitorize.Infrastructure.Services
     public class AdminProductService : IAdminProductService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IHtmlContentSanitizer _htmlSanitizer;
 
-        public AdminProductService(VitorizeDbContext dbContext)
+        public AdminProductService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
         {
             _dbContext = dbContext;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<List<AdminProductDto>> GetAllAsync()
@@ -59,7 +64,22 @@ namespace Vitorize.Infrastructure.Services
                     AvailableStock = x.GiftCodes.Count(c =>
                         c.Status == (byte)GiftCodeStatus.Available),
                     HasVariants = x.ProductVariants.Any(),
-                    CreatedAt = x.CreatedAt
+                    CreatedAt = x.CreatedAt,
+                    Features = x.ProductFeatures.OrderBy(f => f.SortOrder).ThenBy(f => f.Id).Select(f => new ProductFeatureDto
+                    {
+                        Id = f.Id, Title = f.Title, Value = f.Value, IconKey = f.IconKey,
+                        SortOrder = f.SortOrder, IsActive = f.IsActive
+                    }).ToList(),
+                    InputFields = x.ProductInputFields.OrderBy(f => f.SortOrder).ThenBy(f => f.Id).Select(f => new ProductInputFieldDto
+                    {
+                        Id = f.Id, Key = f.Key, Label = f.Label, Description = f.Description,
+                        Placeholder = f.Placeholder, FieldType = f.FieldType, IsRequired = f.IsRequired,
+                        DefaultValue = f.DefaultValue, MinLength = f.MinLength,
+                        MaxLength = f.MaxLength, ValidationPattern = f.ValidationPattern,
+                        ValidationMessage = f.ValidationMessage, IsSensitive = f.IsSensitive,
+                        RequiresConfirmation = f.RequiresConfirmation, DisplayStage = f.DisplayStage,
+                        SortOrder = f.SortOrder, IsActive = f.IsActive
+                    }).ToList()
                 })
                 .ToListAsync();
         }
@@ -104,12 +124,32 @@ namespace Vitorize.Infrastructure.Services
                     AvailableStock = x.GiftCodes.Count(c =>
                         c.Status == (byte)GiftCodeStatus.Available),
                     HasVariants = x.ProductVariants.Any(),
-                    CreatedAt = x.CreatedAt
+                    CreatedAt = x.CreatedAt,
+                    Features = x.ProductFeatures.OrderBy(f => f.SortOrder).ThenBy(f => f.Id).Select(f => new ProductFeatureDto
+                    {
+                        Id = f.Id, Title = f.Title, Value = f.Value, IconKey = f.IconKey,
+                        SortOrder = f.SortOrder, IsActive = f.IsActive
+                    }).ToList(),
+                    InputFields = x.ProductInputFields.OrderBy(f => f.SortOrder).ThenBy(f => f.Id).Select(f => new ProductInputFieldDto
+                    {
+                        Id = f.Id, Key = f.Key, Label = f.Label, Description = f.Description,
+                        Placeholder = f.Placeholder, FieldType = f.FieldType, IsRequired = f.IsRequired,
+                        DefaultValue = f.DefaultValue, MinLength = f.MinLength,
+                        MaxLength = f.MaxLength, ValidationPattern = f.ValidationPattern,
+                        ValidationMessage = f.ValidationMessage, IsSensitive = f.IsSensitive,
+                        RequiresConfirmation = f.RequiresConfirmation, DisplayStage = f.DisplayStage,
+                        SortOrder = f.SortOrder, IsActive = f.IsActive
+                    }).ToList()
                 })
                 .FirstOrDefaultAsync();
 
             if (product == null)
                 throw new NotFoundException("محصول یافت نشد.");
+
+            var optionRows = await _dbContext.ProductInputFields.AsNoTracking()
+                .Where(x => x.ProductId == id).Select(x => new { x.Id, x.OptionsJson }).ToListAsync();
+            foreach (var field in product.InputFields)
+                field.Options = ParseOptions(optionRows.FirstOrDefault(x => x.Id == field.Id)?.OptionsJson);
 
             return product;
         }
@@ -128,7 +168,7 @@ namespace Vitorize.Infrastructure.Services
                 Title = request.Title.Trim(),
                 Slug = request.Slug.Trim().ToLowerInvariant(),
                 ShortDescription = NormalizeNullable(request.ShortDescription),
-                FullDescription = NormalizeNullable(request.FullDescription),
+                FullDescription = _htmlSanitizer.Sanitize(request.FullDescription),
                 ProductType = request.ProductType,
                 DeliveryType = request.DeliveryType,
                 BasePrice = request.BasePrice,
@@ -148,8 +188,11 @@ namespace Vitorize.Infrastructure.Services
                 IsDeleted = false
             };
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             await _dbContext.Products.AddAsync(product);
+            await SyncMetadataAsync(product, request.Features, request.InputFields);
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return await GetByIdAsync(product.Id);
         }
@@ -161,6 +204,8 @@ namespace Vitorize.Infrastructure.Services
             NormalizeRequest(request);
 
             var product = await _dbContext.Products
+                .Include(x => x.ProductFeatures)
+                .Include(x => x.ProductInputFields)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
             if (product == null)
@@ -173,7 +218,7 @@ namespace Vitorize.Infrastructure.Services
             product.Title = request.Title.Trim();
             product.Slug = request.Slug.Trim().ToLowerInvariant();
             product.ShortDescription = NormalizeNullable(request.ShortDescription);
-            product.FullDescription = NormalizeNullable(request.FullDescription);
+            product.FullDescription = _htmlSanitizer.Sanitize(request.FullDescription);
             product.ProductType = request.ProductType;
             product.DeliveryType = request.DeliveryType;
             product.BasePrice = request.BasePrice;
@@ -191,7 +236,10 @@ namespace Vitorize.Infrastructure.Services
             product.SortOrder = request.SortOrder;
             product.UpdatedAt = DateTime.UtcNow;
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await SyncMetadataAsync(product, request.Features, request.InputFields);
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return await GetByIdAsync(product.Id);
         }
@@ -302,6 +350,46 @@ namespace Vitorize.Infrastructure.Services
                 if (!brandExists)
                     throw new BusinessException("برند محصول معتبر نیست.");
             }
+
+            if (request.Features.Count > 50 || request.InputFields.Count > 30)
+                throw new BusinessException("تعداد ویژگی‌ها یا فیلدهای موردنیاز بیش از حد مجاز است.");
+            if (request.InputFields.Select(x => x.Key?.Trim().ToLowerInvariant()).Distinct(StringComparer.Ordinal).Count() != request.InputFields.Count)
+                throw new BusinessException("نام داخلی فیلدهای اطلاعات خریدار باید یکتا باشد.");
+            foreach (var field in request.InputFields) ProductInputRules.ValidateDefinition(field);
+            foreach (var feature in request.Features) ProductFeatureRules.Validate(feature);
+        }
+
+        private async Task SyncMetadataAsync(Product product, IReadOnlyList<ProductFeatureDto> features, IReadOnlyList<ProductInputFieldDto> fields)
+        {
+            if (product.ProductFeatures.Count > 0) _dbContext.ProductFeatures.RemoveRange(product.ProductFeatures);
+            if (product.ProductInputFields.Count > 0) _dbContext.ProductInputFields.RemoveRange(product.ProductInputFields);
+            var now = DateTime.UtcNow;
+            await _dbContext.ProductFeatures.AddRangeAsync(features.Select((x, index) => new ProductFeature
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, Title = x.Title.Trim(), Value = x.Value.Trim(),
+                IconKey = string.IsNullOrWhiteSpace(x.IconKey) ? null : x.IconKey.Trim(),
+                SortOrder = x.SortOrder == 0 ? (index + 1) * 10 : x.SortOrder,
+                IsActive = x.IsActive, CreatedAt = now
+            }));
+            await _dbContext.ProductInputFields.AddRangeAsync(fields.Select((x, index) => new ProductInputField
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, Key = x.Key.Trim().ToLowerInvariant(), Label = x.Label.Trim(),
+                Description = NormalizeNullable(x.Description), Placeholder = NormalizeNullable(x.Placeholder),
+                FieldType = x.FieldType, IsRequired = x.IsRequired,
+                OptionsJson = x.Options.Count == 0 ? null : JsonSerializer.Serialize(x.Options),
+                DefaultValue = NormalizeNullable(x.DefaultValue), MinLength = x.MinLength, MaxLength = x.MaxLength,
+                ValidationPattern = NormalizeNullable(x.ValidationPattern), ValidationMessage = NormalizeNullable(x.ValidationMessage),
+                IsSensitive = x.IsSensitive, RequiresConfirmation = x.RequiresConfirmation,
+                DisplayStage = x.DisplayStage, SortOrder = x.SortOrder == 0 ? (index + 1) * 10 : x.SortOrder,
+                IsActive = x.IsActive, CreatedAt = now
+            }));
+        }
+
+        private static List<string> ParseOptions(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new();
+            try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); }
+            catch { return new(); }
         }
 
         private static void NormalizeRequest(CreateProductRequestDto request)

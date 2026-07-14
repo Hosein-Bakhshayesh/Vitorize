@@ -43,6 +43,8 @@ public partial class OrderItem
 
     public virtual ICollection<OrderItemDelivery> OrderItemDeliveries { get; set; } = new List<OrderItemDelivery>();
 
+    public virtual ICollection<OrderItemInputValue> InputValues { get; set; } = new List<OrderItemInputValue>();
+
     public virtual Product Product { get; set; } = null!;
 
     public virtual ProductVariant? ProductVariant { get; set; }

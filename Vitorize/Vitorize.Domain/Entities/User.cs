@@ -73,6 +73,8 @@ public partial class User
 
     public virtual ICollection<SmsMessage> SmsMessagesCreatedByUser { get; set; } = new List<SmsMessage>();
 
+    public virtual ICollection<FontAsset> FontAssetsCreatedByUser { get; set; } = new List<FontAsset>();
+
     public virtual ICollection<TicketMessage> TicketMessages { get; set; } = new List<TicketMessage>();
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();

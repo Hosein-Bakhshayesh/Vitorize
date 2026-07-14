@@ -28,6 +28,8 @@ namespace Vitorize.Api.Controllers.Admin
             "image/png",
             "image/webp"
         };
+        private static readonly string[] SettingsAllowedExtensions = [.. AllowedExtensions, ".ico"];
+        private static readonly string[] SettingsAllowedContentTypes = [.. AllowedContentTypes, "image/x-icon", "image/vnd.microsoft.icon"];
 
         private const long MaxFileSize = 2 * 1024 * 1024;
 
@@ -59,15 +61,17 @@ namespace Vitorize.Api.Controllers.Admin
         [HttpPost("settings-image")]
         [RequestSizeLimit(MaxFileSize)]
         public Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadSettingsImage(IFormFile file)
-            => UploadAsync(file, "settings", "تصویر با موفقیت آپلود شد.");
+            => UploadAsync(file, "settings", "تصویر با موفقیت آپلود شد.", SettingsAllowedExtensions, SettingsAllowedContentTypes);
 
         private async Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadAsync(
             IFormFile file,
             string folderName,
-            string successMessage)
+            string successMessage,
+            string[]? extensions = null,
+            string[]? contentTypes = null)
         {
             var result = await UploadHelper.SaveImageAsync(
-                _environment, file, folderName, MaxFileSize, AllowedExtensions, AllowedContentTypes);
+                _environment, file, folderName, MaxFileSize, extensions ?? AllowedExtensions, contentTypes ?? AllowedContentTypes);
 
             return Ok(ApiResult<UploadFileResultDto>.Success(result, successMessage));
         }
@@ -153,6 +157,10 @@ namespace Vitorize.Api.Controllers.Admin
             // WEBP: "RIFF" .... "WEBP"
             if (header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
                 header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50)
+                return true;
+
+            // ICO: reserved=0, type=1, at least one image
+            if (header[0] == 0 && header[1] == 0 && header[2] == 1 && header[3] == 0 && (header[4] != 0 || header[5] != 0))
                 return true;
 
             return false;

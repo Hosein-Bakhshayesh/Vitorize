@@ -36,6 +36,17 @@
         public byte DeliveryStatus { get; set; }
         public bool RequiresVerification { get; set; }
         public DateTime CreatedAt { get; set; }
+        public List<AdminOrderInputValueModel> InputValues { get; set; } = new();
+    }
+
+    public class AdminOrderInputValueModel
+    {
+        public Guid? Id { get; set; }
+        public string FieldKey { get; set; } = string.Empty;
+        public string FieldLabel { get; set; } = string.Empty;
+        public string? Value { get; set; }
+        public bool IsSensitive { get; set; }
+        public bool IsMasked { get; set; }
     }
 
     public class CancelOrderRequestModel

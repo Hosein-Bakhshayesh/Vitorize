@@ -18,6 +18,8 @@ namespace Vitorize.Web.Models.Store
         public string? BrandTitle { get; set; }
         public bool HasVariants { get; set; }
         public int AvailableStock { get; set; }
+        public List<StoreProductFeatureModel> Features { get; set; } = new();
+        public List<StoreProductInputFieldModel> InputFields { get; set; } = new();
         public double AverageRating { get; set; }
         public int ReviewCount { get; set; }
 
@@ -26,6 +28,37 @@ namespace Vitorize.Web.Models.Store
         public int DiscountPercent => HasDiscount && BasePrice > 0
             ? (int)Math.Round((BasePrice - DiscountPrice!.Value) / BasePrice * 100)
             : 0;
+    }
+
+    public class StoreProductFeatureModel
+    {
+        public Guid? Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public string? IconKey { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class StoreProductInputFieldModel
+    {
+        public Guid? Id { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Placeholder { get; set; }
+        public byte FieldType { get; set; }
+        public bool IsRequired { get; set; }
+        public List<string> Options { get; set; } = new();
+        public string? DefaultValue { get; set; }
+        public int? MinLength { get; set; }
+        public int? MaxLength { get; set; }
+        public string? ValidationMessage { get; set; }
+        public bool IsSensitive { get; set; }
+        public bool RequiresConfirmation { get; set; }
+        public byte DisplayStage { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; }
     }
 
     public class StoreProductDetailModel
@@ -54,6 +87,8 @@ namespace Vitorize.Web.Models.Store
         public List<string> Tags { get; set; } = new();
         public List<StoreVariantModel> Variants { get; set; } = new();
         public int AvailableStock { get; set; }
+        public List<StoreProductFeatureModel> Features { get; set; } = new();
+        public List<StoreProductInputFieldModel> InputFields { get; set; } = new();
 
         public decimal FinalPrice => DiscountPrice is > 0 && DiscountPrice < BasePrice ? DiscountPrice.Value : BasePrice;
         public bool HasDiscount => DiscountPrice is > 0 && DiscountPrice < BasePrice;

@@ -21,9 +21,13 @@ public partial class CartItem
 
     public DateTime? UpdatedAt { get; set; }
 
+    public string InputFingerprint { get; set; } = "NONE";
+
     public virtual Cart Cart { get; set; } = null!;
 
     public virtual Product Product { get; set; } = null!;
 
     public virtual ProductVariant? ProductVariant { get; set; }
+
+    public virtual ICollection<CartItemInputValue> InputValues { get; set; } = new List<CartItemInputValue>();
 }

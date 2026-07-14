@@ -36,6 +36,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminProductService, AdminProductService>();
             services.AddScoped<IAdminProductVariantService, AdminProductVariantService>();
             services.AddScoped<IEncryptionService, AesEncryptionService>();
+            services.AddSingleton<IHtmlContentSanitizer, StrictHtmlContentSanitizer>();
             services.AddScoped<IAdminGiftCodeService, AdminGiftCodeService>();
             services.AddScoped<IGiftCodeReservationService, GiftCodeReservationService>();
             services.AddScoped<ICartService, CartService>();

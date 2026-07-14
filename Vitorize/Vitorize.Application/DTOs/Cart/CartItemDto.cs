@@ -19,5 +19,7 @@
         public decimal UnitPrice { get; set; }
 
         public decimal TotalPrice { get; set; }
+        public List<Vitorize.Application.DTOs.Products.ProductInputValueDto> InputValues { get; set; } = new();
+        public List<Vitorize.Application.DTOs.Products.ProductInputFieldDto> InputFields { get; set; } = new();
     }
 }

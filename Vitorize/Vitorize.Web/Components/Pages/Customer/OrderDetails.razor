@@ -39,6 +39,15 @@ else
                         <StoreBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="@(item.DeliveryStatus == (byte)DeliveryStatus.Delivered ? "success" : "warning")" Dot="false" />
                     </div>
 
+                    @if (item.InputValues.Count > 0)
+                    {
+                        <div class="st-divider"></div>
+                        <div class="st-label">اطلاعات ثبت‌شده برای این محصول</div>
+                        <dl class="st-order-inputs">
+                            @foreach (var value in item.InputValues) { <div><dt>@value.FieldLabel</dt><dd>@value.Value</dd></div> }
+                        </dl>
+                    }
+
                     @{
                         var codes = item.Deliveries.Where(d => d.IsVisibleToCustomer && !string.IsNullOrWhiteSpace(d.DeliveredContent)).ToList();
                     }

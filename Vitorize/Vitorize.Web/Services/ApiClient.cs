@@ -82,7 +82,8 @@ namespace Vitorize.Web.Services
             Stream fileStream,
             string fileName,
             string contentType,
-            string fieldName = "file")
+            string fieldName = "file",
+            IReadOnlyDictionary<string, string>? fields = null)
         {
             try
             {
@@ -96,6 +97,8 @@ namespace Vitorize.Web.Services
                     fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
 
                 content.Add(fileContent, fieldName, fileName);
+                if (fields is not null)
+                    foreach (var field in fields) content.Add(new StringContent(field.Value ?? string.Empty), field.Key);
                 request.Content = content;
 
                 using var response = await _httpClient.SendAsync(request);

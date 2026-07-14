@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
@@ -10,14 +11,16 @@ namespace Vitorize.Infrastructure.Services
     public class ProductService : IProductService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IHtmlContentSanitizer _htmlSanitizer;
 
         private const byte GiftCodeStatusAvailable = 0;
         private const byte DeliveryTypeInstant = 1;
         private const byte DeliveryTypeManualTicket = 2;
 
-        public ProductService(VitorizeDbContext dbContext)
+        public ProductService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
         {
             _dbContext = dbContext;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<PagedResult<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter)
@@ -192,6 +195,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new NotFoundException("محصول یافت نشد.");
             }
 
+            await HydrateSafeMetadataAsync(product);
             return product;
         }
 
@@ -205,6 +209,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new NotFoundException("محصول یافت نشد.");
             }
 
+            await HydrateSafeMetadataAsync(product);
             return product;
         }
 
@@ -382,12 +387,50 @@ namespace Vitorize.Infrastructure.Services
                         })
                         .ToList(),
 
+                    Features = x.ProductFeatures
+                        .Where(f => f.IsActive)
+                        .OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
+                        .Select(f => new ProductFeatureDto
+                        {
+                            Id = f.Id, Title = f.Title, Value = f.Value, IconKey = f.IconKey,
+                            SortOrder = f.SortOrder, IsActive = f.IsActive
+                        }).ToList(),
+
+                    InputFields = x.ProductInputFields
+                        .Where(f => f.IsActive)
+                        .OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
+                        .Select(f => new ProductInputFieldDto
+                        {
+                            Id = f.Id, Key = f.Key, Label = f.Label, Description = f.Description,
+                            Placeholder = f.Placeholder, FieldType = f.FieldType, IsRequired = f.IsRequired,
+                            DefaultValue = f.DefaultValue, MinLength = f.MinLength, MaxLength = f.MaxLength,
+                            ValidationMessage = f.ValidationMessage, IsSensitive = f.IsSensitive,
+                            RequiresConfirmation = f.RequiresConfirmation, DisplayStage = f.DisplayStage,
+                            SortOrder = f.SortOrder, IsActive = f.IsActive
+                        }).ToList(),
+
                     AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
                         ? 999999
                         : _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
                 });
+        }
+
+        private async Task HydrateSafeMetadataAsync(ProductDetailDto product)
+        {
+            product.FullDescription = _htmlSanitizer.Sanitize(product.FullDescription);
+            var options = await _dbContext.ProductInputFields.AsNoTracking()
+                .Where(x => x.ProductId == product.Id && x.IsActive)
+                .Select(x => new { x.Id, x.OptionsJson })
+                .ToListAsync();
+            foreach (var field in product.InputFields)
+            {
+                var json = options.FirstOrDefault(x => x.Id == field.Id)?.OptionsJson;
+                if (string.IsNullOrWhiteSpace(json)) continue;
+                try { field.Options = JsonSerializer.Deserialize<List<string>>(json) ?? new(); }
+                catch { field.Options = new(); }
+            }
         }
     }
 }

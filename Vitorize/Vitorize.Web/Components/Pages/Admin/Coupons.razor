@@ -86,20 +86,13 @@
                                     </label>
                                 </td>
                                 <td class="col-actions">
-                                    <div class="vz-ctx">
-                                        <button class="vz-ctx__trigger @(_openMenuId == c.Id ? "open" : "")" @onclick="() => ToggleMenu(c.Id)" title="عملیات"><Icon Name="dots" Size="18" /></button>
-                                        @if (_openMenuId == c.Id)
-                                        {
-                                            <div style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
-                                            <div class="vz-ctx__menu">
+                                    <AdminContextMenu>
                                                 <button class="vz-ctx__item" @onclick="() => OpenEdit(c)"><Icon Name="edit" Size="15" /> ویرایش</button>
                                                 <button class="vz-ctx__item" @onclick="() => Duplicate(c)"><Icon Name="copy" Size="15" /> تکثیر کد</button>
                                                 <button class="vz-ctx__item" @onclick="() => Copy(c.Code)"><Icon Name="copy" Size="15" /> کپی کد</button>
                                                 <div class="vz-ctx__divider"></div>
                                                 <button class="vz-ctx__item danger" @onclick="() => AskDelete(c)"><Icon Name="trash" Size="15" /> حذف</button>
-                                            </div>
-                                        }
-                                    </div>
+                                    </AdminContextMenu>
                                 </td>
                             </tr>
                         }

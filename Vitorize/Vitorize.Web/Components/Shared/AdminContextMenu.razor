@@ -1,0 +1,50 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="vz-ctx">
+    <button @ref="_trigger" type="button" class="vz-ctx__trigger @(_open ? "open" : null)"
+            title="@Title" aria-label="@Title" aria-haspopup="menu" aria-expanded="@_open"
+            @onclick="ToggleAsync">
+        <Icon Name="dots" Size="18" />
+    </button>
+    <div @ref="_menu" class="vz-ctx__menu" popover="auto" role="menu" dir="rtl" @onclick="CloseAsync">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Title { get; set; } = "عملیات";
+
+    private ElementReference _trigger;
+    private ElementReference _menu;
+    private bool _open;
+    private DotNetObjectReference<AdminContextMenu>? _self;
+
+    private async Task ToggleAsync()
+    {
+        _self ??= DotNetObjectReference.Create(this);
+        _open = await JS.InvokeAsync<bool>("vzAdmin.toggleContextMenu", _trigger, _menu, _self);
+    }
+
+    private async Task CloseAsync()
+    {
+        if (!_open) return;
+        await JS.InvokeVoidAsync("vzAdmin.closeContextMenu", _menu, _trigger);
+        _open = false;
+    }
+
+    [JSInvokable]
+    public Task OnContextMenuClosed()
+    {
+        _open = false;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("vzAdmin.disposeContextMenu", _menu); }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

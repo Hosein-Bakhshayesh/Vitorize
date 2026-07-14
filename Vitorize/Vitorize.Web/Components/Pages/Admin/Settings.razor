@@ -3,6 +3,7 @@
 @using Vitorize.Web.Models.Admin.Settings
 @inject ApiClient Api
 @inject ToastService Toasts
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageHeader Title="تنظیمات فروشگاه" Subtitle="پیکربندی کامل برند، ظاهر و رفتار فروشگاه"
             Icon="settings" Breadcrumbs="@(new(){ ("تنظیمات", null) })">
@@ -61,6 +62,29 @@ else
                     </div>
                 </div>
                 <div class="vz-card__body">
+                    @if (tab.Key == "typography")
+                    {
+                        <div class="vz-font-manager">
+                            <div class="vz-form-grid three">
+                                <div class="vz-field"><label class="vz-label">نام دوستانه خانواده فونت</label><input class="vz-input" @bind="_fontFamily" placeholder="مثلاً ایران‌یکان" /></div>
+                                <div class="vz-field"><label class="vz-label">محدوده اعمال</label><select class="vz-select" @bind="_fontScope"><option value="1">فقط فروشگاه</option><option value="2">فقط پنل مدیریت</option><option value="3">تمام برنامه</option></select></div>
+                                <div class="vz-field"><label class="vz-label">فایل فونت</label><label class="vz-btn vz-btn--outline"><Icon Name="upload" Size="15" /> انتخاب WOFF2 / WOFF / TTF<InputFile OnChange="UploadFont" accept=".woff2,.woff,.ttf,font/woff2,font/woff,font/ttf" hidden /></label></div>
+                            </div>
+                            <div class="vz-font-preview" style="font-family:@(_fonts.FirstOrDefault(x => x.IsActive)?.FamilyName ?? "Vazirmatn")">
+                                <h3>ویتورایز؛ تجربه خرید دیجیتال</h3><p>این یک پیش‌نمایش متن فارسی، دکمه و اعداد ۱۲۳۴۵۶۷۸۹۰ است.</p><button class="vz-btn vz-btn--primary">نمونه دکمه</button>
+                            </div>
+                            <div class="vz-font-list">
+                                @foreach (var font in _fonts)
+                                {
+                                    <div class="vz-font-item @(font.IsActive ? "active" : null)"><div><strong>@font.FamilyName</strong><span>@(font.IsBuiltIn ? "فونت پیش‌فرض داخلی" : $"{font.FileFormat.ToUpperInvariant()} · {font.SizeBytes / 1024} KB")</span></div>
+                                        @if (font.IsActive) { <StatusBadge Text="فعال" Intent="success" /> }
+                                        else { <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => ActivateFont(font)">فعال‌سازی</button> }
+                                    </div>
+                                }
+                            </div>
+                            <div class="vz-hint">پسوند، MIME، امضای باینری و سقف ۵ مگابایت سمت سرور بررسی می‌شوند. Vazirmatn همیشه fallback است.</div>
+                        </div>
+                    }
                     @if (tab.Key == "notif")
                     {
                         <div class="vz-hint" style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
@@ -114,6 +138,9 @@ else
     private List<SettingModel> _all = new();
     private readonly HashSet<string> _dirty = new();
     private readonly HashSet<string> _justSaved = new();
+    private List<FontAssetModel> _fonts = new();
+    private string _fontFamily = string.Empty;
+    private byte _fontScope = 3;
 
     private sealed record TabDef(string Key, string Title, string Icon, string Desc, string[] Groups);
 
@@ -122,6 +149,8 @@ else
         new("general",  "عمومی",           "settings",     "نام، توضیح و وضعیت کلی فروشگاه", new[] { "General", "Features" }),
         new("branding", "برند",             "palette",      "شعار، لوگوی اصلی و رنگ برند", new[] { "Branding" }),
         new("logos",    "لوگو و تصاویر",    "image",        "لوگوها، فاوآیکون، تصاویر اشتراک‌گذاری و ماسکات", new[] { "Logos" }),
+        new("typography", "تایپوگرافی / فونت", "type", "آپلود، پیش‌نمایش و انتخاب فونت سراسری", new[] { "Typography" }),
+        new("trustseals", "مجوزها و نمادهای اعتماد", "shield-check", "تنظیم امن Enamad، اتحادیه و ساماندهی؛ بدون اسکریپت اجرایی", new[] { "TrustSeals" }),
         new("seo",      "سئو",              "search",       "عنوان، توضیح و کلمات کلیدی پیش‌فرض", new[] { "SEO" }),
         new("homepage", "صفحه اصلی",        "grid",         "Hero، خبرنامه، درباره ما و نشان‌های اعتماد", new[] { "Homepage", "About", "Trust" }),
         new("footer",   "فوتر",             "layout",       "متن و توضیحات فوتر", new[] { "Footer" }),
@@ -190,6 +219,8 @@ else
             _all = _groups.SelectMany(g => g.Settings.Count > 0 ? g.Settings : g.Items).ToList();
         }
         else _error = r.Message;
+        var fonts = await Api.GetAsync<List<FontAssetModel>>("admin/fonts");
+        _fonts = fonts.Data ?? new();
         _loading = false;
     }
 
@@ -318,6 +349,8 @@ else
 
                     case "image":
                         <UploadBox Value="@s.Value" Endpoint="admin/uploads/settings-image"
+                                   Accept="@(s.Key == "FaviconPath" ? "image/png,image/x-icon,image/vnd.microsoft.icon,.ico" : "image/png,image/jpeg,image/webp")"
+                                   Guidance="@(s.Key == "FaviconPath" ? "PNG یا ICO — پیشنهاد ۳۲×۳۲ یا ۴۸×۴۸ — حداکثر ۲ مگابایت" : "PNG، JPG یا WEBP — حداکثر ۲ مگابایت")"
                                    ValueChanged="v => OnImageChanged(s, v)" Label="آپلود تصویر" />
                         <ImageGuideline Spec="ImageSpecs.ForKey(s.Key)" />
                         break;
@@ -385,4 +418,27 @@ else
                 </button>
             }
         </span>;
+
+    private async Task UploadFont(InputFileChangeEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_fontFamily)) { Toasts.Error("ابتدا یک نام دوستانه برای فونت وارد کنید."); return; }
+        var file = e.File;
+        if (file.Size > 5 * 1024 * 1024) { Toasts.Error("حجم فونت نباید بیشتر از ۵ مگابایت باشد."); return; }
+        _saving = true;
+        await using var stream = file.OpenReadStream(5 * 1024 * 1024);
+        var result = await Api.UploadAsync<FontAssetModel>("admin/fonts", stream, file.Name, file.ContentType,
+            fields: new Dictionary<string, string> { ["familyName"] = _fontFamily.Trim() });
+        _saving = false;
+        if (result.IsSuccess) { Toasts.Success(result.Message); _fontFamily = string.Empty; await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task ActivateFont(FontAssetModel font)
+    {
+        _saving = true;
+        var result = await Api.PostAsync<FontAssetModel>($"admin/fonts/{font.Id}/activate", new { Scope = _fontScope });
+        _saving = false;
+        if (result.IsSuccess) { Toasts.Success("فونت فعال شد؛ کش تنظیمات باطل شد."); Vitorize.Web.Services.UI.StoreBrandingService.Invalidate(); await Load(); }
+        else Toasts.Error(result.Message);
+    }
 }

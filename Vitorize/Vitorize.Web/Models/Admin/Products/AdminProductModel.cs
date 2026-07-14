@@ -34,6 +34,8 @@ namespace Vitorize.Web.Models.Admin.Products
         public bool HasVariants { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public List<ProductFeatureModel> Features { get; set; } = new();
+        public List<ProductInputFieldModel> InputFields { get; set; } = new();
     }
 
     public class CreateProductRequestModel
@@ -67,6 +69,8 @@ namespace Vitorize.Web.Models.Admin.Products
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }
         [Range(0, 100000)] public int SortOrder { get; set; }
+        public List<ProductFeatureModel> Features { get; set; } = new();
+        public List<ProductInputFieldModel> InputFields { get; set; } = new();
     }
 
     public class UpdateProductRequestModel : CreateProductRequestModel { }
@@ -76,5 +80,38 @@ namespace Vitorize.Web.Models.Admin.Products
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Slug { get; set; }
+    }
+
+    public class ProductFeatureModel
+    {
+        public Guid? Id { get; set; }
+        [Required, MaxLength(100)] public string Title { get; set; } = string.Empty;
+        [Required, MaxLength(250)] public string Value { get; set; } = string.Empty;
+        public string? IconKey { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    public class ProductInputFieldModel
+    {
+        public Guid? Id { get; set; }
+        [Required, MaxLength(64)] public string Key { get; set; } = string.Empty;
+        [Required, MaxLength(120)] public string Label { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Placeholder { get; set; }
+        public byte FieldType { get; set; } = 1;
+        public bool IsRequired { get; set; }
+        public List<string> Options { get; set; } = new();
+        public string? OptionsText { get => string.Join("\n", Options); set => Options = (value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); }
+        public string? DefaultValue { get; set; }
+        public int? MinLength { get; set; }
+        public int? MaxLength { get; set; }
+        public string? ValidationPattern { get; set; }
+        public string? ValidationMessage { get; set; }
+        public bool IsSensitive { get; set; }
+        public bool RequiresConfirmation { get; set; }
+        public byte DisplayStage { get; set; } = 1;
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

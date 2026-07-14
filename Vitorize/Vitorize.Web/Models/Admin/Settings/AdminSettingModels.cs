@@ -27,4 +27,16 @@ namespace Vitorize.Web.Models.Admin.Settings
         public string? ValueType { get; set; }
         public string? Description { get; set; }
     }
+    public class FontAssetModel
+    {
+        public Guid Id { get; set; }
+        public string FamilyName { get; set; } = string.Empty;
+        public string? FilePath { get; set; }
+        public string FileFormat { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
+        public bool IsBuiltIn { get; set; }
+        public bool IsActive { get; set; }
+        public byte Scope { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }

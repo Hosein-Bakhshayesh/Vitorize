@@ -53,7 +53,7 @@ namespace Vitorize.Infrastructure.Services
         {
             "General", "Branding", "Logos", "SEO", "Homepage", "About", "Trust",
             "Footer", "Social", "Contact", "Support", "Empty", "Errors",
-            "Features", "Scripts"
+            "Features", "Typography", "TrustSeals"
         };
 
         public async Task<List<SettingDto>> GetPublicSettingsAsync()
@@ -89,6 +89,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("کلید تنظیمات الزامی است.");
 
             var key = request.Key.Trim();
+            TrustSealRules.ValidateSetting(key, request.Value);
 
             if (SmsSettingKeys.TryGetTemplateIdGroup(key, out var templateGroup))
                 return await UpsertTemplateIdGroupAsync(key, request, templateGroup);
@@ -125,6 +126,9 @@ namespace Vitorize.Infrastructure.Services
             setting.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
+
+            if (string.Equals(setting.GroupName, "Logos", StringComparison.OrdinalIgnoreCase))
+                await BumpBrandAssetVersionAsync();
 
             // باطل‌کردن کش تنظیمات پیامک تا تغییرات بلافاصله اعمال شود.
             if (key.StartsWith("Sms.", StringComparison.OrdinalIgnoreCase))
@@ -215,8 +219,22 @@ namespace Vitorize.Infrastructure.Services
             requested.Description = request.Description?.Trim() ?? requested.Description ?? TemplateDescription(requestedKey);
 
             await _dbContext.SaveChangesAsync();
+
             _smsSettingsProvider.Invalidate();
             return Map(requested);
+        }
+
+        private async Task BumpBrandAssetVersionAsync()
+        {
+            var version = await _dbContext.Settings.FirstOrDefaultAsync(x => x.Key == "Branding.AssetVersion");
+            if (version is null)
+            {
+                version = new Setting { Id = Guid.NewGuid(), Key = "Branding.AssetVersion", GroupName = "Branding", ValueType = "string" };
+                await _dbContext.Settings.AddAsync(version);
+            }
+            version.Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            version.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
         }
 
         private static string TemplateDescription(string key) => key switch

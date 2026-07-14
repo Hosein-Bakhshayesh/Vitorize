@@ -5,6 +5,7 @@ namespace Vitorize.Web.Services.UI
 {
     /// <summary>یک بلوک تکرارشونده‌ی صفحه اول (نشان اعتماد / ویژگی): آیکون، عنوان، متن.</summary>
     public sealed record HomeBlockItem(string Icon, string Title, string Text);
+    public sealed record TrustSealItem(string Provider, string Title, string Url, string ImagePath, string Alt, int SortOrder, bool NewTab);
 
     /// <summary>
     /// برندینگ قابل‌تنظیم فروشگاه (نام، شعار، متن‌های Hero و فوتر و ...) از تنظیمات عمومی API.
@@ -113,6 +114,14 @@ namespace Vitorize.Web.Services.UI
         public string Error500IllustrationPath => FirstNonEmpty("Error500IllustrationPath", "EmptyStateIllustrationPath");
         public string MaintenanceIllustrationPath => FirstNonEmpty("MaintenanceIllustrationPath", "EmptyStateIllustrationPath");
         public string EmptyStateIllustrationPath => Get("EmptyStateIllustrationPath", "");
+        public string AssetVersion => Get("Branding.AssetVersion", "1");
+
+        // ── Typography (values are emitted only through a validated CSS declaration) ──
+        public string FontFamily => Get("Typography.FontFamily", "Vazirmatn");
+        public string FontPath => Get("Typography.FontPath", "");
+        public string FontFormat => Get("Typography.FontFormat", "woff2").ToLowerInvariant();
+        public int FontScope => int.TryParse(Get("Typography.Scope", "3"), out var scope) && scope is >= 1 and <= 3 ? scope : 3;
+        public string FontVersion => Get("Typography.Version", "1");
 
         // ── SEO ──
         public string MetaTitle => Get("MetaTitle", "");
@@ -150,6 +159,15 @@ namespace Vitorize.Web.Services.UI
 
         public IReadOnlyList<HomeBlockItem> TrustBadges => ParseBlocks(TrustBadgesJson);
         public IReadOnlyList<HomeBlockItem> HomeFeatures => ParseBlocks(HomeFeaturesJson);
+        public IReadOnlyList<TrustSealItem> TrustSeals
+        {
+            get
+            {
+                var items = new List<TrustSealItem>();
+                AddSeal(items, "Enamad", "enamad.ir"); AddSeal(items, "Ecunion", "ecunion.ir"); AddSeal(items, "Samandehi", "samandehi.ir");
+                return items.OrderBy(x => x.SortOrder).ToList();
+            }
+        }
 
         private static readonly JsonSerializerOptions BlockJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -214,6 +232,17 @@ namespace Vitorize.Web.Services.UI
 
         public bool GetBool(string key, bool fallback = false) =>
             _values.TryGetValue(key, out var value) && bool.TryParse(value, out var b) ? b : fallback;
+
+        private void AddSeal(List<TrustSealItem> items, string provider, string allowedHost)
+        {
+            var prefix = $"TrustSeal.{provider}.";
+            if (!GetBool(prefix + "Enabled")) return;
+            var url = Get(prefix + "Url", ""); var image = Get(prefix + "ImagePath", "");
+            if (string.IsNullOrWhiteSpace(image) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" ||
+                !(uri.Host.Equals(allowedHost, StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith('.' + allowedHost, StringComparison.OrdinalIgnoreCase))) return;
+            _ = int.TryParse(Get(prefix + "SortOrder", "0"), out var sort);
+            items.Add(new(provider, Get(prefix + "Title", provider), url, image, Get(prefix + "Alt", provider), sort, GetBool(prefix + "NewTab", true)));
+        }
 
         private string FirstNonEmpty(params string[] keys)
         {

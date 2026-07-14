@@ -1,4 +1,5 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject MediaUrlResolver Media
 
 <footer class="st-footer">
     <div class="st-container">
@@ -63,6 +64,17 @@
                 <a href="/page/terms">قوانین و مقررات</a>
                 <a href="/page/privacy">حریم خصوصی</a>
             </div>
+            @if (_b.TrustSeals.Count > 0)
+            {
+                <div class="st-footer__seals" aria-label="مجوزها و نمادهای اعتماد">
+                    @foreach (var seal in _b.TrustSeals)
+                    {
+                        <a href="@seal.Url" target="@(seal.NewTab ? "_blank" : null)" rel="noopener noreferrer" title="@seal.Title">
+                            <img src="@Media.Resolve(seal.ImagePath)" alt="@seal.Alt" loading="lazy" width="96" height="96" />
+                        </a>
+                    }
+                </div>
+            }
         </div>
         <div class="st-footer__bottom">
             <span>© @PersianDateHelper.ToPersianDigits(DateTime.Now.Year.ToString()) — @_b.CopyrightText</span>

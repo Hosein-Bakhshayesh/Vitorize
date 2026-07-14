@@ -142,6 +142,12 @@
     --st-brand-3: var(--st-accent);
     --st-brand-grad: var(--st-grad);
     --st-brand-grad-2: var(--st-grad-accent);
+    --bg-page: var(--st-bg); --bg-surface: var(--st-surface); --bg-surface-elevated: var(--st-elevated);
+    --bg-input: var(--st-input-bg); --bg-dropdown: var(--st-elevated); --bg-hover: var(--st-surface-2);
+    --bg-selected: var(--st-primary-soft); --text-primary: var(--st-text); --text-secondary: var(--st-text-2);
+    --text-muted: var(--st-muted); --text-placeholder: var(--st-muted); --text-disabled: var(--st-muted);
+    --border-default: var(--st-border); --border-strong: var(--st-border-2); --focus-ring: var(--st-primary);
+    --shadow-elevated: var(--st-shadow-lg);
 }
 
 /* --------------------------------------------------------------------------
@@ -1475,6 +1481,28 @@
     display: flex; flex-direction: column; align-items: center; text-align: center;
     gap: 8px; padding: 64px 22px 72px; max-width: 560px; margin: 0 auto;
 }
+.st-shell select, .st-shell option, .st-shell optgroup { color: var(--st-text); background-color: var(--st-elevated); color-scheme: light; }
+:root[data-theme="dark"] .st-shell select, :root[data-theme="dark"] .st-shell option, :root[data-theme="dark"] .st-shell optgroup { color-scheme: dark; }
+.st-shell input::placeholder, .st-shell textarea::placeholder { color: var(--st-muted); opacity: 1; }
+.st-shell :is(input,select,textarea,button):disabled { opacity: .62; cursor: not-allowed; }
+
+/* Product specifications, sanitized rich content and dynamic customer information */
+.st-product-features { margin: 22px 0; }.st-product-features h2 { font-size: 18px; margin-bottom: 12px; }
+.st-feature-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0; }
+.st-feature-card { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--st-border); border-radius: var(--st-clip-sm); background: var(--st-surface-2); }
+.st-feature-card__icon { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--st-primary-soft); color: var(--st-primary); }
+.st-feature-card dt { color: var(--st-muted); font-size: 12px; }.st-feature-card dd { margin: 2px 0 0; color: var(--st-text); font-weight: 750; overflow-wrap: anywhere; }
+.st-rich-content { line-height: 1.95; color: var(--st-text-2); font-size: 14.5px; overflow-wrap: anywhere; }
+.st-rich-content :is(h2,h3,h4) { color: var(--st-text); margin: 1.3em 0 .5em; }.st-rich-content :is(ul,ol) { padding-inline-start: 24px; }
+.st-rich-content a { color: var(--st-primary); text-decoration: underline; }.st-rich-content img { max-width: 100%; height: auto; }
+.st-rich-content table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }.st-rich-content :is(td,th) { border: 1px solid var(--st-border); padding: 8px; }
+.st-required-info { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; padding: 10px; border-radius: var(--st-clip-btn); background: var(--st-info-soft); color: var(--st-info); font-size: 12.5px; }
+.st-dynamic-form { display: grid; gap: 14px; }.st-field { display: grid; gap: 6px; }.st-help { color: var(--st-muted); font-size: 12px; }
+.st-input-summary { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 6px 0; color: var(--st-text-2); font-size: 11.5px; }.st-input-summary span { overflow-wrap: anywhere; }
+.st-order-inputs { display: grid; gap: 6px; margin: 8px 0 0; }.st-order-inputs div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 9px; border-radius: 8px; background: var(--st-surface-2); }.st-order-inputs dt { color: var(--st-muted); }.st-order-inputs dd { margin: 0; color: var(--st-text); overflow-wrap: anywhere; }
+.st-footer__seals { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }.st-footer__seals a { width: 92px; height: 92px; display: grid; place-items: center; border: 1px solid var(--st-border); border-radius: var(--st-clip-sm); background: var(--st-elevated); }.st-footer__seals img { max-width: 78px; max-height: 78px; object-fit: contain; }
+@media (max-width: 760px) { .st-feature-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .st-feature-grid { grid-template-columns: 1fr; }.st-feature-card { padding: 12px; } }
 .st-errpage__art { position: relative; margin-bottom: 14px; display: flex; justify-content: center; }
 .st-mascot {
     width: clamp(150px, 42vw, 224px); height: auto; display: block;

@@ -40,6 +40,63 @@
         },
         focus: function (element) { if (element) try { element.focus(); } catch (e) { } },
         focusById: function (id) { var el = document.getElementById(id); if (el) try { el.focus(); if (el.select) el.select(); } catch (e) { } },
+        toggleContextMenu: function (trigger, menu, dotNetRef) {
+            if (!trigger || !menu) return false;
+            if (menu.matches(':popover-open') || menu.dataset.vzOpen === 'true') {
+                this.closeContextMenu(menu, trigger);
+                return false;
+            }
+
+            var rect = trigger.getBoundingClientRect();
+            menu.style.position = 'fixed';
+            menu.style.margin = '0';
+            menu.style.visibility = 'hidden';
+            menu.style.display = 'block';
+            menu.dataset.vzOpen = 'true';
+            menu._vzTrigger = trigger;
+            menu._vzDotNet = dotNetRef;
+            try { if (menu.showPopover) menu.showPopover(); } catch (e) { }
+
+            var width = Math.max(menu.offsetWidth || 190, 190);
+            var height = menu.offsetHeight || 180;
+            var gap = 6, pad = 8;
+            var rtl = getComputedStyle(trigger).direction === 'rtl';
+            var left = rtl ? rect.right - width : rect.left;
+            left = Math.max(pad, Math.min(left, window.innerWidth - width - pad));
+            var below = window.innerHeight - rect.bottom;
+            var top = below >= height + gap || rect.top < height + gap
+                ? rect.bottom + gap : rect.top - height - gap;
+            top = Math.max(pad, Math.min(top, window.innerHeight - height - pad));
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+            menu.style.visibility = 'visible';
+
+            menu._vzToggle = function () {
+                if (!menu.matches(':popover-open')) {
+                    menu.dataset.vzOpen = 'false';
+                    try { dotNetRef.invokeMethodAsync('OnContextMenuClosed'); } catch (e) { }
+                }
+            };
+            menu.addEventListener('toggle', menu._vzToggle);
+            requestAnimationFrame(function () {
+                var focusable = menu.querySelector('a[href],button:not([disabled]),[tabindex="0"]');
+                if (focusable) focusable.focus({ preventScroll: true });
+            });
+            return true;
+        },
+        closeContextMenu: function (menu, trigger) {
+            if (!menu) return;
+            try { if (menu.matches(':popover-open') && menu.hidePopover) menu.hidePopover(); } catch (e) { }
+            menu.dataset.vzOpen = 'false';
+            menu.style.display = '';
+            if (trigger) try { trigger.focus({ preventScroll: true }); } catch (e) { }
+        },
+        disposeContextMenu: function (menu) {
+            if (!menu) return;
+            if (menu._vzToggle) menu.removeEventListener('toggle', menu._vzToggle);
+            menu._vzToggle = null;
+            menu._vzDotNet = null;
+        },
         // Client-side file download (used for CSV export — no backend endpoint required).
         downloadText: function (fileName, text, mime) {
             try {

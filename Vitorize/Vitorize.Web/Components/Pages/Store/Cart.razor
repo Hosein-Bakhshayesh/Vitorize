@@ -37,6 +37,14 @@ else
                         <div style="font-weight:700;font-size:14px">@item.ProductTitle</div>
                         @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
                         { <div class="st-muted" style="font-size:12px">@item.VariantTitle</div> }
+                        @if (item.InputValues.Count > 0)
+                        {
+                            <div class="st-input-summary">@foreach (var value in item.InputValues) { <span><b>@value.FieldLabel:</b> @value.Value</span> }</div>
+                        }
+                        @if (item.InputFields.Count > 0)
+                        {
+                            <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => EditInputs(item)"><Icon Name="edit" Size="13" /> ویرایش اطلاعات خرید</button>
+                        }
                         <div class="st-muted" style="font-size:12.5px;margin-top:4px">قیمت واحد: @AUI.MoneyFa(item.UnitPrice)</div>
                     </div>
                     <div class="st-qty">
@@ -98,6 +106,33 @@ else
     </div>
 }
 
+<Modal Visible="_inputOpen" Title="ویرایش اطلاعات خرید" Icon="file-text" OnClose="CloseInputs">
+    <ChildContent>
+        @if (_editingItem is not null)
+        {
+            <div class="st-dynamic-form">
+                @foreach (var field in _editingItem.InputFields.OrderBy(x => x.SortOrder))
+                {
+                    <div class="st-field">
+                        <label class="st-label">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                        @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
+                        @if (field.FieldType is 6 or 7)
+                        { <select class="st-select" value="@EditValue(field.Key)" @onchange="e => SetEditValue(field.Key, e.Value?.ToString())"><option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }</select> }
+                        else if (field.FieldType == 8)
+                        { <label class="st-check"><input type="checkbox" checked="@IsEditChecked(field.Key)" @onchange="e => SetEditCheckbox(field.Key, e.Value)" /><span>@field.Placeholder</span></label> }
+                        else if (field.FieldType == 5)
+                        { <textarea class="st-textarea" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())"></textarea> }
+                        else
+                        { <input class="st-input" type="@InputType(field.FieldType)" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" autocomplete="off" /> }
+                        @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> برای حفظ امنیت، مقدار قبلی نمایش داده نمی‌شود و باید دوباره وارد شود.</span> }
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+    <Footer><button class="st-btn st-btn--outline" @onclick="CloseInputs">انصراف</button><button class="st-btn st-btn--accent" @onclick="SaveInputs" disabled="@_busy">ذخیره اطلاعات</button></Footer>
+</Modal>
+
 @code {
     private bool _loading = true, _busy, _couponBusy;
     private CartModel? _cart;
@@ -105,6 +140,9 @@ else
     private string _appliedCode = string.Empty;
     private decimal _discount;
     private string? _couponMsg;
+    private bool _inputOpen;
+    private CartItemModel? _editingItem;
+    private readonly Dictionary<string, string?> _editValues = new(StringComparer.OrdinalIgnoreCase);
 
     private string CheckoutHref => _discount > 0 && !string.IsNullOrWhiteSpace(_appliedCode)
         ? $"/checkout?coupon={Uri.EscapeDataString(_appliedCode)}"
@@ -192,4 +230,32 @@ else
         }
         else Toasts.Error(result.Message);
     }
+
+    private void EditInputs(CartItemModel item)
+    {
+        _editingItem = item; _editValues.Clear();
+        foreach (var field in item.InputFields)
+        {
+            var existing = item.InputValues.FirstOrDefault(x => x.FieldKey.Equals(field.Key, StringComparison.OrdinalIgnoreCase));
+            _editValues[field.Key] = field.IsSensitive ? null : existing?.Value ?? field.DefaultValue;
+        }
+        _inputOpen = true;
+    }
+
+    private async Task SaveInputs()
+    {
+        if (_editingItem is null) return;
+        foreach (var field in _editingItem.InputFields)
+            if (field.IsRequired && string.IsNullOrWhiteSpace(EditValue(field.Key))) { Toasts.Error($"تکمیل «{field.Label}» الزامی است."); return; }
+        _busy = true;
+        var result = await Api.PutAsync<CartModel>($"cart/items/{_editingItem.Id}", new { Quantity = _editingItem.Quantity, InputValues = _editValues });
+        _busy = false;
+        if (result.IsSuccess) { _inputOpen = false; Apply(result); } else Toasts.Error(result.Message);
+    }
+    private string? EditValue(string key) => _editValues.GetValueOrDefault(key);
+    private void SetEditValue(string key, string? value) => _editValues[key] = value;
+    private bool IsEditChecked(string key) => string.Equals(EditValue(key), "true", StringComparison.OrdinalIgnoreCase);
+    private void SetEditCheckbox(string key, object? value) => SetEditValue(key, value is true ? "true" : "false");
+    private void CloseInputs() => _inputOpen = false;
+    private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
 }

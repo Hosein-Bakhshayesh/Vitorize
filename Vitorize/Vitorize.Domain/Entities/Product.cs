@@ -73,6 +73,10 @@ public partial class Product
 
     public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
 
+    public virtual ICollection<ProductFeature> ProductFeatures { get; set; } = new List<ProductFeature>();
+
+    public virtual ICollection<ProductInputField> ProductInputFields { get; set; } = new List<ProductInputField>();
+
     public virtual ICollection<ProductReview> ProductReviews { get; set; } = new List<ProductReview>();
 
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();

@@ -20,6 +20,8 @@ namespace Vitorize.Web.Models.Store
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public List<StoreProductInputValueModel> InputValues { get; set; } = new();
+        public List<StoreProductInputFieldModel> InputFields { get; set; } = new();
     }
 
     public class CheckoutResultModel
@@ -95,6 +97,19 @@ namespace Vitorize.Web.Models.Store
         public DateTime CreatedAt { get; set; }
         public DateTime? DeliveredAt { get; set; }
         public List<StoreOrderDeliveryModel> Deliveries { get; set; } = new();
+        public List<StoreProductInputValueModel> InputValues { get; set; } = new();
+    }
+
+    public class StoreProductInputValueModel
+    {
+        public Guid? Id { get; set; }
+        public Guid? ProductInputFieldId { get; set; }
+        public string FieldKey { get; set; } = string.Empty;
+        public string FieldLabel { get; set; } = string.Empty;
+        public byte FieldType { get; set; }
+        public string? Value { get; set; }
+        public bool IsSensitive { get; set; }
+        public bool IsMasked { get; set; }
     }
 
     public class StoreOrderDeliveryModel

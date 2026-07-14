@@ -60,5 +60,7 @@
         public List<ProductVariantDto> Variants { get; set; } = new();
 
         public int AvailableStock { get; set; }
+        public List<ProductFeatureDto> Features { get; set; } = new();
+        public List<ProductInputFieldDto> InputFields { get; set; } = new();
     }
 }

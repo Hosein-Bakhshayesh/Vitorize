@@ -74,20 +74,13 @@
                                 <td class="num">@AUI.Number(u.OrdersCount)</td>
                                 <td><PersianDateDisplay Value="u.CreatedAt" /></td>
                                 <td class="col-actions">
-                                    <div class="vz-ctx">
-                                        <button class="vz-ctx__trigger @(_openMenuId == u.Id ? "open" : "")" @onclick="() => ToggleMenu(u.Id)" title="عملیات"><Icon Name="dots" Size="18" /></button>
-                                        @if (_openMenuId == u.Id)
-                                        {
-                                            <div style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
-                                            <div class="vz-ctx__menu">
+                                    <AdminContextMenu>
                                                 <button class="vz-ctx__item" @onclick="() => Open(u.Id)"><Icon Name="eye" Size="15" /> مشاهده پروفایل</button>
                                                 <div class="vz-ctx__divider"></div>
                                                 <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "activate", "کاربر فعال شد.")'><Icon Name="check-circle" Size="15" /> فعال‌سازی</button>
                                                 <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "suspend", "کاربر معلق شد.")'><Icon Name="clock" Size="15" /> تعلیق</button>
                                                 <button class="vz-ctx__item danger" @onclick='() => QuickStatus(u, "block", "کاربر مسدود شد.")'><Icon Name="lock" Size="15" /> مسدودسازی</button>
-                                            </div>
-                                        }
-                                    </div>
+                                    </AdminContextMenu>
                                 </td>
                             </tr>
                         }

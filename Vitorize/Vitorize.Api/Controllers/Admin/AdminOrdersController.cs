@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Vitorize.Infrastructure.Persistence;
 using Vitorize.Application.DTOs.Admin.Orders;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
@@ -15,13 +17,22 @@ namespace Vitorize.Api.Controllers.Admin
     {
         private readonly IOrderService _orderService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly VitorizeDbContext _dbContext;
+        private readonly IEncryptionService _encryptionService;
+        private readonly ISecurityLogService _securityLogService;
 
         public AdminOrdersController(
             IOrderService orderService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            VitorizeDbContext dbContext,
+            IEncryptionService encryptionService,
+            ISecurityLogService securityLogService)
         {
             _orderService = orderService;
             _currentUserService = currentUserService;
+            _dbContext = dbContext;
+            _encryptionService = encryptionService;
+            _securityLogService = securityLogService;
         }
 
         [HttpGet]
@@ -81,6 +92,21 @@ namespace Vitorize.Api.Controllers.Admin
                 adminUserId);
 
             return Ok(ApiResult.Success("سفارش با موفقیت تکمیل شد."));
+        }
+
+        [HttpPost("{orderId:guid}/input-values/{valueId:guid}/reveal")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<ActionResult<ApiResult<string>>> RevealSensitiveInput(Guid orderId, Guid valueId)
+        {
+            var adminId = GetUserId();
+            var value = await _dbContext.OrderItemInputValues.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == valueId && x.OrderItem.OrderId == orderId)
+                ?? throw new NotFoundException("مقدار ثبت‌شده یافت نشد.");
+            if (!value.IsSensitive || string.IsNullOrWhiteSpace(value.EncryptedValue))
+                throw new BusinessException("این مقدار حساس و قابل آشکارسازی نیست.");
+            await _securityLogService.LogAsync(adminId, "OrderSensitiveInputRevealed", true,
+                $"OrderId={orderId}; ValueId={valueId}; FieldKey={value.FieldKey}", HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
+            return Ok(ApiResult<string>.Success(_encryptionService.Decrypt(value.EncryptedValue), "مقدار با ثبت رویداد امنیتی آشکار شد."));
         }
 
         private Guid GetUserId()

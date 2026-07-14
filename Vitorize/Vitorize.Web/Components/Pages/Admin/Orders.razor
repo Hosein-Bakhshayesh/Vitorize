@@ -118,12 +118,7 @@ else
                                     <td><StatusBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
                                     <td><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></td>
                                     <td class="col-actions">
-                                        <div class="vz-ctx">
-                                            <button class="vz-ctx__trigger @(_openMenuId == o.Id ? "open" : "")" @onclick="() => ToggleMenu(o.Id)" title="عملیات"><Icon Name="dots" Size="18" /></button>
-                                            @if (_openMenuId == o.Id)
-                                            {
-                                                <div style="position:fixed;inset:0;z-index:25" @onclick="CloseMenu"></div>
-                                                <div class="vz-ctx__menu">
+                                        <AdminContextMenu>
                                                     <button class="vz-ctx__item" @onclick="() => OpenDetails(o.Id)"><Icon Name="eye" Size="15" /> مشاهده جزئیات</button>
                                                     @if (CanAct(o.Status))
                                                     {
@@ -132,9 +127,7 @@ else
                                                     }
                                                     <div class="vz-ctx__divider"></div>
                                                     <button class="vz-ctx__item" @onclick="() => Copy(o.OrderNumber)"><Icon Name="copy" Size="15" /> کپی شماره</button>
-                                                </div>
-                                            }
-                                        </div>
+                                        </AdminContextMenu>
                                     </td>
                                 </tr>
                             }
@@ -188,7 +181,19 @@ else
                                 @foreach (var item in Items(d))
                                 {
                                     <tr>
-                                        <td class="vz-cell-title">@item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")</td>
+                                        <td class="vz-cell-title">
+                                            @item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")
+                                            @if (item.InputValues.Count > 0)
+                                            {
+                                                <dl class="vz-order-inputs">
+                                                    @foreach (var value in item.InputValues)
+                                                    {
+                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)">@value.Value</dd>
+                                                        @if (value.IsSensitive && value.IsMasked && value.Id.HasValue) { <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => RevealInput(d.Id, value)"><Icon Name="eye" Size="12" /> نمایش با ثبت گزارش</button> }</div>
+                                                    }
+                                                </dl>
+                                            }
+                                        </td>
                                         <td class="num">@AUI.Number(item.Quantity)</td>
                                         <td><MoneyDisplay Amount="item.UnitPrice" /></td>
                                         <td><MoneyDisplay Amount="item.TotalPrice" /></td>
@@ -309,6 +314,14 @@ else
     private List<AdminOrderModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
+
+    private async Task RevealInput(Guid orderId, AdminOrderInputValueModel value)
+    {
+        if (!value.Id.HasValue) return;
+        var result = await Api.PostAsync<string>($"admin/orders/{orderId}/input-values/{value.Id}/reveal");
+        if (result.IsSuccess) { value.Value = result.Data; value.IsMasked = false; Toasts.Success("مقدار حساس نمایش داده شد و رویداد امنیتی ثبت گردید."); }
+        else Toasts.Error(result.Message);
+    }
     private static string Initial(string name) => string.IsNullOrWhiteSpace(name) ? "؟" : name.Trim()[..1];
 
     // ----- selection -----

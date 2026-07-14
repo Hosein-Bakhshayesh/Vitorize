@@ -65,6 +65,22 @@ else
                 </div>
             </div>
 
+            @if (_p.Features.Any(x => x.IsActive))
+            {
+                <section class="st-product-features" aria-labelledby="product-features-title">
+                    <h2 id="product-features-title">ویژگی‌ها و مشخصات</h2>
+                    <dl class="st-feature-grid">
+                        @foreach (var feature in _p.Features.Where(x => x.IsActive).OrderBy(x => x.SortOrder))
+                        {
+                            <div class="st-feature-card">
+                                <span class="st-feature-card__icon"><Icon Name="@(string.IsNullOrWhiteSpace(feature.IconKey) ? "check-circle" : feature.IconKey)" Size="20" /></span>
+                                <div><dt>@feature.Title</dt><dd>@feature.Value</dd></div>
+                            </div>
+                        }
+                    </dl>
+                </section>
+            }
+
             <div class="st-ptabs st-tabs">
                 <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
                 <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
@@ -74,7 +90,7 @@ else
             <div style="margin-top:20px">
                 @if (_tab == "desc")
                 {
-                    <div style="line-height:1.95;color:var(--st-text-2);font-size:14.5px">
+                    <div class="st-rich-content">
                         @if (!string.IsNullOrWhiteSpace(_p.FullDescription))
                         { @((MarkupString)_p.FullDescription) }
                         else if (!string.IsNullOrWhiteSpace(_p.ShortDescription))
@@ -219,11 +235,15 @@ else
                         <Icon Name="package" Size="16" /> <span>این محصول در حال حاضر ناموجود است.</span>
                     </div>
                 }
-                <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => AddToCart(false)" disabled="@(_busy || OutOfStock)">
+                @if (_p.InputFields.Any(x => x.IsActive))
+                {
+                    <div class="st-required-info"><Icon Name="file-text" Size="15" /><span>این محصول برای تکمیل سفارش به @AUI.Number(_p.InputFields.Count(x => x.IsActive)) مورد اطلاعات نیاز دارد.</span></div>
+                }
+                <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => BeginAddToCart(false)" disabled="@(_busy || OutOfStock)">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>@(OutOfStock ? "ناموجود" : "افزودن به سبد خرید")</span> }
                 </button>
                 <div style="display:flex;gap:10px;margin-top:10px">
-                    <button class="st-btn st-btn--outline st-btn--block" @onclick="() => AddToCart(true)" disabled="@(_busy || OutOfStock)">خرید فوری</button>
+                    <button class="st-btn st-btn--outline st-btn--block" @onclick="() => BeginAddToCart(true)" disabled="@(_busy || OutOfStock)">خرید فوری</button>
                     <button class="st-btn st-btn--ghost" style="flex:0 0 auto" @onclick="ToggleWishlist" disabled="@_wishBusy" title="علاقه‌مندی">
                         <Icon Name="heart" Size="18" Class="@(InWishlist ? "st-heart-on" : null)" />
                     </button>
@@ -244,6 +264,49 @@ else
     }
 }
 
+<Modal Visible="_inputOpen" Title="اطلاعات موردنیاز خرید" Icon="file-text" OnClose="CloseInputForm">
+    <ChildContent>
+        <div class="st-dynamic-form">
+            @foreach (var field in ProductStageFields)
+            {
+                <div class="st-field">
+                    <label class="st-label" for="@($"product-input-{field.Key}")">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                    @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
+                    @if (field.FieldType is 6 or 7)
+                    {
+                        <select id="@($"product-input-{field.Key}")" class="st-select" value="@GetInput(field.Key)" @onchange="e => SetInput(field.Key, e.Value?.ToString())">
+                            <option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }
+                        </select>
+                    }
+                    else if (field.FieldType == 8)
+                    {
+                        <label class="st-check"><input type="checkbox" checked="@IsInputChecked(field.Key)" @onchange="e => SetInputCheckbox(field.Key, e.Value)" /><span>@field.Placeholder</span></label>
+                    }
+                    else if (field.FieldType == 5)
+                    {
+                        <textarea id="@($"product-input-{field.Key}")" class="st-textarea" placeholder="@field.Placeholder" value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())"></textarea>
+                    }
+                    else
+                    {
+                        <input id="@($"product-input-{field.Key}")" class="st-input" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)"
+                               placeholder="@field.Placeholder" minlength="@field.MinLength" maxlength="@field.MaxLength"
+                               value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" autocomplete="off" />
+                    }
+                    @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> این مقدار رمزگذاری و در نمایش‌ها مخفی می‌شود.</span> }
+                    @if (field.IsSensitive && field.RequiresConfirmation)
+                    {
+                        <input class="st-input" type="password" placeholder="تکرار @field.Label" value="@GetConfirmation(field.Key)" @oninput="e => SetConfirmation(field.Key, e.Value?.ToString())" autocomplete="off" />
+                    }
+                </div>
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="st-btn st-btn--outline" @onclick="CloseInputForm">انصراف</button>
+        <button class="st-btn st-btn--accent" @onclick="SubmitInputForm" disabled="@_busy">تأیید و افزودن</button>
+    </Footer>
+</Modal>
+
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
@@ -259,6 +322,10 @@ else
     private List<StoreProductModel> _related = new();
     private List<StoreFaqModel> _faqs = new();
     private string? _loadedSlug;
+    private bool _inputOpen, _pendingBuyNow;
+    private readonly Dictionary<string, string?> _inputValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string?> _confirmValues = new(StringComparer.OrdinalIgnoreCase);
+    private IEnumerable<StoreProductInputFieldModel> ProductStageFields => _p?.InputFields.Where(x => x.IsActive && x.DisplayStage == 1).OrderBy(x => x.SortOrder) ?? Enumerable.Empty<StoreProductInputFieldModel>();
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
@@ -333,14 +400,40 @@ else
         _qty = Math.Clamp(q, min, max);
     }
 
-    private async Task AddToCart(bool buyNow)
+    private async Task BeginAddToCart(bool buyNow)
     {
         if (_p is null) return;
         if (_p.Variants.Count > 0 && _variant is null) { Toasts.Error("لطفاً یک نسخه را انتخاب کنید."); return; }
+        if (ProductStageFields.Any())
+        {
+            _pendingBuyNow = buyNow;
+            foreach (var field in ProductStageFields)
+                if (!_inputValues.ContainsKey(field.Key)) _inputValues[field.Key] = field.DefaultValue;
+            _inputOpen = true;
+            return;
+        }
+        await AddToCart(buyNow);
+    }
+
+    private async Task SubmitInputForm()
+    {
+        foreach (var field in ProductStageFields)
+        {
+            var value = GetInput(field.Key);
+            if (field.IsRequired && string.IsNullOrWhiteSpace(value)) { Toasts.Error($"تکمیل «{field.Label}» الزامی است."); return; }
+            if (field.RequiresConfirmation && value != GetConfirmation(field.Key)) { Toasts.Error($"تکرار «{field.Label}» یکسان نیست."); return; }
+        }
+        _inputOpen = false;
+        await AddToCart(_pendingBuyNow);
+    }
+
+    private async Task AddToCart(bool buyNow)
+    {
+        if (_p is null) return;
 
         _busy = true;
         var result = await Api.PostAsync<CartModel>("cart/items",
-            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty });
+            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty, InputValues = _inputValues });
         _busy = false;
 
         if (result.IsSuccess && result.Data is not null)
@@ -355,6 +448,16 @@ else
         }
         else { Toasts.Error(result.Message); }
     }
+
+    private string? GetInput(string key) => _inputValues.GetValueOrDefault(key);
+    private void SetInput(string key, string? value) => _inputValues[key] = value;
+    private bool IsInputChecked(string key) => string.Equals(GetInput(key), "true", StringComparison.OrdinalIgnoreCase);
+    private void SetInputCheckbox(string key, object? value) => SetInput(key, value is true ? "true" : "false");
+    private string? GetConfirmation(string key) => _confirmValues.GetValueOrDefault(key);
+    private void SetConfirmation(string key, string? value) => _confirmValues[key] = value;
+    private void CloseInputForm() => _inputOpen = false;
+    private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
+    private static string? InputMode(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "decimal", 10 => "url", _ => null };
 
     private async Task ToggleWishlist()
     {

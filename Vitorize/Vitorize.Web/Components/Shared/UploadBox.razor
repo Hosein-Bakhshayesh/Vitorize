@@ -16,7 +16,7 @@
     else
     {
         <label class="vz-upload__drop @(_busy ? "busy" : "")">
-            <InputFile OnChange="OnChange" accept="image/png,image/jpeg,image/webp" disabled="@_busy" />
+            <InputFile OnChange="OnChange" accept="@Accept" disabled="@_busy" />
             @if (_busy)
             {
                 <span class="vz-spinner sm"></span>
@@ -26,7 +26,7 @@
             {
                 <span class="vz-upload__icon"><Icon Name="upload" Size="22" /></span>
                 <span style="font-weight:700">@Label</span>
-                <span class="vz-hint">PNG، JPG یا WEBP — حداکثر ۲ مگابایت</span>
+                <span class="vz-hint">@Guidance</span>
             }
         </label>
     }
@@ -47,6 +47,8 @@
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string Label { get; set; } = "برای آپلود تصویر کلیک کنید";
     [Parameter] public string Endpoint { get; set; } = "admin/uploads/product-image";
+    [Parameter] public string Accept { get; set; } = "image/png,image/jpeg,image/webp";
+    [Parameter] public string Guidance { get; set; } = "PNG، JPG یا WEBP — حداکثر ۲ مگابایت";
 
     private bool _busy;
     private const long MaxSize = 2 * 1024 * 1024;

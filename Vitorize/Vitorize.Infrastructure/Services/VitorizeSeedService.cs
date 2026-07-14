@@ -15,6 +15,7 @@ namespace Vitorize.Infrastructure.Services
         {
             await SeedRolesAsync(cancellationToken);
             await SeedSettingsAsync(cancellationToken);
+            await SeedFontAssetsAsync(cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
             // کاربران پیش‌فرض پس از ذخیره‌ی نقش‌ها ساخته می‌شوند تا نقش‌ها قابل واکشی باشند.
@@ -141,6 +142,38 @@ namespace Vitorize.Infrastructure.Services
                 S("Error500IllustrationPath", "", "Logos", "image", "تصویر صفحه ۵۰۰ (خالی = ماسکات پیش‌فرض)"),
                 S("MaintenanceIllustrationPath", "", "Logos", "image", "تصویر صفحه تعمیر و نگهداری"),
                 S("EmptyStateIllustrationPath", "", "Logos", "image", "تصویر پیش‌فرض حالت‌های خالی"),
+                S("Branding.AssetVersion", "1", "Branding", "string", "نسخه کش لوگوها و آیکون‌های برند"),
+
+                // ───────────── Typography ─────────────
+                S("Typography.FontFamily", "Vazirmatn", "Typography", "string", "نام فونت فعال؛ پیش‌فرض Vazirmatn"),
+                S("Typography.FontPath", "", "Typography", "string", "مسیر فایل فونت فعال؛ خالی یعنی فونت داخلی"),
+                S("Typography.FontFormat", "woff2", "Typography", "string", "فرمت فایل فونت فعال"),
+                S("Typography.Scope", "3", "Typography", "int", "محدوده اعمال فونت: ۱ فروشگاه، ۲ مدیریت، ۳ کل برنامه"),
+                S("Typography.Version", "1", "Typography", "string", "نسخه کش فونت"),
+                S("Typography.MaxUploadMb", "5", "Typography", "int", "حداکثر حجم آپلود فونت بر حسب مگابایت"),
+
+                // ───────────── Iranian trust seals (safe link + image only) ─────────────
+                S("TrustSeal.Enamad.Enabled", "false", "TrustSeals", "bool", "نمایش نماد اعتماد الکترونیکی"),
+                S("TrustSeal.Enamad.Title", "نماد اعتماد الکترونیکی", "TrustSeals", "string", "عنوان نماد"),
+                S("TrustSeal.Enamad.Url", "", "TrustSeals", "string", "نشانی تأیید Enamad؛ فقط دامنه enamad.ir"),
+                S("TrustSeal.Enamad.ImagePath", "", "TrustSeals", "image", "تصویر نماد Enamad"),
+                S("TrustSeal.Enamad.Alt", "نماد اعتماد الکترونیکی", "TrustSeals", "string", "متن جایگزین تصویر"),
+                S("TrustSeal.Enamad.SortOrder", "10", "TrustSeals", "int", "ترتیب نمایش"),
+                S("TrustSeal.Enamad.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
+                S("TrustSeal.Ecunion.Enabled", "false", "TrustSeals", "bool", "نمایش مجوز اتحادیه کشوری کسب‌وکارهای مجازی"),
+                S("TrustSeal.Ecunion.Title", "اتحادیه کسب‌وکارهای مجازی", "TrustSeals", "string", "عنوان مجوز"),
+                S("TrustSeal.Ecunion.Url", "", "TrustSeals", "string", "نشانی تأیید؛ فقط دامنه ecunion.ir"),
+                S("TrustSeal.Ecunion.ImagePath", "", "TrustSeals", "image", "تصویر مجوز ecunion"),
+                S("TrustSeal.Ecunion.Alt", "مجوز اتحادیه کسب‌وکارهای مجازی", "TrustSeals", "string", "متن جایگزین تصویر"),
+                S("TrustSeal.Ecunion.SortOrder", "20", "TrustSeals", "int", "ترتیب نمایش"),
+                S("TrustSeal.Ecunion.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
+                S("TrustSeal.Samandehi.Enabled", "false", "TrustSeals", "bool", "نمایش نشان ساماندهی"),
+                S("TrustSeal.Samandehi.Title", "نشان ملی ثبت رسانه‌های دیجیتال", "TrustSeals", "string", "عنوان نشان"),
+                S("TrustSeal.Samandehi.Url", "", "TrustSeals", "string", "نشانی تأیید؛ فقط دامنه samandehi.ir"),
+                S("TrustSeal.Samandehi.ImagePath", "", "TrustSeals", "image", "تصویر نشان ساماندهی"),
+                S("TrustSeal.Samandehi.Alt", "نشان ساماندهی", "TrustSeals", "string", "متن جایگزین تصویر"),
+                S("TrustSeal.Samandehi.SortOrder", "30", "TrustSeals", "int", "ترتیب نمایش"),
+                S("TrustSeal.Samandehi.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
 
                 // ───────────── SEO ─────────────
                 S("MetaTitle", "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین", "SEO", "string", "عنوان متای پیش‌فرض"),
@@ -341,6 +374,18 @@ namespace Vitorize.Infrastructure.Services
 
         private static SeedSetting S(string key, string value, string groupName, string valueType, string description) =>
             new(key, value, groupName, valueType, description);
+
+        private async Task SeedFontAssetsAsync(CancellationToken cancellationToken)
+        {
+            if (await _dbContext.FontAssets.AnyAsync(x => x.IsBuiltIn, cancellationToken)) return;
+            await _dbContext.FontAssets.AddAsync(new FontAsset
+            {
+                Id = Guid.NewGuid(), FamilyName = "Vazirmatn", FilePath = null, FileFormat = "woff2",
+                MimeType = "font/woff2", SizeBytes = 0, IsBuiltIn = true, IsActive = true,
+                Scope = (byte)Vitorize.Shared.Enums.FontApplicationScope.EntireApplication,
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+        }
 
         private sealed record SeedSetting(string Key, string Value, string GroupName, string ValueType, string Description);
     }

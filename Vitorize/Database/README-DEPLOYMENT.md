@@ -9,6 +9,10 @@
 |---|------|-----|--------|
 | 1 | `2026-07-07_fix_GiftCodeReservations_Status_constraint.sql` | Schema (Constraint) | اگر قبلاً اجرا نشده، اجرا شود |
 | 2 | `2026-07-08_data_fix_image_paths_and_names.sql` | Data-only، Idempotent | روی دیتابیس Development اعمال شده؛ روی هر محیط دیگری که همین داده‌ها را دارد اجرا شود |
+| 3 | `2026-07-14_product_experience_schema.sql` | Schema، Idempotent | پیش از انتشار نسخه Product Experience اجرا شود |
+| 4 | `2026-07-14_seed_product_experience_settings.sql` | Settings seed، Idempotent | بعد از اسکریپت شماره ۳؛ مقادیر موجود را بازنویسی نمی‌کند |
+
+فایل‌ها UTF-8 هستند. آن‌ها را با SSMS/Azure Data Studio یا با `sqlcmd -f 65001` اجرا کنید تا متن‌های فارسی تنظیمات بدون تغییر کدگذاری ثبت شوند.
 
 **بازبینی نهایی ۲۰۲۶/۰۷/۰۸ هیچ تغییر Schema جدیدی لازم نکرد.** نقش‌ها، کاربران پیش‌فرض و
 تنظیمات (از جمله کلیدهای جدید گروه Branding) توسط Seeder داخلی API در اولین اجرا به‌صورت

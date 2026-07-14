@@ -13,15 +13,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly ICouponService _couponService;
         private readonly INotificationService _notificationService;
+        private readonly IEncryptionService _encryptionService;
 
         public CheckoutService(
             VitorizeDbContext dbContext,
             ICouponService couponService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IEncryptionService encryptionService)
         {
             _dbContext = dbContext;
             _couponService = couponService;
             _notificationService = notificationService;
+            _encryptionService = encryptionService;
         }
 
         public async Task<CheckoutResultDto> CheckoutAsync(
@@ -38,6 +41,11 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.Product)
                 .Include(x => x.CartItems)
                     .ThenInclude(x => x.ProductVariant)
+                .Include(x => x.CartItems)
+                    .ThenInclude(x => x.InputValues)
+                .Include(x => x.CartItems)
+                    .ThenInclude(x => x.Product)
+                        .ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (cart == null || !cart.CartItems.Any())
@@ -97,6 +105,17 @@ namespace Vitorize.Infrastructure.Services
 
                 foreach (var cartItem in cart.CartItems)
                 {
+                    var suppliedValues = cartItem.InputValues.ToDictionary(
+                        x => x.FieldKey,
+                        x => x.IsSensitive && x.EncryptedValue is not null
+                            ? _encryptionService.Decrypt(x.EncryptedValue)
+                            : x.Value,
+                        StringComparer.OrdinalIgnoreCase);
+                    var validatedValues = CartService.ValidateInputs(
+                        cartItem.Product.ProductInputFields,
+                        suppliedValues,
+                        includeAllStages: true);
+
                     var orderItem = new OrderItem
                     {
                         Id = Guid.NewGuid(),
@@ -113,6 +132,25 @@ namespace Vitorize.Infrastructure.Services
                         RequiresVerification = cartItem.Product.RequiresVerification,
                         CreatedAt = now
                     };
+
+                    foreach (var field in cartItem.Product.ProductInputFields
+                                 .Where(x => x.IsActive && validatedValues.ContainsKey(x.Key)))
+                    {
+                        var cartValue = cartItem.InputValues.FirstOrDefault(x =>
+                            string.Equals(x.FieldKey, field.Key, StringComparison.OrdinalIgnoreCase));
+                        orderItem.InputValues.Add(new OrderItemInputValue
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductInputFieldId = field.Id,
+                            FieldKey = field.Key,
+                            FieldLabel = field.Label,
+                            FieldType = field.FieldType,
+                            Value = field.IsSensitive ? null : validatedValues[field.Key],
+                            EncryptedValue = field.IsSensitive ? cartValue?.EncryptedValue : null,
+                            IsSensitive = field.IsSensitive,
+                            CreatedAt = now
+                        });
+                    }
 
                     orderItems.Add(orderItem);
                 }

@@ -1,0 +1,45 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="vz-rich-editor @Class" @ref="_host" dir="rtl"></div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "توضیحات کامل محصول را وارد کنید…";
+    private ElementReference _host;
+    private DotNetObjectReference<RichTextEditor>? _self;
+    private bool _ready;
+    private string? _lastValue;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("vzRichEditor.create", _host, _self, Value ?? string.Empty, Placeholder);
+            _lastValue = Value;
+            _ready = true;
+        }
+        else if (_ready && Value != _lastValue)
+        {
+            await JS.InvokeVoidAsync("vzRichEditor.setHtml", _host, Value ?? string.Empty);
+            _lastValue = Value;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnHtmlChanged(string html)
+    {
+        var normalized = html == "<p><br></p>" ? null : html;
+        _lastValue = normalized;
+        await ValueChanged.InvokeAsync(normalized);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_ready) try { await JS.InvokeVoidAsync("vzRichEditor.dispose", _host); } catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}
