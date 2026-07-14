@@ -3,26 +3,51 @@
 این پروژه Database-First است و **هیچ EF Migration ندارد**. تغییرات دیتابیس فقط از طریق
 اسکریپت‌های SQL این پوشه اعمال می‌شوند.
 
-## اسکریپت‌های SQL و ترتیب اجرا
+## زنجیره رسمی دیتابیس
 
-| # | فایل | نوع | وضعیت |
-|---|------|-----|--------|
-| 1 | `2026-07-07_fix_GiftCodeReservations_Status_constraint.sql` | Schema (Constraint) | اگر قبلاً اجرا نشده، اجرا شود |
-| 2 | `2026-07-08_data_fix_image_paths_and_names.sql` | Data-only، Idempotent | روی دیتابیس Development اعمال شده؛ روی هر محیط دیگری که همین داده‌ها را دارد اجرا شود |
-| 3 | `2026-07-14_product_experience_schema.sql` | Schema، Idempotent | پیش از انتشار نسخه Product Experience اجرا شود |
-| 4 | `2026-07-14_seed_product_experience_settings.sql` | Settings seed، Idempotent | بعد از اسکریپت شماره ۳؛ مقادیر موجود را بازنویسی نمی‌کند |
-| — | `2026-07-14_optional_normalize_legacy_lucide_icons.sql` | Data-only، اختیاری و Idempotent | فقط برای پاک‌سازی نام‌های قدیمی آیکون؛ اجرای آن برای کارکرد برنامه الزامی نیست |
+منبع رسمی ترتیب اجرا، طبقه‌بندی، وابستگی و SHA-256 همه فایل‌ها در
+[`DEPLOYMENT-MANIFEST.md`](DEPLOYMENT-MANIFEST.md) و فایل ماشین‌خوان
+`deployment-manifest.json` قرار دارد. اسکریپت‌های تاریخی را در Production دستی و بر اساس
+نام فایل اجرا نکنید؛ بعضی از آن‌ها اختیاری، وابسته به محیط یا با نسخه امن‌تر جایگزین شده‌اند.
 
-فایل‌ها UTF-8 هستند. آن‌ها را با SSMS/Azure Data Studio یا با `sqlcmd -f 65001` اجرا کنید تا متن‌های فارسی تنظیمات بدون تغییر کدگذاری ثبت شوند.
+زنجیره الزامی فعلی شامل هشت مرحله است: ایجاد Ledger، اصلاح اتمیک constraint رزرو گیفت،
+schema تاریخچه SMS، schema تجربه محصول، seed نقش‌های غیرمحرمانه، و سه seed تنظیمات.
+Runner هر فایل را قبل از اتصال با SHA-256 بررسی و فقط اجرای موفق را در
+`dbo.DatabaseScriptHistory` ثبت می‌کند.
 
-نقش‌ها و تنظیمات غیرمحرمانه توسط Seeder داخلی API به‌صورت Idempotent ساخته می‌شوند.
-Seeder در حالت پیش‌فرض هیچ حساب کاربری ایجاد یا بازنویسی نمی‌کند.
+```powershell
+# بررسی بدون تغییر
+powershell -NoProfile -ExecutionPolicy Bypass -File Database\Deploy-Database.ps1 `
+  -ServerInstance <server> -Database <database> -Environment Production -DryRun
+
+# اجرا؛ نام دیتابیس باید دقیقاً دوباره تأیید شود
+powershell -NoProfile -ExecutionPolicy Bypass -File Database\Deploy-Database.ps1 `
+  -ServerInstance <server> -Database <database> -Environment Production `
+  -ConfirmDatabaseName <database>
+```
+
+پیش از اجرا Backup آزموده‌شده تهیه کنید و خروجی read-only فایل
+`Preflight/validate_database_state.sql` را بررسی کنید. بعد از اجرا نیز Runner فایل
+`PostDeploy/verify_database_deployment.sql` را اجرا می‌کند. فایل‌ها UTF-8 هستند و Runner
+از `sqlcmd -f 65001` و Windows Integrated Authentication استفاده می‌کند؛ هیچ credential
+دیتابیس در مخزن یا command line نگهداری نمی‌شود.
+
+برای دیتابیس جدید، baseline بدون داده و بدون secret در
+`Baseline/VitorizeDb.schema-candidate.dacpac` قرار دارد. قبل از Publish، checksum همراه آن
+و محدودیت‌های ثبت‌شده در [`MODEL-SCRIPT-MISMATCHES.md`](MODEL-SCRIPT-MISMATCHES.md) را
+بررسی کنید.
+
+نقش‌ها و تنظیمات غیرمحرمانه توسط Seeder داخلی API نیز به‌صورت Idempotent بررسی می‌شوند؛
+این مسیر fallback است و جایگزین زنجیره ثبت‌شده استقرار نیست. Seeder در حالت پیش‌فرض هیچ
+حساب کاربری ایجاد یا بازنویسی نمی‌کند.
 
 ## گام‌های استقرار
 
 ### 1) دیتابیس
-- دیتابیس `VitorizeDb` را از محیط فعلی Restore/ایجاد کنید (Database-First).
-- اسکریپت‌های جدول بالا را به ترتیب اجرا کنید.
+- برای محیط جدید baseline بازبینی‌شده را Publish و سپس Runner را اجرا کنید.
+- برای محیط موجود Backup بگیرید، Preflight و Dry Run را اجرا کنید و سپس Runner را با
+  تأیید دقیق نام دیتابیس اجرا کنید.
+- ترتیب دستی قدیمی دیگر معتبر نیست؛ فقط Manifest رسمی مبنا است.
 
 ### 2) فایل‌های آپلودشده (مهم — ریشه‌ی مشکل تصاویر)
 مرجع فایل‌های آپلودی، **wwwroot میزبان API** است:

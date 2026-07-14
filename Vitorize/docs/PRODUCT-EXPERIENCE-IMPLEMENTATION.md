@@ -2,16 +2,15 @@
 
 ## Deployment order (Database-First)
 
-There are no EF migrations. Back up `VitorizeDb`, then execute these scripts with an account allowed to create tables, indexes, constraints and foreign keys:
+There are no EF migrations. Back up `VitorizeDb`, then use the canonical, checksum-verified
+runner documented in `Database/DEPLOYMENT-MANIFEST.md`; do not execute the two product
+scripts as an isolated ad-hoc sequence. The manifest places product schema before all
+dependent settings seeds and records successful execution in `dbo.DatabaseScriptHistory`.
 
-1. `Database/2026-07-14_product_experience_schema.sql`
-2. `Database/2026-07-14_seed_product_experience_settings.sql`
-3. Deploy API and Web binaries.
-4. Ensure `Vitorize.Api/wwwroot/uploads/fonts` and `.../uploads/settings` are writable and persistent between deployments.
-
-Both scripts are idempotent. The settings script inserts missing keys only and does not overwrite production branding. The schema script is additive and contains rollback notes; dropping snapshot tables loses historical order input data and must never be done without an export.
-
-The scripts are UTF-8. Use SSMS/Azure Data Studio or pass `-f 65001` to `sqlcmd` so Persian setting metadata is preserved.
+After the runner and its read-only post-deploy verification pass, deploy API and Web
+binaries. Ensure `Vitorize.Api/wwwroot/uploads/fonts` and `.../uploads/settings` are
+writable and persistent between deployments. All SQL files are UTF-8 and the runner uses
+`sqlcmd -f 65001` so Persian metadata is preserved.
 
 ## Product features
 

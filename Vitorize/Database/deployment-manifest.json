@@ -1,0 +1,130 @@
+{
+  "manifestVersion": 1,
+  "encoding": "UTF-8",
+  "namingConvention": "V####__description.sql",
+  "preflight": "Preflight/validate_database_state.sql",
+  "postDeploy": "PostDeploy/verify_database_deployment.sql",
+  "scripts": [
+    {
+      "order": 10,
+      "version": "V0001",
+      "name": "V0001__create_database_script_history.sql",
+      "path": "Versioned/V0001__create_database_script_history.sql",
+      "sha256": "0d95329a1e6b5eafbb377b6898f6f43ade76054ad22c970a00c92ffcdc8c6053",
+      "classification": "required",
+      "dependencies": ["Core database baseline"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 20,
+      "version": "V0002",
+      "name": "V0002__normalize_gift_code_reservation_status_constraint.sql",
+      "path": "Versioned/V0002__normalize_gift_code_reservation_status_constraint.sql",
+      "sha256": "918491680f470df380fff99caaa3b291b8e3354309e28b144945950ae7bc4b45",
+      "classification": "required",
+      "dependencies": ["V0001", "dbo.GiftCodeReservations"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 30,
+      "version": "H20260713-SMS-SCHEMA",
+      "name": "2026-07-13_create_sms_history.sql",
+      "path": "2026-07-13_create_sms_history.sql",
+      "sha256": "ece5f2dbebf7266c2c58e079377148a43bc02699d31ff9c3e853ca30b731a8f0",
+      "classification": "required",
+      "dependencies": ["V0001", "dbo.Users"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 40,
+      "version": "H20260714-PRODUCT-SCHEMA",
+      "name": "2026-07-14_product_experience_schema.sql",
+      "path": "2026-07-14_product_experience_schema.sql",
+      "sha256": "907cabcb1eefb753ae3b2ff19add608d2f011c448295f2e39a2a22e3799c393c",
+      "classification": "required",
+      "dependencies": ["V0001", "dbo.Products", "dbo.CartItems", "dbo.OrderItems", "dbo.Users"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 50,
+      "version": "V0003",
+      "name": "V0003__seed_reference_roles.sql",
+      "path": "Versioned/V0003__seed_reference_roles.sql",
+      "sha256": "9cd5ff472bb5d776269b43f14565870c6c1de862b0a275a36e342138e635be35",
+      "classification": "required",
+      "dependencies": ["V0001", "dbo.Roles"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 60,
+      "version": "H20260708-UI",
+      "name": "2026-07-08_seed_settings_ui_customization.sql",
+      "path": "2026-07-08_seed_settings_ui_customization.sql",
+      "sha256": "a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3",
+      "classification": "required",
+      "dependencies": ["V0001", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 70,
+      "version": "H20260713-SMS-SEED",
+      "name": "2026-07-13_seed_sms_settings.sql",
+      "path": "2026-07-13_seed_sms_settings.sql",
+      "sha256": "a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e",
+      "classification": "required",
+      "dependencies": ["H20260713-SMS-SCHEMA", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 80,
+      "version": "H20260714-PRODUCT-SEED",
+      "name": "2026-07-14_seed_product_experience_settings.sql",
+      "path": "2026-07-14_seed_product_experience_settings.sql",
+      "sha256": "90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00",
+      "classification": "required",
+      "dependencies": ["H20260714-PRODUCT-SCHEMA", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 900,
+      "version": "H20260707-GIFT-LEGACY",
+      "name": "2026-07-07_fix_GiftCodeReservations_Status_constraint.sql",
+      "path": "2026-07-07_fix_GiftCodeReservations_Status_constraint.sql",
+      "sha256": "e9087d640febdcc7b5d7c6080732dfc65d7ca5ce5301acd9ecf1bfaed302ebe9",
+      "classification": "superseded",
+      "supersededBy": "V0002",
+      "dependencies": ["dbo.GiftCodeReservations"],
+      "environments": []
+    },
+    {
+      "order": 910,
+      "version": "H20260708-DATA-FIX",
+      "name": "2026-07-08_data_fix_image_paths_and_names.sql",
+      "path": "2026-07-08_data_fix_image_paths_and_names.sql",
+      "sha256": "3ddcdc13e8e573b603e9e427a4aadf2fe7b976ef8faeba38ae4cc1ecd78fbd9b",
+      "classification": "environment-specific",
+      "dependencies": ["dbo.Categories", "dbo.Users", "Confirmed affected legacy rows"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 920,
+      "version": "H20260713-OTP-COMPAT",
+      "name": "2026-07-13_otpcodes_purpose_login_constraint.sql",
+      "path": "2026-07-13_otpcodes_purpose_login_constraint.sql",
+      "sha256": "81885aaded0f0ee3db6aa9c5cb9192c2f3f175f2d42d40df309e6492c8c82035",
+      "classification": "environment-specific",
+      "dependencies": ["dbo.OtpCodes", "Confirmed restrictive Purpose constraint"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 930,
+      "version": "H20260714-LUCIDE-CLEANUP",
+      "name": "2026-07-14_optional_normalize_legacy_lucide_icons.sql",
+      "path": "2026-07-14_optional_normalize_legacy_lucide_icons.sql",
+      "sha256": "7833bfbff5bcec3fae162ea32b85446ba2001d80b65e23528fc0c0edcdd1f49f",
+      "classification": "optional",
+      "dependencies": ["dbo.ProductFeatures", "dbo.Categories"],
+      "environments": ["Development", "Staging", "Production"]
+    }
+  ]
+}
