@@ -90,6 +90,7 @@
     <script src="lib/quill/quill.js?v=2.0.3"></script>
     <script src="js/rich-editor.js?v=@AssetVersion"></script>
     <script src="js/admin.js"></script>
+    <script src="js/lucide-picker.js?v=@AssetVersion"></script>
     <script src="js/storefront-theme.js"></script>
 </body>
 
@@ -101,7 +102,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260714-product-experience";
+    private const string AssetVersion = "20260714-lucide-1.24.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

@@ -336,8 +336,15 @@ else
                 }
             </div>
             <div class="vz-setfield__ctl">
-                @switch (s.ValueType?.ToLowerInvariant())
+                @if (s.Key is "TrustBadgesJson" or "HomeFeaturesJson")
                 {
+                    <ConfigurableIconBlocksEditor Value="@s.Value" ValueChanged="v => OnIconBlocksChanged(s, v)" />
+                    <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
+                }
+                else
+                {
+                    @switch (s.ValueType?.ToLowerInvariant())
+                    {
                     case "bool":
                         <label class="vz-switch">
                             <input type="checkbox" checked="@IsTrue(s.Value)"
@@ -384,6 +391,11 @@ else
                         <div class="vz-hint" style="margin-top:4px">مقدار ذخیره‌شده به‌صورت محرمانه نگهداری و هرگز کامل نمایش داده نمی‌شود.</div>
                         break;
 
+                    case "icon":
+                        <LucideIconPicker Value="@s.Value" ValueChanged="v => OnSettingIconChanged(s, v)" Placeholder="انتخاب آیکون" />
+                        <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
+                        break;
+
                     default:
                         @if (IsMultiline(s))
                         {
@@ -400,9 +412,22 @@ else
                             </div>
                         }
                         break;
+                    }
                 }
             </div>
         </div>;
+
+    private void OnIconBlocksChanged(SettingModel setting, string? value)
+    {
+        setting.Value = value;
+        MarkDirty(setting);
+    }
+
+    private void OnSettingIconChanged(SettingModel setting, string? value)
+    {
+        setting.Value = value;
+        MarkDirty(setting);
+    }
 
     private RenderFragment SaveInline(SettingModel s) =>
         @<span class="vz-setfield__save">

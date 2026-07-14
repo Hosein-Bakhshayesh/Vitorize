@@ -19,7 +19,7 @@ public sealed class ProductExperienceIntegrationTests
         await using var db = CreateDb();
         var product = SeedProduct(db);
         product.FullDescription = "<h2>متن امن</h2><script>alert(1)</script>";
-        product.ProductFeatures.Add(new ProductFeature { Id = Guid.NewGuid(), Title = "پلتفرم", Value = "PS5", SortOrder = 20, IsActive = true });
+        product.ProductFeatures.Add(new ProductFeature { Id = Guid.NewGuid(), Title = "پلتفرم", Value = "PS5", IconKey = "gamepad-2", SortOrder = 20, IsActive = true });
         product.ProductFeatures.Add(new ProductFeature { Id = Guid.NewGuid(), Title = "مخفی", Value = "داخلی", SortOrder = 10, IsActive = false });
         product.ProductInputFields.Add(new ProductInputField
         {
@@ -33,6 +33,7 @@ public sealed class ProductExperienceIntegrationTests
 
         Assert.Single(dto.Features);
         Assert.Equal("پلتفرم", dto.Features[0].Title);
+        Assert.Equal("gamepad-2", dto.Features[0].IconKey);
         Assert.Single(dto.InputFields);
         Assert.DoesNotContain("script", dto.FullDescription!, StringComparison.OrdinalIgnoreCase);
     }

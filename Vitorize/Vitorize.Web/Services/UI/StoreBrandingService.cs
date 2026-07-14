@@ -152,7 +152,7 @@ namespace Vitorize.Web.Services.UI
         private const string DefaultTrustJson =
             "[{\"icon\":\"shield-check\",\"title\":\"تضمین اصالت\",\"text\":\"محصولات رسمی و اورجینال\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"سریع و بدون انتظار\"},{\"icon\":\"headphones\",\"title\":\"پشتیبانی ۲۴/۷\",\"text\":\"همیشه کنار شما\"},{\"icon\":\"lock\",\"title\":\"پرداخت امن\",\"text\":\"درگاه‌های معتبر\"}]";
         private const string DefaultFeaturesJson =
-            "[{\"icon\":\"grid\",\"title\":\"انتخاب محصول\",\"text\":\"از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.\"},{\"icon\":\"credit-card\",\"title\":\"پرداخت امن\",\"text\":\"با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.\"}]";
+            "[{\"icon\":\"layout-grid\",\"title\":\"انتخاب محصول\",\"text\":\"از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.\"},{\"icon\":\"credit-card\",\"title\":\"پرداخت امن\",\"text\":\"با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.\"}]";
 
         public string TrustBadgesJson => Get("TrustBadgesJson", DefaultTrustJson);
         public string HomeFeaturesJson => Get("HomeFeaturesJson", DefaultFeaturesJson);

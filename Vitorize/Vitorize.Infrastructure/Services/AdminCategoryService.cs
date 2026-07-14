@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Categories;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -70,6 +71,7 @@ namespace Vitorize.Infrastructure.Services
         public async Task<AdminCategoryDto> CreateAsync(CreateCategoryRequestDto request)
         {
             await ValidateAsync(request.Title, request.Slug, request.ParentId, null);
+            request.Icon = LucideIconRules.NormalizeOptional(request.Icon);
 
             var category = new Category
             {
@@ -103,6 +105,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new NotFoundException("دسته‌بندی یافت نشد.");
 
             await ValidateAsync(request.Title, request.Slug, request.ParentId, id);
+            request.Icon = LucideIconRules.NormalizeOptional(request.Icon);
 
             category.ParentId = request.ParentId;
             category.Title = request.Title.Trim();

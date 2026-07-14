@@ -73,7 +73,7 @@ else
                         @foreach (var feature in _p.Features.Where(x => x.IsActive).OrderBy(x => x.SortOrder))
                         {
                             <div class="st-feature-card">
-                                <span class="st-feature-card__icon"><Icon Name="@(string.IsNullOrWhiteSpace(feature.IconKey) ? "check-circle" : feature.IconKey)" Size="20" /></span>
+                                <span class="st-feature-card__icon"><LucideIcon IconKey="@feature.IconKey" Size="20" FallbackIconKey="circle-check" /></span>
                                 <div><dt>@feature.Title</dt><dd>@feature.Value</dd></div>
                             </div>
                         }

@@ -1,0 +1,31 @@
+@using Vitorize.Shared.Icons
+
+<svg class="vz-ico @CssClass"
+     width="@Size" height="@Size" viewBox="0 0 24 24"
+     fill="none" stroke="currentColor" stroke-width="@StrokeWidth"
+     stroke-linecap="round" stroke-linejoin="round"
+     role="@(Decorative ? null : "img")"
+     aria-hidden="@(Decorative ? "true" : null)"
+     aria-label="@(Decorative ? null : AccessibleLabel)"
+     focusable="false">
+    @if (!Decorative && !string.IsNullOrWhiteSpace(Title))
+    {
+        <title>@Title</title>
+    }
+    <use href="@SpriteReference"></use>
+</svg>
+
+@code {
+    [Parameter] public string? IconKey { get; set; }
+    [Parameter] public int Size { get; set; } = 20;
+    [Parameter] public double StrokeWidth { get; set; } = 2;
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string FallbackIconKey { get; set; } = "circle-question-mark";
+    [Parameter] public bool Decorative { get; set; } = true;
+
+    private string ResolvedKey => LucideIconCatalog.ResolveOrFallback(IconKey, FallbackIconKey);
+    private string SpriteReference => $"/lib/lucide/lucide-sprite.svg#{ResolvedKey}";
+    private string AccessibleLabel => AriaLabel ?? Title ?? LucideIconCatalog.Find(ResolvedKey)?.EnglishName ?? "Icon";
+}

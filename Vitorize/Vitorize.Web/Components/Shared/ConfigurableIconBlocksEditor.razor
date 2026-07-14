@@ -1,0 +1,86 @@
+@using System.Text.Json
+
+<div class="vz-icon-block-editor">
+    @if (_invalidJson)
+    {
+        <div class="vz-alert vz-alert--danger"><LucideIcon IconKey="triangle-alert" Size="16" /> ساختار قبلی JSON معتبر نیست. با افزودن کارت جدید، مقدار سالم جایگزین خواهد شد.</div>
+    }
+    @foreach (var item in _items.Select((value, index) => (value, index)))
+    {
+        <article class="vz-icon-block" @key="item.value.Id">
+            <div class="vz-icon-block__order">
+                <button type="button" class="vz-iconaction" title="انتقال به بالا" disabled="@(item.index == 0)" @onclick="() => MoveAsync(item.index, -1)"><LucideIcon IconKey="arrow-up" Size="15" /></button>
+                <span>@(item.index + 1)</span>
+                <button type="button" class="vz-iconaction" title="انتقال به پایین" disabled="@(item.index == _items.Count - 1)" @onclick="() => MoveAsync(item.index, 1)"><LucideIcon IconKey="arrow-down" Size="15" /></button>
+            </div>
+            <div class="vz-icon-block__fields">
+                <LucideIconPicker Value="@item.value.Icon" ValueChanged="v => SetIconAsync(item.value, v)" Required="true" Compact="true" />
+                <input class="vz-input" placeholder="عنوان" maxlength="120" @bind="item.value.Title" @bind:event="oninput" @bind:after="NotifyAsync" />
+                <textarea class="vz-textarea" rows="2" placeholder="توضیح" maxlength="500" @bind="item.value.Text" @bind:event="oninput" @bind:after="NotifyAsync"></textarea>
+            </div>
+            <button type="button" class="vz-iconaction danger vz-icon-block__remove" title="حذف کارت" @onclick="() => RemoveAsync(item.value)"><LucideIcon IconKey="trash-2" Size="16" /></button>
+        </article>
+    }
+    <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" disabled="@(_items.Count >= 24)" @onclick="AddAsync">
+        <LucideIcon IconKey="plus" Size="15" /> افزودن کارت آیکون‌دار
+    </button>
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly List<IconBlockModel> _items = [];
+    private string? _loadedValue;
+    private bool _invalidJson;
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(Value, _loadedValue, StringComparison.Ordinal)) return;
+        _items.Clear();
+        _invalidJson = false;
+        if (!string.IsNullOrWhiteSpace(Value))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<IconBlockModel>>(Value, JsonOptions) ?? [];
+                _items.AddRange(parsed.Take(24));
+            }
+            catch (JsonException) { _invalidJson = true; }
+        }
+        _loadedValue = Value;
+    }
+
+    private async Task AddAsync()
+    {
+        if (_items.Count >= 24) return;
+        _invalidJson = false;
+        _items.Add(new IconBlockModel { Icon = "shapes", Title = "کارت جدید" });
+        await NotifyAsync();
+    }
+
+    private async Task RemoveAsync(IconBlockModel item) { _items.Remove(item); await NotifyAsync(); }
+    private async Task SetIconAsync(IconBlockModel item, string? value) { item.Icon = value; await NotifyAsync(); }
+    private async Task MoveAsync(int index, int offset)
+    {
+        var target = index + offset;
+        if (target < 0 || target >= _items.Count) return;
+        (_items[index], _items[target]) = (_items[target], _items[index]);
+        await NotifyAsync();
+    }
+
+    private async Task NotifyAsync()
+    {
+        _loadedValue = JsonSerializer.Serialize(_items, JsonOptions);
+        await ValueChanged.InvokeAsync(_loadedValue);
+    }
+
+    private sealed class IconBlockModel
+    {
+        [System.Text.Json.Serialization.JsonIgnore] public Guid Id { get; } = Guid.NewGuid();
+        public string? Icon { get; set; }
+        public string? Title { get; set; }
+        public string? Text { get; set; }
+    }
+}

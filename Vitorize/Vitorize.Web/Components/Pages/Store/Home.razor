@@ -149,7 +149,7 @@ else
                     stepNo++;
                     <div class="st-hiw__step">
                         <div class="st-hiw__num">@AUI.Number(stepNo)</div>
-                        <div class="st-hiw__ic"><Icon Name="@f.Icon" Size="22" /></div>
+                        <div class="st-hiw__ic"><LucideIcon IconKey="@f.Icon" Size="22" FallbackIconKey="shapes" /></div>
                         <div class="st-hiw__t">@f.Title</div>
                         <div class="st-hiw__d">@f.Text</div>
                     </div>
@@ -166,7 +166,7 @@ else
                 @foreach (var t in _branding.TrustBadges)
                 {
                     <div class="st-trust">
-                        <span class="st-trust__ic"><Icon Name="@t.Icon" Size="20" /></span>
+                        <span class="st-trust__ic"><LucideIcon IconKey="@t.Icon" Size="20" FallbackIconKey="shield-check" /></span>
                         <div><div class="st-trust__t">@t.Title</div><div class="st-trust__s">@t.Text</div></div>
                     </div>
                 }

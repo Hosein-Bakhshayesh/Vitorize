@@ -1,0 +1,12 @@
+{
+  "name": "vitorize-lucide-assets",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "devDependencies": {
+    "lucide-static": "1.24.0"
+  }
+}

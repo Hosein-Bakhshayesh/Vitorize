@@ -136,7 +136,7 @@ else
                                 <div class="vz-form-grid three">
                                     <div class="vz-field"><label class="vz-label">عنوان *</label><InputText class="vz-input" @bind-Value="feature.Title" /></div>
                                     <div class="vz-field"><label class="vz-label">مقدار *</label><InputText class="vz-input" @bind-Value="feature.Value" /></div>
-                                    <div class="vz-field"><label class="vz-label">آیکن</label><select class="vz-select" @bind="feature.IconKey"><option value="">بدون آیکن</option>@foreach (var icon in FeatureIcons) { <option value="@icon">@icon</option> }</select></div>
+                                    <div class="vz-field"><label class="vz-label">آیکن</label><LucideIconPicker @bind-Value="feature.IconKey" Compact="true" Placeholder="انتخاب آیکون ویژگی" /></div>
                                 </div>
                                 <div class="vz-builder-actions">
                                     <label class="vz-switch"><input type="checkbox" @bind="feature.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">فعال</span></label>
@@ -545,8 +545,6 @@ else
         else Toasts.Error(result.Message);
     }
 
-    private static readonly string[] FeatureIcons =
-        { "gamepad", "monitor", "globe", "shield", "star", "zap", "clock", "truck", "gift", "download", "layers", "tag", "check-circle", "box", "smartphone", "headphones", "credit-card", "user", "calendar", "lock", "key", "wifi" };
     private record InputTypeOption(byte Key, string Label);
     private static readonly InputTypeOption[] InputTypes =
     {

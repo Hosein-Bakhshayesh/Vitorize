@@ -90,12 +90,18 @@ namespace Vitorize.Infrastructure.Services
 
             var key = request.Key.Trim();
             TrustSealRules.ValidateSetting(key, request.Value);
+            if (key is "TrustBadgesJson" or "HomeFeaturesJson")
+                request.Value = LucideIconRules.NormalizeConfigurableBlocksJson(request.Value);
 
             if (SmsSettingKeys.TryGetTemplateIdGroup(key, out var templateGroup))
                 return await UpsertTemplateIdGroupAsync(key, request, templateGroup);
 
             var setting = await _dbContext.Settings
                 .FirstOrDefaultAsync(x => x.Key == key);
+
+            if (string.Equals(request.ValueType, "icon", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(setting?.ValueType, "icon", StringComparison.OrdinalIgnoreCase))
+                request.Value = LucideIconRules.NormalizeOptional(request.Value);
 
             if (setting == null)
             {
