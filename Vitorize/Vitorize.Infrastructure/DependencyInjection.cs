@@ -68,6 +68,8 @@ namespace Vitorize.Infrastructure
             services.AddSingleton<ISmsSettingsProvider, SmsSettingsProvider>();
             services.AddScoped<ISmsService, SmsService>();
             services.AddScoped<ISmsOutboxEnqueuer, SmsOutboxEnqueuer>();
+            services.AddScoped<ISmsHistoryService, SmsHistoryService>();
+            services.AddScoped<IAdminSmsManagementService, AdminSmsManagementService>();
             services.AddScoped<IAdminReportService, AdminReportService>();
             services.AddScoped<IStorefrontService, StorefrontService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();

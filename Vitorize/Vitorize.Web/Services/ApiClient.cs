@@ -37,6 +37,25 @@ namespace Vitorize.Web.Services
         public Task<ApiResult<T>> GetAsync<T>(string url) =>
             SendAsync<T>(HttpMethod.Get, url, null);
 
+        public async Task<ApiResult<string>> GetRawTextAsync(string url)
+        {
+            try
+            {
+                using var request = BuildRequest(HttpMethod.Get, url, null);
+                await ApplyAuthAsync(request);
+                using var response = await _httpClient.SendAsync(request);
+                HandleAuthFailure(url, response.StatusCode);
+                var content = await response.Content.ReadAsStringAsync();
+                return response.IsSuccessStatusCode
+                    ? ApiResult<string>.Success(content)
+                    : ApiResult<string>.Failure("دریافت فایل خروجی ناموفق بود.");
+            }
+            catch
+            {
+                return ApiResult<string>.Failure(ConnectionErrorMessage);
+            }
+        }
+
         public Task<ApiResult<T>> PostAsync<T>(string url, object? data = null) =>
             SendAsync<T>(HttpMethod.Post, url, data);
 

@@ -105,6 +105,11 @@ namespace Vitorize.Infrastructure.Services
 
         private async Task SeedSettingsAsync(CancellationToken cancellationToken)
         {
+            // شناسه واقعی در کد seed نمی‌شود. هر چهار کلید OTP و هر نه کلید اعلان
+            // با یک مقدار پیش‌فرض مشترک ساخته می‌شوند و هنگام ذخیره ادمین همگام می‌مانند.
+            const string universalOtpTemplateId = "";
+            const string universalNotificationTemplateId = "";
+
             var settings = new[]
             {
                 // ───────────── General ─────────────
@@ -243,18 +248,19 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.SenderName, "ویتورایز", "SMS", "string", "نام فرستنده (برای متن پیام)"),
 
                 // Template IDs (شناسه قالب‌های تاییدشده در پنل SMS.ir)
-                S(SmsSettingKeys.OtpTemplateId, "", "SMS", "int", "شناسه قالب پیش‌فرض کد یکبار‌مصرف (CODE، EXPIRE)"),
-                S(SmsSettingKeys.LoginOtpTemplateId, "", "SMS", "int", "شناسه قالب کد ورود (CODE، EXPIRE)"),
-                S(SmsSettingKeys.RegisterOtpTemplateId, "", "SMS", "int", "شناسه قالب کد ثبت‌نام/تایید موبایل (CODE، EXPIRE)"),
-                S(SmsSettingKeys.ForgotPasswordTemplateId, "", "SMS", "int", "شناسه قالب کد بازیابی رمز (CODE، EXPIRE)"),
-                S(SmsSettingKeys.OrderPaidTemplateId, "", "SMS", "int", "شناسه قالب پرداخت موفق سفارش (ORDER، AMOUNT)"),
-                S(SmsSettingKeys.OrderCompletedTemplateId, "", "SMS", "int", "شناسه قالب تکمیل سفارش (ORDER)"),
-                S(SmsSettingKeys.OrderStatusChangedTemplateId, "", "SMS", "int", "شناسه قالب تغییر وضعیت سفارش (ORDER، STATUS)"),
-                S(SmsSettingKeys.GiftCodeDeliveredTemplateId, "", "SMS", "int", "شناسه قالب تحویل کد (ORDER)"),
-                S(SmsSettingKeys.TicketReplyTemplateId, "", "SMS", "int", "شناسه قالب پاسخ تیکت (TICKET)"),
-                S(SmsSettingKeys.VerificationApprovedTemplateId, "", "SMS", "int", "شناسه قالب تایید احراز هویت (NAME)"),
-                S(SmsSettingKeys.VerificationRejectedTemplateId, "", "SMS", "int", "شناسه قالب رد احراز هویت (NAME، REASON)"),
-                S(SmsSettingKeys.WalletTopUpSuccessTemplateId, "", "SMS", "int", "شناسه قالب شارژ موفق کیف پول (AMOUNT، BALANCE)"),
+                S(SmsSettingKeys.OtpTemplateId, universalOtpTemplateId, "SMS", "int", "شناسه قالب کد یکبار مصرف"),
+                S(SmsSettingKeys.NotificationTemplateId, universalNotificationTemplateId, "SMS", "int", "شناسه قالب اطلاع‌رسانی عمومی"),
+                S(SmsSettingKeys.LoginOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
+                S(SmsSettingKeys.RegisterOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
+                S(SmsSettingKeys.ForgotPasswordTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
+                S(SmsSettingKeys.OrderPaidTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.OrderCompletedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.OrderStatusChangedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.GiftCodeDeliveredTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.TicketReplyTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.VerificationApprovedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.VerificationRejectedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
+                S(SmsSettingKeys.WalletTopUpSuccessTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
 
                 // سیاست کد یکبار‌مصرف و پایداری
                 S(SmsSettingKeys.OtpExpiryMinutes, "3", "SMS", "int", "مدت اعتبار کد یکبار‌مصرف (دقیقه)"),
@@ -265,6 +271,16 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.MaxRetryCount, "5", "SMS", "int", "حداکثر تعداد بازتلاش ارسال"),
                 S(SmsSettingKeys.RetryDelaySeconds, "30", "SMS", "int", "پایه تأخیر بازتلاش (ثانیه)"),
                 S(SmsSettingKeys.UseOutbox, "true", "SMS", "bool", "ارسال پیامک رویدادهای تجاری از طریق Outbox"),
+                S(SmsSettingKeys.CustomSendEnabled, "false", "SMS", "bool", "فعال‌سازی ارسال پیامک سفارشی توسط مدیر"),
+                S(SmsSettingKeys.CustomTextEnabled, "false", "SMS", "bool", "فعال‌سازی پیامک متنی سفارشی"),
+                S(SmsSettingKeys.MaxCustomRecipients, "1", "SMS", "int", "حداکثر گیرنده در هر ارسال سفارشی"),
+                S(SmsSettingKeys.MaxCustomTextLength, "500", "SMS", "int", "حداکثر طول پیامک متنی سفارشی"),
+                S(SmsSettingKeys.RequireConfirmation, "true", "SMS", "bool", "نیاز به تایید نهایی پیش از ارسال سفارشی"),
+                S(SmsSettingKeys.AllowImmediateSend, "false", "SMS", "bool", "اجازه ارسال فوری به جای صف"),
+                S(SmsSettingKeys.HistoryRetentionDays, "180", "SMS", "int", "مدت نگهداری تاریخچه پیامک بر حسب روز"),
+                S(SmsSettingKeys.MaskMobileInAdmin, "true", "SMS", "bool", "پنهان‌سازی شماره موبایل در تاریخچه مدیر"),
+                S(SmsSettingKeys.AllowAdminViewFullMobile, "false", "SMS", "bool", "اجازه مشاهده شماره کامل برای مدیر کل"),
+                S(SmsSettingKeys.AllowRetryFailed, "true", "SMS", "bool", "اجازه بازتلاش امن پیامک ناموفق"),
                 S(SmsSettingKeys.LogSensitiveData, "false", "SMS", "bool", "لاگ‌کردن داده حساس (فقط برای توسعه؛ در Production خاموش)"),
 
                 // ───────────── Email (SMTP) ─────────────
@@ -316,7 +332,9 @@ namespace Vitorize.Infrastructure.Services
                 {
                     current.GroupName = string.IsNullOrWhiteSpace(current.GroupName) ? item.GroupName : current.GroupName;
                     current.ValueType = string.IsNullOrWhiteSpace(current.ValueType) ? item.ValueType : current.ValueType;
-                    current.Description = string.IsNullOrWhiteSpace(current.Description) ? item.Description : current.Description;
+                    current.Description = SmsSettingKeys.TryGetTemplateIdGroup(item.Key, out _)
+                        ? item.Description
+                        : string.IsNullOrWhiteSpace(current.Description) ? item.Description : current.Description;
                 }
             }
         }

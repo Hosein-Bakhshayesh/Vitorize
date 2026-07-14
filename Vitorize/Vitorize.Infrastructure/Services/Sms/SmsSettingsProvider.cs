@@ -22,23 +22,6 @@ namespace Vitorize.Infrastructure.Services.Sms
         private volatile SmsOptions? _cached;
         private DateTime _expiresAtUtc = DateTime.MinValue;
 
-        private static readonly IReadOnlyDictionary<string, string> TemplateSettingToKey =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [SmsSettingKeys.OtpTemplateId] = SmsTemplateKeys.GenericOtp,
-                [SmsSettingKeys.LoginOtpTemplateId] = SmsTemplateKeys.LoginOtp,
-                [SmsSettingKeys.RegisterOtpTemplateId] = SmsTemplateKeys.RegisterOtp,
-                [SmsSettingKeys.ForgotPasswordTemplateId] = SmsTemplateKeys.ForgotPassword,
-                [SmsSettingKeys.OrderPaidTemplateId] = SmsTemplateKeys.OrderPaid,
-                [SmsSettingKeys.OrderCompletedTemplateId] = SmsTemplateKeys.OrderCompleted,
-                [SmsSettingKeys.GiftCodeDeliveredTemplateId] = SmsTemplateKeys.GiftCodeDelivered,
-                [SmsSettingKeys.TicketReplyTemplateId] = SmsTemplateKeys.TicketReply,
-                [SmsSettingKeys.VerificationApprovedTemplateId] = SmsTemplateKeys.VerificationApproved,
-                [SmsSettingKeys.VerificationRejectedTemplateId] = SmsTemplateKeys.VerificationRejected,
-                [SmsSettingKeys.OrderStatusChangedTemplateId] = SmsTemplateKeys.OrderStatusChanged,
-                [SmsSettingKeys.WalletTopUpSuccessTemplateId] = SmsTemplateKeys.WalletTopUpSuccess,
-            };
-
         public SmsSettingsProvider(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
@@ -88,15 +71,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             foreach (var row in rows)
                 map[row.Key] = row.Value;
 
-            var templateIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var pair in TemplateSettingToKey)
-            {
-                if (map.TryGetValue(pair.Key, out var raw) &&
-                    int.TryParse(raw, out var id) && id > 0)
-                {
-                    templateIds[pair.Value] = id;
-                }
-            }
+            var templateIds = BuildTemplateIds(map);
 
             return new SmsOptions
             {
@@ -129,5 +104,45 @@ namespace Vitorize.Infrastructure.Services.Sms
 
         private static long? GetLong(IReadOnlyDictionary<string, string?> map, string key) =>
             map.TryGetValue(key, out var v) && long.TryParse(v, out var l) ? l : (long?)null;
+
+        /// <summary>
+        /// کلید اصلی اولویت دارد؛ کلیدهای قدیمی فقط برای مهاجرت نصب‌های قبلی fallback هستند.
+        /// خروجی عمداً برای تمام جریان‌های OTP یک ID و برای تمام اعلان‌های تجاری یک ID می‌سازد.
+        /// </summary>
+        public static IReadOnlyDictionary<string, int> BuildTemplateIds(
+            IReadOnlyDictionary<string, string?> settings)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            var otpId = GetFirstPositiveInt(settings, SmsSettingKeys.OtpTemplateIdKeys);
+            if (otpId.HasValue)
+            {
+                foreach (var templateKey in SmsTemplateKeys.OtpTemplates)
+                    result[templateKey] = otpId.Value;
+            }
+
+            var notificationId = GetFirstPositiveInt(settings, SmsSettingKeys.NotificationTemplateIdKeys);
+            if (notificationId.HasValue)
+            {
+                foreach (var templateKey in SmsTemplateKeys.NotificationTemplates)
+                    result[templateKey] = notificationId.Value;
+            }
+
+            return result;
+        }
+
+        private static int? GetFirstPositiveInt(
+            IReadOnlyDictionary<string, string?> settings,
+            IEnumerable<string> keys)
+        {
+            foreach (var key in keys)
+            {
+                if (settings.TryGetValue(key, out var raw) &&
+                    int.TryParse(raw, out var value) && value > 0)
+                    return value;
+            }
+
+            return null;
+        }
     }
 }

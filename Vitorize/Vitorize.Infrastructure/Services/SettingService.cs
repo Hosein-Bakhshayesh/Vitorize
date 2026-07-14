@@ -90,6 +90,9 @@ namespace Vitorize.Infrastructure.Services
 
             var key = request.Key.Trim();
 
+            if (SmsSettingKeys.TryGetTemplateIdGroup(key, out var templateGroup))
+                return await UpsertTemplateIdGroupAsync(key, request, templateGroup);
+
             var setting = await _dbContext.Settings
                 .FirstOrDefaultAsync(x => x.Key == key);
 
@@ -135,8 +138,30 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(key))
                 throw new BusinessException("کلید تنظیمات معتبر نیست.");
 
+            key = key.Trim();
+
+            if (SmsSettingKeys.TryGetTemplateIdGroup(key, out var templateGroup))
+            {
+                var synchronizedSettings = await _dbContext.Settings
+                    .Where(x => templateGroup.Contains(x.Key))
+                    .ToListAsync();
+
+                if (synchronizedSettings.Count == 0)
+                    throw new NotFoundException("تنظیمات یافت نشد.");
+
+                foreach (var item in synchronizedSettings)
+                {
+                    item.Value = string.Empty;
+                    item.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _dbContext.SaveChangesAsync();
+                _smsSettingsProvider.Invalidate();
+                return;
+            }
+
             var setting = await _dbContext.Settings
-                .FirstOrDefaultAsync(x => x.Key == key.Trim());
+                .FirstOrDefaultAsync(x => x.Key == key);
 
             if (setting == null)
                 throw new NotFoundException("تنظیمات یافت نشد.");
@@ -148,6 +173,60 @@ namespace Vitorize.Infrastructure.Services
             if (setting.Key.StartsWith("Sms.", StringComparison.OrdinalIgnoreCase))
                 _smsSettingsProvider.Invalidate();
         }
+
+        private async Task<SettingDto> UpsertTemplateIdGroupAsync(
+            string requestedKey,
+            UpdateSettingDto request,
+            IReadOnlyList<string> templateGroup)
+        {
+            var value = request.Value?.Trim() ?? string.Empty;
+            if (value.Length > 0 && (!int.TryParse(value, out var templateId) || templateId <= 0))
+                throw new BusinessException("شناسه قالب پیامک باید یک عدد صحیح مثبت باشد.");
+
+            var existing = await _dbContext.Settings
+                .Where(x => templateGroup.Contains(x.Key))
+                .ToListAsync();
+            var byKey = existing.ToDictionary(x => x.Key, StringComparer.OrdinalIgnoreCase);
+            var now = DateTime.UtcNow;
+
+            foreach (var groupKey in templateGroup)
+            {
+                if (!byKey.TryGetValue(groupKey, out var item))
+                {
+                    item = new Setting
+                    {
+                        Id = Guid.NewGuid(),
+                        Key = groupKey,
+                        GroupName = SmsSettingKeys.Group,
+                        ValueType = "int",
+                        Description = TemplateDescription(groupKey)
+                    };
+                    await _dbContext.Settings.AddAsync(item);
+                    byKey[groupKey] = item;
+                }
+
+                item.Value = value;
+                item.UpdatedAt = now;
+            }
+
+            var requested = byKey[requestedKey];
+            requested.GroupName = request.GroupName?.Trim() ?? requested.GroupName ?? SmsSettingKeys.Group;
+            requested.ValueType = request.ValueType?.Trim() ?? requested.ValueType ?? "int";
+            requested.Description = request.Description?.Trim() ?? requested.Description ?? TemplateDescription(requestedKey);
+
+            await _dbContext.SaveChangesAsync();
+            _smsSettingsProvider.Invalidate();
+            return Map(requested);
+        }
+
+        private static string TemplateDescription(string key) => key switch
+        {
+            SmsSettingKeys.OtpTemplateId => "شناسه قالب کد یکبار مصرف",
+            SmsSettingKeys.NotificationTemplateId => "شناسه قالب اطلاع‌رسانی عمومی",
+            _ when SmsSettingKeys.OtpTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase) =>
+                "کلید سازگاری قالب OTP؛ با Sms.OtpTemplateId همگام می‌شود (CODE، EXPIRE)",
+            _ => "کلید سازگاری قالب اطلاع رسانی؛ با Sms.NotificationTemplateId همگام می‌شود (ORDER_NUMBER)"
+        };
 
         private static SettingDto Map(Setting setting)
         {

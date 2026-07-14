@@ -6,11 +6,17 @@ namespace Vitorize.Application.DTOs.Outbox
     /// </summary>
     public sealed class SmsOutboxPayload
     {
+        public Guid? SmsMessageId { get; set; }
+
         public string Mobile { get; set; } = string.Empty;
 
         /// <summary>کلید منطقی قالب؛ اگر مقدار داشته باشد، ارسال قالبی انجام می‌شود.</summary>
         public string? TemplateKey { get; set; }
 
+        /// <summary>
+        /// OTP: CODE/EXPIRE. اعلان تجاری جدید: ORDER_NUMBER.
+        /// payloadهای قدیمی در پردازشگر Outbox normalize می‌شوند.
+        /// </summary>
         public List<SmsOutboxParameter> Parameters { get; set; } = new();
 
         /// <summary>در صورت نبود قالب، متن ساده ارسال می‌شود.</summary>
@@ -22,7 +28,10 @@ namespace Vitorize.Application.DTOs.Outbox
 
     public sealed class SmsOutboxParameter
     {
+        /// <summary>نام دقیق متغیر تاییدشده SMS.ir.</summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>مقدار غیرخالی و غیرحساس متغیر.</summary>
         public string Value { get; set; } = string.Empty;
     }
 }

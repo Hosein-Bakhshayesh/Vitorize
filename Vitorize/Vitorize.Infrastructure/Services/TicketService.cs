@@ -225,9 +225,10 @@ namespace Vitorize.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
+            var ticketMessageId = Guid.NewGuid();
             _dbContext.TicketMessages.Add(new TicketMessage
             {
-                Id = Guid.NewGuid(),
+                Id = ticketMessageId,
                 TicketId = ticketId,
                 SenderUserId = adminUserId,
                 Message = request.Message.Trim(),
@@ -249,13 +250,14 @@ namespace Vitorize.Infrastructure.Services
                 await _smsOutbox.EnqueueTemplateAsync(
                     mobile,
                     Vitorize.Application.Common.SmsTemplateKeys.TicketReply,
-                    new[]
-                    {
-                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                            Vitorize.Application.Common.SmsTemplateParams.Ticket, ticket.Subject)
-                    },
+                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.TicketReply(
+                        Vitorize.Application.Common.SmsPublicReference.ForTicket(ticket.Id)),
                     purpose: "TicketReply",
-                    aggregateId: null);
+                    aggregateId: ticketMessageId,
+                    userId: ticket.UserId,
+                    createdByUserId: adminUserId,
+                    relatedEntityType: "Ticket",
+                    relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForTicket(ticket.Id));
 
                 await _notificationService.CreateAsync(
                     ticket.UserId,

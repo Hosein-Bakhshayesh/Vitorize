@@ -63,7 +63,12 @@ else
                 <div class="vz-card__body">
                     @if (tab.Key == "notif")
                     {
-                        <AdminSmsTestPanel />
+                        <div class="vz-hint" style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
+                            برای SMS.ir فقط دو شناسه قالب وارد کنید: «قالب یکپارچه OTP» با پارامترهای
+                            <code>CODE</code> و <code>EXPIRE</code>، و «قالب یکپارچه اعلان تجاری» با پارامترهای
+                            فقط <code>ORDER_NUMBER</code>.
+                            کلیدهای قدیمی به‌صورت داخلی با این دو مقدار همگام می‌شوند.
+                        </div>
                     }
                     @if (items.Count == 0)
                     {
@@ -142,6 +147,7 @@ else
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
     private static readonly string[] FieldOrder =
     {
+        "Sms.OtpTemplateId", "Sms.NotificationTemplateId",
         "SiteName", "SiteDescription", "SiteTagline",
         "HeroKicker", "HeroTitle", "HeroSubtitle", "HeroCtaText", "HeroCtaUrl", "HeroSecondaryCtaText", "HeroSecondaryCtaUrl",
         "NewsletterTitle", "NewsletterSubtitle", "NewsletterPlaceholder", "NewsletterCtaText",
@@ -153,6 +159,23 @@ else
 
     private static readonly HashSet<string> Assigned = new(
         Tabs.Where(t => t.Key != "advanced").SelectMany(t => t.Groups).Concat(new[] { "Scripts", "Wallet" }),
+        StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> HiddenLegacySmsTemplateKeys = new(
+        new[]
+        {
+            "Sms.LoginOtpTemplateId",
+            "Sms.RegisterOtpTemplateId",
+            "Sms.ForgotPasswordTemplateId",
+            "Sms.OrderPaidTemplateId",
+            "Sms.OrderCompletedTemplateId",
+            "Sms.OrderStatusChangedTemplateId",
+            "Sms.GiftCodeDeliveredTemplateId",
+            "Sms.TicketReplyTemplateId",
+            "Sms.VerificationApprovedTemplateId",
+            "Sms.VerificationRejectedTemplateId",
+            "Sms.WalletTopUpSuccessTemplateId"
+        },
         StringComparer.OrdinalIgnoreCase);
 
     protected override Task OnInitializedAsync() => Load();
@@ -173,9 +196,13 @@ else
     private List<SettingModel> SettingsForTab(TabDef tab)
     {
         if (tab.Key == "advanced")
-            return _all.Where(s => IsIn(s, tab.Groups) || (s.GroupName != null && !Assigned.Contains(s.GroupName))).ToList();
-        return _all.Where(s => IsIn(s, tab.Groups)).ToList();
+            return _all.Where(IsVisibleSetting)
+                .Where(s => IsIn(s, tab.Groups) || (s.GroupName != null && !Assigned.Contains(s.GroupName))).ToList();
+        return _all.Where(IsVisibleSetting).Where(s => IsIn(s, tab.Groups)).ToList();
     }
+
+    private static bool IsVisibleSetting(SettingModel setting) =>
+        setting.Key is null || !HiddenLegacySmsTemplateKeys.Contains(setting.Key);
 
     private static bool IsIn(SettingModel s, string[] groups) =>
         s.GroupName != null && groups.Any(g => string.Equals(g, s.GroupName, StringComparison.OrdinalIgnoreCase));
@@ -183,7 +210,7 @@ else
     private List<SettingModel> Search(string q)
     {
         q = q.Trim();
-        return _all.Where(s =>
+        return _all.Where(IsVisibleSetting).Where(s =>
                 (s.Key?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (s.Description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (s.Value?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -268,6 +295,14 @@ else
             <div class="vz-setfield__meta">
                 <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
                 <div class="vz-setfield__key">@s.Key</div>
+                @if (s.Key == "Sms.OtpTemplateId")
+                {
+                    <div class="vz-hint">این قالب فقط از متغیرهای CODE و EXPIRE استفاده می‌کند.</div>
+                }
+                else if (s.Key == "Sms.NotificationTemplateId")
+                {
+                    <div class="vz-hint">این قالب فقط از متغیر ORDER_NUMBER استفاده می‌کند.</div>
+                }
             </div>
             <div class="vz-setfield__ctl">
                 @switch (s.ValueType?.ToLowerInvariant())

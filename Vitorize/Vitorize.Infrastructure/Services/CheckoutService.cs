@@ -12,13 +12,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly ICouponService _couponService;
+        private readonly INotificationService _notificationService;
 
         public CheckoutService(
             VitorizeDbContext dbContext,
-            ICouponService couponService)
+            ICouponService couponService,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
             _couponService = couponService;
+            _notificationService = notificationService;
         }
 
         public async Task<CheckoutResultDto> CheckoutAsync(
@@ -186,6 +189,12 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.Payments.AddAsync(payment);
 
                 _dbContext.CartItems.RemoveRange(cart.CartItems);
+
+                await _notificationService.CreateAsync(
+                    userId,
+                    (byte)NotificationType.OrderCreated,
+                    "سفارش ثبت شد",
+                    $"سفارش {order.OrderNumber} ثبت شد و در انتظار پرداخت است.");
 
                 await _dbContext.SaveChangesAsync();
 

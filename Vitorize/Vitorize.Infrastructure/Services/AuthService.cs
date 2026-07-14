@@ -22,6 +22,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly ISecurityLogService _securityLogService;
         private readonly ISmsService _smsService;
         private readonly ISmsSettingsProvider _smsSettingsProvider;
+        private readonly ISmsHistoryService _smsHistory;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
@@ -31,6 +32,7 @@ namespace Vitorize.Infrastructure.Services
             ISecurityLogService securityLogService,
             ISmsService smsService,
             ISmsSettingsProvider smsSettingsProvider,
+            ISmsHistoryService smsHistory,
             ILogger<AuthService> logger)
         {
             _dbContext = dbContext;
@@ -39,6 +41,7 @@ namespace Vitorize.Infrastructure.Services
             _securityLogService = securityLogService;
             _smsService = smsService;
             _smsSettingsProvider = smsSettingsProvider;
+            _smsHistory = smsHistory;
             _logger = logger;
         }
 
@@ -567,6 +570,9 @@ namespace Vitorize.Infrastructure.Services
             }
 
             var purpose = (OtpPurpose)request.Purpose;
+            if (purpose == OtpPurpose.TwoFactorAuthentication)
+                throw new BusinessException("ارسال کد احراز هویت دومرحله‌ای تا فعال شدن جریان کامل آن غیرفعال است.");
+
             await IssueAndSendOtpAsync(user, mobile, purpose, ip: null, userAgent: null);
         }
 
@@ -620,6 +626,23 @@ namespace Vitorize.Infrastructure.Services
             var templateKey = TemplateKeyForPurpose(purpose);
             var sendResult = await _smsService.SendOtpAsync(
                 mobile, templateKey, code, Math.Max(1, opts.OtpExpiryMinutes));
+
+            await _smsHistory.RecordDirectResultAsync(
+                new SmsHistoryRecordRequest
+                {
+                    UserId = user.Id,
+                    Mobile = mobile,
+                    Purpose = purpose.ToString(),
+                    SendType = (byte)SmsSendType.OtpTemplate,
+                    TemplateKey = templateKey,
+                    TemplateId = await _smsService.GetTemplateIdAsync(templateKey),
+                    SafeMessagePreview = "قالب امن کد یکبار مصرف؛ کد ذخیره نشده است",
+                    RelatedEntityType = "OtpCode",
+                    RelatedEntityId = otp.Id,
+                    IdempotencyKey = $"sms:otp:{otp.Id:N}",
+                    MaxRetryCount = 1
+                },
+                sendResult);
 
             await _securityLogService.LogAsync(
                 user.Id,

@@ -21,6 +21,12 @@ public class SmsServiceTests
     private static SmsService Build(SmsOptions options, FakeSmsSender sender) =>
         new(new FakeSmsSettingsProvider(options), sender, NullLogger<SmsService>.Instance);
 
+    private static SmsTemplateParameter[] ValidOtpParameters() =>
+    [
+        new(SmsTemplateParams.Code, "123456"),
+        new(SmsTemplateParams.Expire, "3")
+    ];
+
     [Fact]
     public async Task SendTemplate_WhenDisabled_ReturnsDisabled_AndDoesNotSend()
     {
@@ -42,7 +48,7 @@ public class SmsServiceTests
         var svc = Build(new SmsOptions { IsEnabled = true, ApiKey = "" }, sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            Array.Empty<SmsTemplateParameter>());
+            ValidOtpParameters());
 
         Assert.Equal(SmsFailureReason.NotConfigured, result.FailureReason);
         Assert.Equal(0, sender.VerifyCallCount);
@@ -68,7 +74,7 @@ public class SmsServiceTests
         var svc = Build(Enabled(new Dictionary<string, int>()), sender); // no templates configured
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            Array.Empty<SmsTemplateParameter>());
+            ValidOtpParameters());
 
         Assert.Equal(SmsFailureReason.InvalidTemplate, result.FailureReason);
         Assert.Equal(0, sender.VerifyCallCount);
@@ -99,7 +105,7 @@ public class SmsServiceTests
         var svc = Build(Enabled(), sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            new[] { new SmsTemplateParameter("CODE", "1") });
+            ValidOtpParameters());
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, sender.VerifyCallCount);          // retried once
@@ -114,7 +120,7 @@ public class SmsServiceTests
         var svc = Build(Enabled(), sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            new[] { new SmsTemplateParameter("CODE", "1") });
+            ValidOtpParameters());
 
         Assert.False(result.IsSuccess);
         Assert.Equal(SmsFailureReason.InsufficientCredit, result.FailureReason);
@@ -143,5 +149,56 @@ public class SmsServiceTests
         var (isValid, _) = await svc.ValidateConfigurationAsync();
 
         Assert.False(isValid);
+    }
+
+    [Fact]
+    public async Task SendTemplate_OtpWithWrongParameterNames_IsRejectedBeforeSender()
+    {
+        var sender = new FakeSmsSender();
+        var svc = Build(Enabled(), sender);
+
+        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
+        [
+            new("code", "123456"),
+            new(SmsTemplateParams.Expire, "3")
+        ]);
+
+        Assert.Equal(SmsFailureReason.InvalidParameter, result.FailureReason);
+        Assert.Equal(0, sender.VerifyCallCount);
+    }
+
+    [Fact]
+    public async Task SendTemplate_NotificationRequiresOnlyOrderNumber()
+    {
+        var sender = new FakeSmsSender();
+        var options = Enabled(new Dictionary<string, int>
+        {
+            [SmsTemplateKeys.UniversalNotification] = 222
+        });
+        var svc = Build(options, sender);
+        var parameters = SmsBusinessNotificationParameters.OrderPaid("VT-1");
+
+        var result = await svc.SendTemplateAsync(
+            "09123456789", SmsTemplateKeys.UniversalNotification, parameters);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(222, sender.LastTemplateId);
+        Assert.Equal(new[] { "ORDER_NUMBER" },
+            sender.LastParameters!.Select(x => x.Name));
+    }
+
+    [Fact]
+    public async Task ValidateConfiguration_RequiresBothUniversalTemplates()
+    {
+        var sender = new FakeSmsSender();
+        var svc = Build(Enabled(new Dictionary<string, int>
+        {
+            [SmsTemplateKeys.GenericOtp] = 111,
+            [SmsTemplateKeys.UniversalNotification] = 222
+        }), sender);
+
+        var (isValid, _) = await svc.ValidateConfigurationAsync();
+
+        Assert.True(isValid);
     }
 }

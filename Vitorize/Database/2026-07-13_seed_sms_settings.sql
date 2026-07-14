@@ -17,6 +17,11 @@
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 
+-- Optional deployment inputs. Leave blank and enter the two IDs in Admin,
+-- or set them before running this script to seed/synchronize all compatibility keys.
+DECLARE @UniversalOtpTemplateId nvarchar(50) = N'';
+DECLARE @UniversalNotificationTemplateId nvarchar(50) = N'';
+
 ;WITH seed([Key], [Value], GroupName, ValueType, [Description]) AS (
     SELECT * FROM (VALUES
         (N'Sms.IsEnabled',                     N'false',   N'SMS', N'bool',   N'فعال‌سازی سرویس پیامک SMS.ir'),
@@ -24,18 +29,19 @@ SET ANSI_NULLS ON;
         (N'Sms.ApiKey',                        N'',        N'SMS', N'secret', N'کلید API پنل SMS.ir (محرمانه)'),
         (N'Sms.DefaultLineNumber',             N'',        N'SMS', N'string', N'شماره خط اختصاصی برای پیامک متنی (محرمانه)'),
         (N'Sms.SenderName',                    N'ویتورایز', N'SMS', N'string', N'نام فرستنده'),
-        (N'Sms.OtpTemplateId',                 N'',        N'SMS', N'int',    N'شناسه قالب پیش‌فرض کد یکبار‌مصرف (CODE, EXPIRE)'),
-        (N'Sms.LoginOtpTemplateId',            N'',        N'SMS', N'int',    N'شناسه قالب کد ورود (CODE, EXPIRE)'),
-        (N'Sms.RegisterOtpTemplateId',         N'',        N'SMS', N'int',    N'شناسه قالب کد ثبت‌نام/تایید موبایل (CODE, EXPIRE)'),
-        (N'Sms.ForgotPasswordTemplateId',      N'',        N'SMS', N'int',    N'شناسه قالب کد بازیابی رمز (CODE, EXPIRE)'),
-        (N'Sms.OrderPaidTemplateId',           N'',        N'SMS', N'int',    N'شناسه قالب پرداخت موفق سفارش (ORDER, AMOUNT)'),
-        (N'Sms.OrderCompletedTemplateId',      N'',        N'SMS', N'int',    N'شناسه قالب تکمیل سفارش (ORDER)'),
-        (N'Sms.OrderStatusChangedTemplateId',  N'',        N'SMS', N'int',    N'شناسه قالب تغییر وضعیت سفارش (ORDER, STATUS)'),
-        (N'Sms.GiftCodeDeliveredTemplateId',   N'',        N'SMS', N'int',    N'شناسه قالب تحویل کد (ORDER)'),
-        (N'Sms.TicketReplyTemplateId',         N'',        N'SMS', N'int',    N'شناسه قالب پاسخ تیکت (TICKET)'),
-        (N'Sms.VerificationApprovedTemplateId',N'',        N'SMS', N'int',    N'شناسه قالب تایید احراز هویت (NAME)'),
-        (N'Sms.VerificationRejectedTemplateId',N'',        N'SMS', N'int',    N'شناسه قالب رد احراز هویت (NAME, REASON)'),
-        (N'Sms.WalletTopUpSuccessTemplateId',  N'',        N'SMS', N'int',    N'شناسه قالب شارژ موفق کیف پول (AMOUNT, BALANCE)'),
+        (N'Sms.OtpTemplateId',                 @UniversalOtpTemplateId,          N'SMS', N'int', N'شناسه قالب کد یکبار مصرف'),
+        (N'Sms.NotificationTemplateId',        @UniversalNotificationTemplateId, N'SMS', N'int', N'شناسه قالب اطلاع‌رسانی عمومی'),
+        (N'Sms.LoginOtpTemplateId',            @UniversalOtpTemplateId,          N'SMS', N'int', N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+        (N'Sms.RegisterOtpTemplateId',         @UniversalOtpTemplateId,          N'SMS', N'int', N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+        (N'Sms.ForgotPasswordTemplateId',      @UniversalOtpTemplateId,          N'SMS', N'int', N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+        (N'Sms.OrderPaidTemplateId',           @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.OrderCompletedTemplateId',      @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.OrderStatusChangedTemplateId',  @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.GiftCodeDeliveredTemplateId',   @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.TicketReplyTemplateId',         @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.VerificationApprovedTemplateId',@UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.VerificationRejectedTemplateId',@UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+        (N'Sms.WalletTopUpSuccessTemplateId',  @UniversalNotificationTemplateId, N'SMS', N'int', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
         (N'Sms.OtpExpiryMinutes',              N'3',       N'SMS', N'int',    N'مدت اعتبار کد یکبار‌مصرف (دقیقه)'),
         (N'Sms.OtpResendCooldownSeconds',      N'90',      N'SMS', N'int',    N'فاصله ارسال مجدد کد (ثانیه)'),
         (N'Sms.OtpMaxAttempts',                N'5',       N'SMS', N'int',    N'حداکثر تلاش مجاز برای هر کد'),
@@ -44,6 +50,16 @@ SET ANSI_NULLS ON;
         (N'Sms.MaxRetryCount',                 N'5',       N'SMS', N'int',    N'حداکثر تعداد بازتلاش ارسال'),
         (N'Sms.RetryDelaySeconds',             N'30',      N'SMS', N'int',    N'پایه تأخیر بازتلاش (ثانیه)'),
         (N'Sms.UseOutbox',                     N'true',    N'SMS', N'bool',   N'ارسال پیامک رویدادهای تجاری از طریق Outbox'),
+        (N'Sms.CustomSendEnabled',              N'false',   N'SMS', N'bool',   N'فعال‌سازی ارسال پیامک سفارشی توسط مدیر'),
+        (N'Sms.CustomTextEnabled',              N'false',   N'SMS', N'bool',   N'فعال‌سازی پیامک متنی سفارشی'),
+        (N'Sms.MaxCustomRecipients',            N'1',       N'SMS', N'int',    N'حداکثر گیرنده در هر ارسال سفارشی'),
+        (N'Sms.MaxCustomTextLength',            N'500',     N'SMS', N'int',    N'حداکثر طول پیامک متنی سفارشی'),
+        (N'Sms.RequireConfirmation',            N'true',    N'SMS', N'bool',   N'نیاز به تایید نهایی پیش از ارسال سفارشی'),
+        (N'Sms.AllowImmediateSend',             N'false',   N'SMS', N'bool',   N'اجازه ارسال فوری به جای صف'),
+        (N'Sms.HistoryRetentionDays',           N'180',     N'SMS', N'int',    N'مدت نگهداری تاریخچه پیامک بر حسب روز'),
+        (N'Sms.MaskMobileInAdmin',              N'true',    N'SMS', N'bool',   N'پنهان‌سازی شماره موبایل در تاریخچه مدیر'),
+        (N'Sms.AllowAdminViewFullMobile',       N'false',   N'SMS', N'bool',   N'اجازه مشاهده شماره کامل برای مدیر کل'),
+        (N'Sms.AllowRetryFailed',               N'true',    N'SMS', N'bool',   N'اجازه بازتلاش امن پیامک ناموفق'),
         (N'Sms.LogSensitiveData',              N'false',   N'SMS', N'bool',   N'لاگ‌کردن داده حساس (فقط توسعه)')
     ) AS v([Key], [Value], GroupName, ValueType, [Description])
 )
@@ -51,5 +67,49 @@ INSERT INTO Settings (Id, [Key], [Value], GroupName, ValueType, [Description], U
 SELECT NEWID(), s.[Key], s.[Value], s.GroupName, s.ValueType, s.[Description], SYSUTCDATETIME()
 FROM seed s
 WHERE NOT EXISTS (SELECT 1 FROM Settings e WHERE e.[Key] = s.[Key]);
+
+-- Refresh template metadata on existing installations without touching their IDs.
+UPDATE target
+SET [Description] = metadata.[Description],
+    GroupName = N'SMS',
+    ValueType = N'int',
+    UpdatedAt = SYSUTCDATETIME()
+FROM Settings target
+INNER JOIN (VALUES
+    (N'Sms.OtpTemplateId',                  N'شناسه قالب کد یکبار مصرف'),
+    (N'Sms.NotificationTemplateId',         N'شناسه قالب اطلاع‌رسانی عمومی'),
+    (N'Sms.LoginOtpTemplateId',             N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+    (N'Sms.RegisterOtpTemplateId',          N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+    (N'Sms.ForgotPasswordTemplateId',       N'کلید سازگاری OTP؛ همگام با Sms.OtpTemplateId (CODE, EXPIRE)'),
+    (N'Sms.OrderPaidTemplateId',            N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.OrderCompletedTemplateId',       N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.OrderStatusChangedTemplateId',   N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.GiftCodeDeliveredTemplateId',    N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.TicketReplyTemplateId',          N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.VerificationApprovedTemplateId', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.VerificationRejectedTemplateId', N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)'),
+    (N'Sms.WalletTopUpSuccessTemplateId',   N'کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)')
+) metadata([Key], [Description]) ON metadata.[Key] = target.[Key]
+WHERE ISNULL(target.[Description], N'') <> metadata.[Description]
+   OR ISNULL(target.GroupName, N'') <> N'SMS'
+   OR ISNULL(target.ValueType, N'') <> N'int';
+
+-- If deployment variables were supplied, synchronize existing compatibility rows too.
+IF NULLIF(@UniversalOtpTemplateId, N'') IS NOT NULL
+    UPDATE Settings
+    SET [Value] = @UniversalOtpTemplateId, UpdatedAt = SYSUTCDATETIME()
+    WHERE [Key] IN (
+        N'Sms.OtpTemplateId', N'Sms.LoginOtpTemplateId',
+        N'Sms.RegisterOtpTemplateId', N'Sms.ForgotPasswordTemplateId');
+
+IF NULLIF(@UniversalNotificationTemplateId, N'') IS NOT NULL
+    UPDATE Settings
+    SET [Value] = @UniversalNotificationTemplateId, UpdatedAt = SYSUTCDATETIME()
+    WHERE [Key] IN (
+        N'Sms.NotificationTemplateId', N'Sms.OrderPaidTemplateId',
+        N'Sms.OrderCompletedTemplateId', N'Sms.OrderStatusChangedTemplateId',
+        N'Sms.GiftCodeDeliveredTemplateId', N'Sms.TicketReplyTemplateId',
+        N'Sms.VerificationApprovedTemplateId', N'Sms.VerificationRejectedTemplateId',
+        N'Sms.WalletTopUpSuccessTemplateId');
 
 PRINT 'Vitorize SMS settings seed complete. Existing values (including any API key) were preserved.';

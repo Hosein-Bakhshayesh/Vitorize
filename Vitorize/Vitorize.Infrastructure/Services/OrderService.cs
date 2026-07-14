@@ -12,12 +12,14 @@ namespace Vitorize.Infrastructure.Services
     public class OrderService : IOrderService
     {
         private readonly VitorizeDbContext _dbContext;
-        private readonly ISmsOutboxEnqueuer _smsOutbox;
+        private readonly INotificationService _notificationService;
 
-        public OrderService(VitorizeDbContext dbContext, ISmsOutboxEnqueuer smsOutbox)
+        public OrderService(
+            VitorizeDbContext dbContext,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
-            _smsOutbox = smsOutbox;
+            _notificationService = notificationService;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -228,6 +230,12 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = now
             });
 
+            await _notificationService.CreateAsync(
+                order.UserId,
+                (byte)NotificationType.OrderCancelled,
+                "سفارش لغو شد",
+                $"سفارش {order.OrderNumber} لغو شد. جزئیات در صفحه سفارش قابل مشاهده است.");
+
             await _dbContext.SaveChangesAsync();
         }
 
@@ -273,21 +281,11 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = now
             });
 
-            var mobile = await _dbContext.Users
-                .Where(x => x.Id == order.UserId)
-                .Select(x => x.Mobile)
-                .FirstOrDefaultAsync();
-
-            await _smsOutbox.EnqueueTemplateAsync(
-                mobile,
-                Vitorize.Application.Common.SmsTemplateKeys.OrderCompleted,
-                new[]
-                {
-                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                        Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber)
-                },
-                purpose: "OrderCompleted",
-                aggregateId: order.Id);
+            await _notificationService.CreateAsync(
+                order.UserId,
+                (byte)NotificationType.OrderCompleted,
+                "سفارش تکمیل شد",
+                $"سفارش {order.OrderNumber} تکمیل شد و جزئیات آن در حساب کاربری شما در دسترس است.");
 
             await _dbContext.SaveChangesAsync();
         }

@@ -13,7 +13,8 @@ namespace Vitorize.Application.Validators.Auth
                 .Matches(@"^09\d{9}$").WithMessage("شماره موبایل معتبر نیست.");
 
             RuleFor(x => x.Purpose)
-                .Must(x => Enum.IsDefined(typeof(OtpPurpose), x))
+                .Must(x => Enum.IsDefined(typeof(OtpPurpose), x) &&
+                           x != (byte)OtpPurpose.TwoFactorAuthentication)
                 .WithMessage("نوع کد تایید معتبر نیست.");
         }
     }

@@ -240,13 +240,14 @@ namespace Vitorize.Infrastructure.Services
                 await _smsOutbox.EnqueueTemplateAsync(
                     user.Mobile,
                     Vitorize.Application.Common.SmsTemplateKeys.VerificationApproved,
-                    new[]
-                    {
-                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                            Vitorize.Application.Common.SmsTemplateParams.Name, user.FullName)
-                    },
+                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.VerificationApproved(
+                        Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id)),
                     purpose: "VerificationApproved",
-                    aggregateId: profile.Id);
+                    aggregateId: profile.Id,
+                    userId: user.Id,
+                    createdByUserId: adminUserId,
+                    relatedEntityType: "Verification",
+                    relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id));
 
                 await _notificationService.CreateAsync(
                     user.Id,
@@ -259,16 +260,14 @@ namespace Vitorize.Infrastructure.Services
                 await _smsOutbox.EnqueueTemplateAsync(
                     user.Mobile,
                     Vitorize.Application.Common.SmsTemplateKeys.VerificationRejected,
-                    new[]
-                    {
-                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                            Vitorize.Application.Common.SmsTemplateParams.Name, user.FullName),
-                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                            Vitorize.Application.Common.SmsTemplateParams.Reason,
-                            string.IsNullOrWhiteSpace(request.AdminNote) ? "—" : request.AdminNote!)
-                    },
+                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.VerificationRejected(
+                        Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id)),
                     purpose: "VerificationRejected",
-                    aggregateId: profile.Id);
+                    aggregateId: profile.Id,
+                    userId: user.Id,
+                    createdByUserId: adminUserId,
+                    relatedEntityType: "Verification",
+                    relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id));
 
                 await _notificationService.CreateAsync(
                     user.Id,

@@ -295,15 +295,17 @@ namespace Vitorize.Infrastructure.Services
             await _smsOutbox.EnqueueTemplateAsync(
                 mobile,
                 Vitorize.Application.Common.SmsTemplateKeys.WalletTopUpSuccess,
-                new[]
-                {
-                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                        Vitorize.Application.Common.SmsTemplateParams.Amount, topUp.Amount.ToString("#,0")),
-                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                        Vitorize.Application.Common.SmsTemplateParams.Balance, wallet.Balance.ToString("#,0"))
-                },
+                Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.WalletTopUp(
+                    Vitorize.Application.Common.SmsPublicReference.ForWalletTopUp(
+                        topUp.Id,
+                        topUp.ReferenceNumber)),
                 purpose: "WalletTopUpSuccess",
-                aggregateId: topUp.Id);
+                aggregateId: topUp.Id,
+                userId: topUp.UserId,
+                relatedEntityType: "WalletTopUp",
+                relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForWalletTopUp(
+                    topUp.Id,
+                    topUp.ReferenceNumber));
 
             return wallet;
         }

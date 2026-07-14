@@ -14,6 +14,25 @@ namespace Vitorize.Application.Interfaces
             IReadOnlyList<SmsTemplateParameter> parameters,
             string purpose,
             Guid? aggregateId,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            Guid? userId = null,
+            Guid? createdByUserId = null,
+            string? relatedEntityType = null,
+            string? relatedEntityReference = null,
+            string? idempotencyKey = null,
+            string? internalNote = null);
+
+        Task EnqueueTextAsync(
+            string? mobile,
+            string text,
+            string purpose,
+            Guid? aggregateId,
+            CancellationToken cancellationToken = default,
+            Guid? userId = null,
+            Guid? createdByUserId = null,
+            string? relatedEntityType = null,
+            string? relatedEntityReference = null,
+            string? idempotencyKey = null,
+            string? internalNote = null);
     }
 }

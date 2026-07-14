@@ -82,6 +82,10 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<SecurityLog> SecurityLogs { get; set; }
 
+    public virtual DbSet<SmsMessage> SmsMessages { get; set; }
+
+    public virtual DbSet<SmsMessageAttempt> SmsMessageAttempts { get; set; }
+
     public virtual DbSet<Setting> Settings { get; set; }
 
     public virtual DbSet<Ticket> Tickets { get; set; }
@@ -572,6 +576,62 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
             entity.Property(e => e.MessageType).HasMaxLength(300);
+        });
+
+        modelBuilder.Entity<SmsMessage>(entity =>
+        {
+            entity.HasIndex(e => e.IdempotencyKey, "UX_SmsMessages_IdempotencyKey").IsUnique();
+            entity.HasIndex(e => new { e.Status, e.CreatedAt }, "IX_SmsMessages_Status_CreatedAt");
+            entity.HasIndex(e => new { e.SendType, e.CreatedAt }, "IX_SmsMessages_SendType_CreatedAt");
+            entity.HasIndex(e => e.Mobile, "IX_SmsMessages_Mobile");
+            entity.HasIndex(e => e.PublicReference, "IX_SmsMessages_PublicReference");
+            entity.HasIndex(e => e.OutboxMessageId, "IX_SmsMessages_OutboxMessageId");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Mobile).HasMaxLength(20);
+            entity.Property(e => e.MaskedMobile).HasMaxLength(20);
+            entity.Property(e => e.Purpose).HasMaxLength(100);
+            entity.Property(e => e.TemplateKey).HasMaxLength(100);
+            entity.Property(e => e.PublicReference).HasMaxLength(150);
+            entity.Property(e => e.SafeMessagePreview).HasMaxLength(1000);
+            entity.Property(e => e.InternalNote).HasMaxLength(500);
+            entity.Property(e => e.Provider).HasMaxLength(50);
+            entity.Property(e => e.ProviderMessageId).HasMaxLength(200);
+            entity.Property(e => e.ProviderErrorCode).HasMaxLength(100);
+            entity.Property(e => e.ProviderErrorMessage).HasMaxLength(1000);
+            entity.Property(e => e.DeliveryCost).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.RelatedEntityType).HasMaxLength(100);
+            entity.Property(e => e.RelatedEntityReference).HasMaxLength(150);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(200);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.User).WithMany(p => p.SmsMessages)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK_SmsMessages_User");
+
+            entity.HasOne(d => d.CreatedByUser).WithMany(p => p.SmsMessagesCreatedByUser)
+                .HasForeignKey(d => d.CreatedByUserId)
+                .HasConstraintName("FK_SmsMessages_CreatedByUser");
+
+            entity.HasOne<OutboxMessage>().WithMany()
+                .HasForeignKey(d => d.OutboxMessageId)
+                .HasConstraintName("FK_SmsMessages_Outbox");
+        });
+
+        modelBuilder.Entity<SmsMessageAttempt>(entity =>
+        {
+            entity.HasIndex(e => new { e.SmsMessageId, e.AttemptNumber }, "UX_SmsMessageAttempts_Message_Attempt").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.ProviderMessageId).HasMaxLength(200);
+            entity.Property(e => e.ProviderErrorCode).HasMaxLength(100);
+            entity.Property(e => e.ProviderErrorMessage).HasMaxLength(1000);
+            entity.Property(e => e.DeliveryCost).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.AttemptedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.SmsMessage).WithMany(p => p.Attempts)
+                .HasForeignKey(d => d.SmsMessageId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SmsMessageAttempts_SmsMessage");
         });
 
         modelBuilder.Entity<Page>(entity =>

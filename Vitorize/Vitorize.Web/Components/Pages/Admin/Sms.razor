@@ -1,0 +1,244 @@
+@page "/admin/sms"
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject IJSRuntime JS
+@using System.Text
+@using Vitorize.Web.Helpers
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت پیامک" Subtitle="تاریخچه، سلامت سرویس، ارسال امن و عملیات پیامک SMS.ir"
+            Icon="message" Breadcrumbs="@(new(){ ("مدیریت پیامک", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
+        <button class="vz-btn vz-btn--outline" @onclick="RefreshAll"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" disabled="@(_health?.CustomSendEnabled != true)" title="@(_health?.CustomSendEnabled == true ? null : "ارسال سفارشی در تنظیمات غیرفعال است")" @onclick="() => _sendOpen = true"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
+    </Actions>
+</PageHeader>
+
+<div class="sms-health">
+    <div class="sms-health__main">
+        <span class="sms-dot @(_health?.ConnectionOk == true ? "ok" : "bad")"></span>
+        <div><strong>SMS.ir</strong><div class="vz-hint">@(_health?.Message ?? "در حال بررسی اتصال...")</div></div>
+    </div>
+    <div class="sms-health__facts">
+        <span>وضعیت: <b>@(_health?.IsEnabled == true ? "فعال" : "غیرفعال")</b></span>
+        <span>اعتبار: <b>@(_health?.Credit?.ToString("#,0") ?? "—")</b></span>
+        <span>OTP: <b>@(_health?.OtpTemplateId?.ToString() ?? "—")</b></span>
+        <span>اعلان: <b>@(_health?.NotificationTemplateId?.ToString() ?? "—")</b></span>
+        <span>صف: <b>@(_health?.PendingOutboxCount ?? 0)</b></span>
+    </div>
+</div>
+
+<div class="vz-stats-grid sms-stats">
+    <StatCard Label="ارسال امروز" Value="@AUI.Number(_summary?.SentToday ?? 0)" Icon="check-circle" Accent="green" />
+    <StatCard Label="ناموفق امروز" Value="@AUI.Number(_summary?.FailedToday ?? 0)" Icon="alert" Accent="red" />
+    <StatCard Label="در انتظار / بازتلاش" Value="@AUI.Number(_summary?.PendingOrRetrying ?? 0)" Icon="clock" Accent="orange" />
+    <StatCard Label="OTP امروز" Value="@AUI.Number(_summary?.OtpMessages ?? 0)" Icon="shield" Accent="blue" />
+    <StatCard Label="اعلان تجاری" Value="@AUI.Number(_summary?.NotificationMessages ?? 0)" Icon="bell" Accent="purple" />
+    <StatCard Label="ارسال سفارشی" Value="@AUI.Number(_summary?.CustomMessages ?? 0)" Icon="edit" Accent="cyan" />
+</div>
+
+<div class="sms-tabs">
+    <button class="@(_tab == "history" ? "active" : null)" @onclick="ShowHistory">تاریخچه</button>
+    <button class="@(_tab == "test" ? "active" : null)" @onclick="ShowTest">آزمایش و عیب‌یابی</button>
+</div>
+
+@if (_tab == "test")
+{
+    <div class="sms-test-note"><Icon Name="info" Size="18" /> این بخش فقط برای پیامک تشخیصی است. ارسال واقعی سفارشی از دکمه «ارسال سفارشی» انجام می‌شود.</div>
+    <AdminSmsTestPanel />
+}
+else
+{
+    <div class="vz-filterbar sms-filters">
+        <div class="vz-filterbar__row">
+            <div class="vz-field sms-search"><label class="vz-label">جستجو</label><input class="vz-input" @bind="_search" placeholder="موبایل، کد پیگیری، رویداد یا شناسه پیام" /></div>
+            <div class="vz-field"><label class="vz-label">وضعیت</label><select class="vz-input" @bind="_status"><option value="">همه</option>@foreach (var x in Statuses) { <option value="@x.Key">@x.Value</option> }</select></div>
+            <div class="vz-field"><label class="vz-label">نوع ارسال</label><select class="vz-input" @bind="_type"><option value="">همه</option><option value="1">OTP</option><option value="2">اعلان</option><option value="3">متن سفارشی</option></select></div>
+            <div class="vz-field"><label class="vz-label">رویداد</label><input class="vz-input" @bind="_purpose" placeholder="OrderPaid" /></div>
+            <div class="vz-field"><label class="vz-label">از تاریخ</label><input class="vz-input" type="text" @bind="_from" placeholder="2026-07-01" /></div>
+            <div class="vz-field"><label class="vz-label">تا تاریخ</label><input class="vz-input" type="text" @bind="_to" placeholder="2026-07-13" /></div>
+            <div class="vz-field sms-filter-actions"><button class="vz-btn vz-btn--primary" @onclick="ApplyFilters"><Icon Name="filter" Size="16" /> اعمال</button></div>
+        </div>
+        <div class="sms-quick-filters">
+            <label><input type="checkbox" @bind="_onlyFailed" /> فقط ناموفق</label>
+            <label><input type="checkbox" @bind="_onlyPending" /> فقط در انتظار</label>
+            <label><input type="checkbox" @bind="_onlyCustom" /> فقط سفارشی</label>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearFilters">پاک‌کردن فیلترها</button>
+        </div>
+    </div>
+
+    <div class="vz-card">
+        <div class="vz-card__body flush">
+            @if (_loading) { <LoadingState /> }
+            else if (_error is not null) { <ErrorState Message="@_error" OnRetry="LoadHistory" /> }
+            else if (_history.Count == 0) { <EmptyState Title="پیامکی با این فیلتر یافت نشد" Icon="message" /> }
+            else
+            {
+                <div class="vz-table-wrap sms-desktop-table">
+                    <table class="vz-table">
+                        <thead><tr><th>وضعیت</th><th>موبایل</th><th>نوع</th><th>رویداد</th><th>کد پیگیری</th><th>ایجاد</th><th>ارسال</th><th>تلاش</th><th>شناسه ارائه‌دهنده</th><th class="col-actions">عملیات</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in _history)
+                            {
+                                <tr>
+                                    <td><span class="sms-status sms-status--@item.Status">@item.StatusName</span></td>
+                                    <td class="ltr-cell">@item.Mobile</td>
+                                    <td>@item.SendTypeName</td>
+                                    <td><div class="vz-cell-title">@item.Purpose</div><div class="vz-hint">@item.Provider</div></td>
+                                    <td class="ltr-cell">@(item.PublicReference ?? "—")</td>
+                                    <td><PersianDateDisplay Value="item.CreatedAt" WithTime="true" /></td>
+                                    <td>@if (item.SentAt.HasValue) { <PersianDateDisplay Value="item.SentAt.Value" WithTime="true" /> } else { <span>—</span> }</td>
+                                    <td>@item.RetryCount / @item.MaxRetryCount</td>
+                                    <td class="ltr-cell">@AUI.ShortText(item.ProviderMessageId, 18)</td>
+                                    <td class="col-actions"><div class="sms-actions"><button class="vz-iconaction" title="جزئیات" @onclick="() => OpenDetails(item.Id)"><Icon Name="eye" Size="16" /></button>@if (CanRetry(item)) { <button class="vz-iconaction" title="بازتلاش" @onclick="() => Retry(item)"><Icon Name="refresh" Size="16" /></button> }@if (CanCancel(item)) { <button class="vz-iconaction danger" title="لغو" @onclick="() => Cancel(item)"><Icon Name="x" Size="16" /></button> }</div></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="sms-mobile-list">
+                    @foreach (var item in _history)
+                    {
+                        <button class="sms-mobile-card" @onclick="() => OpenDetails(item.Id)">
+                            <span class="sms-status sms-status--@item.Status">@item.StatusName</span>
+                            <strong>@item.Purpose</strong><span class="ltr-cell">@item.Mobile</span>
+                            <span>@item.SendTypeName · @(item.PublicReference ?? "بدون کد پیگیری")</span>
+                            <small><PersianDateDisplay Value="item.CreatedAt" WithTime="true" /></small>
+                        </button>
+                    }
+                </div>
+                <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
+            }
+        </div>
+    </div>
+}
+
+<SlidePanel Visible="_detailOpen" Title="جزئیات پیامک" Subtitle="@_current?.Purpose" Icon="message" OnClose="() => _detailOpen = false">
+    <ChildContent>
+        @if (_detailLoading) { <LoadingState /> }
+        else if (_current is not null)
+        {
+            <div class="sms-detail-head"><span class="sms-status sms-status--@_current.Status">@_current.StatusName</span><span>@_current.SendTypeName</span></div>
+            <dl class="vz-deflist">
+                <dt>موبایل</dt><dd class="ltr-cell">@_current.Mobile</dd>
+                <dt>رویداد</dt><dd>@_current.Purpose</dd>
+                <dt>قالب / شناسه</dt><dd>@(_current.TemplateKey ?? "متن سفارشی") / @(_current.TemplateId?.ToString() ?? "—")</dd>
+                <dt>کد پیگیری</dt><dd class="ltr-cell">@(_current.PublicReference ?? "—") @CopyButton(_current.PublicReference)</dd>
+                <dt>شناسه ارائه‌دهنده</dt><dd class="ltr-cell">@(_current.ProviderMessageId ?? "—") @CopyButton(_current.ProviderMessageId)</dd>
+                <dt>هزینه</dt><dd>@(_current.DeliveryCost?.ToString("#,0.##") ?? "—")</dd>
+                <dt>تعداد بازتلاش</dt><dd>@_current.RetryCount از @_current.MaxRetryCount</dd>
+                <dt>ایجادکننده</dt><dd>@(_current.CreatedByName ?? "سیستم")</dd>
+                <dt>موجودیت مرتبط</dt><dd>@(_current.RelatedEntityType ?? "—") / @(_current.RelatedEntityReference ?? "—")</dd>
+                <dt>Correlation ID</dt><dd class="ltr-cell">@_current.CorrelationId</dd>
+            </dl>
+            @if (!string.IsNullOrWhiteSpace(_current.SafeMessagePreview)) { <div class="vz-label">پیش‌نمایش امن</div><div class="sms-preview">@_current.SafeMessagePreview</div> }
+            @if (!string.IsNullOrWhiteSpace(_current.InternalNote)) { <div class="vz-label">یادداشت داخلی مدیر</div><div class="sms-preview">@_current.InternalNote</div> }
+            @if (!string.IsNullOrWhiteSpace(_current.ProviderErrorCode)) { <div class="sms-error"><strong>@_current.ProviderErrorCode</strong><div>@_current.ProviderErrorMessage</div></div> }
+            <div class="vz-setgroup__title">تاریخچه تلاش‌ها</div>
+            @if (_current.Attempts.Count == 0) { <div class="vz-hint">هنوز تلاشی ثبت نشده است.</div> }
+            else { <div class="sms-timeline">@foreach (var a in _current.Attempts) { <div><span></span><strong>تلاش @a.AttemptNumber — @a.StatusName</strong><small><PersianDateDisplay Value="a.AttemptedAt" WithTime="true" /></small><p>@a.ProviderErrorMessage</p></div> }</div> }
+        }
+    </ChildContent>
+    <Footer>
+        @if (_current is not null && CanRetry(_current)) { <button class="vz-btn vz-btn--primary" @onclick="() => Retry(_current)">بازتلاش امن</button> }
+        @if (_current is not null && CanCancel(_current)) { <button class="vz-btn vz-btn--outline" @onclick="() => Cancel(_current)">لغو ارسال</button> }
+        <button class="vz-btn vz-btn--ghost" @onclick="() => _detailOpen = false">بستن</button>
+    </Footer>
+</SlidePanel>
+
+<SlidePanel Visible="_sendOpen" Title="ارسال پیامک سفارشی" Subtitle="ارسال کنترل‌شده و ثبت‌شده توسط مدیر" Icon="send" OnClose="CloseSend">
+    <ChildContent>
+        <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">قالب اطلاع‌رسانی</button><button class="@(_sendMode == "text" ? "active" : null)" disabled="@(_health?.CustomTextEnabled != true)" @onclick="SelectTextMode">متن سفارشی</button></div>
+        <div class="vz-field"><label class="vz-label">شماره موبایل</label><input class="vz-input" @bind="_sendMobile" inputmode="tel" placeholder="09123456789" /></div>
+        <div class="vz-field"><label class="vz-label">شناسه کاربر موجود (اختیاری)</label><input class="vz-input ltr-cell" @bind="_sendUserId" placeholder="GUID؛ در صورت ورود، موبایل کاربر استفاده می‌شود" /></div>
+        @if (_sendMode == "notification")
+        {
+            <div class="vz-field"><label class="vz-label">ORDER_NUMBER / کد پیگیری</label><input class="vz-input ltr-cell" @bind="_orderNumber" maxlength="150" placeholder="VT-20260713-ABC123" /></div>
+            <div class="sms-preview" style="white-space:pre-line">@NotificationPreview</div>
+        }
+        else
+        {
+            <div class="vz-field"><label class="vz-label">متن پیامک</label><textarea class="vz-textarea" rows="6" maxlength="500" @bind="_customText"></textarea><div class="vz-hint">@_customText.Length نویسه · حدود @SegmentCount بخش پیامک</div></div>
+        }
+        <div class="vz-field"><label class="vz-label">یادداشت داخلی (ارسال نمی‌شود)</label><textarea class="vz-textarea" rows="2" @bind="_internalNote" maxlength="500"></textarea></div>
+        <label class="sms-checkbox"><input type="checkbox" disabled="@(_health?.AllowImmediateSend != true)" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label>
+        <div class="sms-warning"><Icon Name="alert" Size="17" /> پیش از ارسال، شماره و محتوای پیام را بررسی کنید. این عملیات در تاریخچه و لاگ امنیتی ثبت می‌شود.</div>
+    </ChildContent>
+    <Footer><button class="vz-btn vz-btn--primary" disabled="@_sending" @onclick="SendCustom">@if (_sending) { <span class="vz-spinner sm"></span> }<span>تایید و ارسال</span></button><button class="vz-btn vz-btn--ghost" @onclick="CloseSend">انصراف</button></Footer>
+</SlidePanel>
+
+<style>
+    .sms-health{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:16px 18px;border:1px solid var(--border);background:var(--surface);border-radius:14px;margin-bottom:16px}.sms-health__main,.sms-health__facts{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.sms-health__facts span{padding:6px 10px;background:var(--surface-2);border-radius:8px;font-size:12px}.sms-dot{width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 5px color-mix(in srgb,currentColor 14%,transparent)}.sms-dot.ok{color:#16a34a;background:#16a34a}.sms-dot.bad{color:#dc2626;background:#dc2626}.sms-stats{margin-bottom:16px}.sms-tabs,.sms-mode{display:flex;gap:6px;padding:5px;background:var(--surface-2);border-radius:11px;width:max-content;margin-bottom:14px}.sms-tabs button,.sms-mode button{border:0;background:transparent;color:var(--text-2);padding:8px 14px;border-radius:8px;cursor:pointer}.sms-tabs button.active,.sms-mode button.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow-sm)}.sms-test-note,.sms-warning{display:flex;align-items:center;gap:8px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);margin-bottom:13px;font-size:13px}.sms-search{min-width:230px;flex:1}.sms-filter-actions{align-self:end}.sms-quick-filters{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:12px}.sms-quick-filters label,.sms-checkbox{display:flex;align-items:center;gap:7px}.sms-status{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:11px;white-space:nowrap;background:var(--surface-2)}.sms-status--2{color:#15803d;background:color-mix(in srgb,#22c55e 13%,transparent)}.sms-status--3,.sms-status--5{color:#dc2626;background:color-mix(in srgb,#ef4444 12%,transparent)}.sms-status--0,.sms-status--4{color:#b45309;background:color-mix(in srgb,#f59e0b 14%,transparent)}.sms-status--1{color:#1d4ed8;background:color-mix(in srgb,#3b82f6 12%,transparent)}.sms-status--6,.sms-status--7{color:var(--text-3)}.ltr-cell{direction:ltr;text-align:left}.sms-actions{display:flex;gap:4px}.sms-actions .danger{color:var(--danger)}.sms-mobile-list{display:none}.sms-detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.sms-preview{padding:14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);margin:8px 0 14px;white-space:pre-wrap}.sms-error{padding:12px;border-radius:10px;background:color-mix(in srgb,#ef4444 10%,transparent);color:#dc2626;margin:12px 0}.sms-timeline{border-inline-start:2px solid var(--border);margin-inline-start:7px}.sms-timeline>div{position:relative;padding:0 18px 18px}.sms-timeline>div>span{position:absolute;width:10px;height:10px;background:var(--primary);border-radius:50%;inset-inline-start:-6px;top:4px}.sms-timeline small{display:block;color:var(--text-3);margin-top:3px}.sms-timeline p{margin:5px 0 0;color:var(--danger);font-size:12px}.sms-checkbox{margin:12px 0}.sms-warning{color:#b45309;background:color-mix(in srgb,#f59e0b 9%,transparent)}
+    @@media(max-width:760px){.sms-health{align-items:flex-start;flex-direction:column}.sms-health__facts{display:grid;grid-template-columns:1fr 1fr;width:100%}.sms-desktop-table{display:none}.sms-mobile-list{display:grid;gap:9px;padding:10px}.sms-mobile-card{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:11px;padding:12px;text-align:right;display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center}.sms-mobile-card span,.sms-mobile-card small{font-size:12px;color:var(--text-3)}.sms-mobile-card .sms-status{color:inherit}.sms-filters .vz-filterbar__row{display:grid;grid-template-columns:1fr 1fr}.sms-search{grid-column:1/-1;min-width:0}.sms-filter-actions{grid-column:1/-1}.sms-filter-actions button{width:100%}}
+</style>
+
+@code {
+    private bool _loading = true, _detailLoading, _detailOpen, _sendOpen, _sending;
+    private string? _error;
+    private string _tab = "history", _search = "", _status = "", _type = "", _purpose = "";
+    private string _from = "", _to = "";
+    private bool _onlyFailed, _onlyPending, _onlyCustom;
+    private int _page = 1, _total;
+    private const int _pageSize = 25;
+    private List<SmsHistoryModel> _history = new();
+    private SmsHistoryModel? _current;
+    private SmsSummaryModel? _summary;
+    private SmsHealthModel? _health;
+    private string _sendMode = "notification", _sendMobile = "", _sendUserId = "", _orderNumber = "VT-", _customText = "", _internalNote = "";
+    private bool _immediate;
+    private static readonly Dictionary<byte,string> Statuses = new() { [0]="در انتظار",[1]="در حال ارسال",[2]="ارسال‌شده",[3]="ناموفق",[4]="بازتلاش",[5]="متوقف‌شده",[6]="غیرفعال",[7]="لغوشده" };
+
+    private string NotificationPreview => $"ویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n{_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
+    private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
+
+    protected override Task OnInitializedAsync() => RefreshAll();
+    private async Task RefreshAll() { await Task.WhenAll(LoadHistory(), LoadSummary(), LoadHealth()); }
+    private async Task LoadSummary() { var r=await Api.GetAsync<SmsSummaryModel>("admin/sms/summary"); if(r.IsSuccess) _summary=r.Data; }
+    private async Task LoadHealth() { var r=await Api.GetAsync<SmsHealthModel>("admin/sms/health"); if(r.IsSuccess) _health=r.Data; }
+    private async Task LoadHistory()
+    {
+        _loading=true;_error=null;
+        var q=BuildFilterUrl($"admin/sms?page={_page}&pageSize={_pageSize}");
+        var r=await Api.GetAsync<AdminPagedResultModel<SmsHistoryModel>>(q);
+        if(r.IsSuccess&&r.Data is not null){_history=r.Data.Rows;_total=r.Data.TotalCount;}else _error=r.Message;
+        _loading=false;
+    }
+    private string BuildFilterUrl(string q)
+    {
+        if(!string.IsNullOrWhiteSpace(_search)) q+=$"&search={Uri.EscapeDataString(_search)}";
+        if(!string.IsNullOrWhiteSpace(_status)) q+=$"&status={_status}";
+        if(!string.IsNullOrWhiteSpace(_type)) q+=$"&sendType={_type}";
+        if(!string.IsNullOrWhiteSpace(_purpose)) q+=$"&purpose={Uri.EscapeDataString(_purpose)}";
+        if(!string.IsNullOrWhiteSpace(_from)) q+=$"&dateFrom={_from}";
+        if(!string.IsNullOrWhiteSpace(_to)) q+=$"&dateTo={_to}";
+        if(_onlyFailed) q+="&onlyFailed=true"; if(_onlyPending) q+="&onlyPending=true"; if(_onlyCustom) q+="&onlyCustom=true";
+        return q;
+    }
+    private async Task ApplyFilters(){_page=1;await LoadHistory();}
+    private void ShowHistory() => _tab = "history";
+    private void ShowTest() => _tab = "test";
+    private void SelectNotificationMode() => _sendMode = "notification";
+    private void SelectTextMode() => _sendMode = "text";
+    private async Task ClearFilters(){_search=_status=_type=_purpose=_from=_to="";_onlyFailed=_onlyPending=_onlyCustom=false;await ApplyFilters();}
+    private async Task ChangePage(int p){_page=p;await LoadHistory();}
+    private async Task OpenDetails(Guid id){_detailOpen=true;_detailLoading=true;var r=await Api.GetAsync<SmsHistoryModel>($"admin/sms/{id}");if(r.IsSuccess)_current=r.Data;else Toasts.Error(r.Message);_detailLoading=false;}
+    private bool CanRetry(SmsHistoryModel x)=>_health?.AllowRetryFailed==true&&x.SendType!=1&&x.Status is 3 or 4 or 5&&x.ProviderErrorCode is "Network" or "Timeout" or "ProviderUnavailable" or "TooManyRequests";
+    private static bool CanCancel(SmsHistoryModel x)=>x.Status is 0 or 4;
+    private async Task Retry(SmsHistoryModel x){if(!await JS.InvokeAsync<bool>("confirm","این پیامک ناموفق دوباره در صف قرار گیرد؟"))return;var r=await Api.PostAsync<object>($"admin/sms/{x.Id}/retry",new{});if(r.IsSuccess){Toasts.Success("پیامک در صف بازتلاش قرار گرفت.");await RefreshAll();if(_detailOpen)await OpenDetails(x.Id);}else Toasts.Error(r.Message);}
+    private async Task Cancel(SmsHistoryModel x){if(!await JS.InvokeAsync<bool>("confirm","ارسال این پیامک لغو شود؟"))return;var r=await Api.PostAsync<object>($"admin/sms/{x.Id}/cancel",new{});if(r.IsSuccess){Toasts.Success("ارسال لغو شد.");_detailOpen=false;await RefreshAll();}else Toasts.Error(r.Message);}
+    private RenderFragment CopyButton(string? value)=>@<text>@if(!string.IsNullOrWhiteSpace(value)){<button class="vz-iconaction" title="کپی" @onclick="() => Copy(value)"><Icon Name="copy" Size="13" /></button>}</text>;
+    private async Task Copy(string? value){if(string.IsNullOrWhiteSpace(value))return;await JS.InvokeVoidAsync("navigator.clipboard.writeText",value);Toasts.Success("کپی شد.");}
+    private void CloseSend(){_sendOpen=false;_sending=false;}
+    private async Task SendCustom()
+    {
+        var modeName = _sendMode == "text" ? "متنی" : "اطلاع‌رسانی";
+        if(!await JS.InvokeAsync<bool>("confirm",$"پیامک {modeName} به گیرنده انتخاب‌شده ارسال شود؟"))return;
+        _sending=true;Guid? uid=Guid.TryParse(_sendUserId,out var parsed)?parsed:null;Vitorize.Shared.Common.ApiResult<SmsActionResultModel> r;
+        if(_sendMode=="notification") r=await Api.PostAsync<SmsActionResultModel>("admin/sms/send-notification",new{Mobile=_sendMobile,UserId=uid,OrderNumber=_orderNumber,InternalNote=_internalNote,SendImmediately=_immediate,IdempotencyKey=Guid.NewGuid().ToString("N")});
+        else r=await Api.PostAsync<SmsActionResultModel>("admin/sms/send-text",new{Mobile=_sendMobile,UserId=uid,Text=_customText,InternalNote=_internalNote,SendImmediately=_immediate,IdempotencyKey=Guid.NewGuid().ToString("N")});
+        _sending=false;if(r.IsSuccess){Toasts.Success(r.Data?.Message??"درخواست ثبت شد.");CloseSend();await RefreshAll();}else Toasts.Error(r.Message);
+    }
+    private async Task Export(){var r=await Api.GetRawTextAsync(BuildFilterUrl("admin/sms/export?masked=true"));if(!r.IsSuccess||r.Data is null){Toasts.Error(r.Message);return;}await JS.InvokeVoidAsync("vzAdmin.downloadText",$"sms-history-{DateTime.Now:yyyyMMdd-HHmm}.csv",r.Data,"text/csv");}
+}

@@ -59,8 +59,16 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (!TryNormalizeMobile(mobile, out var normalized))
                 return SmsSendResult.Failure(SmsFailureReason.InvalidMobile, "شماره موبایل معتبر نیست.");
 
-            var templateId = options.GetTemplateId(templateKey)
-                             ?? options.GetTemplateId(SmsTemplateKeys.GenericOtp);
+            var requiredParameters = SmsTemplateContract.GetRequiredParameterNames(templateKey);
+            if (requiredParameters is null)
+                return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
+
+            if (!SmsTemplateContract.HasExactParameters(templateKey, parameters))
+                return SmsSendResult.Failure(
+                    SmsFailureReason.InvalidParameter,
+                    $"Required parameters: {string.Join(", ", requiredParameters)}");
+
+            var templateId = options.GetTemplateId(templateKey);
 
             if (templateId is null)
             {
@@ -159,9 +167,11 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (string.IsNullOrWhiteSpace(options.ApiKey))
                 return (false, "کلید API پیامک تنظیم نشده است.");
 
-            if (options.GetTemplateId(SmsTemplateKeys.LoginOtp) is null &&
-                options.GetTemplateId(SmsTemplateKeys.GenericOtp) is null)
-                return (false, "شناسه قالب کد ورود تنظیم نشده است.");
+            if (options.GetTemplateId(SmsTemplateKeys.GenericOtp) is null)
+                return (false, "شناسه قالب یکپارچه OTP تنظیم نشده است (پارامترها: CODE و EXPIRE). ");
+
+            if (options.GetTemplateId(SmsTemplateKeys.UniversalNotification) is null)
+                return (false, "شناسه قالب عمومی اطلاع‌رسانی تنظیم نشده است (پارامتر: ORDER_NUMBER). ");
 
             return (true, "پیکربندی پیامک معتبر است.");
         }

@@ -560,15 +560,13 @@ namespace Vitorize.Infrastructure.Services
             await _smsOutbox.EnqueueTemplateAsync(
                 mobile,
                 Vitorize.Application.Common.SmsTemplateKeys.OrderPaid,
-                new[]
-                {
-                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                        Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber),
-                    new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                        Vitorize.Application.Common.SmsTemplateParams.Amount, order.FinalAmount.ToString("#,0"))
-                },
+                Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.OrderPaid(
+                    order.OrderNumber),
                 purpose: "OrderPaid",
-                aggregateId: order.Id);
+                aggregateId: order.Id,
+                userId: userId,
+                relatedEntityType: "Order",
+                relatedEntityReference: order.OrderNumber);
 
             await _dbContext.SaveChangesAsync();
 
@@ -585,13 +583,13 @@ namespace Vitorize.Infrastructure.Services
                 await _smsOutbox.EnqueueTemplateAsync(
                     mobile,
                     Vitorize.Application.Common.SmsTemplateKeys.GiftCodeDelivered,
-                    new[]
-                    {
-                        new Vitorize.Application.Models.Sms.SmsTemplateParameter(
-                            Vitorize.Application.Common.SmsTemplateParams.Order, order.OrderNumber)
-                    },
+                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.GiftCodeDelivered(
+                        order.OrderNumber),
                     purpose: "GiftCodeDelivered",
-                    aggregateId: order.Id);
+                    aggregateId: order.Id,
+                    userId: userId,
+                    relatedEntityType: "Order",
+                    relatedEntityReference: order.OrderNumber);
 
                 await _dbContext.SaveChangesAsync();
             }

@@ -23,15 +23,96 @@ namespace Vitorize.Api.Controllers.Admin
         private readonly ISmsService _smsService;
         private readonly ISecurityLogService _securityLogService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IAdminSmsManagementService _management;
+        private readonly ISmsHistoryService _history;
 
         public AdminSmsController(
             ISmsService smsService,
             ISecurityLogService securityLogService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IAdminSmsManagementService management,
+            ISmsHistoryService history)
         {
             _smsService = smsService;
             _securityLogService = securityLogService;
             _currentUserService = currentUserService;
+            _management = management;
+            _history = history;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<ApiResult<Vitorize.Shared.Common.PagedResult<SmsHistoryItemDto>>>> GetHistory(
+            [FromQuery] SmsHistoryFilterDto filter,
+            CancellationToken cancellationToken)
+        {
+            var allowFull = User.IsInRole("SuperAdmin") &&
+                            Request.Query["showFullMobile"] == "true" &&
+                            await _management.CanViewFullMobileAsync(cancellationToken);
+            var result = await _management.GetHistoryAsync(filter, allowFull, cancellationToken);
+            return Ok(ApiResult<Vitorize.Shared.Common.PagedResult<SmsHistoryItemDto>>.Success(result, "تاریخچه پیامک دریافت شد."));
+        }
+
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<ApiResult<SmsHistoryItemDto>>> GetById(Guid id, CancellationToken cancellationToken)
+        {
+            var allowFull = User.IsInRole("SuperAdmin") &&
+                            Request.Query["showFullMobile"] == "true" &&
+                            await _management.CanViewFullMobileAsync(cancellationToken);
+            var result = await _management.GetByIdAsync(id, allowFull, cancellationToken);
+            await _securityLogService.LogAsync(_currentUserService.UserId, "SMS_HISTORY_VIEW", true, $"SmsMessage={id:N}");
+            return Ok(ApiResult<SmsHistoryItemDto>.Success(result, "جزئیات پیامک دریافت شد."));
+        }
+
+        [HttpGet("summary")]
+        public async Task<ActionResult<ApiResult<SmsSummaryDto>>> Summary(CancellationToken cancellationToken) =>
+            Ok(ApiResult<SmsSummaryDto>.Success(await _management.GetSummaryAsync(cancellationToken), "خلاصه پیامک دریافت شد."));
+
+        [HttpGet("health")]
+        public async Task<ActionResult<ApiResult<SmsHealthDto>>> Health(CancellationToken cancellationToken) =>
+            Ok(ApiResult<SmsHealthDto>.Success(await _management.GetHealthAsync(cancellationToken), "وضعیت سرویس پیامک دریافت شد."));
+
+        [EnableRateLimiting("otp")]
+        [HttpPost("send-notification")]
+        public async Task<ActionResult<ApiResult<SmsActionResultDto>>> SendNotification(
+            SendCustomNotificationRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _management.SendNotificationAsync(request, GetAdminId(), cancellationToken);
+            return Ok(ApiResult<SmsActionResultDto>.Success(result, result.Message));
+        }
+
+        [EnableRateLimiting("otp")]
+        [HttpPost("send-text")]
+        public async Task<ActionResult<ApiResult<SmsActionResultDto>>> SendText(
+            SendCustomTextRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _management.SendTextAsync(request, GetAdminId(), cancellationToken);
+            return Ok(ApiResult<SmsActionResultDto>.Success(result, result.Message));
+        }
+
+        [HttpPost("{id:guid}/retry")]
+        public async Task<ActionResult<ApiResult>> Retry(Guid id, CancellationToken cancellationToken)
+        {
+            await _management.RetryAsync(id, GetAdminId(), cancellationToken);
+            return Ok(ApiResult.Success("پیامک برای بازتلاش در صف قرار گرفت."));
+        }
+
+        [HttpPost("{id:guid}/cancel")]
+        public async Task<ActionResult<ApiResult>> Cancel(Guid id, CancellationToken cancellationToken)
+        {
+            await _management.CancelAsync(id, GetAdminId(), cancellationToken);
+            return Ok(ApiResult.Success("ارسال پیامک لغو شد."));
+        }
+
+        [HttpGet("export")]
+        public async Task<IActionResult> Export([FromQuery] SmsHistoryFilterDto filter, CancellationToken cancellationToken)
+        {
+            var csv = await _management.ExportCsvAsync(filter, cancellationToken);
+            await _securityLogService.LogAsync(
+                _currentUserService.UserId, "SMS_HISTORY_EXPORT", true, "Masked CSV export");
+            return File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray(),
+                "text/csv; charset=utf-8", $"sms-history-{DateTime.UtcNow:yyyyMMdd-HHmm}.csv");
         }
 
         [HttpGet("status")]
@@ -70,7 +151,7 @@ namespace Vitorize.Api.Controllers.Admin
 
             if (!string.IsNullOrWhiteSpace(request.TemplateKey))
             {
-                var parameters = request.Parameters
+                var parameters = (request.Parameters ?? new List<TestSmsParameterDto>())
                     .Select(p => new SmsTemplateParameter(p.Name, p.Value))
                     .ToList();
 
@@ -85,6 +166,30 @@ namespace Vitorize.Api.Controllers.Admin
             {
                 throw new BusinessException("قالب یا متن پیامک را مشخص کنید.");
             }
+
+            var templateId = string.IsNullOrWhiteSpace(request.TemplateKey)
+                ? null
+                : await _smsService.GetTemplateIdAsync(request.TemplateKey!, cancellationToken);
+            var isOtp = !string.IsNullOrWhiteSpace(request.TemplateKey) && SmsTemplateKeys.IsOtp(request.TemplateKey!);
+            var reference = request.Parameters?.FirstOrDefault(x => x.Name == SmsTemplateParams.OrderNumber)?.Value;
+            await _history.RecordDirectResultAsync(new SmsHistoryRecordRequest
+            {
+                Mobile = mobile,
+                Purpose = "AdminDiagnosticTest",
+                SendType = string.IsNullOrWhiteSpace(request.TemplateKey)
+                    ? (byte)SmsSendType.CustomText
+                    : isOtp ? (byte)SmsSendType.OtpTemplate : (byte)SmsSendType.NotificationTemplate,
+                TemplateKey = request.TemplateKey,
+                TemplateId = templateId,
+                PublicReference = reference,
+                SafeMessagePreview = isOtp
+                    ? "آزمایش قالب OTP؛ کد ذخیره نشده است"
+                    : string.IsNullOrWhiteSpace(request.TemplateKey) ? request.Text : $"آزمایش اعلان با کد {reference}",
+                CreatedByUserId = _currentUserService.UserId,
+                RelatedEntityType = "Diagnostic",
+                IdempotencyKey = $"sms:test:{Guid.NewGuid():N}",
+                MaxRetryCount = 1
+            }, result, cancellationToken);
 
             await _securityLogService.LogAsync(
                 _currentUserService.UserId,
@@ -107,6 +212,9 @@ namespace Vitorize.Api.Controllers.Admin
 
             return Ok(ApiResult<SmsTestResultDto>.Success(dto, dto.Message));
         }
+
+        private Guid GetAdminId() => _currentUserService.UserId
+            ?? throw new UnauthorizedException("مدیر احراز هویت نشده است.");
 
         private static string FriendlyMessage(SmsFailureReason reason) => reason switch
         {

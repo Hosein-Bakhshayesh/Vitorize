@@ -4,7 +4,10 @@ namespace Vitorize.Application.DTOs.Admin.Sms
     {
         public string Mobile { get; set; } = string.Empty;
 
-        /// <summary>کلید منطقی قالب (مثل LoginOtp)؛ اگر خالی باشد از متن ساده استفاده می‌شود.</summary>
+        /// <summary>
+        /// کلید منطقی قالب؛ OTP فقط CODE/EXPIRE و اعلان تجاری فقط ORDER_NUMBER می‌پذیرد.
+        /// اگر خالی باشد از متن ساده استفاده می‌شود.
+        /// </summary>
         public string? TemplateKey { get; set; }
 
         public string? Text { get; set; }
@@ -14,7 +17,10 @@ namespace Vitorize.Application.DTOs.Admin.Sms
 
     public class TestSmsParameterDto
     {
+        /// <summary>نام دقیق و حساس به حروف متغیر تاییدشده SMS.ir.</summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>مقدار غیرخالی متغیر قالب.</summary>
         public string Value { get; set; } = string.Empty;
     }
 }

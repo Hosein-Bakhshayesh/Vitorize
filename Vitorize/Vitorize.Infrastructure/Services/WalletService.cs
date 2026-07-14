@@ -193,7 +193,7 @@ namespace Vitorize.Infrastructure.Services
                 var now = DateTime.UtcNow;
                 wallet.UpdatedAt = now;
 
-                await _dbContext.WalletTransactions.AddAsync(new WalletTransaction
+                var walletTransaction = new WalletTransaction
                 {
                     Id = Guid.NewGuid(),
                     WalletId = wallet.Id,
@@ -205,7 +205,9 @@ namespace Vitorize.Infrastructure.Services
                     ReferenceId = referenceId,
                     Description = description,
                     CreatedAt = now
-                });
+                };
+
+                await _dbContext.WalletTransactions.AddAsync(walletTransaction);
 
                 if (transactionType == (byte)WalletTransactionType.Credit)
                 {

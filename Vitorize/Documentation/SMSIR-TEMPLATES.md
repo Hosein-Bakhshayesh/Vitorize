@@ -1,39 +1,67 @@
-# قالب‌های پیامک SMS.ir در ویتورایز
+# دو قالب نهایی SMS.ir در ویتورایز
 
-هر قالب باید در پنل SMS.ir ساخته و **تایید** شود. نام پارامترها باید **دقیقاً** با ستون
-«نام پارامتر SMS.ir» زیر مطابق باشد (حساس به بزرگی/کوچکی حروف). شناسه‌ی هر قالب در تنظیم
-مربوطه ذخیره می‌شود؛ **هیچ شناسه‌ای در کد هارد‌کد نمی‌شود**.
+ویتورایز فقط از دو قالب تاییدشده استفاده می‌کند. نام متغیرها به بزرگی و کوچکی حروف حساس است و هیچ شناسه واقعی SMS.ir در سورس یا seed هاردکد نمی‌شود.
 
-قالب‌های SMS.ir از نگه‌دارنده‌ی `#PARAM#` استفاده می‌کنند (مثال: `#CODE#`).
+## قالب OTP
 
-| کلید منطقی | کلید تنظیمات (Template Id) | پارامترهای SMS.ir | نمونه متن قالب فارسی | محل فراخوانی |
-|---|---|---|---|---|
-| `LoginOtp` | `Sms.LoginOtpTemplateId` | `CODE`, `EXPIRE` | `کد ورود شما: #CODE# (تا #EXPIRE# دقیقه معتبر)` | `AuthService.RequestLoginOtpAsync` |
-| `RegisterOtp` | `Sms.RegisterOtpTemplateId` | `CODE`, `EXPIRE` | `کد تایید ثبت‌نام: #CODE# (تا #EXPIRE# دقیقه)` | `AuthService.SendOtpAsync` (MobileVerification) |
-| `ForgotPassword` | `Sms.ForgotPasswordTemplateId` | `CODE`, `EXPIRE` | `کد بازیابی رمز: #CODE# (تا #EXPIRE# دقیقه)` | `AuthService.ForgotPasswordAsync` |
-| `Otp` (عمومی/جایگزین) | `Sms.OtpTemplateId` | `CODE`, `EXPIRE` | `کد تایید: #CODE#` | جایگزین وقتی قالب اختصاصی تنظیم نشده |
-| `OrderPaid` | `Sms.OrderPaidTemplateId` | `ORDER`, `AMOUNT` | `پرداخت سفارش #ORDER# به مبلغ #AMOUNT# تومان انجام شد.` | `PaymentService.CompletePaidOrderAsync` |
-| `OrderCompleted` | `Sms.OrderCompletedTemplateId` | `ORDER` | `سفارش #ORDER# تکمیل شد.` | `OrderService.CompleteOrderAsync` |
-| `OrderStatusChanged` | `Sms.OrderStatusChangedTemplateId` | `ORDER`, `STATUS` | `وضعیت سفارش #ORDER#: #STATUS#` | (رزرو برای تغییر وضعیت دستی) |
-| `GiftCodeDelivered` | `Sms.GiftCodeDeliveredTemplateId` | `ORDER` | `کدهای سفارش #ORDER# در پنل شما آماده است.` | `PaymentService.CompletePaidOrderAsync` |
-| `TicketReply` | `Sms.TicketReplyTemplateId` | `TICKET` | `به تیکت «#TICKET#» پاسخ داده شد.` | `TicketService.AdminAddMessageAsync` |
-| `VerificationApproved` | `Sms.VerificationApprovedTemplateId` | `NAME` | `#NAME# عزیز، احراز هویت شما تایید شد.` | `VerificationService.ReviewAsync` |
-| `VerificationRejected` | `Sms.VerificationRejectedTemplateId` | `NAME`, `REASON` | `#NAME# عزیز، احراز هویت رد شد. علت: #REASON#` | `VerificationService.ReviewAsync` |
-| `WalletTopUpSuccess` | `Sms.WalletTopUpSuccessTemplateId` | `AMOUNT`, `BALANCE` | `کیف پول شما #AMOUNT# تومان شارژ شد. موجودی: #BALANCE#` | `WalletTopUpService.CreditWalletAsync` |
+کلید اصلی: `Sms.OtpTemplateId`
 
-## نکات
+متغیرها: `CODE` و `EXPIRE`
 
-- **مقدار پارامتر `EXPIRE`** برابر `Sms.OtpExpiryMinutes` (دقیقه) است.
-- **مبالغ** (`AMOUNT`, `BALANCE`) با جداکننده هزارگان و بدون واحد ارسال می‌شوند؛ واحد را در متن قالب بگذارید.
-- برای رویدادهای تجاری، اگر شناسه‌ی قالب مربوطه تنظیم نشده باشد، پیام با
-  `SmsFailureReason.InvalidTemplate` در Outbox به‌صورت «شکست دائمی» ثبت می‌شود و تراکنش تجاری
-  هیچ اثری نمی‌گیرد (بدون بازتلاش تا اصلاح تنظیمات).
-- کد یکبار‌مصرف اگر قالب اختصاصی نداشته باشد، به قالب عمومی `Sms.OtpTemplateId` بازمی‌گردد.
+```text
+کد تایید شما در ویتورایز:
+#CODE#
+اعتبار: #EXPIRE# دقیقه
+این کد را در اختیار دیگران قرار ندهید.
+```
 
-## جریان ارسال
+کلیدهای سازگاری `Sms.LoginOtpTemplateId`، `Sms.RegisterOtpTemplateId` و `Sms.ForgotPasswordTemplateId` با کلید اصلی همگام می‌شوند.
 
-- **کد یکبار‌مصرف (ورود/ثبت‌نام/بازیابی):** هم‌زمان (synchronous) از طریق `ISmsService.SendOtpAsync`
-  چون ارسال پیامک خودِ عملیات اصلی است. شکست ارسال، خطای امن فارسی به کاربر برمی‌گرداند.
-- **رویدادهای تجاری:** ناهم‌زمان از طریق `ISmsOutboxEnqueuer` → `OutboxMessages` →
-  `OutboxProcessorBackgroundService`. شکست ارائه‌دهنده هرگز پرداخت/تحویل/تیکت/احراز هویت را
-  برنمی‌گرداند. بازتلاش با backoff نمایی و dead-letter پس از سقف تلاش.
+## قالب عمومی اطلاع‌رسانی
+
+کلید اصلی: `Sms.NotificationTemplateId`
+
+متغیر فقط: `ORDER_NUMBER`
+
+متن تاییدشده باید دقیقاً چنین باشد:
+
+```text
+ویتورایز
+
+اطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.
+
+کد پیگیری:
+#ORDER_NUMBER#
+
+برای مشاهده جزئیات وارد حساب کاربری خود شوید.
+
+https://vitorize.com
+```
+
+کلیدهای قدیمی قالب‌های تجاری در پایگاه‌داده باقی می‌مانند و همگی با `Sms.NotificationTemplateId` همگام‌اند، اما در پنل ادمین نمایش داده نمی‌شوند.
+
+## کدهای پیگیری
+
+| رویداد | منبع `ORDER_NUMBER` |
+|---|---|
+| پرداخت سفارش | `Order.OrderNumber` |
+| تحویل محصول دیجیتال | `Order.OrderNumber` |
+| پاسخ پشتیبانی به تیکت | مرجع عمومی `TK-…` |
+| شارژ موفق کیف پول | مرجع عمومی `WL-…` |
+| نتیجه احراز هویت | مرجع عمومی `VF-…` |
+
+مرجع‌های `TK`، `WL` و `VF` پایدار و یک‌طرفه تولید می‌شوند. GUID و شناسه داخلی هرگز در پیامک قرار نمی‌گیرد و تغییر اسکیمای پایگاه‌داده لازم نیست.
+
+## اعتبارسنجی و امنیت
+
+- اعلان تجاری دقیقاً یک پارامتر غیرخالی `ORDER_NUMBER` می‌پذیرد.
+- نام ناقص، تکراری، ناشناخته یا با حروف اشتباه رد می‌شود.
+- مبلغ، موجودی، کد هدیه، دلیل رد احراز هویت، ایمیل، رمز یا سایر جزئیات در SMS ارسال نمی‌شود.
+- جزئیات فقط در اعلان‌های داخل برنامه و بخش‌های سفارش، پرداخت، کیف پول، تیکت، محصول دیجیتال و احراز هویت باقی می‌ماند.
+- پیام‌های قدیمی موجود در Outbox هنگام پردازش به قرارداد جدید تبدیل می‌شوند؛ کد پیگیری قدیمی به `ORDER_NUMBER` منتقل و سایر فیلدهای متنی نسخه قبلی کنار گذاشته می‌شوند.
+
+## سیاست رویدادهای خودکار
+
+ارسال خودکار فقط برای ورود با OTP، تایید موبایل، فراموشی رمز، پرداخت موفق سفارش، تحویل کد هدیه، پاسخ تیکت، تایید یا رد احراز هویت و شارژ موفق کیف پول فعال است.
+
+ثبت/تکمیل/لغو سفارش، بستن/بازگشایی تیکت، تراکنش عمومی کیف پول، شارژ یا برداشت دستی و OTP احراز هویت دومرحله‌ای پیامک خودکار ندارند. اعلان درون‌برنامه‌ای این رخدادها حذف نشده است.

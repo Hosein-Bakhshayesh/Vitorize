@@ -69,6 +69,10 @@ public partial class User
 
     public virtual ICollection<SecurityLog> SecurityLogs { get; set; } = new List<SecurityLog>();
 
+    public virtual ICollection<SmsMessage> SmsMessages { get; set; } = new List<SmsMessage>();
+
+    public virtual ICollection<SmsMessage> SmsMessagesCreatedByUser { get; set; } = new List<SmsMessage>();
+
     public virtual ICollection<TicketMessage> TicketMessages { get; set; } = new List<TicketMessage>();
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();

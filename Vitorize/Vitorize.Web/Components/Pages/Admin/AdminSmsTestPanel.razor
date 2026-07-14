@@ -38,7 +38,7 @@
             }
         }
 
-        <div class="vz-setgroup__title">ارسال پیامک آزمایشی</div>
+        <div class="vz-setgroup__title">آزمایش دو قالب یکپارچه</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="vz-field">
                 <label class="vz-label">شماره موبایل</label>
@@ -54,6 +54,8 @@
                 </select>
             </div>
         </div>
+
+        <div class="vz-hint" style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;white-space:pre-line">@TemplateHelp</div>
 
         @if (TemplateParams.TryGetValue(_templateKey, out var pnames) && pnames.Length > 0)
         {
@@ -99,40 +101,31 @@
 @code {
     private bool _loadingStatus, _sending;
     private string _mobile = string.Empty;
-    private string _templateKey = "LoginOtp";
-    private readonly Dictionary<string, string> _params = new();
+    private string _templateKey = "Otp";
+    private readonly Dictionary<string, string> _params = new()
+    {
+        ["CODE"] = "123456",
+        ["EXPIRE"] = "3",
+        ["ORDER_NUMBER"] = "VT-123456"
+    };
     private SmsStatusModel? _status;
     private SmsTestModel? _result;
 
     private static readonly Dictionary<string, string> Templates = new()
     {
-        ["LoginOtp"] = "کد ورود",
-        ["RegisterOtp"] = "کد ثبت‌نام / تایید موبایل",
-        ["ForgotPassword"] = "کد بازیابی رمز",
-        ["Otp"] = "کد عمومی",
-        ["OrderPaid"] = "پرداخت سفارش",
-        ["OrderCompleted"] = "تکمیل سفارش",
-        ["GiftCodeDelivered"] = "تحویل کد",
-        ["TicketReply"] = "پاسخ تیکت",
-        ["VerificationApproved"] = "تایید احراز هویت",
-        ["VerificationRejected"] = "رد احراز هویت",
-        ["WalletTopUpSuccess"] = "شارژ کیف پول",
+        ["Otp"] = "قالب یکپارچه OTP",
+        ["Notification"] = "قالب یکپارچه اعلان تجاری"
     };
 
     private static readonly Dictionary<string, string[]> TemplateParams = new()
     {
-        ["LoginOtp"] = new[] { "CODE", "EXPIRE" },
-        ["RegisterOtp"] = new[] { "CODE", "EXPIRE" },
-        ["ForgotPassword"] = new[] { "CODE", "EXPIRE" },
         ["Otp"] = new[] { "CODE", "EXPIRE" },
-        ["OrderPaid"] = new[] { "ORDER", "AMOUNT" },
-        ["OrderCompleted"] = new[] { "ORDER" },
-        ["GiftCodeDelivered"] = new[] { "ORDER" },
-        ["TicketReply"] = new[] { "TICKET" },
-        ["VerificationApproved"] = new[] { "NAME" },
-        ["VerificationRejected"] = new[] { "NAME", "REASON" },
-        ["WalletTopUpSuccess"] = new[] { "AMOUNT", "BALANCE" },
+        ["Notification"] = new[] { "ORDER_NUMBER" }
     };
+
+    private string TemplateHelp => _templateKey == "Otp"
+        ? "پارامترهای الزامی: CODE و EXPIRE\nمتن قالب:\nکد تایید شما در ویتورایز:\n#CODE#\nاعتبار: #EXPIRE# دقیقه\nاین کد را در اختیار دیگران قرار ندهید."
+        : "پارامتر الزامی: ORDER_NUMBER\nمتن قالب:\nویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n#ORDER_NUMBER#\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
 
     protected override Task OnInitializedAsync() => LoadStatus();
 
