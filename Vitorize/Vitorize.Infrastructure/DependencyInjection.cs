@@ -91,6 +91,12 @@ namespace Vitorize.Infrastructure
             services.Configure<EncryptionSettings>(
                 configuration.GetSection("Encryption"));
 
+            services.Configure<BootstrapAdminOptions>(
+                configuration.GetSection(BootstrapAdminOptions.SectionName));
+
+            services.Configure<DevelopmentDemoUserOptions>(
+                configuration.GetSection(DevelopmentDemoUserOptions.SectionName));
+
             services.Configure<ZarinpalSettings>(
                 configuration.GetSection("Zarinpal"));
 

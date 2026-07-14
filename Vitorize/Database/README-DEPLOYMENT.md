@@ -15,9 +15,8 @@
 
 فایل‌ها UTF-8 هستند. آن‌ها را با SSMS/Azure Data Studio یا با `sqlcmd -f 65001` اجرا کنید تا متن‌های فارسی تنظیمات بدون تغییر کدگذاری ثبت شوند.
 
-**بازبینی نهایی ۲۰۲۶/۰۷/۰۸ هیچ تغییر Schema جدیدی لازم نکرد.** نقش‌ها، کاربران پیش‌فرض و
-تنظیمات (از جمله کلیدهای جدید گروه Branding) توسط Seeder داخلی API در اولین اجرا به‌صورت
-Idempotent ساخته می‌شوند و اسکریپت دستی نمی‌خواهند.
+نقش‌ها و تنظیمات غیرمحرمانه توسط Seeder داخلی API به‌صورت Idempotent ساخته می‌شوند.
+Seeder در حالت پیش‌فرض هیچ حساب کاربری ایجاد یا بازنویسی نمی‌کند.
 
 ## گام‌های استقرار
 
@@ -65,6 +64,50 @@ Vitorize.Api\wwwroot\uploads\{products|categories|brands|banners|settings|verifi
 دامنه‌های Production فروشگاه در `Vitorize.Api\Program.cs` (سیاست `VitorizeCors`)
 از قبل شامل `https://vitorize.com` و `https://www.vitorize.com` است؛ در صورت تفاوت دامنه، به‌روزرسانی شود.
 
-### 7) حساب‌های پیش‌فرض (Seeder)
-- ادمین: `09123456789 / 12345678` — **بلافاصله بعد از استقرار رمز عبور را عوض کنید.**
-- مشتری نمونه: `09378149896 / 123456` — در Production در صورت عدم نیاز غیرفعال شود.
+### 7) راه‌اندازی امن اولین SuperAdmin
+
+هیچ حساب پیش‌فرضی در کد یا فایل‌های `appsettings` وجود ندارد. اگر دیتابیس هنوز هیچ
+SuperAdmin ندارد، مقادیر زیر را فقط از طریق Environment Variable یا Secret Provider
+به API بدهید:
+
+```text
+BootstrapAdmin__Enabled=true
+BootstrapAdmin__Mobile=<mobile-from-secret-provider>
+BootstrapAdmin__Password=<strong-random-password>
+BootstrapAdmin__FullName=<operator-name>
+```
+
+رمز باید حداقل ۱۲ کاراکتر و حداکثر ۷۲ بایت UTF-8 باشد. هنگام شروع API، حساب فقط زمانی
+ایجاد می‌شود که فلگ فعال باشد، تمام مقادیر معتبر باشند و هیچ SuperAdmin دیگری در دیتابیس
+وجود نداشته باشد. کاربر موجود با همان موبایل هرگز تغییر یا ارتقا داده نمی‌شود.
+
+پس از مشاهده رویداد امنیتی `BootstrapSuperAdminCreated` و ورود موفق:
+
+1. `BootstrapAdmin__Enabled` را به `false` تغییر دهید یا حذف کنید.
+2. تمام متغیرهای `BootstrapAdmin__*` را از محیط اجرا/Secret Provider حذف کنید.
+3. API را دوباره راه‌اندازی کنید و غیرفعال بودن Bootstrap را بررسی کنید.
+
+مقادیر Bootstrap در دیتابیس یا لاگ نوشته نمی‌شوند و نباید در فایل‌های تنظیمات commit شوند.
+
+### 8) کاربر نمایشی Development
+
+ساخت کاربر نمایشی به‌صورت پیش‌فرض غیرفعال است و حتی با فلگ فعال در Staging/Production
+نادیده گرفته می‌شود. برای نیاز موقت توسعه، فقط در محیط `Development` و از طریق User Secrets
+یا Environment Variables استفاده کنید:
+
+```text
+DevelopmentDemoUser__Enabled=true
+DevelopmentDemoUser__Mobile=<development-only-mobile>
+DevelopmentDemoUser__Password=<development-only-password>
+DevelopmentDemoUser__FullName=<development-only-name>
+```
+
+این مقادیر صرفاً برای محیط محلی Development هستند و نباید در فایل‌های commit‌شده یا محیط
+Staging/Production قرار گیرند. ابزار Seed پنل نیز فقط در Development، فقط برای SuperAdmin
+و فقط برای داده‌های مرجع غیرکاربری فعال است؛ اجرای آن در Security Logs ثبت می‌شود.
+
+### 9) ارتقا از نسخه‌های قدیمی
+
+پیش از انتشار، حساب‌های ایجادشده توسط Seeder قدیمی را در هر دیتابیس موجود بررسی کنید.
+حساب مشکوک را پس از تأیید مالکیت غیرفعال/حذف و تمام Refresh Tokenهای آن را لغو کنید. این
+نسخه عمداً حساب‌های موجود یا رمز آن‌ها را خودکار تغییر نمی‌دهد تا یک حساب واقعی قفل نشود.

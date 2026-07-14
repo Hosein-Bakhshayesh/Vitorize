@@ -1,4 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Data;
+using System.Text;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -9,61 +15,201 @@ namespace Vitorize.Infrastructure.Services
     public class VitorizeSeedService : IVitorizeSeedService
     {
         private readonly VitorizeDbContext _dbContext;
-        public VitorizeSeedService(VitorizeDbContext dbContext) => _dbContext = dbContext;
+        private readonly BootstrapAdminOptions _bootstrapAdmin;
+        private readonly DevelopmentDemoUserOptions _developmentDemoUser;
+        private readonly IHostEnvironment _environment;
+        private readonly ILogger<VitorizeSeedService> _logger;
+
+        public VitorizeSeedService(
+            VitorizeDbContext dbContext,
+            IOptions<BootstrapAdminOptions> bootstrapAdmin,
+            IOptions<DevelopmentDemoUserOptions> developmentDemoUser,
+            IHostEnvironment environment,
+            ILogger<VitorizeSeedService> logger)
+        {
+            _dbContext = dbContext;
+            _bootstrapAdmin = bootstrapAdmin.Value;
+            _developmentDemoUser = developmentDemoUser.Value;
+            _environment = environment;
+            _logger = logger;
+        }
 
         public async Task SeedAsync(CancellationToken cancellationToken = default)
+        {
+            await SeedReferenceDataAsync(cancellationToken);
+            await BootstrapSuperAdminAsync(cancellationToken);
+            await SeedDevelopmentDemoUserAsync(cancellationToken);
+        }
+
+        public async Task SeedReferenceDataAsync(CancellationToken cancellationToken = default)
         {
             await SeedRolesAsync(cancellationToken);
             await SeedSettingsAsync(cancellationToken);
             await SeedFontAssetsAsync(cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
-
-            // کاربران پیش‌فرض پس از ذخیره‌ی نقش‌ها ساخته می‌شوند تا نقش‌ها قابل واکشی باشند.
-            await SeedDefaultUsersAsync(cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        private async Task SeedDefaultUsersAsync(CancellationToken cancellationToken)
+        private async Task BootstrapSuperAdminAsync(CancellationToken cancellationToken)
         {
-            await SeedUserAsync(
-                mobile: "09123456789",
-                fullName: "مدیر سیستم",
-                password: "12345678",
-                roleNames: new[] { "SuperAdmin", "Admin" },
-                cancellationToken);
-
-            await SeedUserAsync(
-                mobile: "09378149896",
-                fullName: "مشتری نمونه",
-                password: "123456",
-                roleNames: new[] { "Customer" },
-                cancellationToken);
-        }
-
-        private async Task SeedUserAsync(
-            string mobile,
-            string fullName,
-            string password,
-            string[] roleNames,
-            CancellationToken cancellationToken)
-        {
-            // اگر کاربر از قبل وجود دارد هیچ‌چیزی بازنویسی نمی‌شود (ایمن برای Production).
-            var exists = await _dbContext.Users
-                .AnyAsync(x => x.Mobile == mobile, cancellationToken);
-
-            if (exists)
+            if (!_bootstrapAdmin.Enabled)
                 return;
 
-            var roles = await _dbContext.Roles
-                .Where(x => roleNames.Contains(x.Name))
-                .ToListAsync(cancellationToken);
+            IDbContextTransaction? transaction = null;
+            if (_dbContext.Database.IsRelational())
+            {
+                transaction = await _dbContext.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable,
+                    cancellationToken);
+            }
 
-            var user = new User
+            await using (transaction)
+            {
+                var superAdminExists = await _dbContext.Users
+                    .AnyAsync(
+                        user => user.Roles.Any(role => role.Name == "SuperAdmin"),
+                        cancellationToken);
+
+                if (superAdminExists)
+                {
+                    if (transaction != null)
+                        await transaction.CommitAsync(cancellationToken);
+
+                    return;
+                }
+
+                var credentials = ValidateCredentials(
+                    BootstrapAdminOptions.SectionName,
+                    _bootstrapAdmin.Mobile,
+                    _bootstrapAdmin.Password,
+                    _bootstrapAdmin.FullName);
+
+                var mobileAlreadyExists = await _dbContext.Users
+                    .AnyAsync(user => user.Mobile == credentials.Mobile, cancellationToken);
+
+                if (mobileAlreadyExists)
+                {
+                    throw new InvalidOperationException(
+                        "BootstrapAdmin cannot create the initial SuperAdmin because the configured mobile already belongs to an existing user. No existing user was changed.");
+                }
+
+                var superAdminRole = await _dbContext.Roles
+                    .SingleAsync(role => role.Name == "SuperAdmin", cancellationToken);
+
+                var user = CreateUser(credentials);
+                user.Roles.Add(superAdminRole);
+
+                await _dbContext.Users.AddAsync(user, cancellationToken);
+                await _dbContext.SecurityLogs.AddAsync(new SecurityLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    EventType = "BootstrapSuperAdminCreated",
+                    Description = "The initial SuperAdmin was created by the explicit one-time bootstrap process. Disable BootstrapAdmin:Enabled and remove the bootstrap secrets.",
+                    IsSuccessful = true,
+                    CreatedAt = DateTime.UtcNow
+                }, cancellationToken);
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                if (transaction != null)
+                    await transaction.CommitAsync(cancellationToken);
+            }
+
+            _logger.LogWarning(
+                "The initial SuperAdmin was created by explicit bootstrap configuration. Disable BootstrapAdmin:Enabled and remove all BootstrapAdmin secret values now.");
+        }
+
+        private async Task SeedDevelopmentDemoUserAsync(CancellationToken cancellationToken)
+        {
+            if (!_developmentDemoUser.Enabled)
+                return;
+
+            if (!_environment.IsDevelopment())
+            {
+                _logger.LogWarning(
+                    "DevelopmentDemoUser:Enabled was ignored because the application is not running in Development.");
+                return;
+            }
+
+            var credentials = ValidateCredentials(
+                DevelopmentDemoUserOptions.SectionName,
+                _developmentDemoUser.Mobile,
+                _developmentDemoUser.Password,
+                _developmentDemoUser.FullName);
+
+            var existingUser = await _dbContext.Users
+                .AnyAsync(user => user.Mobile == credentials.Mobile, cancellationToken);
+
+            if (existingUser)
+                return;
+
+            var customerRole = await _dbContext.Roles
+                .SingleAsync(role => role.Name == "Customer", cancellationToken);
+
+            var user = CreateUser(credentials);
+            user.Roles.Add(customerRole);
+
+            await _dbContext.Users.AddAsync(user, cancellationToken);
+            await _dbContext.SecurityLogs.AddAsync(new SecurityLog
             {
                 Id = Guid.NewGuid(),
-                FullName = fullName,
-                Mobile = mobile,
-                PasswordHash = PasswordHasher.Hash(password),
+                UserId = user.Id,
+                EventType = "DevelopmentDemoUserCreated",
+                Description = "A demo customer was created by explicit Development-only configuration.",
+                IsSuccessful = true,
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "A demo customer was created from explicit Development-only configuration.");
+        }
+
+        private static BootstrapCredentials ValidateCredentials(
+            string sectionName,
+            string? mobile,
+            string? password,
+            string? fullName)
+        {
+            if (string.IsNullOrWhiteSpace(mobile) ||
+                string.IsNullOrWhiteSpace(password) ||
+                string.IsNullOrWhiteSpace(fullName))
+            {
+                throw new InvalidOperationException(
+                    $"{sectionName} is enabled, but Mobile, Password and FullName are not all configured. No user was created.");
+            }
+
+            if (!IranMobile.TryNormalize(mobile, out var normalizedMobile))
+            {
+                throw new InvalidOperationException(
+                    $"{sectionName}:Mobile is invalid. No user was created.");
+            }
+
+            var normalizedFullName = fullName.Trim();
+            if (normalizedFullName.Length > 200)
+            {
+                throw new InvalidOperationException(
+                    $"{sectionName}:FullName exceeds the supported length. No user was created.");
+            }
+
+            if (password.Length < 12 || Encoding.UTF8.GetByteCount(password) > 72)
+            {
+                throw new InvalidOperationException(
+                    $"{sectionName}:Password must be at least 12 characters and at most 72 UTF-8 bytes. No user was created.");
+            }
+
+            return new BootstrapCredentials(normalizedMobile, password, normalizedFullName);
+        }
+
+        private static User CreateUser(BootstrapCredentials credentials)
+        {
+            return new User
+            {
+                Id = Guid.NewGuid(),
+                FullName = credentials.FullName,
+                Mobile = credentials.Mobile,
+                PasswordHash = PasswordHasher.Hash(credentials.Password),
                 Status = (byte)Vitorize.Shared.Enums.UserStatus.Active,
                 VerificationStatus = (byte)Vitorize.Shared.Enums.VerificationStatus.Pending,
                 IsMobileConfirmed = true,
@@ -71,11 +217,6 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false
             };
-
-            foreach (var role in roles)
-                user.Roles.Add(role);
-
-            await _dbContext.Users.AddAsync(user, cancellationToken);
         }
 
         private async Task SeedRolesAsync(CancellationToken cancellationToken)
@@ -388,5 +529,7 @@ namespace Vitorize.Infrastructure.Services
         }
 
         private sealed record SeedSetting(string Key, string Value, string GroupName, string ValueType, string Description);
+
+        private sealed record BootstrapCredentials(string Mobile, string Password, string FullName);
     }
 }
