@@ -24,4 +24,8 @@ public partial class OutboxMessage
     public DateTime CreatedAt { get; set; }
 
     public DateTime? ProcessedAt { get; set; }
+
+    public DateTime? LockedAt { get; set; }
+
+    public Guid? LockId { get; set; }
 }

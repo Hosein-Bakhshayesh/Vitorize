@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
@@ -59,7 +61,7 @@ namespace Vitorize.Infrastructure.Services
             foreach (var reservation in soldReservations)
             {
                 var orderItem = order.OrderItems
-                    .FirstOrDefault(x => x.Id == reservation.OrderItemId.Value);
+                    .FirstOrDefault(x => x.Id == reservation.OrderItemId.GetValueOrDefault());
 
                 if (orderItem == null)
                     throw new BusinessException("آیتم سفارش برای کد رزرو شده یافت نشد.");
@@ -81,7 +83,9 @@ namespace Vitorize.Infrastructure.Services
                     OrderItemId = orderItem.Id,
                     DeliveryType = (byte)DeliveryType.Instant,
                     GiftCodeId = giftCode.Id,
-                    DeliveredContent = decryptedCode,
+                    DeliveredContent = _encryptionService.Encrypt(decryptedCode),
+                    ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(decryptedCode))),
+                    EncryptionVersion = 2,
                     IsVisibleToCustomer = true,
                     DeliveredByUserId = deliveredByUserId,
                     CreatedAt = now
@@ -95,6 +99,17 @@ namespace Vitorize.Infrastructure.Services
 
                 orderItem.DeliveryStatus = (byte)DeliveryStatus.Delivered;
                 orderItem.DeliveredAt = now;
+
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = "GiftCodeDelivered",
+                    EntityType = "OrderItemDelivery",
+                    EntityId = delivery.Id,
+                    UserId = deliveredByUserId,
+                    CorrelationId = order.Id,
+                    Detail = $"order:{order.OrderNumber};content-hash:{delivery.ContentHash}",
+                    CreatedAt = now
+                });
             }
 
             var allItemsDelivered = order.OrderItems

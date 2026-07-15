@@ -13,6 +13,7 @@ using Vitorize.Api.Middlewares;
 using Vitorize.Application;
 using Vitorize.Application.Common;
 using Vitorize.Infrastructure;
+using Vitorize.Shared.Common;
 
 namespace Vitorize.Api
 {
@@ -21,6 +22,12 @@ namespace Vitorize.Api
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddHsts(options =>
+            {
+                options.MaxAge = TimeSpan.FromDays(365);
+                options.IncludeSubDomains = true;
+                options.Preload = true;
+            });
 
             // Controllers + FluentValidation filter
             builder.Services.AddControllers(options =>
@@ -114,11 +121,17 @@ namespace Vitorize.Api
                 .GetSection("Jwt")
                 .Get<JwtSettings>();
 
-            if (jwtSettings == null)
+            if (jwtSettings == null || string.IsNullOrWhiteSpace(jwtSettings.SecretKey) ||
+                Encoding.UTF8.GetByteCount(jwtSettings.SecretKey) < 32)
             {
                 throw new InvalidOperationException(
-                    "Jwt settings are not configured.");
+                    "Jwt:SecretKey must be supplied by an environment variable or secret provider and contain at least 32 bytes.");
             }
+
+            var encryptionKey = builder.Configuration["Encryption:Key"];
+            if (string.IsNullOrWhiteSpace(encryptionKey) || Encoding.UTF8.GetByteCount(encryptionKey) != 32)
+                throw new InvalidOperationException(
+                    "Encryption:Key must be supplied by an environment variable or secret provider and contain exactly 32 bytes.");
 
             // JWT Authentication
             builder.Services
@@ -169,6 +182,25 @@ namespace Vitorize.Api
 
                 options.AddPolicy("SupportOnly", policy =>
                     policy.RequireRole("Support", "Admin", "SuperAdmin"));
+
+                options.AddPolicy("FinanceManage", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.FinanceManage));
+                options.AddPolicy("OrderFulfillment", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.OrderFulfillment));
+                options.AddPolicy("KycReview", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.KycReview));
+                options.AddPolicy("SecurityDiagnostics", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.SecurityDiagnostics));
+                options.AddPolicy("SettingsManage", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.SettingsManage));
+                options.AddPolicy("UserManage", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.UserManage));
             });
 
             // Rate Limiting برای جلوگیری از Brute Force و Spam
@@ -209,6 +241,16 @@ namespace Vitorize.Api
             // Global Exception Handler
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers["X-Content-Type-Options"] = SecurityHeaderPolicy.ContentTypeOptions;
+                context.Response.Headers["X-Frame-Options"] = SecurityHeaderPolicy.ApiFrameOptions;
+                context.Response.Headers["Referrer-Policy"] = SecurityHeaderPolicy.ReferrerPolicy;
+                context.Response.Headers["Permissions-Policy"] = SecurityHeaderPolicy.PermissionsPolicy;
+                context.Response.Headers["Content-Security-Policy"] = SecurityHeaderPolicy.ApiContentSecurityPolicy;
+                await next();
+            });
+
             // Swagger فقط در محیط Development
             if (app.Environment.IsDevelopment())
             {
@@ -228,6 +270,16 @@ namespace Vitorize.Api
 
             app.UseCors("VitorizeCors");
 
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/uploads/verifications"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return;
+                }
+                await next();
+            });
+
             app.UseStaticFiles();
 
             // سرو مطمئن فایل‌های آپلودشده (تصاویر محصولات، دسته‌بندی‌ها، بنرها، مدارک)
@@ -243,18 +295,6 @@ namespace Vitorize.Api
                     // اجازه‌ی نمایش تصاویر در فروشگاه روی دامنه/پورت دیگر
                     ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
                 }
-            });
-
-            // Security Headers
-            app.Use(async (context, next) =>
-            {
-                context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
-                context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
-                context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
-                context.Response.Headers.TryAdd("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-                context.Response.Headers.TryAdd("X-XSS-Protection", "0");
-
-                await next();
             });
 
             app.UseAuthentication();

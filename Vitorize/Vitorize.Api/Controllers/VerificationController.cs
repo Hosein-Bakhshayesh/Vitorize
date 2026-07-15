@@ -4,6 +4,9 @@ using Vitorize.Application.DTOs.Verification;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.StaticFiles;
+using Vitorize.Infrastructure.Persistence;
 
 namespace Vitorize.Api.Controllers
 {
@@ -14,13 +17,19 @@ namespace Vitorize.Api.Controllers
     {
         private readonly IVerificationService _verificationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly VitorizeDbContext _dbContext;
+        private readonly IWebHostEnvironment _environment;
 
         public VerificationController(
             IVerificationService verificationService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            VitorizeDbContext dbContext,
+            IWebHostEnvironment environment)
         {
             _verificationService = verificationService;
             _currentUserService = currentUserService;
+            _dbContext = dbContext;
+            _environment = environment;
         }
 
         [HttpGet("me")]
@@ -66,6 +75,52 @@ namespace Vitorize.Api.Controllers
             await _verificationService.DeleteDocumentAsync(GetUserId(), documentId);
 
             return Ok(ApiResult.Success("مدرک احراز هویت حذف شد."));
+        }
+
+        [HttpGet("documents/{documentId:guid}/content")]
+        public async Task<IActionResult> GetDocumentContent(Guid documentId)
+        {
+            var userId = GetUserId();
+            var document = await _dbContext.VerificationDocuments.AsNoTracking()
+                .Where(x => x.Id == documentId)
+                .Select(x => new { x.FilePath, OwnerId = x.UserVerificationProfile.UserId })
+                .FirstOrDefaultAsync() ?? throw new NotFoundException("مدرک یافت نشد.");
+            var canReview = User.HasClaim(Vitorize.Application.Common.AdminPermissions.ClaimType,
+                Vitorize.Application.Common.AdminPermissions.KycReview);
+            if (document.OwnerId != userId && !canReview)
+                throw new NotFoundException("مدرک یافت نشد."); // IDOR-safe response.
+
+            var fullPath = ResolvePrivateDocumentPath(document.FilePath, document.OwnerId);
+            if (!System.IO.File.Exists(fullPath))
+                throw new NotFoundException("فایل مدرک یافت نشد.");
+            Response.Headers.CacheControl = "no-store, private";
+            Response.Headers["Content-Disposition"] = "inline";
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(fullPath, out var contentType))
+                contentType = "application/octet-stream";
+            return PhysicalFile(fullPath, contentType, enableRangeProcessing: false);
+        }
+
+        private string ResolvePrivateDocumentPath(string token, Guid ownerId)
+        {
+            string root;
+            string relative;
+            var prefix = $"kyc-private:{ownerId:N}/";
+            if (token.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "private", "verification-documents", ownerId.ToString("N")));
+                relative = token[prefix.Length..];
+            }
+            else if (token.StartsWith("/uploads/verifications/", StringComparison.OrdinalIgnoreCase))
+            {
+                root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "verifications"));
+                relative = Path.GetFileName(token);
+            }
+            else throw new NotFoundException("فایل مدرک یافت نشد.");
+            var resolved = Path.GetFullPath(Path.Combine(root, relative));
+            if (!resolved.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new NotFoundException("فایل مدرک یافت نشد.");
+            return resolved;
         }
 
         private Guid GetUserId()

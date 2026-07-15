@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Data;
 using Vitorize.Application.DTOs.Checkout;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -36,27 +37,70 @@ namespace Vitorize.Infrastructure.Services
 
             request ??= new CheckoutRequestDto();
 
-            var cart = await _dbContext.Carts
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.Product)
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.ProductVariant)
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.InputValues)
-                .Include(x => x.CartItems)
-                    .ThenInclude(x => x.Product)
-                        .ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
-                .FirstOrDefaultAsync(x => x.UserId == userId);
-
-            if (cart == null || !cart.CartItems.Any())
-                throw new BusinessException("سبد خرید خالی است.");
-
             await using var transaction =
-                await _dbContext.Database.BeginTransactionAsync();
+                await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
                 var now = DateTime.UtcNow;
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"checkout:user:{userId:N}");
+
+                var user = await _dbContext.Users.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == userId && !x.IsDeleted)
+                    ?? throw new UnauthorizedException("کاربر معتبر نیست.");
+                if (user.Status != (byte)UserStatus.Active)
+                    throw new BusinessException("حساب کاربری برای خرید فعال نیست.");
+
+                // Cart prices are display caches; authoritative catalog state is reloaded and
+                // repriced inside this serializable transaction.
+                var cart = await _dbContext.Carts
+                    .Include(x => x.CartItems).ThenInclude(x => x.Product)
+                    .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
+                    .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
+                    .Include(x => x.CartItems).ThenInclude(x => x.Product)
+                        .ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
+                    .FirstOrDefaultAsync(x => x.UserId == userId);
+
+                if (cart == null || !cart.CartItems.Any())
+                    throw new BusinessException("سبد خرید خالی است.");
+
+                foreach (var item in cart.CartItems)
+                {
+                    var product = item.Product;
+                    if (!product.IsActive || product.IsDeleted)
+                        throw new BusinessException($"محصول «{product.Title}» دیگر قابل خرید نیست.");
+                    if (!Enum.IsDefined(typeof(DeliveryType), product.DeliveryType))
+                        throw new BusinessException($"روش تحویل محصول «{product.Title}» معتبر نیست.");
+                    if (item.Quantity < Math.Max(1, product.MinOrderQuantity) ||
+                        (product.MaxOrderQuantity.HasValue && item.Quantity > product.MaxOrderQuantity.Value))
+                        throw new BusinessException($"تعداد سفارش محصول «{product.Title}» خارج از محدوده مجاز است.");
+                    if (product.RequiresVerification &&
+                        (!user.IsMobileConfirmed || user.VerificationStatus != (byte)VerificationStatus.Verified))
+                        throw new BusinessException("برای خرید این محصول، تأیید موبایل و احراز هویت کامل الزامی است.");
+
+                    if (item.ProductVariantId.HasValue)
+                    {
+                        var variant = item.ProductVariant;
+                        if (variant is null || variant.ProductId != product.Id || !variant.IsActive)
+                            throw new BusinessException($"تنوع انتخاب‌شده برای «{product.Title}» غیرفعال یا نامعتبر است.");
+                        if (!Enum.IsDefined(typeof(ProductVariantStockMode), variant.StockMode))
+                            throw new BusinessException($"نوع موجودی تنوع «{variant.Title}» معتبر نیست.");
+                        if (product.DeliveryType == (byte)DeliveryType.Instant &&
+                            variant.StockMode != (byte)ProductVariantStockMode.GiftCode)
+                            throw new BusinessException($"تنوع «{variant.Title}» موجودی کد قابل تحویل ندارد.");
+                        if (product.DeliveryType != (byte)DeliveryType.Instant &&
+                            variant.StockMode == (byte)ProductVariantStockMode.GiftCode)
+                            throw new BusinessException($"نوع موجودی تنوع «{variant.Title}» با روش تحویل محصول سازگار نیست.");
+                        item.UnitPrice = ResolveFinalPrice(variant.Price, variant.DiscountPrice);
+                    }
+                    else
+                    {
+                        item.UnitPrice = ResolveFinalPrice(product.BasePrice, product.DiscountPrice);
+                    }
+
+                    if (item.UnitPrice < 0)
+                        throw new BusinessException($"قیمت محصول «{product.Title}» معتبر نیست.");
+                }
 
                 var subtotalAmount = cart.CartItems.Sum(x =>
                     x.UnitPrice * x.Quantity);
@@ -171,7 +215,7 @@ namespace Vitorize.Infrastructure.Services
                         // (بدون قفل، خواندن-سپس-نوشتن باعث فروش دوباره‌ی یک کد می‌شد).
                         var giftCode = (await _dbContext.GiftCodes
                             .FromSqlInterpolated($@"
-                                SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, READPAST)
+                                SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, ROWLOCK)
                                 WHERE ProductId = {orderItem.ProductId}
                                   AND ((ProductVariantId IS NULL AND {orderItem.ProductVariantId} IS NULL)
                                        OR ProductVariantId = {orderItem.ProductVariantId})
@@ -256,5 +300,8 @@ namespace Vitorize.Infrastructure.Services
                 throw;
             }
         }
+
+        private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
+            discountPrice is >= 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
     }
 }

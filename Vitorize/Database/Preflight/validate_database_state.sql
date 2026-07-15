@@ -165,6 +165,28 @@ AND EXISTS
 )
     INSERT @Findings VALUES ('ERROR', N'Orphaned SMS attempts', N'dbo.SmsMessageAttempts contains an orphaned SmsMessageId.');
 
+IF OBJECT_ID(N'dbo.Payments', N'U') IS NOT NULL AND EXISTS
+(
+    SELECT Gateway, Authority FROM dbo.Payments WHERE Authority IS NOT NULL
+    GROUP BY Gateway, Authority HAVING COUNT(*) > 1
+)
+    INSERT @Findings VALUES ('ERROR', N'Payment authority uniqueness', N'Duplicate Gateway/Authority values must be reconciled before V0004.');
+
+IF OBJECT_ID(N'dbo.WalletTopUps', N'U') IS NOT NULL AND EXISTS
+(
+    SELECT Gateway, Authority FROM dbo.WalletTopUps WHERE Authority IS NOT NULL
+    GROUP BY Gateway, Authority HAVING COUNT(*) > 1
+)
+    INSERT @Findings VALUES ('ERROR', N'Wallet top-up authority uniqueness', N'Duplicate Gateway/Authority values must be reconciled before V0004.');
+
+IF OBJECT_ID(N'dbo.WalletTransactions', N'U') IS NOT NULL AND EXISTS
+(
+    SELECT UserId, ReferenceType, ReferenceId, [Type] FROM dbo.WalletTransactions
+    WHERE ReferenceType IS NOT NULL AND ReferenceId IS NOT NULL
+    GROUP BY UserId, ReferenceType, ReferenceId, [Type] HAVING COUNT(*) > 1
+)
+    INSERT @Findings VALUES ('ERROR', N'Wallet financial idempotency', N'Duplicate financial references must be reconciled before V0004.');
+
 SELECT Severity, CheckName, Detail
 FROM @Findings
 ORDER BY CASE Severity WHEN 'ERROR' THEN 1 WHEN 'WARN' THEN 2 ELSE 3 END, CheckName;
@@ -178,7 +200,7 @@ FROM @Findings;
 DECLARE @RequiredVersions TABLE (Version nvarchar(50) PRIMARY KEY);
 INSERT @RequiredVersions VALUES
     (N'V0001'), (N'V0002'), (N'H20260713-SMS-SCHEMA'),
-    (N'H20260714-PRODUCT-SCHEMA'), (N'V0003'), (N'H20260708-UI'),
+    (N'H20260714-PRODUCT-SCHEMA'), (N'V0003'), (N'V0004'), (N'H20260708-UI'),
     (N'H20260713-SMS-SEED'), (N'H20260714-PRODUCT-SEED');
 
 IF @LedgerCompatible = 1

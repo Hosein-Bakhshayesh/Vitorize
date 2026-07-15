@@ -15,6 +15,12 @@ public partial class OrderItemDelivery
 
     public string? DeliveredContent { get; set; }
 
+    public string? ContentHash { get; set; }
+
+    public short? EncryptionVersion { get; set; }
+
+    public Guid? ManualDeliveryItemKey { get; set; }
+
     public bool IsVisibleToCustomer { get; set; }
 
     public Guid? DeliveredByUserId { get; set; }

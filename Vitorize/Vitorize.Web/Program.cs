@@ -4,8 +4,15 @@ using Vitorize.Web.Endpoints;
 using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.UI;
+using Vitorize.Shared.Common;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = true;
+    options.Preload = true;
+});
 
 // Blazor Web App با رندر تعاملی سمت سرور
 builder.Services.AddRazorComponents()
@@ -56,6 +63,7 @@ builder.Services
         options.Cookie.Name = VitorizeAuthSchemes.AdminAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.LoginPath = "/admin/login";
         options.AccessDeniedPath = "/admin/access-denied";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
@@ -66,6 +74,7 @@ builder.Services
         options.Cookie.Name = VitorizeAuthSchemes.CustomerAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/access-denied";
         options.ExpireTimeSpan = TimeSpan.FromDays(14);
@@ -129,6 +138,16 @@ if (!app.Environment.IsDevelopment())
 // صفحات وضعیت برنددار: پاسخ‌های ۴۰۰–۵۹۹ بدون بدنه به /error/{code} بازاجرا می‌شوند
 // (۴۰۳/۴۰۱/۴۰۰/۵۰۰ ...). صفحه‌ی Catch-all همچنان ۴۰۴ مسیرهای ناموجود را پوشش می‌دهد.
 app.UseStatusCodePagesWithReExecute("/error/{0}");
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = SecurityHeaderPolicy.ContentTypeOptions;
+    context.Response.Headers["X-Frame-Options"] = SecurityHeaderPolicy.WebFrameOptions;
+    context.Response.Headers["Referrer-Policy"] = SecurityHeaderPolicy.ReferrerPolicy;
+    context.Response.Headers["Permissions-Policy"] = SecurityHeaderPolicy.PermissionsPolicy;
+    context.Response.Headers["Content-Security-Policy"] = SecurityHeaderPolicy.WebContentSecurityPolicy;
+    await next();
+});
 
 app.UseStaticFiles();
 

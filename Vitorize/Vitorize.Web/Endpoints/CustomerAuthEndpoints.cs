@@ -170,7 +170,7 @@ namespace Vitorize.Web.Endpoints
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = http.Request.IsHttps,
+                Secure = true,
                 SameSite = SameSiteMode.Lax,
                 Expires = expiresUtc,
                 Path = "/"
@@ -187,7 +187,7 @@ namespace Vitorize.Web.Endpoints
                     new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = http.Request.IsHttps,
+                        Secure = true,
                         SameSite = SameSiteMode.Lax,
                         Expires = DateTimeOffset.UtcNow.AddDays(30),
                         Path = "/"

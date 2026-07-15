@@ -93,6 +93,10 @@ namespace Vitorize.Infrastructure.Services
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(
+                    _dbContext,
+                    $"coupon:{couponId:N}");
+
                 var alreadyUsed = await _dbContext.CouponUsages
                     .AnyAsync(x =>
                         x.OrderId == orderId &&
@@ -142,6 +146,18 @@ namespace Vitorize.Infrastructure.Services
                     UserId = userId,
                     OrderId = orderId,
                     UsedAt = DateTime.UtcNow
+                });
+
+                await _dbContext.FinancialAuditLogs.AddAsync(new Vitorize.Domain.Entities.FinancialAuditLog
+                {
+                    EventType = "CouponConsumed",
+                    EntityType = "Coupon",
+                    EntityId = couponId,
+                    UserId = userId,
+                    Amount = order.DiscountAmount,
+                    CorrelationId = orderId,
+                    Detail = $"order:{order.OrderNumber}",
+                    CreatedAt = DateTime.UtcNow
                 });
 
                 await _dbContext.SaveChangesAsync();

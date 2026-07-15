@@ -44,6 +44,7 @@ namespace Vitorize.Infrastructure.Interceptors
                     x.Entity is not OutboxMessage &&
                     x.Entity is not IdempotencyKey &&
                     x.Entity is not PaymentCallback &&
+                    x.Entity is not FinancialAuditLog &&
                     x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
                 .ToList();
 
@@ -146,7 +147,22 @@ namespace Vitorize.Infrastructure.Interceptors
                    name.Contains("hash") ||
                    name.Contains("encrypted") ||
                    name.Contains("secret") ||
-                   name.Contains("key");
+                   name.Contains("key") ||
+                   name.Contains("nationalcode") ||
+                   name.Contains("bankcard") ||
+                   name.Contains("shaba") ||
+                   name.Contains("address") ||
+                   name.Contains("postal") ||
+                   name.Contains("birthdate") ||
+                   name.Contains("deliveredcontent") ||
+                   name.Contains("rawrequest") ||
+                   name.Contains("rawresponse") ||
+                   name.Contains("callbackdata") ||
+                   name.Contains("filepath") ||
+                   name.Contains("mobile") ||
+                   name.Contains("email") ||
+                   name.Contains("fullname") ||
+                   name.Contains("adminnote");
         }
     }
 }

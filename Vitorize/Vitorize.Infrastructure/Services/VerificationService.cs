@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Vitorize.Application.DTOs.Verification;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -13,15 +14,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
+        private readonly IEncryptionService _encryptionService;
 
         public VerificationService(
             VitorizeDbContext dbContext,
             INotificationService notificationService,
-            ISmsOutboxEnqueuer smsOutbox)
+            ISmsOutboxEnqueuer smsOutbox,
+            IEncryptionService encryptionService)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _smsOutbox = smsOutbox;
+            _encryptionService = encryptionService;
         }
 
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
@@ -74,21 +78,27 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.UserVerificationProfiles.AddAsync(profile);
             }
 
-            profile.FirstName = request.FirstName.Trim();
-            profile.LastName = request.LastName.Trim();
-            profile.NationalCode = request.NationalCode.Trim();
-            profile.BirthDate = request.BirthDate;
-            profile.BankCardNumber = request.BankCardNumber?.Trim();
-            profile.ShabaNumber = request.ShabaNumber?.Trim();
-            profile.Address = request.Address?.Trim();
-            profile.PostalCode = request.PostalCode?.Trim();
+            var protectedData = new ProtectedVerificationData(
+                request.FirstName.Trim(), request.LastName.Trim(), request.NationalCode.Trim(),
+                request.BirthDate, request.BankCardNumber?.Trim(), request.ShabaNumber?.Trim(),
+                request.Address?.Trim(), request.PostalCode?.Trim());
+            profile.EncryptedPayload = _encryptionService.Encrypt(JsonSerializer.Serialize(protectedData));
+            profile.EncryptionVersion = 2;
+            profile.FirstName = "[protected]";
+            profile.LastName = "[protected]";
+            profile.NationalCode = "[protected]";
+            profile.BirthDate = null;
+            profile.BankCardNumber = null;
+            profile.ShabaNumber = null;
+            profile.Address = null;
+            profile.PostalCode = null;
             profile.Status = (byte)VerificationStatus.Pending;
             profile.AdminNote = null;
             profile.SubmittedAt = now;
             profile.UpdatedAt = now;
 
             user.VerificationStatus = (byte)VerificationStatus.Pending;
-            user.NationalCode = profile.NationalCode;
+            user.NationalCode = null;
             user.UpdatedAt = now;
 
             await _notificationService.CreateAsync(
@@ -112,6 +122,10 @@ namespace Vitorize.Infrastructure.Services
 
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new BusinessException("مسیر فایل معتبر نیست.");
+            var expectedPrefix = $"kyc-private:{userId:N}/";
+            if (!filePath.StartsWith(expectedPrefix, StringComparison.Ordinal) ||
+                filePath.Contains("..", StringComparison.Ordinal) || filePath.Length > 500)
+                throw new BusinessException("توکن فایل احراز هویت معتبر نیست.");
 
             var profile = await _dbContext.UserVerificationProfiles
                 .FirstOrDefaultAsync(x => x.UserId == userId);
@@ -174,12 +188,12 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<List<VerificationProfileDto>> GetAllAsync()
         {
-            return await _dbContext.UserVerificationProfiles
+            var profiles = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments)
                 .AsNoTracking()
                 .OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt)
-                .Select(x => MapProfile(x))
                 .ToListAsync();
+            return profiles.Select(MapProfile).ToList();
         }
 
         public async Task<VerificationProfileDto> GetByIdAsync(Guid profileId)
@@ -283,20 +297,21 @@ namespace Vitorize.Infrastructure.Services
             return MapProfile(profile);
         }
 
-        private static VerificationProfileDto MapProfile(UserVerificationProfile profile)
+        private VerificationProfileDto MapProfile(UserVerificationProfile profile)
         {
+            var data = ReadProtectedData(profile);
             return new VerificationProfileDto
             {
                 Id = profile.Id,
                 UserId = profile.UserId,
-                FirstName = profile.FirstName,
-                LastName = profile.LastName,
-                NationalCode = profile.NationalCode,
-                BirthDate = profile.BirthDate,
-                BankCardNumber = profile.BankCardNumber,
-                ShabaNumber = profile.ShabaNumber,
-                Address = profile.Address,
-                PostalCode = profile.PostalCode,
+                FirstName = data.FirstName,
+                LastName = data.LastName,
+                NationalCode = data.NationalCode,
+                BirthDate = data.BirthDate,
+                BankCardNumber = data.BankCardNumber,
+                ShabaNumber = data.ShabaNumber,
+                Address = data.Address,
+                PostalCode = data.PostalCode,
                 Status = profile.Status,
                 AdminNote = profile.AdminNote,
                 SubmittedAt = profile.SubmittedAt,
@@ -306,16 +321,33 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
+        private ProtectedVerificationData ReadProtectedData(UserVerificationProfile profile)
+        {
+            if (!string.IsNullOrWhiteSpace(profile.EncryptedPayload))
+            {
+                var json = _encryptionService.Decrypt(profile.EncryptedPayload);
+                return JsonSerializer.Deserialize<ProtectedVerificationData>(json)
+                    ?? throw new BusinessException("اطلاعات محافظت‌شده احراز هویت معتبر نیست.");
+            }
+            return new ProtectedVerificationData(profile.FirstName, profile.LastName,
+                profile.NationalCode, profile.BirthDate, profile.BankCardNumber,
+                profile.ShabaNumber, profile.Address, profile.PostalCode);
+        }
+
         private static VerificationDocumentDto MapDocument(VerificationDocument document)
         {
             return new VerificationDocumentDto
             {
                 Id = document.Id,
                 DocumentType = document.DocumentType,
-                FilePath = document.FilePath,
+                FilePath = $"/api/verification/documents/{document.Id}/content",
                 Status = document.Status,
                 AdminNote = document.AdminNote
             };
         }
+
+        private sealed record ProtectedVerificationData(
+            string FirstName, string LastName, string NationalCode, DateOnly? BirthDate,
+            string? BankCardNumber, string? ShabaNumber, string? Address, string? PostalCode);
     }
 }

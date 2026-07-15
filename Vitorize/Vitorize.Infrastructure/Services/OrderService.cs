@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Orders;
+using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
@@ -14,13 +17,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
+        private readonly IEncryptionService _encryptionService;
 
         public OrderService(
             VitorizeDbContext dbContext,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IEncryptionService encryptionService)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
+            _encryptionService = encryptionService;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -64,7 +70,7 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            return await _dbContext.OrderItemDeliveries
+            var rows = await _dbContext.OrderItemDeliveries
                 .AsNoTracking()
                 .Where(x =>
                     x.IsVisibleToCustomer &&
@@ -84,6 +90,13 @@ namespace Vitorize.Infrastructure.Services
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
+
+            var versions = await _dbContext.OrderItemDeliveries.AsNoTracking()
+                .Where(x => x.IsVisibleToCustomer && x.OrderItem.Order.UserId == userId)
+                .ToDictionaryAsync(x => x.Id, x => x.EncryptionVersion);
+            foreach (var row in rows)
+                row.DeliveredContent = UnprotectDelivery(row.DeliveredContent, versions.GetValueOrDefault(row.Id));
+            return rows;
         }
 
         public async Task<List<OrderDto>> GetAdminOrdersAsync()
@@ -295,6 +308,84 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
+        public async Task DeliverManualAsync(
+            Guid orderId,
+            Guid adminUserId,
+            ManualDeliveryRequestDto request)
+        {
+            if (orderId == Guid.Empty || request.OrderItemId == Guid.Empty)
+                throw new BusinessException("شناسه سفارش یا آیتم معتبر نیست.");
+            if (adminUserId == Guid.Empty)
+                throw new UnauthorizedException("ادمین احراز هویت نشده است.");
+            var content = request.Content?.Trim();
+            if (string.IsNullOrWhiteSpace(content) || content.Length > 4000)
+                throw new BusinessException("محتوای تحویل باید بین ۱ تا ۴۰۰۰ نویسه باشد.");
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"manual-delivery:item:{request.OrderItemId:N}");
+
+            var order = await _dbContext.Orders
+                .Include(x => x.OrderItems).ThenInclude(x => x.OrderItemDeliveries)
+                .FirstOrDefaultAsync(x => x.Id == orderId)
+                ?? throw new NotFoundException("سفارش یافت نشد.");
+            if (order.PaymentStatus != (byte)PaymentStatus.Paid ||
+                order.Status is (byte)OrderStatus.Cancelled or (byte)OrderStatus.Refunded)
+                throw new BusinessException("فقط سفارش پرداخت‌شده و فعال قابل تحویل است.");
+
+            var item = order.OrderItems.FirstOrDefault(x => x.Id == request.OrderItemId)
+                ?? throw new NotFoundException("آیتم سفارش یافت نشد.");
+            if (item.DeliveryType != (byte)DeliveryType.Manual &&
+                item.DeliveryType != (byte)DeliveryType.SupportRequired)
+                throw new BusinessException("این آیتم برای تحویل دستی تعریف نشده است.");
+            if (item.OrderItemDeliveries.Any(x =>
+                    x.DeliveryType is (byte)DeliveryType.Manual or (byte)DeliveryType.SupportRequired))
+                throw new BusinessException("این آیتم قبلاً تحویل شده است.");
+
+            var now = DateTime.UtcNow;
+            var delivery = new OrderItemDelivery
+            {
+                Id = Guid.NewGuid(),
+                OrderItemId = item.Id,
+                DeliveryType = item.DeliveryType,
+                DeliveredContent = _encryptionService.Encrypt(content),
+                ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))),
+                EncryptionVersion = 2,
+                ManualDeliveryItemKey = item.Id,
+                IsVisibleToCustomer = request.IsVisibleToCustomer,
+                DeliveredByUserId = adminUserId,
+                CreatedAt = now
+            };
+            await _dbContext.OrderItemDeliveries.AddAsync(delivery);
+            item.DeliveryStatus = (byte)DeliveryStatus.Delivered;
+            item.DeliveredAt = now;
+
+            var fromStatus = order.Status;
+            if (order.OrderItems.All(x => x.Id == item.Id || x.DeliveryStatus == (byte)DeliveryStatus.Delivered))
+            {
+                order.Status = (byte)OrderStatus.Completed;
+                order.CompletedAt ??= now;
+            }
+            order.UpdatedAt = now;
+
+            await _dbContext.OrderStatusHistories.AddAsync(new OrderStatusHistory
+            {
+                Id = Guid.NewGuid(), OrderId = order.Id, FromStatus = fromStatus,
+                ToStatus = order.Status, ChangedByUserId = adminUserId,
+                Note = $"تحویل دستی آیتم {item.ProductTitle} ثبت شد.", CreatedAt = now
+            });
+            await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+            {
+                EventType = "ManualDeliveryCompleted", EntityType = "OrderItemDelivery",
+                EntityId = delivery.Id, UserId = adminUserId, CorrelationId = order.Id,
+                Detail = $"order:{order.OrderNumber};item:{item.Id:N};content-hash:{delivery.ContentHash}",
+                CreatedAt = now
+            });
+            await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.GiftCodeDelivered,
+                "تحویل سفارش", $"محتوای سفارش {order.OrderNumber} در حساب کاربری شما ثبت شد.");
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
         private static OrderDto MapOrderSummary(Order order)
         {
             return new OrderDto
@@ -328,7 +419,7 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
-        private static OrderDto MapOrderDetails(Order order)
+        private OrderDto MapOrderDetails(Order order)
         {
             return new OrderDto
             {
@@ -366,7 +457,7 @@ namespace Vitorize.Infrastructure.Services
                             OrderItemId = d.OrderItemId,
                             DeliveryType = d.DeliveryType,
                             GiftCodeId = d.GiftCodeId,
-                            DeliveredContent = d.DeliveredContent,
+                            DeliveredContent = UnprotectDelivery(d.DeliveredContent, d.EncryptionVersion),
                             IsVisibleToCustomer = d.IsVisibleToCustomer,
                             CreatedAt = d.CreatedAt
                         })
@@ -386,5 +477,12 @@ namespace Vitorize.Infrastructure.Services
             IsSensitive = value.IsSensitive,
             IsMasked = value.IsSensitive
         };
+
+        private string? UnprotectDelivery(string? value, short? encryptionVersion)
+        {
+            if (string.IsNullOrEmpty(value) || encryptionVersion is null or 0)
+                return value;
+            return _encryptionService.Decrypt(value);
+        }
     }
 }

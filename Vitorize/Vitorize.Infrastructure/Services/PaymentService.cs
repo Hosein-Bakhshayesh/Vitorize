@@ -1,4 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Payments;
 using Vitorize.Application.Interfaces;
@@ -44,6 +47,9 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-start:order:{orderId:N}");
+
             var order = await _dbContext.Orders
                 .Include(x => x.User)
                 .Include(x => x.Payments)
@@ -77,6 +83,7 @@ namespace Vitorize.Infrastructure.Services
                 var existingPaymentUrl =
                     await _zarinpalGatewayService.BuildPaymentUrlAsync(payment.Authority);
 
+                await transaction.CommitAsync();
                 return new PaymentStartResultDto
                 {
                     PaymentId = payment.Id,
@@ -105,6 +112,7 @@ namespace Vitorize.Infrastructure.Services
                 payment.UpdatedAt = DateTime.UtcNow;
 
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 throw new BusinessException("امکان اتصال به درگاه پرداخت وجود ندارد.");
             }
@@ -125,6 +133,7 @@ namespace Vitorize.Infrastructure.Services
             payment.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return new PaymentStartResultDto
             {
@@ -147,10 +156,13 @@ namespace Vitorize.Infrastructure.Services
                 ? "NOK"
                 : status.Trim();
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(
+                    _dbContext,
+                    $"payment-callback:{authority.Trim().ToUpperInvariant()}");
                 var payment = await _dbContext.Payments
                     .Include(x => x.PaymentCallbacks)
                     .Include(x => x.Order)
@@ -234,7 +246,16 @@ namespace Vitorize.Infrastructure.Services
                 payment.GatewayTrackingCode = verifyResult.RefId.ToString();
                 payment.ProviderStatusCode = "100";
 
-                await CompletePaidOrderAsync(order, payment.UserId, now);
+                try
+                {
+                    await CompletePaidOrderAsync(order, payment.UserId, now);
+                }
+                catch (BusinessException ex)
+                {
+                    await transaction.RollbackAsync();
+                    return await CompensateVerifiedPaymentAsync(
+                        payment.Id, verifyResult.RefId.ToString(), ex.Message);
+                }
 
                 await transaction.CommitAsync();
 
@@ -280,10 +301,23 @@ namespace Vitorize.Infrastructure.Services
                 if (payment == null || payment.Status != (byte)PaymentStatus.Pending)
                     continue;
 
-                await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+                string? verifiedProviderReference = null;
 
                 try
                 {
+                    await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment:{paymentId:N}");
+                    _dbContext.ChangeTracker.Clear();
+                    payment = await _dbContext.Payments
+                        .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations)
+                        .Include(x => x.Order).ThenInclude(x => x.OrderItems)
+                        .FirstOrDefaultAsync(x => x.Id == paymentId);
+                    if (payment == null || payment.Status != (byte)PaymentStatus.Pending)
+                    {
+                        await transaction.CommitAsync();
+                        continue;
+                    }
+
                     var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
                         payment.Authority!,
                         payment.Amount);
@@ -300,14 +334,15 @@ namespace Vitorize.Infrastructure.Services
                     if (verifyResult.Success)
                     {
                         var now = DateTime.UtcNow;
+                        verifiedProviderReference = verifyResult.RefId.ToString();
 
                         payment.Status = (byte)PaymentStatus.Paid;
                         payment.CallbackVerified = true;
                         payment.VerifiedAt = now;
                         payment.UpdatedAt = now;
-                        payment.ReferenceNumber = verifyResult.RefId.ToString();
+                        payment.ReferenceNumber = verifiedProviderReference;
                         payment.TransactionId = payment.Authority;
-                        payment.GatewayTrackingCode = verifyResult.RefId.ToString();
+                        payment.GatewayTrackingCode = verifiedProviderReference;
                         payment.ProviderStatusCode = "100";
 
                         await CompletePaidOrderAsync(payment.Order, payment.UserId, now);
@@ -327,6 +362,13 @@ namespace Vitorize.Infrastructure.Services
 
                     processed++;
                 }
+                catch (BusinessException ex) when (verifiedProviderReference != null)
+                {
+                    await transaction.RollbackAsync();
+                    await CompensateVerifiedPaymentAsync(
+                        paymentId, verifiedProviderReference, ex.Message);
+                    processed++;
+                }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
@@ -335,7 +377,7 @@ namespace Vitorize.Infrastructure.Services
                     _dbContext.ChangeTracker.Clear();
 
                     var failedPayment = await _dbContext.Payments
-                        .FirstOrDefaultAsync(x => x.Id == payment.Id);
+                        .FirstOrDefaultAsync(x => x.Id == paymentId);
 
                     if (failedPayment != null)
                     {
@@ -355,10 +397,11 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment:{paymentId:N}");
                 var payment = await _dbContext.Payments
                     .Include(x => x.Order)
                         .ThenInclude(x => x.GiftCodeReservations)
@@ -409,10 +452,11 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"wallet-payment:order:{orderId:N}");
                 var order = await _dbContext.Orders
                     .Include(x => x.GiftCodeReservations)
                     .Include(x => x.OrderItems)
@@ -469,14 +513,228 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
+        public async Task<PaymentRefundDto> RefundAsync(
+            Guid paymentId,
+            Guid adminUserId,
+            PaymentRefundRequestDto request)
+        {
+            if (paymentId == Guid.Empty || adminUserId == Guid.Empty)
+                throw new BusinessException("شناسه پرداخت یا کاربر معتبر نیست.");
+            request ??= new PaymentRefundRequestDto();
+            var reason = request.Reason?.Trim();
+            var key = request.IdempotencyKey?.Trim();
+            if (string.IsNullOrWhiteSpace(reason) || reason.Length > 1000)
+                throw new BusinessException("دلیل بازپرداخت الزامی است و حداکثر ۱۰۰۰ نویسه دارد.");
+            if (string.IsNullOrWhiteSpace(key) || key.Length > 100)
+                throw new BusinessException("کلید تکرارناپذیری بازپرداخت الزامی است.");
+            if (!Enum.IsDefined(typeof(PaymentRefundMethod), request.Method))
+                throw new BusinessException("روش بازپرداخت معتبر نیست.");
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"refund:payment:{paymentId:N}");
+
+            var existing = await _dbContext.PaymentRefunds.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PaymentId == paymentId && x.IdempotencyKey == key);
+            if (existing is not null)
+            {
+                await transaction.CommitAsync();
+                return MapRefund(existing);
+            }
+
+            var payment = await _dbContext.Payments
+                .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations).ThenInclude(x => x.GiftCode)
+                .FirstOrDefaultAsync(x => x.Id == paymentId)
+                ?? throw new NotFoundException("پرداخت یافت نشد.");
+            if (payment.Status != (byte)PaymentStatus.Paid ||
+                payment.Order.PaymentStatus != (byte)PaymentStatus.Paid)
+                throw new BusinessException("فقط پرداخت موفق و بازپرداخت‌نشده قابل بازپرداخت است.");
+
+            var now = DateTime.UtcNow;
+            var refund = new PaymentRefund
+            {
+                Id = Guid.NewGuid(), PaymentId = payment.Id, OrderId = payment.OrderId,
+                UserId = payment.UserId, Amount = payment.Amount, Method = request.Method,
+                Status = request.Method == (byte)PaymentRefundMethod.Wallet
+                    ? (byte)PaymentRefundStatus.Completed : (byte)PaymentRefundStatus.Pending,
+                Reason = reason, IdempotencyKey = key, RequestedByUserId = adminUserId,
+                RequestedAt = now,
+                CompletedAt = request.Method == (byte)PaymentRefundMethod.Wallet ? now : null
+            };
+            await _dbContext.PaymentRefunds.AddAsync(refund);
+
+            if (request.Method == (byte)PaymentRefundMethod.Wallet)
+            {
+                await _walletService.CreditAsync(payment.UserId, payment.Amount,
+                    (byte)WalletReferenceType.Refund, refund.Id,
+                    $"بازپرداخت سفارش {payment.Order.OrderNumber}");
+                await CompleteRefundStateAsync(payment, refund, adminUserId, now, "wallet");
+            }
+            else
+            {
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = "GatewayRefundRequested", EntityType = "PaymentRefund",
+                    EntityId = refund.Id, UserId = adminUserId, Amount = refund.Amount,
+                    CorrelationId = payment.OrderId, Detail = $"order:{payment.Order.OrderNumber}", CreatedAt = now
+                });
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return MapRefund(refund);
+        }
+
+        public async Task<PaymentRefundDto> CompleteRefundAsync(
+            Guid refundId,
+            Guid adminUserId,
+            string? gatewayReference)
+        {
+            if (refundId == Guid.Empty || adminUserId == Guid.Empty)
+                throw new BusinessException("شناسه بازپرداخت یا کاربر معتبر نیست.");
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"refund:{refundId:N}");
+            var refund = await _dbContext.PaymentRefunds.Include(x => x.Payment)
+                .ThenInclude(x => x.Order).ThenInclude(x => x.GiftCodeReservations).ThenInclude(x => x.GiftCode)
+                .FirstOrDefaultAsync(x => x.Id == refundId)
+                ?? throw new NotFoundException("بازپرداخت یافت نشد.");
+            if (refund.Status == (byte)PaymentRefundStatus.Completed)
+            {
+                await transaction.CommitAsync();
+                return MapRefund(refund);
+            }
+            if (refund.Method != (byte)PaymentRefundMethod.GatewayManual ||
+                refund.Status != (byte)PaymentRefundStatus.Pending)
+                throw new BusinessException("این بازپرداخت قابل تکمیل نیست.");
+            if (string.IsNullOrWhiteSpace(gatewayReference))
+                throw new BusinessException("شماره پیگیری بازپرداخت درگاه الزامی است.");
+
+            var now = DateTime.UtcNow;
+            refund.Status = (byte)PaymentRefundStatus.Completed;
+            refund.CompletedAt = now;
+            await CompleteRefundStateAsync(refund.Payment, refund, adminUserId, now,
+                $"gateway-reference:{gatewayReference.Trim()}");
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return MapRefund(refund);
+        }
+
+        private async Task<PaymentVerifyResultDto> CompensateVerifiedPaymentAsync(
+            Guid paymentId,
+            string providerReference,
+            string failureReason)
+        {
+            _dbContext.ChangeTracker.Clear();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"refund:payment:{paymentId:N}");
+            var payment = await _dbContext.Payments
+                .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations).ThenInclude(x => x.GiftCode)
+                .FirstOrDefaultAsync(x => x.Id == paymentId)
+                ?? throw new NotFoundException("پرداخت یافت نشد.");
+            if (payment.Status == (byte)PaymentStatus.Refunded)
+            {
+                await transaction.CommitAsync();
+                return CreateFailedVerifyResult(payment, payment.Order);
+            }
+
+            var key = $"compensation:{payment.Id:N}";
+            var refund = await _dbContext.PaymentRefunds
+                .FirstOrDefaultAsync(x => x.PaymentId == payment.Id && x.IdempotencyKey == key);
+            if (refund is null)
+            {
+                var now = DateTime.UtcNow;
+                payment.ReferenceNumber = providerReference;
+                payment.TransactionId ??= payment.Authority;
+                payment.CallbackVerified = true;
+                payment.VerifiedAt ??= now;
+                refund = new PaymentRefund
+                {
+                    Id = Guid.NewGuid(), PaymentId = payment.Id, OrderId = payment.OrderId,
+                    UserId = payment.UserId, Amount = payment.Amount,
+                    Method = (byte)PaymentRefundMethod.Wallet,
+                    Status = (byte)PaymentRefundStatus.Completed,
+                    Reason = "جبران خودکار شکست تکمیل سفارش",
+                    IdempotencyKey = key, RequestedAt = now, CompletedAt = now,
+                    FailureReason = failureReason.Length <= 1000 ? failureReason : failureReason[..1000]
+                };
+                await _dbContext.PaymentRefunds.AddAsync(refund);
+                await _walletService.CreditAsync(payment.UserId, payment.Amount,
+                    (byte)WalletReferenceType.Refund, refund.Id,
+                    $"جبران خودکار سفارش {payment.Order.OrderNumber}");
+                await CompleteRefundStateAsync(payment, refund, payment.UserId, now, "automatic-compensation");
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = "OrderFulfillmentCompensated", EntityType = "Order",
+                    EntityId = payment.OrderId, UserId = payment.UserId, Amount = payment.Amount,
+                    CorrelationId = payment.OrderId, Detail = "Provider payment verified; fulfillment failed; wallet credited.",
+                    CreatedAt = now
+                });
+                await _dbContext.SaveChangesAsync();
+            }
+            await transaction.CommitAsync();
+            return CreateFailedVerifyResult(payment, payment.Order);
+        }
+
+        private async Task CompleteRefundStateAsync(
+            Payment payment,
+            PaymentRefund refund,
+            Guid adminUserId,
+            DateTime now,
+            string detail)
+        {
+            payment.Status = (byte)PaymentStatus.Refunded;
+            payment.UpdatedAt = now;
+            var order = payment.Order;
+            var fromStatus = order.Status;
+            order.PaymentStatus = (byte)PaymentStatus.Refunded;
+            order.Status = (byte)OrderStatus.Refunded;
+            order.UpdatedAt = now;
+            foreach (var reservation in order.GiftCodeReservations.Where(x =>
+                         (x.Status == (byte)GiftCodeReservationStatus.Active ||
+                          x.Status == (byte)GiftCodeReservationStatus.Sold) &&
+                         x.GiftCode.Status != (byte)GiftCodeStatus.Delivered))
+            {
+                reservation.Status = (byte)GiftCodeReservationStatus.Released;
+                reservation.ReleasedAt = now;
+                reservation.GiftCode.Status = (byte)GiftCodeStatus.Available;
+                reservation.GiftCode.ReservedByUserId = null;
+                reservation.GiftCode.ReservedAt = null;
+                reservation.GiftCode.ReservationExpiresAt = null;
+                reservation.GiftCode.OrderItemId = null;
+                reservation.GiftCode.UpdatedAt = now;
+            }
+            await _dbContext.OrderStatusHistories.AddAsync(new OrderStatusHistory
+            {
+                Id = Guid.NewGuid(), OrderId = order.Id, FromStatus = fromStatus,
+                ToStatus = order.Status, ChangedByUserId = adminUserId,
+                Note = $"بازپرداخت: {refund.Reason}", CreatedAt = now
+            });
+            await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+            {
+                EventType = "PaymentRefundCompleted", EntityType = "PaymentRefund",
+                EntityId = refund.Id, UserId = adminUserId, Amount = refund.Amount,
+                CorrelationId = order.Id, Detail = $"order:{order.OrderNumber};{detail}", CreatedAt = now
+            });
+            await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.PaymentFailed,
+                "بازپرداخت انجام شد", $"بازپرداخت سفارش {order.OrderNumber} ثبت شد.");
+        }
+
+        private static PaymentRefundDto MapRefund(PaymentRefund refund) => new()
+        {
+            Id = refund.Id, PaymentId = refund.PaymentId, OrderId = refund.OrderId,
+            Amount = refund.Amount, Method = refund.Method, Status = refund.Status,
+            Reason = refund.Reason, RequestedAt = refund.RequestedAt, CompletedAt = refund.CompletedAt
+        };
+
         private async Task AddCallbackIfNotExistsAsync(
             Payment payment,
             string authority,
             string status)
         {
-            var alreadyExists = payment.PaymentCallbacks.Any(x =>
-                x.CallbackData.Contains($"\"authority\":\"{authority}\"") &&
-                x.CallbackData.Contains($"\"status\":\"{status}\""));
+            var callbackKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+                $"{authority.Trim().ToUpperInvariant()}|{status.Trim().ToUpperInvariant()}")));
+            var alreadyExists = payment.PaymentCallbacks.Any(x => x.CallbackKey == callbackKey) ||
+                await _dbContext.PaymentCallbacks.AnyAsync(x =>
+                    x.PaymentId == payment.Id && x.CallbackKey == callbackKey);
 
             if (alreadyExists)
                 return;
@@ -494,6 +752,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = Guid.NewGuid(),
                 PaymentId = payment.Id,
+                CallbackKey = callbackKey,
                 CallbackData = callbackJson,
                 CreatedAt = DateTime.UtcNow
             });
@@ -508,6 +767,18 @@ namespace Vitorize.Infrastructure.Services
             order.Status = (byte)OrderStatus.Processing;
             order.PaidAt = now;
             order.UpdatedAt = now;
+
+            await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+            {
+                EventType = "PaymentCaptured",
+                EntityType = "Order",
+                EntityId = order.Id,
+                UserId = userId,
+                Amount = order.FinalAmount,
+                CorrelationId = order.Id,
+                Detail = $"order:{order.OrderNumber}",
+                CreatedAt = now
+            });
 
             if (order.CouponId.HasValue)
             {

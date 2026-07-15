@@ -67,6 +67,15 @@ namespace Vitorize.Api.BackgroundServices
 
             var now = DateTime.UtcNow;
 
+            await dbContext.OutboxMessages
+                .Where(x => x.Status == (byte)OutboxMessageStatus.Processing &&
+                            x.LockedAt < now.AddMinutes(-5))
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(x => x.Status, (byte)OutboxMessageStatus.Pending)
+                    .SetProperty(x => x.LockedAt, (DateTime?)null)
+                    .SetProperty(x => x.LockId, (Guid?)null)
+                    .SetProperty(x => x.ErrorMessage, "Recovered abandoned processing lease."), cancellationToken);
+
             // نامزدها: Pending که زمان تلاش بعدی‌شان رسیده باشد (backoff از طریق ProcessedAt = آخرین تلاش).
             var candidates = await dbContext.OutboxMessages
                 .Where(x =>
@@ -93,11 +102,14 @@ namespace Vitorize.Api.BackgroundServices
         {
             try
             {
+                var lockId = Guid.NewGuid();
                 // ادعای اتمیک رکورد مانع ارسال تکراری در استقرار چند نمونه‌ای API می‌شود.
                 var claimed = await dbContext.OutboxMessages
                     .Where(x => x.Id == message.Id && x.Status == (byte)OutboxMessageStatus.Pending)
                     .ExecuteUpdateAsync(update => update
-                        .SetProperty(x => x.Status, (byte)OutboxMessageStatus.Processing),
+                        .SetProperty(x => x.Status, (byte)OutboxMessageStatus.Processing)
+                        .SetProperty(x => x.LockedAt, DateTime.UtcNow)
+                        .SetProperty(x => x.LockId, lockId),
                         cancellationToken);
                 if (claimed == 0)
                     return;
@@ -130,6 +142,8 @@ namespace Vitorize.Api.BackgroundServices
                     message.ErrorMessage = Truncate(handled.Error, 2000);
                 }
 
+                message.LockedAt = null;
+                message.LockId = null;
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -141,6 +155,8 @@ namespace Vitorize.Api.BackgroundServices
                     : (byte)OutboxMessageStatus.Pending;
                 message.ProcessedAt = DateTime.UtcNow;
                 message.ErrorMessage = Truncate(ex.Message, 2000);
+                message.LockedAt = null;
+                message.LockId = null;
 
                 var history = await dbContext.SmsMessages
                     .Include(x => x.Attempts)
@@ -306,7 +322,7 @@ namespace Vitorize.Api.BackgroundServices
             }
 
             _logger.LogWarning("Unknown outbox message type: {MessageType}", message.MessageType);
-            return HandleResult.Ok(); // نوع ناشناخته را نادیده می‌گیریم تا در صف گیر نکند.
+            return HandleResult.Fail("Unknown outbox message type.", retryable: false);
         }
 
         private static bool IsDue(Vitorize.Domain.Entities.OutboxMessage message, DateTime now)

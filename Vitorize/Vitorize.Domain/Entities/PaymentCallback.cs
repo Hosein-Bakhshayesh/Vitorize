@@ -11,6 +11,8 @@ public partial class PaymentCallback
 
     public string CallbackData { get; set; } = null!;
 
+    public string? CallbackKey { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Payment Payment { get; set; } = null!;

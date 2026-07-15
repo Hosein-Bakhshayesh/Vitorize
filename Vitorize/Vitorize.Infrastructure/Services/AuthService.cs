@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using Vitorize.Application.Common;
@@ -457,6 +458,10 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("رمز عبور جدید و تکرار آن یکسان نیستند.");
             }
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext, $"otp:{request.Mobile.Trim()}:{(byte)OtpPurpose.ForgotPassword}");
+
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x =>
                     x.Mobile == request.Mobile &&
@@ -492,9 +497,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("تعداد تلاش‌های مجاز برای این کد تمام شده است.");
             }
 
-            var codeHash = HashToken(request.Code);
-
-            if (otp.CodeHash != codeHash)
+            if (!OtpSecurity.Verify(request.Code, otp.CodeHash))
             {
                 otp.AttemptCount += 1;
 
@@ -504,6 +507,7 @@ namespace Vitorize.Infrastructure.Services
                 }
 
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 await _securityLogService.LogAsync(
                     otp.UserId,
@@ -589,6 +593,10 @@ namespace Vitorize.Infrastructure.Services
         {
             var opts = await _smsSettingsProvider.GetAsync();
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext, $"otp:{mobile}:{(byte)purpose}");
+
             await EnforceOtpRateLimitsAsync(mobile, (byte)purpose, opts);
 
             // ابطال کدهای فعال قبلی برای همان شماره و هدف (تک‌کد فعال).
@@ -597,8 +605,7 @@ namespace Vitorize.Infrastructure.Services
                 .Where(x =>
                     x.Mobile == mobile &&
                     x.Purpose == (byte)purpose &&
-                    x.ConsumedAt == null &&
-                    x.ExpiresAt > now)
+                    x.ConsumedAt == null)
                 .ToListAsync();
 
             foreach (var prev in previous)
@@ -612,20 +619,22 @@ namespace Vitorize.Infrastructure.Services
                 Mobile = mobile,
                 Purpose = (byte)purpose,
                 CodeHash = OtpSecurity.Hash(code),
-                ExpiresAt = now.AddMinutes(Math.Max(1, opts.OtpExpiryMinutes)),
+                ExpiresAt = now.AddMinutes(Math.Clamp(opts.OtpExpiryMinutes, 1, 15)),
                 CreatedAt = now,
                 AttemptCount = 0,
-                MaxAttempt = Math.Max(1, opts.OtpMaxAttempts),
+                MaxAttempt = Math.Clamp(opts.OtpMaxAttempts, 1, 10),
                 IpAddress = ip,
                 UserAgent = userAgent
             };
 
             await _dbContext.OtpCodes.AddAsync(otp);
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+            await transaction.CommitAsync();
 
             var templateKey = TemplateKeyForPurpose(purpose);
             var sendResult = await _smsService.SendOtpAsync(
-                mobile, templateKey, code, Math.Max(1, opts.OtpExpiryMinutes));
+                mobile, templateKey, code, Math.Clamp(opts.OtpExpiryMinutes, 1, 15));
 
             await _smsHistory.RecordDirectResultAsync(
                 new SmsHistoryRecordRequest
@@ -751,6 +760,10 @@ namespace Vitorize.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext, $"otp:{mobile}:{(byte)OtpPurpose.Login}");
+
             var otp = await _dbContext.OtpCodes
                 .Where(x =>
                     x.Mobile == mobile &&
@@ -780,6 +793,7 @@ namespace Vitorize.Infrastructure.Services
                     otp.ConsumedAt = now;
 
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 await _securityLogService.LogAsync(
                     otp.UserId, "OTP_LOGIN_FAILED", false,
@@ -796,6 +810,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 otp.ConsumedAt = now;
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
                 throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
             }
 
@@ -803,6 +818,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 otp.ConsumedAt = now;
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
                 await _securityLogService.LogAsync(
                     user.Id, "OTP_LOGIN_FAILED", false,
                     "Inactive account attempted OTP login", ipAddress, userAgent);
@@ -827,6 +843,7 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             await _securityLogService.LogAsync(
                 user.Id, "OTP_LOGIN_SUCCESS", true,
@@ -862,7 +879,9 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("نوع کد تایید معتبر نیست.");
             }
 
-            var codeHash = HashToken(request.Code);
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext, $"otp:{request.Mobile.Trim()}:{request.Purpose}");
 
             var otp = await _dbContext.OtpCodes
                 .Where(x =>
@@ -883,7 +902,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("تعداد تلاش‌های مجاز برای این کد تمام شده است.");
             }
 
-            if (otp.CodeHash != codeHash)
+            if (!OtpSecurity.Verify(request.Code, otp.CodeHash))
             {
                 otp.AttemptCount += 1;
 
@@ -893,6 +912,7 @@ namespace Vitorize.Infrastructure.Services
                 }
 
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 throw new BusinessException("کد تایید اشتباه است.");
             }
@@ -912,6 +932,7 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             await _securityLogService.LogAsync(
                 otp.UserId,

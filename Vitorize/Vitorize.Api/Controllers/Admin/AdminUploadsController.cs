@@ -135,6 +135,46 @@ namespace Vitorize.Api.Controllers.Admin
             };
         }
 
+        public static async Task<UploadFileResultDto> SavePrivateImageAsync(
+            IWebHostEnvironment environment,
+            IFormFile file,
+            string ownerFolder,
+            long maxFileSize,
+            string[] allowedExtensions,
+            string[] allowedContentTypes)
+        {
+            if (file == null || file.Length == 0 || file.Length > maxFileSize)
+                throw new BusinessException("فایل معتبر نیست یا از حداکثر حجم مجاز بیشتر است.");
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension) ||
+                !allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                throw new BusinessException("نوع یا پسوند فایل مجاز نیست.");
+            if (ownerFolder.Any(c => !char.IsAsciiHexDigit(c)))
+                throw new BusinessException("مسیر مالک فایل معتبر نیست.");
+
+            var root = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "private", "verification-documents"));
+            var ownerRoot = Path.GetFullPath(Path.Combine(root, ownerFolder));
+            if (!ownerRoot.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new BusinessException("مسیر فایل معتبر نیست.");
+            Directory.CreateDirectory(ownerRoot);
+            var fileName = $"{Guid.NewGuid():N}{extension}";
+            var fullPath = Path.Combine(ownerRoot, fileName);
+            await using (var stream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                await file.CopyToAsync(stream);
+            if (!await IsValidImageSignatureAsync(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+                throw new BusinessException("محتوای فایل تصویر معتبر نیست.");
+            }
+            return new UploadFileResultDto
+            {
+                FileName = fileName,
+                FilePath = $"kyc-private:{ownerFolder}/{fileName}",
+                ContentType = file.ContentType,
+                Size = file.Length
+            };
+        }
+
         private static async Task<bool> IsValidImageSignatureAsync(string path)
         {
             var header = new byte[12];

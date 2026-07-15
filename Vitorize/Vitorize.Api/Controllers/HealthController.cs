@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.Interfaces;
@@ -29,32 +30,26 @@ namespace Vitorize.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Check()
         {
-            var result = new
-            {
-                Application = "Vitorize",
-                Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                ServerTime = DateTime.UtcNow,
-
-                Database = await CheckDatabase(),
-
-                Settings = await CheckSettings(),
-
-                Payment = await CheckPayment(),
-
-                Status = "Healthy"
-            };
-
-            return Ok(result);
+            var healthy = await _dbContext.Database.CanConnectAsync();
+            var result = new { Status = healthy ? "Healthy" : "Unhealthy" };
+            return healthy ? Ok(result) : StatusCode(StatusCodes.Status503ServiceUnavailable, result);
         }
 
-        [HttpGet("db")]
+        [HttpGet("details")]
+        [Authorize(Policy = "SecurityDiagnostics")]
         [SwaggerOperation(
             Summary = "وضعیت دیتابیس",
             Description = "بررسی اتصال به SQL Server و دریافت یک آمار ساده از محصولات.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> CheckDatabaseOnly()
         {
-            return Ok(await CheckDatabase());
+            return Ok(new
+            {
+                Database = await CheckDatabase(),
+                Settings = await CheckSettings(),
+                Payment = await CheckPayment(),
+                ServerTime = DateTime.UtcNow
+            });
         }
 
         private async Task<object> CheckDatabase()
@@ -73,12 +68,12 @@ namespace Vitorize.Api.Controllers
                     ProductCount = productCount
                 };
             }
-            catch (Exception ex)
+            catch
             {
                 return new
                 {
                     Healthy = false,
-                    Error = ex.Message
+                    Error = "Database health check failed."
                 };
             }
         }
@@ -96,12 +91,12 @@ namespace Vitorize.Api.Controllers
                     SiteName = siteName
                 };
             }
-            catch (Exception ex)
+            catch
             {
                 return new
                 {
                     Healthy = false,
-                    Error = ex.Message
+                    Error = "Settings health check failed."
                 };
             }
         }
@@ -125,12 +120,12 @@ namespace Vitorize.Api.Controllers
                     Sandbox = sandbox
                 };
             }
-            catch (Exception ex)
+            catch
             {
                 return new
                 {
                     Healthy = false,
-                    Error = ex.Message
+                    Error = "Payment health check failed."
                 };
             }
         }

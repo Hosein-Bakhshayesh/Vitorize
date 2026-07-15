@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Data;
 using Vitorize.Application.DTOs.Wallet;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -122,10 +123,11 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"wallet-topup:{topUpId:N}");
                 var topUp = await _dbContext.WalletTopUps
                     .FirstOrDefaultAsync(x =>
                         x.Id == topUpId &&
@@ -190,10 +192,12 @@ namespace Vitorize.Infrastructure.Services
                 ? "NOK"
                 : status.Trim();
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(
+                    _dbContext, $"wallet-topup-callback:{authority.Trim().ToUpperInvariant()}");
                 var topUp = await _dbContext.WalletTopUps
                     .FirstOrDefaultAsync(x =>
                         x.Authority == authority &&

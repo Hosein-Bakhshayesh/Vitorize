@@ -20,5 +20,7 @@ namespace Vitorize.Application.Interfaces
         Task CancelOrderAsync(Guid orderId, Guid adminUserId, string? reason);
 
         Task CompleteOrderAsync(Guid orderId, Guid adminUserId);
+
+        Task DeliverManualAsync(Guid orderId, Guid adminUserId, ManualDeliveryRequestDto request);
     }
 }

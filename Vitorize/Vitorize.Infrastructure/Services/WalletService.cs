@@ -151,6 +151,10 @@ namespace Vitorize.Infrastructure.Services
 
             try
             {
+                await SqlServerTransactionLock.AcquireAsync(
+                    _dbContext,
+                    $"wallet:user:{userId:N}");
+
                 var userExists = await _dbContext.Users
                     .AnyAsync(x => x.Id == userId);
 
@@ -172,6 +176,18 @@ namespace Vitorize.Infrastructure.Services
 
                     await _dbContext.Wallets.AddAsync(wallet);
                     await _dbContext.SaveChangesAsync();
+                }
+
+                // Financial references are idempotency keys. A gateway callback or refund
+                // replay must return the already-applied balance instead of crediting twice.
+                if (referenceType.HasValue && referenceId.HasValue &&
+                    await _dbContext.WalletTransactions.AnyAsync(x =>
+                        x.UserId == userId && x.Type == transactionType &&
+                        x.ReferenceType == referenceType && x.ReferenceId == referenceId))
+                {
+                    if (transaction != null)
+                        await transaction.CommitAsync();
+                    return MapWallet(wallet);
                 }
 
                 if (transactionType == (byte)WalletTransactionType.Credit)
@@ -208,6 +224,17 @@ namespace Vitorize.Infrastructure.Services
                 };
 
                 await _dbContext.WalletTransactions.AddAsync(walletTransaction);
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = transactionType == (byte)WalletTransactionType.Credit ? "WalletCredited" : "WalletDebited",
+                    EntityType = "WalletTransaction",
+                    EntityId = walletTransaction.Id,
+                    UserId = userId,
+                    Amount = amount,
+                    CorrelationId = referenceId ?? walletTransaction.Id,
+                    Detail = referenceType.HasValue ? $"reference-type:{referenceType}" : "manual",
+                    CreatedAt = now
+                });
 
                 if (transactionType == (byte)WalletTransactionType.Credit)
                 {

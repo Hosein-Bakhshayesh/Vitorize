@@ -94,6 +94,16 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult.Success("سفارش با موفقیت تکمیل شد."));
         }
 
+        [HttpPost("{orderId:guid}/deliver-manual")]
+        [Authorize(Policy = "OrderFulfillment")]
+        public async Task<ActionResult<ApiResult>> DeliverManual(
+            Guid orderId,
+            ManualDeliveryRequestDto request)
+        {
+            await _orderService.DeliverManualAsync(orderId, GetUserId(), request);
+            return Ok(ApiResult.Success("تحویل دستی با ثبت ردپای مالی انجام شد."));
+        }
+
         [HttpPost("{orderId:guid}/input-values/{valueId:guid}/reveal")]
         [Authorize(Roles = "SuperAdmin")]
         public async Task<ActionResult<ApiResult<string>>> RevealSensitiveInput(Guid orderId, Guid valueId)

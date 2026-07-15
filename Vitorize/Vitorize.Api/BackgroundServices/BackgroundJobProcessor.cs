@@ -2,6 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Application.Interfaces;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Vitorize.Shared.Enums;
 
 namespace Vitorize.Api.BackgroundServices
@@ -30,10 +34,16 @@ namespace Vitorize.Api.BackgroundServices
                     using var scope = _serviceProvider.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<VitorizeDbContext>();
 
-                    await ExpireGiftCodes(db, stoppingToken);
+                    await scope.ServiceProvider.GetRequiredService<IGiftCodeReservationService>()
+                        .ReleaseExpiredReservationsAsync();
+                    await scope.ServiceProvider.GetRequiredService<IPaymentService>()
+                        .ReconcilePendingZarinpalPaymentsAsync();
                     await CleanupOtp(db, stoppingToken);
                     await CleanupRefreshTokens(db, stoppingToken);
                     await CleanupIdempotency(db, stoppingToken);
+                    await ProtectLegacySensitiveData(db,
+                        scope.ServiceProvider.GetRequiredService<IEncryptionService>(), stoppingToken);
+                    await CleanupOperationalLogs(db, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -115,6 +125,57 @@ namespace Vitorize.Api.BackgroundServices
                 db.IdempotencyKeys.RemoveRange(keys);
                 await db.SaveChangesAsync(ct);
             }
+        }
+
+        private static async Task CleanupOperationalLogs(VitorizeDbContext db, CancellationToken ct)
+        {
+            var auditCutoff = DateTime.UtcNow.AddDays(-365);
+            var securityCutoff = DateTime.UtcNow.AddDays(-730);
+            var audits = await db.AuditLogs.Where(x => x.CreatedAt < auditCutoff).Take(500).ToListAsync(ct);
+            var security = await db.SecurityLogs.Where(x => x.CreatedAt < securityCutoff).Take(500).ToListAsync(ct);
+            if (audits.Count > 0) db.AuditLogs.RemoveRange(audits);
+            if (security.Count > 0) db.SecurityLogs.RemoveRange(security);
+            if (audits.Count > 0 || security.Count > 0) await db.SaveChangesAsync(ct);
+        }
+
+        private static async Task ProtectLegacySensitiveData(
+            VitorizeDbContext db,
+            IEncryptionService encryption,
+            CancellationToken ct)
+        {
+            var deliveries = await db.OrderItemDeliveries
+                .Where(x => x.EncryptionVersion == null && x.DeliveredContent != null)
+                .Take(100).ToListAsync(ct);
+            foreach (var row in deliveries)
+            {
+                var plain = row.DeliveredContent!;
+                row.DeliveredContent = encryption.Encrypt(plain);
+                row.ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(plain)));
+                row.EncryptionVersion = 2;
+            }
+
+            var profiles = await db.UserVerificationProfiles
+                .Where(x => x.EncryptedPayload == null).Take(100).ToListAsync(ct);
+            foreach (var profile in profiles)
+            {
+                profile.EncryptedPayload = encryption.Encrypt(JsonSerializer.Serialize(new
+                {
+                    profile.FirstName, profile.LastName, profile.NationalCode, profile.BirthDate,
+                    profile.BankCardNumber, profile.ShabaNumber, profile.Address, profile.PostalCode
+                }));
+                profile.EncryptionVersion = 2;
+                profile.FirstName = "[protected]";
+                profile.LastName = "[protected]";
+                profile.NationalCode = "[protected]";
+                profile.BirthDate = null;
+                profile.BankCardNumber = null;
+                profile.ShabaNumber = null;
+                profile.Address = null;
+                profile.PostalCode = null;
+                var user = await db.Users.FirstOrDefaultAsync(x => x.Id == profile.UserId, ct);
+                if (user is not null) user.NationalCode = null;
+            }
+            if (deliveries.Count > 0 || profiles.Count > 0) await db.SaveChangesAsync(ct);
         }
     }
 }

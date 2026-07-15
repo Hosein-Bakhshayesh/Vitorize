@@ -70,6 +70,10 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<PaymentCallback> PaymentCallbacks { get; set; }
 
+    public virtual DbSet<PaymentRefund> PaymentRefunds { get; set; }
+
+    public virtual DbSet<FinancialAuditLog> FinancialAuditLogs { get; set; }
+
     public virtual DbSet<Product> Products { get; set; }
 
     public virtual DbSet<ProductImage> ProductImages { get; set; }
@@ -555,10 +559,13 @@ public partial class VitorizeDbContext : DbContext
             entity.HasIndex(e => e.GiftCodeId, "IX_OrderItemDeliveries_GiftCodeId");
 
             entity.HasIndex(e => e.OrderItemId, "IX_OrderItemDeliveries_OrderItemId");
+            entity.HasIndex(e => e.ManualDeliveryItemKey, "UX_OrderItemDeliveries_Manual_Item")
+                .IsUnique().HasFilter("([ManualDeliveryItemKey] IS NOT NULL)");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.IsVisibleToCustomer).HasDefaultValue(true);
+            entity.Property(e => e.ContentHash).HasMaxLength(64).IsUnicode(false).IsFixedLength();
 
             entity.HasOne(d => d.DeliveredByUser).WithMany(p => p.OrderItemDeliveries)
                 .HasForeignKey(d => d.DeliveredByUserId)
@@ -615,6 +622,7 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<OutboxMessage>(entity =>
         {
             entity.HasIndex(e => new { e.Status, e.CreatedAt }, "IX_OutboxMessages_Status_CreatedAt");
+            entity.HasIndex(e => new { e.Status, e.LockedAt }, "IX_OutboxMessages_Status_LockedAt");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.AggregateType).HasMaxLength(200);
@@ -695,6 +703,8 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<Payment>(entity =>
         {
             entity.HasIndex(e => e.Authority, "IX_Payments_Authority").HasFilter("([Authority] IS NOT NULL)");
+            entity.HasIndex(e => new { e.Gateway, e.Authority }, "UX_Payments_Gateway_Authority")
+                .IsUnique().HasFilter("([Authority] IS NOT NULL)");
 
             entity.HasIndex(e => e.OrderId, "IX_Payments_OrderId");
 
@@ -734,14 +744,46 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<PaymentCallback>(entity =>
         {
             entity.HasIndex(e => e.PaymentId, "IX_PaymentCallbacks_PaymentId");
+            entity.HasIndex(e => new { e.PaymentId, e.CallbackKey }, "UX_PaymentCallbacks_PaymentId_CallbackKey")
+                .IsUnique()
+                .HasFilter("([CallbackKey] IS NOT NULL)");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.CallbackKey).HasMaxLength(64).IsUnicode(false).IsFixedLength();
 
             entity.HasOne(d => d.Payment).WithMany(p => p.PaymentCallbacks)
                 .HasForeignKey(d => d.PaymentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PaymentCallbacks_Payments");
+        });
+
+        modelBuilder.Entity<PaymentRefund>(entity =>
+        {
+            entity.HasIndex(e => new { e.PaymentId, e.IdempotencyKey }, "UX_PaymentRefunds_Payment_Idempotency").IsUnique();
+            entity.HasIndex(e => new { e.Status, e.RequestedAt }, "IX_PaymentRefunds_Status_RequestedAt");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
+            entity.Property(e => e.FailureReason).HasMaxLength(1000);
+            entity.Property(e => e.RequestedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(e => e.Payment).WithMany().HasForeignKey(e => e.PaymentId).OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(e => e.Order).WithMany().HasForeignKey(e => e.OrderId).OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(e => e.RequestedByUser).WithMany().HasForeignKey(e => e.RequestedByUserId);
+        });
+
+        modelBuilder.Entity<FinancialAuditLog>(entity =>
+        {
+            entity.HasIndex(e => new { e.EntityType, e.EntityId, e.CreatedAt }, "IX_FinancialAuditLogs_Entity");
+            entity.HasIndex(e => new { e.EventType, e.CreatedAt }, "IX_FinancialAuditLogs_Event");
+            entity.Property(e => e.EventType).HasMaxLength(100);
+            entity.Property(e => e.EntityType).HasMaxLength(100);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Detail).HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -1115,6 +1157,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.NationalCode).HasMaxLength(20);
             entity.Property(e => e.PostalCode).HasMaxLength(20);
             entity.Property(e => e.ShabaNumber).HasMaxLength(50);
+            entity.Property(e => e.EncryptedPayload).HasColumnType("nvarchar(max)");
 
             entity.HasOne(d => d.ReviewedByAdmin).WithMany(p => p.UserVerificationProfileReviewedByAdmins)
                 .HasForeignKey(d => d.ReviewedByAdminId)
@@ -1210,6 +1253,8 @@ public partial class VitorizeDbContext : DbContext
 
         modelBuilder.Entity<WalletTopUp>(entity =>
         {
+            entity.HasIndex(e => new { e.Gateway, e.Authority }, "UX_WalletTopUps_Gateway_Authority")
+                .IsUnique().HasFilter("([Authority] IS NOT NULL)");
             entity.HasIndex(e => e.UserId, "IX_WalletTopUps_UserId");
 
             entity.HasIndex(e => e.Authority, "IX_WalletTopUps_Authority");

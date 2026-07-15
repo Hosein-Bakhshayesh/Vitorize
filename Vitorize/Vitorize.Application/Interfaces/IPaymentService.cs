@@ -15,5 +15,9 @@ namespace Vitorize.Application.Interfaces
             string status);
 
         Task<int> ReconcilePendingZarinpalPaymentsAsync();
+
+        Task<PaymentRefundDto> RefundAsync(Guid paymentId, Guid adminUserId, PaymentRefundRequestDto request);
+
+        Task<PaymentRefundDto> CompleteRefundAsync(Guid refundId, Guid adminUserId, string? gatewayReference);
     }
 }

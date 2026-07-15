@@ -7,7 +7,7 @@ using Vitorize.Shared.Common;
 namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "UserManage")]
     [Route("api/admin/roles")]
     public class AdminRolesController : ControllerBase
     {

@@ -10,7 +10,7 @@ namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/wallets")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "FinanceManage")]
     public class AdminWalletController : ControllerBase
     {
         private readonly IWalletService _walletService;

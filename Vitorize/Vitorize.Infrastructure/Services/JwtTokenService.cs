@@ -35,6 +35,9 @@ namespace Vitorize.Infrastructure.Services
                 claims.Add(new Claim(ClaimTypes.Role, role.Name));
             }
 
+            foreach (var permission in AdminPermissions.ForRoles(user.Roles.Select(x => x.Name)))
+                claims.Add(new Claim(AdminPermissions.ClaimType, permission));
+
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
 

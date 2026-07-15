@@ -39,6 +39,10 @@ public partial class UserVerificationProfile
 
     public DateTime? UpdatedAt { get; set; }
 
+    public string? EncryptedPayload { get; set; }
+
+    public short? EncryptionVersion { get; set; }
+
     public virtual User? ReviewedByAdmin { get; set; }
 
     public virtual User User { get; set; } = null!;

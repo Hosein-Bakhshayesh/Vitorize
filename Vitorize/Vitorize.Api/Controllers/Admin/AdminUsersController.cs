@@ -8,7 +8,7 @@ namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/users")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "UserManage")]
     public class AdminUsersController : ControllerBase
     {
         private readonly IAdminUserService _adminUserService;

@@ -18,7 +18,7 @@ INSERT @RequiredTables (Name) VALUES
     (N'SmsMessages'), (N'SmsMessageAttempts'),
     (N'ProductFeatures'), (N'ProductInputFields'),
     (N'CartItemInputValues'), (N'OrderItemInputValues'), (N'FontAssets'),
-    (N'DatabaseScriptHistory');
+    (N'DatabaseScriptHistory'), (N'PaymentRefunds'), (N'FinancialAuditLogs');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required table', N'dbo.' + expected.Name + N' is missing.'
@@ -31,7 +31,9 @@ INSERT @RequiredColumns VALUES
     (N'GiftCodeReservations', N'Status'), (N'OtpCodes', N'Purpose'),
     (N'SmsMessages', N'IdempotencyKey'), (N'SmsMessages', N'InternalNote'),
     (N'ProductFeatures', N'ProductId'), (N'ProductInputFields', N'Key'),
-    (N'CartItems', N'InputFingerprint'), (N'FontAssets', N'FamilyName');
+    (N'CartItems', N'InputFingerprint'), (N'FontAssets', N'FamilyName'),
+    (N'PaymentCallbacks', N'CallbackKey'), (N'UserVerificationProfiles', N'EncryptedPayload'),
+    (N'OrderItemDeliveries', N'EncryptionVersion'), (N'OutboxMessages', N'LockedAt');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required column', N'dbo.' + TableName + N'.' + ColumnName + N' is missing.'
@@ -52,6 +54,7 @@ BEGIN
         (N'H20260713-SMS-SCHEMA', N'2026-07-13_create_sms_history.sql', 'ece5f2dbebf7266c2c58e079377148a43bc02699d31ff9c3e853ca30b731a8f0'),
         (N'H20260714-PRODUCT-SCHEMA', N'2026-07-14_product_experience_schema.sql', '907cabcb1eefb753ae3b2ff19add608d2f011c448295f2e39a2a22e3799c393c'),
         (N'V0003', N'V0003__seed_reference_roles.sql', '9cd5ff472bb5d776269b43f14565870c6c1de862b0a275a36e342138e635be35'),
+        (N'V0004', N'V0004__financial_integrity_and_security_hardening.sql', '8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -147,6 +150,13 @@ AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SmsM
 IF OBJECT_ID(N'dbo.FontAssets', N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM dbo.FontAssets WHERE FamilyName = N'Vazirmatn' AND IsBuiltIn = 1)
     INSERT @Issues VALUES ('ERROR', N'Default font', N'The built-in Vazirmatn font asset is missing.');
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Payments') AND name = N'UX_Payments_Gateway_Authority' AND is_unique = 1)
+    INSERT @Issues VALUES ('ERROR', N'Payment authority', N'Unique gateway/authority index is missing.');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.WalletTransactions') AND name = N'UX_WalletTransactions_FinancialReference' AND is_unique = 1)
+    INSERT @Issues VALUES ('ERROR', N'Wallet idempotency', N'Unique financial reference index is missing.');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PaymentCallbacks') AND name = N'UX_PaymentCallbacks_PaymentId_CallbackKey' AND is_unique = 1)
+    INSERT @Issues VALUES ('ERROR', N'Callback idempotency', N'Unique callback key index is missing.');
 
 IF OBJECT_ID(N'dbo.UserRoles', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.Roles', N'U') IS NOT NULL
 AND EXISTS

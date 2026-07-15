@@ -7,7 +7,7 @@ using Vitorize.Shared.Common;
 namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "OrderFulfillment")]
     [Route("api/admin/giftcodes")]
     public class AdminGiftCodesController : ControllerBase
     {

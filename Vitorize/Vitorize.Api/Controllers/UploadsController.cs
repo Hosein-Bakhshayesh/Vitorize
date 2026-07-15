@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vitorize.Application.DTOs.Admin.Uploads;
 using Vitorize.Shared.Common;
+using Vitorize.Application.Interfaces;
+using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Api.Controllers
 {
@@ -15,6 +17,7 @@ namespace Vitorize.Api.Controllers
     public class UploadsController : ControllerBase
     {
         private readonly IWebHostEnvironment _environment;
+        private readonly ICurrentUserService _currentUser;
 
         private static readonly string[] AllowedExtensions =
         {
@@ -30,9 +33,10 @@ namespace Vitorize.Api.Controllers
 
         private const long MaxFileSize = 5 * 1024 * 1024;
 
-        public UploadsController(IWebHostEnvironment environment)
+        public UploadsController(IWebHostEnvironment environment, ICurrentUserService currentUser)
         {
             _environment = environment;
+            _currentUser = currentUser;
         }
 
         [HttpPost("verification-document")]
@@ -40,7 +44,9 @@ namespace Vitorize.Api.Controllers
         public async Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadVerificationDocument(
             IFormFile file)
         {
-            var result = await SaveImageAsync(file, "verifications");
+            var userId = _currentUser.UserId ?? throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            var result = await Vitorize.Api.Controllers.Admin.UploadHelper.SavePrivateImageAsync(
+                _environment, file, userId.ToString("N"), MaxFileSize, AllowedExtensions, AllowedContentTypes);
 
             return Ok(ApiResult<UploadFileResultDto>.Success(
                 result,

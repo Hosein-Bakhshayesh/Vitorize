@@ -56,6 +56,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 55,
+      "version": "V0004",
+      "name": "V0004__financial_integrity_and_security_hardening.sql",
+      "path": "Versioned/V0004__financial_integrity_and_security_hardening.sql",
+      "sha256": "8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4",
+      "classification": "required",
+      "dependencies": ["V0003", "dbo.Payments", "dbo.WalletTransactions", "dbo.OtpCodes", "dbo.UserVerificationProfiles"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

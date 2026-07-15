@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Data;
 using Vitorize.Application.DTOs.GiftCodes;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -33,7 +34,10 @@ namespace Vitorize.Infrastructure.Services
             var now = DateTime.UtcNow;
             var expiresAt = now.AddMinutes(request.ReservationMinutes);
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext,
+                $"gift-reservation:{request.ProductId:N}:{request.ProductVariantId?.ToString("N") ?? "none"}");
 
             var productExists = await _dbContext.Products
                 .AnyAsync(x =>
@@ -56,13 +60,14 @@ namespace Vitorize.Infrastructure.Services
                     throw new BusinessException("تنوع محصول معتبر نیست.");
             }
 
-            var giftCode = await _dbContext.GiftCodes
-                .Where(x =>
-                    x.ProductId == request.ProductId &&
-                    x.ProductVariantId == request.ProductVariantId &&
-                    x.Status == (byte)GiftCodeStatus.Available)
-                .OrderBy(x => x.CreatedAt)
-                .FirstOrDefaultAsync();
+            var giftCode = (await _dbContext.GiftCodes.FromSqlInterpolated($@"
+                    SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, ROWLOCK)
+                    WHERE ProductId = {request.ProductId}
+                      AND ((ProductVariantId IS NULL AND {request.ProductVariantId} IS NULL)
+                           OR ProductVariantId = {request.ProductVariantId})
+                      AND Status = {(byte)GiftCodeStatus.Available}
+                    ORDER BY CreatedAt")
+                .AsTracking().ToListAsync()).FirstOrDefault();
 
             if (giftCode == null)
                 throw new BusinessException("در حال حاضر کد موجود برای این محصول وجود ندارد.");
@@ -110,6 +115,9 @@ namespace Vitorize.Infrastructure.Services
             Guid userId,
             Guid reservationId)
         {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"gift-reservation:{reservationId:N}");
+
             var reservation = await _dbContext.GiftCodeReservations
                 .Include(x => x.GiftCode)
                 .FirstOrDefaultAsync(x =>
@@ -132,11 +140,14 @@ namespace Vitorize.Infrastructure.Services
             reservation.GiftCode.UpdatedAt = now;
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         public async Task ReleaseExpiredReservationsAsync()
         {
             var now = DateTime.UtcNow;
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, "gift-reservation-expiration");
 
             var expiredReservations = await _dbContext.GiftCodeReservations
                 .Include(x => x.GiftCode)
@@ -146,7 +157,10 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
 
             if (!expiredReservations.Any())
+            {
+                await transaction.CommitAsync();
                 return;
+            }
 
             foreach (var reservation in expiredReservations)
             {
@@ -161,6 +175,7 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
     }
 }

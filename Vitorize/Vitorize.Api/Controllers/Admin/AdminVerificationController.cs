@@ -8,7 +8,7 @@ using Vitorize.Shared.Exceptions;
 namespace Vitorize.Api.Controllers.Admin
 {
     [ApiController]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "KycReview")]
     [Route("api/admin/verifications")]
     public class AdminVerificationController : ControllerBase
     {
