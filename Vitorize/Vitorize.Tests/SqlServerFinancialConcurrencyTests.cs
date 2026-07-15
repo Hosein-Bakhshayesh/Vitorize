@@ -21,6 +21,54 @@ public sealed class SqlServerFinancialConcurrencyTests
     private static string? Connection => Environment.GetEnvironmentVariable("VITORIZE_SQL_TEST_CONNECTION");
 
     [Fact]
+    public async Task Phase3_redirect_tags_and_sitemap_use_the_real_sql_schema()
+    {
+        if (Connection is null) return;
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = "seo-sql", Slug = $"seo-sql-{Guid.NewGuid():N}",
+            FocusKeyword = "خرید امن", ImageAltText = "دسته تست سئو", IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        var product = new Product
+        {
+            Id = Guid.NewGuid(), CategoryId = category.Id, Title = "seo-sql",
+            Slug = $"seo-product-{Guid.NewGuid():N}", FocusKeyword = "محصول تست",
+            ThumbnailAltText = "تصویر محصول تست", ProductType = 1,
+            DeliveryType = (byte)DeliveryType.Manual, BasePrice = 100,
+            CurrencyType = 1, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var tag = new ProductTag
+        {
+            Id = Guid.NewGuid(), Title = $"tag-{Guid.NewGuid():N}", Slug = $"tag-{Guid.NewGuid():N}",
+            Aliases = "alias,نام مستعار", IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        product.Tags.Add(tag);
+        var source = $"/legacy-{Guid.NewGuid():N}";
+        await using (var seed = Db())
+        {
+            seed.Categories.Add(category);
+            seed.Products.Add(product);
+            seed.LegacyRedirects.Add(new LegacyRedirect
+            {
+                Id = Guid.NewGuid(), SourcePath = source, DestinationPath = $"/product/{product.Slug}",
+                StatusCode = 301, IsActive = true, CreatedAt = DateTime.UtcNow
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = Db();
+        var seo = new SeoService(db);
+        var redirect = await seo.ResolveRedirectAsync(source + "/?ignored=1");
+        var sitemap = await seo.GetSitemapAsync("products", 1, 50_000);
+
+        Assert.Equal($"/product/{product.Slug}", redirect?.DestinationPath);
+        Assert.Contains(sitemap.Items, x => x.Path == $"/product/{product.Slug}");
+        Assert.Contains(await db.ProductTags.AsNoTracking().ToListAsync(),
+            x => x.Id == tag.Id && x.Aliases == "alias,نام مستعار" && x.IsActive);
+    }
+
+    [Fact]
     public async Task Wallet_concurrent_credits_are_not_lost_and_replay_is_idempotent()
     {
         if (Connection is null) return;

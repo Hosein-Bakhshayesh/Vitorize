@@ -14,10 +14,14 @@
 
         public string? CoverImagePath { get; set; }
 
+        public string? CoverImageAltText { get; set; }
+
         public string? SeoTitle { get; set; }
 
         public string? SeoDescription { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
     }
 }

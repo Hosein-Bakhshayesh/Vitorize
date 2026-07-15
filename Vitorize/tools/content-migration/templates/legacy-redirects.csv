@@ -1,0 +1,3 @@
+SourcePath,DestinationPath,StatusCode,Notes
+/old-product,/product/new-product,301,Exact reviewed mapping
+/removed-content,,410,Intentionally retired

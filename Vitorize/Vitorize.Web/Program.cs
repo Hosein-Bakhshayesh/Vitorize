@@ -5,6 +5,7 @@ using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.UI;
 using Vitorize.Shared.Common;
+using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHsts(options =>
@@ -17,6 +18,16 @@ builder.Services.AddHsts(options =>
 // Blazor Web App با رندر تعاملی سمت سرور
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(x => x.Level = CompressionLevel.Fastest);
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(x => x.Level = CompressionLevel.Fastest);
+builder.Services.AddMemoryCache();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
@@ -101,6 +112,7 @@ builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<StoreBrandingService>();
+builder.Services.AddScoped<PrerenderApiState>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<WishlistState>();
 
@@ -127,6 +139,7 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+app.UseResponseCompression();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -149,12 +162,20 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = "public,max-age=604800,immutable";
+    }
+});
 
 // UseRouting صریح بعد از StaticFiles: صفحه‌ی Catch-all (۴۰۴) نباید فایل‌های استاتیک را ببلعد.
 // بدون این خط، Routing خودکارِ ابتدای Pipeline مسیر فایل‌ها را به Endpoint صفحه‌ی ۴۰۴ می‌داد
 // و StaticFiles (که Endpoint-aware است) از سرو کردن فایل صرف‌نظر می‌کرد.
 app.UseRouting();
+
+app.UseMiddleware<LegacyRedirectMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -163,6 +184,7 @@ app.UseAntiforgery();
 
 app.MapAdminAuthEndpoints();
 app.MapCustomerAuthEndpoints();
+app.MapSeoEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

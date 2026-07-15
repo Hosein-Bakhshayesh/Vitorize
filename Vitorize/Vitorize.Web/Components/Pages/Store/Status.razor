@@ -2,10 +2,11 @@
 @page "/error/{Code}"
 @using Vitorize.Web.Helpers
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContextAccessor
 
 @* صفحه‌ی وضعیت/خطای برنددار — برای UseExceptionHandler، StatusCodePages و لینک‌های دستی. *@
 
-<PageTitle>@_info.Title | @_b.SiteName</PageTitle>
+<SeoHead Title="@_info.Title" Description="@_info.Message" Index="false" Follow="false" />
 
 <StoreState Info="_info" />
 
@@ -18,6 +19,9 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        var response = HttpContextAccessor.HttpContext?.Response;
+        if (response is not null && !response.HasStarted && int.TryParse(Code, out var status) && status is >= 400 and <= 599)
+            response.StatusCode = status;
         _b = await Branding.GetAsync();
         _info = ErrorStates.Resolve(string.IsNullOrWhiteSpace(Code) ? "500" : Code, _b);
     }

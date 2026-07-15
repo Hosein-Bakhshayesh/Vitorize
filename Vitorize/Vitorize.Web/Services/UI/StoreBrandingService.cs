@@ -127,6 +127,7 @@ namespace Vitorize.Web.Services.UI
         public string MetaTitle => Get("MetaTitle", "");
         public string MetaDescription => FirstNonEmpty("MetaDescription", "SiteDescription");
         public string MetaKeywords => Get("MetaKeywords", "");
+        public string CanonicalBaseUrl => Get("Seo.CanonicalBaseUrl", "");
         public string GoogleAnalyticsId => Get("GoogleAnalyticsId", "");
 
         // ── Homepage / hero ──

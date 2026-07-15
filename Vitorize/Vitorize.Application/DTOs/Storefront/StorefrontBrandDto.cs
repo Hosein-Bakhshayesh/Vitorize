@@ -9,5 +9,6 @@
         public string Slug { get; set; } = null!;
 
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
     }
 }

@@ -3,7 +3,7 @@
 <div class="st-img @(Contain ? "st-img--contain" : "") @Class">
     @if (!string.IsNullOrWhiteSpace(Url))
     {
-        <img src="@Media.Resolve(Url)" alt="@Alt" loading="lazy"
+        <img src="@Media.Resolve(Url)" alt="@Alt" loading="@Loading" fetchpriority="@FetchPriority" width="@Width" height="@Height"
              onerror="this.style.display='none';var p=this.nextElementSibling;if(p)p.style.display='flex';" />
         <div class="st-img__ph" style="display:none"><Icon Name="@Icon" Size="@IconSize" /></div>
     }
@@ -20,4 +20,8 @@
     [Parameter] public int IconSize { get; set; } = 34;
     [Parameter] public bool Contain { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string Loading { get; set; } = "lazy";
+    [Parameter] public string? FetchPriority { get; set; }
+    [Parameter] public int? Width { get; set; }
+    [Parameter] public int? Height { get; set; }
 }

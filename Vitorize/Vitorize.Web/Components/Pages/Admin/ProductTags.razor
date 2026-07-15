@@ -1,0 +1,56 @@
+@page "/admin/product-tags"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using Vitorize.Web.Models.Admin.Products
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="برچسب‌ها و نام‌های جستجو" Subtitle="مدیریت برچسب محصول و معادل‌های فارسی/انگلیسی بدون تولید meta keywords" Icon="tags" Breadcrumbs="@(new(){ ("برچسب‌ها", null) })">
+    <Actions><button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> برچسب جدید</button></Actions>
+</PageHeader>
+
+<div class="vz-filterbar"><div class="vz-field"><label class="vz-label" for="tag-search">جستجو</label><input id="tag-search" class="vz-input" @bind="_search" @bind:event="oninput" placeholder="عنوان، اسلاگ یا نام مستعار" /></div></div>
+
+<div class="vz-card"><div class="vz-card__body flush">
+    @if (_loading) { <LoadingState /> }
+    else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+    else if (Filtered.Count == 0) { <EmptyState Title="برچسبی ثبت نشده" Text="برای ارتباط محصولات و بهبود جستجوی داخلی برچسب بسازید." Icon="tags" /> }
+    else
+    {
+        <div class="vz-table-wrap"><table class="vz-table"><thead><tr><th>عنوان</th><th>اسلاگ</th><th>نام‌های مستعار</th><th>محصول</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr></thead><tbody>
+        @foreach (var item in Filtered)
+        {
+            <tr><td class="vz-cell-title">@item.Title</td><td class="vz-mono">@item.Slug</td><td class="vz-muted">@(item.Aliases ?? "—")</td><td>@AUI.Number(item.ProductCount)</td><td><StatusBadge Text="@(item.IsActive ? "فعال" : "غیرفعال")" Intent="@(item.IsActive ? "success" : "muted")" /></td><td class="col-actions"><button class="vz-iconaction" aria-label="ویرایش برچسب @item.Title" @onclick="() => Edit(item)"><Icon Name="edit" Size="16" /></button><button class="vz-iconaction danger" aria-label="حذف برچسب @item.Title" @onclick="() => AskDelete(item)"><Icon Name="trash" Size="16" /></button></td></tr>
+        }
+        </tbody></table></div>
+    }
+</div></div>
+
+<SlidePanel Visible="_open" Title="@(_model.Id is null ? "برچسب جدید" : "ویرایش برچسب")" Icon="tags" OnClose="Close">
+<ChildContent><EditForm Model="_model" OnValidSubmit="Save" id="tag-form"><DataAnnotationsValidator /><div class="vz-form-grid one">
+    <div class="vz-field"><label class="vz-label" for="tag-title">عنوان</label><InputText id="tag-title" class="vz-input" @bind-Value="_model.Title" /><ValidationMessage For="() => _model.Title" /></div>
+    <div class="vz-field"><label class="vz-label" for="tag-slug">اسلاگ</label><InputText id="tag-slug" class="vz-input vz-mono" @bind-Value="_model.Slug" /><ValidationMessage For="() => _model.Slug" /></div>
+    <div class="vz-field"><label class="vz-label" for="tag-aliases">نام‌های مستعار</label><InputTextArea id="tag-aliases" class="vz-textarea" @bind-Value="_model.Aliases" /><span class="vz-help">حداکثر ۲۰ عبارت، جداشده با ویرگول؛ مانند: پلی استیشن, play station, ps5</span></div>
+    <label class="vz-switch"><input type="checkbox" @bind="_model.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">فعال</span></label>
+</div></EditForm></ChildContent>
+<Footer><button class="vz-btn vz-btn--outline" @onclick="Close">انصراف</button><button class="vz-btn vz-btn--primary" type="submit" form="tag-form" disabled="@_saving">ذخیره</button></Footer>
+</SlidePanel>
+
+<ConfirmDialog Visible="_deleteOpen" Title="حذف برچسب" Message="@($"آیا برچسب «{_target?.Title}» حذف شود؟ برچسب استفاده‌شده قابل حذف نیست و باید غیرفعال شود.")" ConfirmText="حذف" Busy="_deleting" OnConfirm="Delete" OnCancel="() => _deleteOpen = false" />
+
+@code {
+    private bool _loading = true, _open, _saving, _deleteOpen, _deleting;
+    private string _search = string.Empty;
+    private string? _error;
+    private List<AdminProductTagModel> _items = new();
+    private AdminProductTagInputModel _model = new();
+    private AdminProductTagModel? _target;
+    private List<AdminProductTagModel> Filtered => _items.Where(x => string.IsNullOrWhiteSpace(_search) || x.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase) || (x.Aliases?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+    protected override Task OnInitializedAsync() => Load();
+    private async Task Load() { _loading = true; var result = await Api.GetAsync<List<AdminProductTagModel>>("admin/product-tags"); _loading = false; if (result.IsSuccess && result.Data is not null) { _items = result.Data; _error = null; } else _error = result.Message; }
+    private void OpenCreate() { _model = new() { IsActive = true }; _open = true; }
+    private void Edit(AdminProductTagModel x) { _model = new() { Id = x.Id, Title = x.Title, Slug = x.Slug, Aliases = x.Aliases, IsActive = x.IsActive }; _open = true; }
+    private void Close() => _open = false;
+    private async Task Save() { _saving = true; var payload = new { _model.Title, _model.Slug, _model.Aliases, _model.IsActive }; var result = _model.Id is null ? await Api.PostAsync<AdminProductTagModel>("admin/product-tags", payload) : await Api.PutAsync<AdminProductTagModel>($"admin/product-tags/{_model.Id}", payload); _saving = false; if (result.IsSuccess) { Toasts.Success("برچسب ذخیره شد."); _open = false; await Load(); } else Toasts.Error(result.Message); }
+    private void AskDelete(AdminProductTagModel item) { _target = item; _deleteOpen = true; }
+    private async Task Delete() { if (_target is null) return; _deleting = true; var result = await Api.DeleteAsync($"admin/product-tags/{_target.Id}"); _deleting = false; _deleteOpen = false; if (result.IsSuccess) { Toasts.Success("برچسب حذف شد."); await Load(); } else Toasts.Error(result.Message); }
+}

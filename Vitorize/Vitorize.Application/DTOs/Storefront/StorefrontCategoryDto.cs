@@ -11,5 +11,6 @@
         public string? Icon { get; set; }
 
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
     }
 }

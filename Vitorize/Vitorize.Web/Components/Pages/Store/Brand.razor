@@ -1,9 +1,54 @@
 @page "/brand/{Slug}"
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContext
 
-<PageTitle>برند | ویتورایز</PageTitle>
+@if (_brand is not null)
+{
+    <SeoHead Title="@(_brand.SeoTitle ?? _brand.Title)" Description="@(_brand.SeoDescription ?? _brand.Description)"
+             CanonicalPath="@($"/brand/{Uri.EscapeDataString(_brand.Slug)}")" ImagePath="@_brand.ImagePath"
+             LastModified="@(_brand.UpdatedAt ?? _brand.CreatedAt)" JsonLd="@BreadcrumbJsonLd()" />
+}
+else if (_loaded)
+{
+    <SeoHead Title="برند یافت نشد" Description="این برند در دسترس نیست." Index="false" Follow="false" />
+}
 
-<ShopBrowser Title="محصولات برند" BrandSlug="@Slug" />
+@if (!_loaded)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_brand is null)
+{
+    <div class="st-state"><div style="font-weight:700">برند یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/shop">بازگشت به فروشگاه</a></div>
+}
+else
+{
+    <ShopBrowser Title="@_brand.Title" BrandSlug="@Slug" />
+}
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    private StoreLookupModel? _brand;
+    private bool _loaded;
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    protected override async Task OnParametersSetAsync()
+    {
+        var itemTask = Api.GetAsync<StoreLookupModel>($"products/brands/{Uri.EscapeDataString(Slug)}");
+        var brandTask = Branding.GetAsync();
+        await Task.WhenAll(itemTask, brandTask);
+        _brand = itemTask.Result.Data;
+        _branding = brandTask.Result;
+        _loaded = true;
+        if (_brand is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+    private string BreadcrumbJsonLd()
+    {
+        if (_brand is null) return string.Empty;
+        var home = SeoUrlBuilder.Canonical(_branding, Nav.Uri, "/");
+        var current = SeoUrlBuilder.Canonical(_branding, Nav.Uri, $"/brand/{Uri.EscapeDataString(_brand.Slug)}");
+        return SeoJsonLd.Breadcrumbs(("خانه", home), (_brand.Title, current));
+    }
 }

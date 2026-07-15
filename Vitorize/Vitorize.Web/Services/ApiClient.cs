@@ -18,6 +18,7 @@ namespace Vitorize.Web.Services
         private readonly HttpClient _httpClient;
         private readonly IAccessTokenProvider _tokenProvider;
         private readonly IServiceProvider _serviceProvider;
+        private readonly PrerenderApiState _prerenderState;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -27,15 +28,37 @@ namespace Vitorize.Web.Services
         public ApiClient(
             HttpClient httpClient,
             IAccessTokenProvider tokenProvider,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            PrerenderApiState prerenderState)
         {
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
             _serviceProvider = serviceProvider;
+            _prerenderState = prerenderState;
         }
 
-        public Task<ApiResult<T>> GetAsync<T>(string url) =>
-            SendAsync<T>(HttpMethod.Get, url, null);
+        public async Task<ApiResult<T>> GetAsync<T>(string url)
+        {
+            if (IsPublicPrerenderEndpoint(url) && _prerenderState.TryTake<T>(url, out var persisted) && persisted is not null)
+                return persisted;
+
+            var result = await SendAsync<T>(HttpMethod.Get, url, null);
+            if (IsPublicPrerenderEndpoint(url)) _prerenderState.Remember(url, result);
+            return result;
+        }
+
+        private static bool IsPublicPrerenderEndpoint(string url)
+        {
+            var path = url.TrimStart('/');
+            return path.StartsWith("storefront", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("products", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("product-reviews", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("blog", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("pages", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("faqs", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("settings/public", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("seo/", StringComparison.OrdinalIgnoreCase);
+        }
 
         public async Task<ApiResult<string>> GetRawTextAsync(string url)
         {

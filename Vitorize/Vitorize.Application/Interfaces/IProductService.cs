@@ -16,7 +16,9 @@ namespace Vitorize.Application.Interfaces
         Task<List<ProductListItemDto>> GetRelatedProductsAsync(Guid productId, int count = 8);
 
         Task<List<ProductLookupDto>> GetCategoriesAsync();
+        Task<ProductLookupDto> GetCategoryBySlugAsync(string slug);
 
         Task<List<ProductLookupDto>> GetBrandsAsync();
+        Task<ProductLookupDto> GetBrandBySlugAsync(string slug);
     }
 }

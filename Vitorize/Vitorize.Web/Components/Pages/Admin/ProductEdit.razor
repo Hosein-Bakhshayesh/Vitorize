@@ -307,6 +307,21 @@ else
                                 <label class="vz-label">توضیحات متا</label>
                                 <InputTextArea class="vz-textarea" style="min-height:70px" @bind-Value="_model.SeoDescription" />
                             </div>
+                            <div class="vz-field">
+                                <label class="vz-label">عبارت هدف</label>
+                                <InputText class="vz-input" @bind-Value="_model.FocusKeyword" />
+                                <span class="vz-help">فقط راهنمای تحریریه است و به‌عنوان meta keywords منتشر نمی‌شود.</span>
+                            </div>
+                            <div class="vz-field">
+                                <label class="vz-label">برچسب‌ها و معادل‌های جستجو</label>
+                                <div class="vz-check-grid">
+                                    @foreach (var tag in _tags.Where(x => x.IsActive))
+                                    {
+                                        <label class="vz-check"><input type="checkbox" checked="@_model.TagIds.Contains(tag.Id)" @onchange="e => ToggleTag(tag.Id, e.Value)" /><span>@tag.Title</span></label>
+                                    }
+                                </div>
+                                <a href="admin/product-tags" class="vz-help">مدیریت برچسب‌ها</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -317,6 +332,7 @@ else
                     <div class="vz-card__head"><Icon Name="image" Size="18" /><div><div class="vz-card__title">تصویر شاخص</div></div></div>
                     <div class="vz-card__body">
                         <UploadBox @bind-Value="_model.ThumbnailImagePath" Label="آپلود تصویر شاخص" />
+                        <div class="vz-field" style="margin-top:12px"><label class="vz-label">متن جایگزین تصویر</label><InputText class="vz-input" @bind-Value="_model.ThumbnailAltText" placeholder="توصیف کوتاه و طبیعی تصویر" /></div>
                         <ImageGuideline Spec="ImageSpecs.ProductThumbnail" />
                         @if (IsEdit)
                         {
@@ -419,6 +435,7 @@ else
     private CreateProductRequestModel _model = new();
     private List<AdminCategoryModel> _categories = new();
     private List<AdminBrandModel> _brands = new();
+    private List<AdminProductTagModel> _tags = new();
     private List<AdminProductVariantModel> _variants = new();
 
     // summary (edit mode)
@@ -451,10 +468,12 @@ else
 
         var catTask = Api.GetAsync<List<AdminCategoryModel>>("admin/categories");
         var brandTask = Api.GetAsync<List<AdminBrandModel>>("admin/brands");
-        await Task.WhenAll(catTask, brandTask);
+        var tagTask = Api.GetAsync<List<AdminProductTagModel>>("admin/product-tags");
+        await Task.WhenAll(catTask, brandTask, tagTask);
 
         _categories = catTask.Result.Data ?? new();
         _brands = brandTask.Result.Data ?? new();
+        _tags = tagTask.Result.Data ?? new();
 
         if (IsEdit)
         {
@@ -469,12 +488,12 @@ else
             {
                 CategoryId = p.CategoryId, BrandId = p.BrandId, Title = p.Title, Slug = p.Slug,
                 ShortDescription = p.ShortDescription, FullDescription = p.FullDescription,
-                ThumbnailImagePath = p.ThumbnailImagePath, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
+                ThumbnailImagePath = p.ThumbnailImagePath, ThumbnailAltText = p.ThumbnailAltText, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
                 CurrencyType = p.CurrencyType, BasePrice = p.BasePrice, DiscountPrice = p.DiscountPrice,
                 RequiresVerification = p.RequiresVerification, RequiresSupportMessage = p.RequiresSupportMessage,
                 MinOrderQuantity = p.MinOrderQuantity, MaxOrderQuantity = p.MaxOrderQuantity,
                 IsFeatured = p.IsFeatured, IsActive = p.IsActive, SeoTitle = p.SeoTitle,
-                SeoDescription = p.SeoDescription, SortOrder = p.SortOrder,
+                SeoDescription = p.SeoDescription, FocusKeyword = p.FocusKeyword, TagIds = p.TagIds ?? new(), SortOrder = p.SortOrder,
                 Features = p.Features ?? new(), InputFields = p.InputFields ?? new()
             };
 
@@ -543,6 +562,13 @@ else
             if (!IsEdit) Nav.NavigateTo($"admin/products/{result.Data.Id}");
         }
         else Toasts.Error(result.Message);
+    }
+
+    private void ToggleTag(Guid id, object? value)
+    {
+        var selected = value is bool b && b;
+        if (selected && !_model.TagIds.Contains(id)) _model.TagIds.Add(id);
+        if (!selected) _model.TagIds.Remove(id);
     }
 
     private record InputTypeOption(byte Key, string Label);

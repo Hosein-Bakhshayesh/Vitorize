@@ -48,6 +48,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<IdempotencyKey> IdempotencyKeys { get; set; }
 
+    public virtual DbSet<LegacyRedirect> LegacyRedirects { get; set; }
+
     public virtual DbSet<Notification> Notifications { get; set; }
 
     public virtual DbSet<Order> Orders { get; set; }
@@ -166,6 +168,8 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.LinkUrl).HasMaxLength(500);
             entity.Property(e => e.MobileImagePath).HasMaxLength(500);
+            entity.Property(e => e.AltText).HasMaxLength(250);
+            entity.Property(e => e.MobileAltText).HasMaxLength(250);
             entity.Property(e => e.Position).HasMaxLength(100);
             entity.Property(e => e.Title).HasMaxLength(200);
         });
@@ -176,9 +180,11 @@ public partial class VitorizeDbContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CoverImagePath).HasMaxLength(500);
+            entity.Property(e => e.CoverImageAltText).HasMaxLength(250);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
+            entity.Property(e => e.FocusKeyword).HasMaxLength(200);
             entity.Property(e => e.Slug).HasMaxLength(300);
             entity.Property(e => e.Summary).HasMaxLength(1000);
             entity.Property(e => e.Title).HasMaxLength(300);
@@ -191,6 +197,11 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.ImagePath).HasMaxLength(500);
+            entity.Property(e => e.ImageAltText).HasMaxLength(250);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.SeoTitle).HasMaxLength(250);
+            entity.Property(e => e.SeoDescription).HasMaxLength(500);
+            entity.Property(e => e.FocusKeyword).HasMaxLength(200);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Slug).HasMaxLength(200);
             entity.Property(e => e.Title).HasMaxLength(150);
@@ -278,9 +289,11 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Icon).HasMaxLength(100);
             entity.Property(e => e.ImagePath).HasMaxLength(500);
+            entity.Property(e => e.ImageAltText).HasMaxLength(250);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
+            entity.Property(e => e.FocusKeyword).HasMaxLength(200);
             entity.Property(e => e.Slug).HasMaxLength(250);
             entity.Property(e => e.Title).HasMaxLength(200);
 
@@ -696,6 +709,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.IsPublished).HasDefaultValue(true);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
+            entity.Property(e => e.FocusKeyword).HasMaxLength(200);
             entity.Property(e => e.Slug).HasMaxLength(250);
             entity.Property(e => e.Title).HasMaxLength(250);
         });
@@ -802,9 +816,11 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.MinOrderQuantity).HasDefaultValue(1);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
+            entity.Property(e => e.FocusKeyword).HasMaxLength(200);
             entity.Property(e => e.ShortDescription).HasMaxLength(1000);
             entity.Property(e => e.Slug).HasMaxLength(300);
             entity.Property(e => e.ThumbnailImagePath).HasMaxLength(500);
+            entity.Property(e => e.ThumbnailAltText).HasMaxLength(250);
             entity.Property(e => e.Title).HasMaxLength(250);
 
             entity.HasOne(d => d.Brand).WithMany(p => p.Products)
@@ -963,6 +979,21 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.Slug).HasMaxLength(150);
             entity.Property(e => e.Title).HasMaxLength(100);
+            entity.Property(e => e.Aliases).HasMaxLength(1000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+        });
+
+        modelBuilder.Entity<LegacyRedirect>(entity =>
+        {
+            entity.HasIndex(e => e.SourcePath, "UX_LegacyRedirects_SourcePath").IsUnique();
+            entity.HasIndex(e => new { e.IsActive, e.SourcePath }, "IX_LegacyRedirects_Active_Source");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.SourcePath).HasMaxLength(750);
+            entity.Property(e => e.DestinationPath).HasMaxLength(1000);
+            entity.Property(e => e.StatusCode).HasDefaultValue((short)301);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
         });
 
         modelBuilder.Entity<ProductVariant>(entity =>

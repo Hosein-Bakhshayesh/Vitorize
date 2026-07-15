@@ -1,5 +1,15 @@
 // Vitorize storefront theme controller (light/dark, persisted in localStorage)
 (function () {
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest && event.target.closest('.st-skip-link');
+        if (!link) return;
+        var target = document.getElementById('main-content');
+        if (!target) return;
+        event.preventDefault();
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'start' });
+    });
+
     window.vzTheme = {
         get: function () {
             return document.documentElement.getAttribute('data-theme') || 'light';

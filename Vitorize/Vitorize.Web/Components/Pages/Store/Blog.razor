@@ -2,7 +2,7 @@
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 
-<PageTitle>وبلاگ | ویتورایز</PageTitle>
+<SeoHead Title="وبلاگ" Description="آخرین راهنماها، اخبار و مطالب ویتورایز" CanonicalPath="/blog" />
 
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>وبلاگ</span></div>
 <h1 style="font-size:22px;margin-bottom:18px">آخرین مطالب</h1>
@@ -23,7 +23,7 @@ else
             <a class="st-pcard" href="@($"/blog/{post.Slug}")">
                 <div class="st-pcard__media">
                     @if (!string.IsNullOrWhiteSpace(post.CoverImagePath))
-                    { <img src="@Media.Resolve(post.CoverImagePath)" alt="@post.Title" /> }
+                    { <img src="@Media.Resolve(post.CoverImagePath)" alt="@(post.CoverImageAltText ?? post.Title)" loading="lazy" /> }
                     else { <div class="ph"><Icon Name="file-text" Size="34" /></div> }
                 </div>
                 <div class="st-pcard__body">

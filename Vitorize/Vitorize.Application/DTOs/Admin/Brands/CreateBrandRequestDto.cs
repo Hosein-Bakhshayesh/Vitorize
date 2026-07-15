@@ -7,6 +7,11 @@
         public string Slug { get; set; } = string.Empty;
 
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
+        public string? Description { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
+        public string? FocusKeyword { get; set; }
 
         public bool IsActive { get; set; } = true;
     }

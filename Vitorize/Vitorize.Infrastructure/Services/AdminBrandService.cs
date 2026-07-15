@@ -27,6 +27,11 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     Slug = x.Slug,
                     ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
+                    Description = x.Description,
+                    SeoTitle = x.SeoTitle,
+                    SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword,
                     IsActive = x.IsActive
                 })
                 .ToListAsync();
@@ -43,6 +48,11 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     Slug = x.Slug,
                     ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
+                    Description = x.Description,
+                    SeoTitle = x.SeoTitle,
+                    SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword,
                     IsActive = x.IsActive
                 })
                 .FirstOrDefaultAsync();
@@ -63,6 +73,11 @@ namespace Vitorize.Infrastructure.Services
                 Title = request.Title.Trim(),
                 Slug = request.Slug.Trim().ToLower(),
                 ImagePath = request.ImagePath,
+                ImageAltText = request.ImageAltText,
+                Description = request.Description,
+                SeoTitle = request.SeoTitle,
+                SeoDescription = request.SeoDescription,
+                FocusKeyword = request.FocusKeyword,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
@@ -86,6 +101,12 @@ namespace Vitorize.Infrastructure.Services
             brand.Title = request.Title.Trim();
             brand.Slug = request.Slug.Trim().ToLower();
             brand.ImagePath = request.ImagePath;
+            brand.ImageAltText = request.ImageAltText;
+            brand.Description = request.Description;
+            brand.SeoTitle = request.SeoTitle;
+            brand.SeoDescription = request.SeoDescription;
+            brand.FocusKeyword = request.FocusKeyword;
+            brand.UpdatedAt = DateTime.UtcNow;
             brand.IsActive = request.IsActive;
 
             await _dbContext.SaveChangesAsync();

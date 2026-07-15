@@ -57,7 +57,10 @@ namespace Vitorize.Infrastructure.Services
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword,
                     ThumbnailImagePath = x.ThumbnailImagePath,
+                    ThumbnailAltText = x.ThumbnailAltText,
+                    TagIds = x.Tags.Select(t => t.Id).ToList(),
                     SortOrder = x.SortOrder,
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
@@ -117,7 +120,10 @@ namespace Vitorize.Infrastructure.Services
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword,
                     ThumbnailImagePath = x.ThumbnailImagePath,
+                    ThumbnailAltText = x.ThumbnailAltText,
+                    TagIds = x.Tags.Select(t => t.Id).ToList(),
                     SortOrder = x.SortOrder,
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
@@ -182,7 +188,9 @@ namespace Vitorize.Infrastructure.Services
                 IsActive = request.IsActive,
                 SeoTitle = NormalizeNullable(request.SeoTitle),
                 SeoDescription = NormalizeNullable(request.SeoDescription),
+                FocusKeyword = NormalizeNullable(request.FocusKeyword),
                 ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath),
+                ThumbnailAltText = NormalizeNullable(request.ThumbnailAltText),
                 SortOrder = request.SortOrder,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false
@@ -190,7 +198,7 @@ namespace Vitorize.Infrastructure.Services
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             await _dbContext.Products.AddAsync(product);
-            await SyncMetadataAsync(product, request.Features, request.InputFields);
+            await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -206,6 +214,7 @@ namespace Vitorize.Infrastructure.Services
             var product = await _dbContext.Products
                 .Include(x => x.ProductFeatures)
                 .Include(x => x.ProductInputFields)
+                .Include(x => x.Tags)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
             if (product == null)
@@ -232,12 +241,14 @@ namespace Vitorize.Infrastructure.Services
             product.IsActive = request.IsActive;
             product.SeoTitle = NormalizeNullable(request.SeoTitle);
             product.SeoDescription = NormalizeNullable(request.SeoDescription);
+            product.FocusKeyword = NormalizeNullable(request.FocusKeyword);
             product.ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath);
+            product.ThumbnailAltText = NormalizeNullable(request.ThumbnailAltText);
             product.SortOrder = request.SortOrder;
             product.UpdatedAt = DateTime.UtcNow;
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            await SyncMetadataAsync(product, request.Features, request.InputFields);
+            await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -353,13 +364,17 @@ namespace Vitorize.Infrastructure.Services
 
             if (request.Features.Count > 50 || request.InputFields.Count > 30)
                 throw new BusinessException("تعداد ویژگی‌ها یا فیلدهای موردنیاز بیش از حد مجاز است.");
+            if (request.TagIds.Count > 30)
+                throw new BusinessException("حداکثر ۳۰ برچسب برای هر محصول مجاز است.");
+            if (request.FocusKeyword?.Length > 200 || request.ThumbnailAltText?.Length > 250)
+                throw new BusinessException("عبارت هدف یا متن جایگزین تصویر بیش از حد مجاز است.");
             if (request.InputFields.Select(x => x.Key?.Trim().ToLowerInvariant()).Distinct(StringComparer.Ordinal).Count() != request.InputFields.Count)
                 throw new BusinessException("نام داخلی فیلدهای اطلاعات خریدار باید یکتا باشد.");
             foreach (var field in request.InputFields) ProductInputRules.ValidateDefinition(field);
             foreach (var feature in request.Features) ProductFeatureRules.Validate(feature);
         }
 
-        private async Task SyncMetadataAsync(Product product, IReadOnlyList<ProductFeatureDto> features, IReadOnlyList<ProductInputFieldDto> fields)
+        private async Task SyncMetadataAsync(Product product, IReadOnlyList<ProductFeatureDto> features, IReadOnlyList<ProductInputFieldDto> fields, IReadOnlyList<Guid> tagIds)
         {
             if (product.ProductFeatures.Count > 0) _dbContext.ProductFeatures.RemoveRange(product.ProductFeatures);
             if (product.ProductInputFields.Count > 0) _dbContext.ProductInputFields.RemoveRange(product.ProductInputFields);
@@ -383,6 +398,13 @@ namespace Vitorize.Infrastructure.Services
                 DisplayStage = x.DisplayStage, SortOrder = x.SortOrder == 0 ? (index + 1) * 10 : x.SortOrder,
                 IsActive = x.IsActive, CreatedAt = now
             }));
+
+            var distinctTagIds = tagIds.Where(x => x != Guid.Empty).Distinct().ToList();
+            var tags = await _dbContext.ProductTags.Where(x => x.IsActive && distinctTagIds.Contains(x.Id)).ToListAsync();
+            if (tags.Count != distinctTagIds.Count)
+                throw new BusinessException("یک یا چند برچسب محصول معتبر یا فعال نیست.");
+            product.Tags.Clear();
+            foreach (var tag in tags) product.Tags.Add(tag);
         }
 
         private static List<string> ParseOptions(string? json)
@@ -394,6 +416,7 @@ namespace Vitorize.Infrastructure.Services
 
         private static void NormalizeRequest(CreateProductRequestDto request)
         {
+            request.TagIds ??= new List<Guid>();
             request.Title = request.Title?.Trim() ?? string.Empty;
             request.Slug = request.Slug?.Trim().ToLowerInvariant() ?? string.Empty;
 
@@ -404,7 +427,10 @@ namespace Vitorize.Infrastructure.Services
             request.FullDescription = NormalizeNullable(request.FullDescription);
             request.SeoTitle = NormalizeNullable(request.SeoTitle);
             request.SeoDescription = NormalizeNullable(request.SeoDescription);
+            request.FocusKeyword = NormalizeNullable(request.FocusKeyword);
             request.ThumbnailImagePath = NormalizeNullable(request.ThumbnailImagePath);
+            request.ThumbnailAltText = NormalizeNullable(request.ThumbnailAltText);
+            request.TagIds = request.TagIds.Where(x => x != Guid.Empty).Distinct().ToList();
             request.DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice);
         }
 

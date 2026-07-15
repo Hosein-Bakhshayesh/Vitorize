@@ -1,8 +1,20 @@
 @page "/blog/{Slug}"
 @inject ApiClient Api
 @inject MediaUrlResolver Media
+@inject NavigationManager Nav
+@inject StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContext
 
-<PageTitle>@(_post?.Title ?? "وبلاگ") | ویتورایز</PageTitle>
+@if (_post is not null)
+{
+    <SeoHead Title="@(_post.SeoTitle ?? _post.Title)" Description="@(_post.SeoDescription ?? _post.Summary)"
+             CanonicalPath="@($"/blog/{Uri.EscapeDataString(_post.Slug)}")" ImagePath="@_post.CoverImagePath"
+             OpenGraphType="article" LastModified="@(_post.UpdatedAt ?? _post.CreatedAt)" JsonLd="@BlogJsonLd()" />
+}
+else if (!_loading)
+{
+    <SeoHead Title="مطلب یافت نشد" Description="این مطلب در دسترس نیست." Index="false" Follow="false" />
+}
 
 @if (_loading)
 {
@@ -20,7 +32,7 @@ else
         <div class="st-muted" style="margin:10px 0 20px"><PersianDateDisplay Value="_post.CreatedAt" /></div>
         @if (!string.IsNullOrWhiteSpace(_post.CoverImagePath))
         {
-            <img src="@Media.Resolve(_post.CoverImagePath)" alt="@_post.Title" style="width:100%;border-radius:18px;margin-bottom:22px" />
+            <img src="@Media.Resolve(_post.CoverImagePath)" alt="@(_post.CoverImageAltText ?? _post.Title)" width="1200" height="630" loading="eager" fetchpriority="high" style="width:100%;height:auto;border-radius:18px;margin-bottom:22px" />
         }
         <div style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
             @((MarkupString)(_post.ContentHtml ?? string.Empty))
@@ -33,14 +45,35 @@ else
     private bool _loading = true;
     private StoreBlogPostModel? _post;
     private string? _loadedSlug;
+    private StoreBranding _branding = new(new Dictionary<string, string>());
 
     protected override async Task OnParametersSetAsync()
     {
         if (Slug == _loadedSlug) return;
         _loadedSlug = Slug;
         _loading = true;
-        var result = await Api.GetAsync<StoreBlogPostModel>($"blog/{Uri.EscapeDataString(Slug)}");
-        _post = result.IsSuccess ? result.Data : null;
+        var postTask = Api.GetAsync<StoreBlogPostModel>($"blog/{Uri.EscapeDataString(Slug)}");
+        var brandingTask = Branding.GetAsync();
+        await Task.WhenAll(postTask, brandingTask);
+        _post = postTask.Result.IsSuccess ? postTask.Result.Data : null;
+        _branding = brandingTask.Result;
+        if (_post is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
         _loading = false;
+    }
+
+    private string BlogJsonLd()
+    {
+        if (_post is null) return string.Empty;
+        var url = SeoUrlBuilder.Canonical(_branding, Nav.Uri, $"/blog/{Uri.EscapeDataString(_post.Slug)}");
+        var data = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org", ["@type"] = "BlogPosting",
+            ["headline"] = _post.Title, ["description"] = _post.Summary, ["url"] = url,
+            ["datePublished"] = _post.CreatedAt.ToUniversalTime(), ["dateModified"] = (_post.UpdatedAt ?? _post.CreatedAt).ToUniversalTime(),
+            ["publisher"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = _branding.SiteName }
+        };
+        if (!string.IsNullOrWhiteSpace(_post.CoverImagePath)) data["image"] = Media.Resolve(_post.CoverImagePath);
+        return SeoJsonLd.Serialize(data);
     }
 }

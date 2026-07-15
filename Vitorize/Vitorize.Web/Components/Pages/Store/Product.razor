@@ -7,11 +7,22 @@
 @inject ToastService Toasts
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContext
 @using Vitorize.Web.Models.Customer
 @using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<PageTitle>@(_p?.Title ?? "محصول") | ویتورایز</PageTitle>
+@if (_p is not null)
+{
+    <SeoHead Title="@(_p.SeoTitle ?? _p.Title)" Description="@(_p.SeoDescription ?? _p.ShortDescription)"
+             CanonicalPath="@($"/product/{Uri.EscapeDataString(_p.Slug)}")" ImagePath="@_p.ThumbnailImagePath"
+             OpenGraphType="product" LastModified="@(_p.UpdatedAt ?? _p.CreatedAt)" JsonLd="@ProductJsonLd()" />
+}
+else if (!_loading)
+{
+    <SeoHead Title="محصول یافت نشد" Description="این محصول در دسترس نیست." Index="false" Follow="false" />
+}
 
 @if (_loading)
 {
@@ -51,7 +62,7 @@ else
                         @foreach (var img in _gallery)
                         {
                             <div class="st-gal__thumb @(img == _activeImage ? "active" : null)" @onclick="() => _activeImage = img">
-                                <StoreImage Url="@img" Alt="@_p.Title" Icon="gamepad" IconSize="18" />
+                                <StoreImage Url="@img.ImagePath" Alt="@(img.AltText ?? _p.ThumbnailAltText ?? _p.Title)" Icon="gamepad" IconSize="18" />
                             </div>
                         }
                     </div>
@@ -61,7 +72,7 @@ else
                     {
                         <span class="st-gal__badge">@AUI.Number(DiscountPercent)٪ تخفیف</span>
                     }
-                    <StoreImage Url="@_activeImage" Alt="@_p.Title" Icon="gamepad" IconSize="56" />
+                    <StoreImage Url="@_activeImage?.ImagePath" Alt="@(_activeImage?.AltText ?? _p.ThumbnailAltText ?? _p.Title)" Icon="gamepad" IconSize="56" Loading="eager" FetchPriority="high" Width="900" Height="900" />
                 </div>
             </div>
 
@@ -124,8 +135,8 @@ else
                         </div>
                         <div class="st-share">
                             <span class="st-muted" style="font-size:11.5px;font-weight:600">اشتراک‌گذاری</span>
-                            <a class="st-share__b" href="@TelegramShare" target="_blank" rel="noopener" title="تلگرام"><Icon Name="send" Size="13" /></a>
-                            <button class="st-share__b" @onclick="CopyLink" title="کپی لینک"><Icon Name="copy" Size="13" /></button>
+                            <a class="st-share__b" href="@TelegramShare" target="_blank" rel="noopener noreferrer" title="تلگرام" aria-label="اشتراک‌گذاری در تلگرام"><Icon Name="send" Size="13" /></a>
+                            <button class="st-share__b" @onclick="CopyLink" title="کپی لینک" aria-label="کپی لینک محصول"><Icon Name="copy" Size="13" /></button>
                         </div>
                     </div>
                 }
@@ -314,11 +325,13 @@ else
     private bool _loading = true, _busy, _wishBusy;
     private StoreProductDetailModel? _p;
     private StoreVariantModel? _variant;
-    private List<string> _gallery = new();
-    private string? _activeImage;
+    private List<StoreProductImageModel> _gallery = new();
+    private StoreProductImageModel? _activeImage;
+    private StoreBranding _branding = new(new Dictionary<string, string>());
     private string _tab = "desc";
     private int _qty = 1;
     private CustomerReviewSummaryModel _summary = new();
+    private List<CustomerReviewModel> _structuredReviews = new();
     private List<StoreProductModel> _related = new();
     private List<StoreFaqModel> _faqs = new();
     private string? _loadedSlug;
@@ -361,20 +374,28 @@ else
     private async Task Load()
     {
         _loading = true;
-        _p = null; _variant = null; _gallery.Clear(); _activeImage = null; _qty = 1; _tab = "desc"; _summary = new(); _related = new();
+        _p = null; _variant = null; _gallery.Clear(); _activeImage = null; _qty = 1; _tab = "desc"; _summary = new(); _structuredReviews = new(); _related = new();
 
-        var result = await Api.GetAsync<StoreProductDetailModel>($"products/slug/{Uri.EscapeDataString(Slug)}");
+        var productTask = Api.GetAsync<StoreProductDetailModel>($"products/slug/{Uri.EscapeDataString(Slug)}");
+        var brandingTask = Branding.GetAsync();
+        await Task.WhenAll(productTask, brandingTask);
+        var result = productTask.Result;
+        _branding = brandingTask.Result;
         if (result.IsSuccess && result.Data is not null)
         {
             _p = result.Data;
-            _gallery = new List<string>();
-            if (!string.IsNullOrWhiteSpace(_p.ThumbnailImagePath)) _gallery.Add(_p.ThumbnailImagePath);
-            foreach (var img in _p.Images.Where(i => !string.IsNullOrWhiteSpace(i)))
-                if (!_gallery.Contains(img)) _gallery.Add(img);
+            _gallery = new List<StoreProductImageModel>();
+            if (!string.IsNullOrWhiteSpace(_p.ThumbnailImagePath)) _gallery.Add(new() { ImagePath = _p.ThumbnailImagePath, AltText = _p.ThumbnailAltText });
+            foreach (var img in _p.ImageItems.Where(i => !string.IsNullOrWhiteSpace(i.ImagePath)).OrderBy(i => i.SortOrder))
+                if (_gallery.All(x => !x.ImagePath.Equals(img.ImagePath, StringComparison.OrdinalIgnoreCase))) _gallery.Add(img);
             _activeImage = _gallery.FirstOrDefault();
             _variant = _p.Variants.FirstOrDefault(v => v.IsDefault) ?? _p.Variants.OrderBy(v => v.SortOrder).FirstOrDefault();
             _qty = Math.Max(1, _p.MinOrderQuantity);
-            _ = LoadExtras(_p.Id);
+            await LoadExtras(_p.Id);
+        }
+        else if (HttpContext.HttpContext is { Response.HasStarted: false } context)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
         }
         _loading = false;
     }
@@ -382,16 +403,77 @@ else
     private async Task LoadExtras(Guid id)
     {
         var sumTask = Api.GetAsync<CustomerReviewSummaryModel>($"product-reviews/product/{id}/summary");
+        var reviewsTask = Api.GetAsync<CustomerReviewListModel>($"product-reviews/product/{id}?page=1&pageSize=10&sort=newest");
         var relTask = Api.GetAsync<List<StoreProductModel>>($"products/{id}/related?count=8");
         var faqTask = Api.GetAsync<List<StoreFaqModel>>("faqs");
-        await Task.WhenAll(sumTask, relTask, faqTask);
+        await Task.WhenAll(sumTask, reviewsTask, relTask, faqTask);
         if (sumTask.Result.Data is not null) _summary = sumTask.Result.Data;
+        _structuredReviews = reviewsTask.Result.Data?.Reviews.Items
+            .Where(x => x.IsApproved && !string.IsNullOrWhiteSpace(x.Comment))
+            .Take(3)
+            .ToList() ?? new();
         _related = relTask.Result.Data ?? new();
         _faqs = (faqTask.Result.Data ?? new()).Take(6).ToList();
         StateHasChanged();
     }
 
     private void SelectVariant(StoreVariantModel v) => _variant = v;
+
+    private string ProductJsonLd()
+    {
+        if (_p is null) return string.Empty;
+        var canonical = SeoUrlBuilder.Canonical(_branding, Nav.Uri, $"/product/{Uri.EscapeDataString(_p.Slug)}");
+        var product = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org", ["@type"] = "Product",
+            ["name"] = _p.Title, ["description"] = _p.ShortDescription,
+            ["sku"] = _variant?.Sku ?? _p.Slug, ["url"] = canonical,
+            ["category"] = _p.CategoryTitle,
+            ["image"] = _gallery.Select(x => AbsoluteMedia(x.ImagePath, canonical)).ToList(),
+            ["offers"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "Offer", ["url"] = canonical,
+                ["priceCurrency"] = "IRR",
+                ["price"] = CurrentPrice * (_p.CurrencyType == 2 ? 10 : 1),
+                ["availability"] = OutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+            }
+        };
+        if (!string.IsNullOrWhiteSpace(_p.BrandTitle))
+            product["brand"] = new Dictionary<string, object?> { ["@type"] = "Brand", ["name"] = _p.BrandTitle };
+        if (_summary.TotalApprovedReviews > 0)
+            product["aggregateRating"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "AggregateRating", ["ratingValue"] = _summary.AverageRating,
+                ["reviewCount"] = _summary.TotalApprovedReviews
+            };
+        if (_structuredReviews.Count > 0)
+            product["review"] = _structuredReviews.Select(review => new Dictionary<string, object?>
+            {
+                ["@type"] = "Review",
+                ["author"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "Person",
+                    ["name"] = review.UserDisplayName
+                },
+                ["datePublished"] = review.CreatedAt.ToString("yyyy-MM-dd"),
+                ["name"] = review.Title,
+                ["reviewBody"] = review.Comment,
+                ["reviewRating"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "Rating",
+                    ["ratingValue"] = review.Rating,
+                    ["bestRating"] = 5,
+                    ["worstRating"] = 1
+                }
+            }).ToList();
+        return SeoJsonLd.Serialize(product);
+    }
+
+    private string AbsoluteMedia(string path, string canonical)
+    {
+        var resolved = Media.Resolve(path);
+        return Uri.TryCreate(resolved, UriKind.Absolute, out var absolute) ? absolute.AbsoluteUri : new Uri(new Uri(canonical), resolved).AbsoluteUri;
+    }
 
     private void SetQty(int q)
     {

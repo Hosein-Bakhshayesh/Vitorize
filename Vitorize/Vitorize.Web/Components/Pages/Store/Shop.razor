@@ -1,6 +1,7 @@
 @page "/shop"
 
-<PageTitle>فروشگاه | ویتورایز</PageTitle>
+<SeoHead Title="فروشگاه" Description="مشاهده و خرید محصولات دیجیتال ویتورایز" CanonicalPath="/shop"
+         Index="@(string.IsNullOrWhiteSpace(Q) && string.IsNullOrWhiteSpace(Sort))" />
 
 <ShopBrowser Title="فروشگاه" InitialSearch="@Q" InitialSort="@Sort" />
 

@@ -47,7 +47,10 @@ namespace Vitorize.Infrastructure.Services
                 query = query.Where(x =>
                     x.Title.Contains(search) ||
                     x.Slug.Contains(search) ||
-                    (x.ShortDescription != null && x.ShortDescription.Contains(search)));
+                    (x.ShortDescription != null && x.ShortDescription.Contains(search)) ||
+                    x.Tags.Any(t => t.IsActive &&
+                        (t.Title.Contains(search) || t.Slug.Contains(search) ||
+                         (t.Aliases != null && t.Aliases.Contains(search)))));
             }
 
             if (filter.CategoryId.HasValue)
@@ -238,7 +241,11 @@ namespace Vitorize.Infrastructure.Services
             var source = await _dbContext.Products
                 .AsNoTracking()
                 .Where(x => x.Id == productId && x.IsActive && !x.IsDeleted)
-                .Select(x => new { x.Id, x.CategoryId, x.BrandId })
+                .Select(x => new
+                {
+                    x.Id, x.CategoryId, x.BrandId,
+                    TagIds = x.Tags.Where(t => t.IsActive).Select(t => t.Id).ToList()
+                })
                 .FirstOrDefaultAsync();
 
             if (source == null)
@@ -256,8 +263,10 @@ namespace Vitorize.Infrastructure.Services
                     x.Category.IsActive &&
                     !x.Category.IsDeleted &&
                     (x.CategoryId == source.CategoryId ||
-                     (source.BrandId != null && x.BrandId == source.BrandId)))
+                     (source.BrandId != null && x.BrandId == source.BrandId) ||
+                     x.Tags.Any(t => t.IsActive && source.TagIds.Contains(t.Id))))
                 .OrderByDescending(x => x.CategoryId == source.CategoryId)
+                .ThenByDescending(x => x.Tags.Count(t => t.IsActive && source.TagIds.Contains(t.Id)))
                 .ThenByDescending(x => x.IsFeatured)
                 .ThenBy(x => x.SortOrder)
                 .ThenByDescending(x => x.CreatedAt)
@@ -300,7 +309,13 @@ namespace Vitorize.Infrastructure.Services
                     Id = x.Id,
                     Title = x.Title,
                     Slug = x.Slug,
-                    ImagePath = x.ImagePath
+                    ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
+                    Description = x.Description,
+                    SeoTitle = x.SeoTitle,
+                    SeoDescription = x.SeoDescription,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .ToListAsync();
         }
@@ -316,9 +331,43 @@ namespace Vitorize.Infrastructure.Services
                     Id = x.Id,
                     Title = x.Title,
                     Slug = x.Slug,
-                    ImagePath = x.ImagePath
+                    ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
+                    Description = x.Description,
+                    SeoTitle = x.SeoTitle,
+                    SeoDescription = x.SeoDescription,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .ToListAsync();
+        }
+
+        public async Task<ProductLookupDto> GetCategoryBySlugAsync(string slug)
+        {
+            var item = await _dbContext.Categories.AsNoTracking()
+                .Where(x => x.IsActive && !x.IsDeleted && x.Slug == slug)
+                .Select(x => new ProductLookupDto
+                {
+                    Id = x.Id, Title = x.Title, Slug = x.Slug, ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText, Description = x.Description,
+                    SeoTitle = x.SeoTitle, SeoDescription = x.SeoDescription,
+                    CreatedAt = x.CreatedAt, UpdatedAt = x.UpdatedAt
+                }).FirstOrDefaultAsync();
+            return item ?? throw new NotFoundException("دسته‌بندی یافت نشد.");
+        }
+
+        public async Task<ProductLookupDto> GetBrandBySlugAsync(string slug)
+        {
+            var item = await _dbContext.Brands.AsNoTracking()
+                .Where(x => x.IsActive && x.Slug == slug)
+                .Select(x => new ProductLookupDto
+                {
+                    Id = x.Id, Title = x.Title, Slug = x.Slug, ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText, Description = x.Description,
+                    SeoTitle = x.SeoTitle, SeoDescription = x.SeoDescription,
+                    CreatedAt = x.CreatedAt, UpdatedAt = x.UpdatedAt
+                }).FirstOrDefaultAsync();
+            return item ?? throw new NotFoundException("برند یافت نشد.");
         }
 
         private IQueryable<ProductDetailDto> BuildProductDetailQuery()
@@ -351,16 +400,32 @@ namespace Vitorize.Infrastructure.Services
                     IsFeatured = x.IsFeatured,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword,
                     ThumbnailImagePath = x.ThumbnailImagePath,
+                    ThumbnailAltText = x.ThumbnailAltText,
                     CategoryTitle = x.Category.Title,
+                    CategorySlug = x.Category.Slug,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
+                    BrandSlug = x.Brand != null ? x.Brand.Slug : null,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt,
 
                     Images = x.ProductImages
                         .OrderBy(i => i.SortOrder)
                         .Select(i => i.ImagePath)
                         .ToList(),
 
+                    ImageItems = x.ProductImages
+                        .OrderBy(i => i.SortOrder)
+                        .Select(i => new ProductImageMetadataDto
+                        {
+                            ImagePath = i.ImagePath,
+                            AltText = i.AltText,
+                            SortOrder = i.SortOrder
+                        }).ToList(),
+
                     Tags = x.Tags
+                        .Where(t => t.IsActive)
                         .Select(t => t.Title)
                         .ToList(),
 

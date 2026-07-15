@@ -1,7 +1,7 @@
 @page "/faq"
 @inject ApiClient Api
 
-<PageTitle>سوالات متداول | ویتورایز</PageTitle>
+<SeoHead Title="سوالات متداول" Description="پاسخ پرسش‌های متداول خرید و خدمات ویتورایز" CanonicalPath="/faq" JsonLd="@FaqJsonLd()" />
 
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سوالات متداول</span></div>
 <h1 style="font-size:22px;margin-bottom:18px">سوالات متداول</h1>
@@ -34,4 +34,14 @@ else
         _faqs = result.Data ?? new();
         _loading = false;
     }
+
+    private string FaqJsonLd() => _faqs.Count == 0 ? string.Empty : SeoJsonLd.Serialize(new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org", ["@type"] = "FAQPage",
+        ["mainEntity"] = _faqs.Select(x => new Dictionary<string, object?>
+        {
+            ["@type"] = "Question", ["name"] = x.Question,
+            ["acceptedAnswer"] = new Dictionary<string, object?> { ["@type"] = "Answer", ["text"] = x.Answer }
+        }).ToList()
+    });
 }

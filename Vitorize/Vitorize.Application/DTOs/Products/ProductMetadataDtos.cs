@@ -1,5 +1,12 @@
 namespace Vitorize.Application.DTOs.Products;
 
+public sealed class ProductImageMetadataDto
+{
+    public string ImagePath { get; set; } = string.Empty;
+    public string? AltText { get; set; }
+    public int SortOrder { get; set; }
+}
+
 public sealed class ProductFeatureDto
 {
     public Guid? Id { get; set; }

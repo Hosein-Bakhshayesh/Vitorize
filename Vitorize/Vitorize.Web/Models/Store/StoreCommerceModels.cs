@@ -131,5 +131,7 @@ namespace Vitorize.Web.Models.Store
         public string ContentHtml { get; set; } = string.Empty;
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }

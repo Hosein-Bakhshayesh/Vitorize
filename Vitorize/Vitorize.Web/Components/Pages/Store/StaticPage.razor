@@ -1,7 +1,16 @@
 @page "/page/{Slug}"
 @inject ApiClient Api
+@inject IHttpContextAccessor HttpContext
 
-<PageTitle>@(_page?.Title ?? "صفحه") | ویتورایز</PageTitle>
+@if (_page is not null)
+{
+    <SeoHead Title="@(_page.SeoTitle ?? _page.Title)" Description="@_page.SeoDescription"
+             CanonicalPath="@($"/page/{Uri.EscapeDataString(_page.Slug)}")" LastModified="@(_page.UpdatedAt ?? _page.CreatedAt)" />
+}
+else if (!_loading)
+{
+    <SeoHead Title="صفحه یافت نشد" Description="این صفحه در دسترس نیست." Index="false" Follow="false" />
+}
 
 @if (_loading)
 {
@@ -35,6 +44,8 @@ else
         _loading = true;
         var result = await Api.GetAsync<StorePageModel>($"pages/{Uri.EscapeDataString(Slug)}");
         _page = result.IsSuccess ? result.Data : null;
+        if (_page is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
         _loading = false;
     }
 }

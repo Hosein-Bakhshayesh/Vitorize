@@ -149,6 +149,8 @@
                 <div class="vz-field span-2">
                     <label class="vz-label">تصویر دسته‌بندی</label>
                     <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر دسته‌بندی" Endpoint="admin/uploads/category-image" />
+                    <label class="vz-label" style="margin-top:10px">متن جایگزین تصویر</label>
+                    <InputText class="vz-input" @bind-Value="_model.ImageAltText" />
                     <ImageGuideline Spec="ImageSpecs.Category" />
                 </div>
                 <div class="vz-field">
@@ -162,6 +164,10 @@
                 <div class="vz-field span-2">
                     <label class="vz-label">توضیحات سئو</label>
                     <InputTextArea class="vz-textarea" style="min-height:70px" @bind-Value="_model.SeoDescription" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">عبارت هدف تحریریه</label>
+                    <InputText class="vz-input" @bind-Value="_model.FocusKeyword" />
                 </div>
                 <div class="vz-field span-2">
                     <label class="vz-switch">
@@ -249,9 +255,9 @@
         _model = new AdminCategoryInputModel
         {
             Id = c.Id, ParentId = c.ParentId, Title = c.Title, Slug = c.Slug,
-            Description = c.Description, ImagePath = c.ImagePath, Icon = c.Icon,
+            Description = c.Description, ImagePath = c.ImagePath, ImageAltText = c.ImageAltText, Icon = c.Icon,
             SortOrder = c.SortOrder, IsActive = c.IsActive,
-            SeoTitle = c.SeoTitle, SeoDescription = c.SeoDescription
+            SeoTitle = c.SeoTitle, SeoDescription = c.SeoDescription, FocusKeyword = c.FocusKeyword
         };
         _formOpen = true;
     }
@@ -264,8 +270,8 @@
         var payload = new
         {
             _model.ParentId, _model.Title, _model.Slug, _model.Description,
-            _model.ImagePath, _model.Icon, _model.SortOrder, _model.IsActive,
-            _model.SeoTitle, _model.SeoDescription
+            _model.ImagePath, _model.ImageAltText, _model.Icon, _model.SortOrder, _model.IsActive,
+            _model.SeoTitle, _model.SeoDescription, _model.FocusKeyword
         };
 
         var result = _model.Id is null

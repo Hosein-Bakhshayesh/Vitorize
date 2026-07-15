@@ -1,0 +1,79 @@
+@inject NavigationManager Navigation
+@inject StoreBrandingService Branding
+@inject MediaUrlResolver Media
+
+<PageTitle>@_title</PageTitle>
+<HeadContent>
+    <meta name="description" content="@_description" />
+    <meta name="robots" content="@Robots" />
+    <link rel="canonical" href="@_canonical" />
+    @if (LastModified.HasValue)
+    {
+        <meta http-equiv="last-modified" content="@LastModified.Value.ToUniversalTime().ToString("R")" />
+    }
+    <meta property="og:type" content="@OpenGraphType" />
+    <meta property="og:site_name" content="@_branding.SiteName" />
+    <meta property="og:locale" content="fa_IR" />
+    <meta property="og:title" content="@_title" />
+    <meta property="og:description" content="@_description" />
+    <meta property="og:url" content="@_canonical" />
+    @if (!string.IsNullOrWhiteSpace(_image))
+    {
+        <meta property="og:image" content="@_image" />
+    }
+    <meta name="twitter:card" content="@(string.IsNullOrWhiteSpace(_image) ? "summary" : "summary_large_image")" />
+    <meta name="twitter:title" content="@_title" />
+    <meta name="twitter:description" content="@_description" />
+    @if (!string.IsNullOrWhiteSpace(_image))
+    {
+        <meta name="twitter:image" content="@_image" />
+    }
+    @if (!string.IsNullOrWhiteSpace(PreviousUrl))
+    {
+        <link rel="prev" href="@PreviousUrl" />
+    }
+    @if (!string.IsNullOrWhiteSpace(NextUrl))
+    {
+        <link rel="next" href="@NextUrl" />
+    }
+    @if (!string.IsNullOrWhiteSpace(JsonLd))
+    {
+        <script type="application/ld+json">@((MarkupString)JsonLd)</script>
+    }
+</HeadContent>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? CanonicalPath { get; set; }
+    [Parameter] public string? ImagePath { get; set; }
+    [Parameter] public string OpenGraphType { get; set; } = "website";
+    [Parameter] public bool Index { get; set; } = true;
+    [Parameter] public bool Follow { get; set; } = true;
+    [Parameter] public string? JsonLd { get; set; }
+    [Parameter] public DateTime? LastModified { get; set; }
+    [Parameter] public string? PreviousUrl { get; set; }
+    [Parameter] public string? NextUrl { get; set; }
+
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    private string _title = "ویتورایز";
+    private string _description = string.Empty;
+    private string _canonical = string.Empty;
+    private string? _image;
+    private string Robots => $"{(Index ? "index" : "noindex")},{(Follow ? "follow" : "nofollow")}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _branding = await Branding.GetAsync();
+        _title = string.IsNullOrWhiteSpace(Title) ? _branding.PageTitle() : _branding.PageTitle(Title);
+        _description = string.IsNullOrWhiteSpace(Description) ? _branding.MetaDescription : Description.Trim();
+        _canonical = SeoUrlBuilder.Canonical(_branding, Navigation.Uri, CanonicalPath);
+        var image = string.IsNullOrWhiteSpace(ImagePath) ? _branding.OgImagePath : ImagePath;
+        _image = string.IsNullOrWhiteSpace(image) ? null : AbsoluteMedia(Media.Resolve(image), _canonical);
+    }
+
+    private static string AbsoluteMedia(string path, string canonical) =>
+        Uri.TryCreate(path, UriKind.Absolute, out var absolute)
+            ? absolute.AbsoluteUri
+            : new Uri(new Uri(canonical), path).AbsoluteUri;
+}

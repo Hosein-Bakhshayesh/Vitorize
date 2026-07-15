@@ -120,6 +120,10 @@ ipch/
 
 # Visual Studio Trace Files
 *.e2e
+!Vitorize/tests/Vitorize.E2E/
+!Vitorize/tests/Vitorize.E2E/**
+Vitorize/tests/Vitorize.E2E/artifacts/
+Vitorize/tests/Vitorize.E2E/test-results/
 
 # TFS 2012 Local Workspace
 $tf/

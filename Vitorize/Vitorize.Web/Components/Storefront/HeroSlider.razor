@@ -5,7 +5,7 @@
     @if (Active is not null)
     {
         <div class="st-hslider__img">
-            <StoreImage Url="@Active.ImagePath" Alt="@Active.Title" Icon="gamepad" />
+            <StoreImage Url="@Active.ImagePath" Alt="@(Active.AltText ?? Active.Title)" Icon="gamepad" Loading="eager" FetchPriority="high" Width="1600" Height="720" />
         </div>
     }
     <span class="st-hslider__aurora a1"></span>
@@ -21,8 +21,8 @@
 
     @if (Banners.Count > 1)
     {
-        <button class="st-hslider__arrow prev" @onclick="Prev" type="button" title="قبلی"><Icon Name="chevron-right" Size="20" /></button>
-        <button class="st-hslider__arrow next" @onclick="Next" type="button" title="بعدی"><Icon Name="chevron-left" Size="20" /></button>
+        <button class="st-hslider__arrow prev" @onclick="Prev" type="button" aria-label="اسلاید قبلی"><Icon Name="chevron-right" Size="20" /></button>
+        <button class="st-hslider__arrow next" @onclick="Next" type="button" aria-label="اسلاید بعدی"><Icon Name="chevron-left" Size="20" /></button>
         <div class="st-hslider__dots">
             @for (var i = 0; i < Banners.Count; i++)
             {

@@ -18,6 +18,7 @@ Run `Deploy-Database.ps1`; do not execute the following list by hand in Producti
 | 40 | H20260714-PRODUCT-SCHEMA | `2026-07-14_product_experience_schema.sql` | Product features/input/font schema | Transactional and object-idempotent; requires core commerce tables |
 | 50 | V0003 | `Versioned/V0003__seed_reference_roles.sql` | Seed four non-secret role records | Atomic; inserts missing roles only; never creates users |
 | 55 | V0004 | `Versioned/V0004__financial_integrity_and_security_hardening.sql` | Financial uniqueness, refunds, protected KYC/delivery metadata, recoverable outbox | Validates duplicate financial keys first; atomic additive upgrade |
+| 57 | V0005 | `Versioned/V0005__seo_content_and_legacy_redirects.sql` | SEO editorial/media fields, ProductTag aliases and exact legacy redirect registry | Atomic additive upgrade; preserves existing content/settings |
 | 60 | H20260708-UI | `2026-07-08_seed_settings_ui_customization.sql` | UI/branding settings metadata and defaults | Inserts missing keys only; preserves configured values |
 | 70 | H20260713-SMS-SEED | `2026-07-13_seed_sms_settings.sql` | SMS settings metadata/defaults | Inserts missing keys and preserves API key/template values |
 | 80 | H20260714-PRODUCT-SEED | `2026-07-14_seed_product_experience_settings.sql` | Typography/trust/branding defaults | Inserts missing keys only; preserves configured values |
@@ -54,6 +55,7 @@ means an upgrade from the pre-ledger reference schema.
 | H20260714-PRODUCT-SCHEMA | Schema/index/seed patch | Yes for known shapes | Yes | Yes on coherent schema | Backup + maintenance window; schema/index locks | Required | Required |
 | V0003 | Reference role seed | Yes | Yes | Yes | Backup; seconds, online | Required | Required |
 | V0004 | Financial/security schema | Yes | Yes | Yes after duplicate preflight | Backup + rehearsal; index creation may lock busy tables | Required | Required |
+| V0005 | SEO/content/redirect schema | Yes | Yes | Yes | Backup + rehearsal; additive columns/indexes | Required | Required |
 | H20260708-UI | Settings seed | Yes | No | Yes; preserves values | Backup; seconds, online | Required | Required |
 | H20260713-SMS-SEED | Settings seed | Yes | No | Yes; preserves secrets/values | Backup; seconds, online | Required | Required |
 | H20260714-PRODUCT-SEED | Settings seed | Yes | No | Yes; preserves values | Backup; seconds, online | Required | Required |
@@ -78,6 +80,7 @@ read-only checks after each stage:
 | H20260713-SMS-SCHEMA | `OBJECT_ID(N'dbo.SmsMessages',N'U')`, `OBJECT_ID(N'dbo.SmsMessageAttempts',N'U')`, and `OBJECT_ID(N'dbo.usp_PurgeSmsHistory',N'P')` are non-null |
 | H20260714-PRODUCT-SCHEMA | `ProductFeatures`, `ProductInputFields`, `CartItemInputValues`, `OrderItemInputValues`, and `FontAssets` all exist |
 | V0003 | `SELECT COUNT(*) FROM dbo.Roles WHERE Name IN (N'SuperAdmin',N'Admin',N'Support',N'Customer');` → `4` |
+| V0005 | `LegacyRedirects` exists; `Products.FocusKeyword`, `Products.ThumbnailAltText`, and `ProductTags.Aliases` exist; `UX_LegacyRedirects_SourcePath` is unique |
 | H20260708-UI | `HeaderLogoPath` and `FaviconPath` each exist exactly once in `dbo.Settings` |
 | H20260713-SMS-SEED | `Sms.OtpTemplateId` and `Sms.NotificationTemplateId` each exist exactly once; configured values remain unchanged |
 | H20260714-PRODUCT-SEED | `Typography.FontFamily`, `Branding.AssetVersion`, and `TrustSeal.Enamad.Enabled` each exist exactly once |

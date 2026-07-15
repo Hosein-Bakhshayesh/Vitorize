@@ -66,6 +66,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 57,
+      "version": "V0005",
+      "name": "V0005__seo_content_and_legacy_redirects.sql",
+      "path": "Versioned/V0005__seo_content_and_legacy_redirects.sql",
+      "sha256": "ed6b02b7453590d09fc2d1a085ea3e8f006ab66659c046c911196d7af8955b22",
+      "classification": "required",
+      "dependencies": ["V0004", "dbo.Products", "dbo.ProductTags", "dbo.Categories", "dbo.Brands", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

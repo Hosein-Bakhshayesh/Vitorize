@@ -35,11 +35,11 @@
                     @Social(_b.FacebookUrl, "facebook", "فیسبوک")
                     @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
                     {
-                        <a href="tel:@_b.SupportPhone" title="تماس"><Icon Name="phone" Size="18" /></a>
+                        <a href="tel:@_b.SupportPhone" title="تماس" aria-label="تماس با پشتیبانی"><Icon Name="phone" Size="18" /></a>
                     }
                     @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
                     {
-                        <a href="mailto:@_b.SupportEmail" title="ایمیل"><Icon Name="mail" Size="18" /></a>
+                        <a href="mailto:@_b.SupportEmail" title="ایمیل" aria-label="ارسال ایمیل به پشتیبانی"><Icon Name="mail" Size="18" /></a>
                     }
                 </div>
             </div>
@@ -95,5 +95,5 @@
     private RenderFragment Social(string url, string icon, string title) =>
         string.IsNullOrWhiteSpace(url)
             ? _ => { }
-            : @<a href="@url" target="_blank" rel="noopener" title="@title"><Icon Name="@icon" Size="18" /></a>;
+            : @<a href="@url" target="_blank" rel="noopener noreferrer" title="@title" aria-label="@title"><Icon Name="@icon" Size="18" /></a>;
 }

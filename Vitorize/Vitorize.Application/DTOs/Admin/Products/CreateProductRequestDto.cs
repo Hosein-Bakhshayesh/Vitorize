@@ -31,7 +31,10 @@
 
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
+        public string? FocusKeyword { get; set; }
         public string? ThumbnailImagePath { get; set; }
+        public string? ThumbnailAltText { get; set; }
+        public List<Guid> TagIds { get; set; } = new();
 
         public int SortOrder { get; set; }
         public List<Vitorize.Application.DTOs.Products.ProductFeatureDto> Features { get; set; } = new();

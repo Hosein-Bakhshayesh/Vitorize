@@ -45,6 +45,10 @@ public partial class Product
 
     public string? SeoDescription { get; set; }
 
+    public string? FocusKeyword { get; set; }
+
+    public string? ThumbnailAltText { get; set; }
+
     public string? ThumbnailImagePath { get; set; }
 
     public int SortOrder { get; set; }

@@ -321,6 +321,7 @@ namespace Vitorize.Infrastructure.Services
                 S("MetaDescription", "خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.", "SEO", "string", "توضیح متای پیش‌فرض"),
                 S("MetaKeywords", "گیفت کارت, اشتراک, خدمات دیجیتال, بازی, گیمینگ, ویتورایز", "SEO", "string", "کلمات کلیدی پیش‌فرض"),
                 S("SeoTitleTemplate", "{page} | {site}", "SEO", "string", "قالب عنوان صفحات ({page} و {site})"),
+                S("Seo.CanonicalBaseUrl", "", "SEO", "string", "آدرس پایه HTTPS و میزبان اصلی برای canonical، robots و sitemap"),
                 S("GoogleAnalyticsId", "", "SEO", "string", "شناسه Google Analytics"),
 
                 // ───────────── Homepage ─────────────

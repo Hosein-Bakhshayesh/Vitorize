@@ -32,11 +32,13 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     Description = x.Description,
                     ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
                     Icon = x.Icon,
                     SortOrder = x.SortOrder,
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
-                    SeoDescription = x.SeoDescription
+                    SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword
                 })
                 .ToListAsync();
         }
@@ -54,11 +56,13 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     Description = x.Description,
                     ImagePath = x.ImagePath,
+                    ImageAltText = x.ImageAltText,
                     Icon = x.Icon,
                     SortOrder = x.SortOrder,
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
-                    SeoDescription = x.SeoDescription
+                    SeoDescription = x.SeoDescription,
+                    FocusKeyword = x.FocusKeyword
                 })
                 .FirstOrDefaultAsync();
 
@@ -81,11 +85,13 @@ namespace Vitorize.Infrastructure.Services
                 Slug = request.Slug.Trim().ToLower(),
                 Description = request.Description,
                 ImagePath = request.ImagePath,
+                ImageAltText = request.ImageAltText,
                 Icon = request.Icon,
                 SortOrder = request.SortOrder,
                 IsActive = request.IsActive,
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
+                FocusKeyword = request.FocusKeyword,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false
             };
@@ -112,11 +118,13 @@ namespace Vitorize.Infrastructure.Services
             category.Slug = request.Slug.Trim().ToLower();
             category.Description = request.Description;
             category.ImagePath = request.ImagePath;
+            category.ImageAltText = request.ImageAltText;
             category.Icon = request.Icon;
             category.SortOrder = request.SortOrder;
             category.IsActive = request.IsActive;
             category.SeoTitle = request.SeoTitle;
             category.SeoDescription = request.SeoDescription;
+            category.FocusKeyword = request.FocusKeyword;
             category.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();

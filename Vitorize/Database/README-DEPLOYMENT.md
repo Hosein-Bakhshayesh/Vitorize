@@ -10,8 +10,9 @@
 `deployment-manifest.json` قرار دارد. اسکریپت‌های تاریخی را در Production دستی و بر اساس
 نام فایل اجرا نکنید؛ بعضی از آن‌ها اختیاری، وابسته به محیط یا با نسخه امن‌تر جایگزین شده‌اند.
 
-زنجیره الزامی فعلی شامل هشت مرحله است: ایجاد Ledger، اصلاح اتمیک constraint رزرو گیفت،
-schema تاریخچه SMS، schema تجربه محصول، seed نقش‌های غیرمحرمانه، و سه seed تنظیمات.
+زنجیره الزامی فعلی شامل ده مرحله است: ایجاد Ledger، اصلاح اتمیک constraint رزرو گیفت،
+schema تاریخچه SMS، schema تجربه محصول، seed نقش‌های غیرمحرمانه، سخت‌سازی مالی/امنیتی،
+schema سئو/محتوا/redirect و سه seed تنظیمات.
 Runner هر فایل را قبل از اتصال با SHA-256 بررسی و فقط اجرای موفق را در
 `dbo.DatabaseScriptHistory` ثبت می‌کند.
 
@@ -36,6 +37,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Database\Deploy-Database.ps1
 `Baseline/VitorizeDb.schema-candidate.dacpac` قرار دارد. قبل از Publish، checksum همراه آن
 و محدودیت‌های ثبت‌شده در [`MODEL-SCRIPT-MISMATCHES.md`](MODEL-SCRIPT-MISMATCHES.md) را
 بررسی کنید.
+
+نسخه `V0005__seo_content_and_legacy_redirects.sql` فیلدهای تحریریه و alt text، نام‌های
+مستعار ProductTags و جدول exact-match `LegacyRedirects` را به‌صورت additive اضافه می‌کند.
+بعد از استقرار، `Database/Tests/verify_phase3_seo_content.sql` را با `sqlcmd -b -f 65001`
+اجرا کنید. این تست داده دائمی ایجاد نمی‌کند و تراکنش probe را rollback می‌کند.
 
 نقش‌ها و تنظیمات غیرمحرمانه توسط Seeder داخلی API نیز به‌صورت Idempotent بررسی می‌شوند؛
 این مسیر fallback است و جایگزین زنجیره ثبت‌شده استقرار نیست. Seeder در حالت پیش‌فرض هیچ

@@ -2,7 +2,7 @@
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 
-<PageTitle>دسته‌بندی‌ها | ویتورایز</PageTitle>
+<SeoHead Title="دسته‌بندی محصولات" Description="دسته‌بندی محصولات و خدمات دیجیتال ویتورایز" CanonicalPath="/categories" />
 
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>دسته‌بندی‌ها</span></div>
 <h1 style="font-size:22px;margin-bottom:18px">همه دسته‌بندی‌ها</h1>
@@ -22,7 +22,7 @@ else
         {
             <a class="st-cat" href="@($"/category/{c.Slug}")">
                 <div class="st-cat__ic">
-                    <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="22" Contain="true" />
+                    <StoreImage Url="@c.ImagePath" Alt="@(c.ImageAltText ?? c.Title)" Icon="gamepad" IconSize="22" Contain="true" />
                 </div>
                 <div class="st-cat__t">@c.Title</div>
             </a>

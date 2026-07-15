@@ -1,9 +1,54 @@
 @page "/category/{Slug}"
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContext
 
-<PageTitle>دسته‌بندی | ویتورایز</PageTitle>
+@if (_category is not null)
+{
+    <SeoHead Title="@(_category.SeoTitle ?? _category.Title)" Description="@(_category.SeoDescription ?? _category.Description)"
+             CanonicalPath="@($"/category/{Uri.EscapeDataString(_category.Slug)}")" ImagePath="@_category.ImagePath"
+             LastModified="@(_category.UpdatedAt ?? _category.CreatedAt)" JsonLd="@BreadcrumbJsonLd()" />
+}
+else if (_loaded)
+{
+    <SeoHead Title="دسته‌بندی یافت نشد" Description="این دسته‌بندی در دسترس نیست." Index="false" Follow="false" />
+}
 
-<ShopBrowser Title="دسته‌بندی محصولات" CategorySlug="@Slug" />
+@if (!_loaded)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_category is null)
+{
+    <div class="st-state"><div style="font-weight:700">دسته‌بندی یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/categories">مشاهده دسته‌بندی‌ها</a></div>
+}
+else
+{
+    <ShopBrowser Title="@_category.Title" CategorySlug="@Slug" />
+}
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    private StoreLookupModel? _category;
+    private bool _loaded;
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    protected override async Task OnParametersSetAsync()
+    {
+        var itemTask = Api.GetAsync<StoreLookupModel>($"products/categories/{Uri.EscapeDataString(Slug)}");
+        var brandTask = Branding.GetAsync();
+        await Task.WhenAll(itemTask, brandTask);
+        _category = itemTask.Result.Data;
+        _branding = brandTask.Result;
+        _loaded = true;
+        if (_category is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+    private string BreadcrumbJsonLd()
+    {
+        if (_category is null) return string.Empty;
+        var home = SeoUrlBuilder.Canonical(_branding, Nav.Uri, "/");
+        var current = SeoUrlBuilder.Canonical(_branding, Nav.Uri, $"/category/{Uri.EscapeDataString(_category.Slug)}");
+        return SeoJsonLd.Breadcrumbs(("خانه", home), (_category.Title, current));
+    }
 }

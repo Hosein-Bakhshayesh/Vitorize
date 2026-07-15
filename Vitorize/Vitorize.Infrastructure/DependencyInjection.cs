@@ -34,6 +34,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminCategoryService, AdminCategoryService>();
             services.AddScoped<IAdminBrandService, AdminBrandService>();
             services.AddScoped<IAdminProductService, AdminProductService>();
+            services.AddScoped<IAdminProductTagService, AdminProductTagService>();
             services.AddScoped<IAdminProductVariantService, AdminProductVariantService>();
             services.AddScoped<IEncryptionService, AesEncryptionService>();
             services.AddSingleton<IHtmlContentSanitizer, StrictHtmlContentSanitizer>();
@@ -73,6 +74,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAdminSmsManagementService, AdminSmsManagementService>();
             services.AddScoped<IAdminReportService, AdminReportService>();
             services.AddScoped<IStorefrontService, StorefrontService>();
+            services.AddScoped<ISeoService, SeoService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();
             services.AddScoped<IProductReviewService, ProductReviewService>();
             services.AddScoped<IAdminProductReviewService, AdminProductReviewService>();

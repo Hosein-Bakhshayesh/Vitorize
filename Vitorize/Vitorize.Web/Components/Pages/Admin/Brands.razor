@@ -125,8 +125,14 @@
                 <div class="vz-field span-2">
                     <label class="vz-label">لوگوی برند</label>
                     <UploadBox @bind-Value="_model.ImagePath" Label="آپلود لوگوی برند" Endpoint="admin/uploads/brand-image" />
+                    <label class="vz-label" style="margin-top:10px">متن جایگزین لوگو</label>
+                    <InputText class="vz-input" @bind-Value="_model.ImageAltText" />
                     <ImageGuideline Spec="ImageSpecs.Brand" />
                 </div>
+                <div class="vz-field span-2"><label class="vz-label">معرفی برند</label><InputTextArea class="vz-textarea" @bind-Value="_model.Description" /></div>
+                <div class="vz-field"><label class="vz-label">عنوان سئو</label><InputText class="vz-input" @bind-Value="_model.SeoTitle" /></div>
+                <div class="vz-field"><label class="vz-label">توضیحات متا</label><InputTextArea class="vz-textarea" @bind-Value="_model.SeoDescription" /></div>
+                <div class="vz-field span-2"><label class="vz-label">عبارت هدف تحریریه</label><InputText class="vz-input" @bind-Value="_model.FocusKeyword" /></div>
                 <div class="vz-field span-2">
                     <label class="vz-switch">
                         <input type="checkbox" @bind="_model.IsActive" />
@@ -195,7 +201,8 @@
     {
         _model = new AdminBrandInputModel
         {
-            Id = b.Id, Title = b.Title, Slug = b.Slug, ImagePath = b.ImagePath, IsActive = b.IsActive
+            Id = b.Id, Title = b.Title, Slug = b.Slug, ImagePath = b.ImagePath, ImageAltText = b.ImageAltText,
+            Description = b.Description, SeoTitle = b.SeoTitle, SeoDescription = b.SeoDescription, FocusKeyword = b.FocusKeyword, IsActive = b.IsActive
         };
         _formOpen = true;
     }
@@ -205,7 +212,7 @@
     private async Task Save()
     {
         _saving = true;
-        var payload = new { _model.Title, _model.Slug, _model.ImagePath, _model.IsActive };
+        var payload = new { _model.Title, _model.Slug, _model.ImagePath, _model.ImageAltText, _model.Description, _model.SeoTitle, _model.SeoDescription, _model.FocusKeyword, _model.IsActive };
 
         var result = _model.Id is null
             ? await Api.PostAsync<AdminBrandModel>("admin/brands", payload)

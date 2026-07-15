@@ -15,6 +15,7 @@ namespace Vitorize.Web.Models.Admin.Products
         public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
         public string? ThumbnailImagePath { get; set; }
+        public string? ThumbnailAltText { get; set; }
         public byte ProductType { get; set; }
         public byte DeliveryType { get; set; }
         public byte CurrencyType { get; set; } = (byte)Vitorize.Shared.Enums.CurrencyType.Toman;
@@ -29,6 +30,8 @@ namespace Vitorize.Web.Models.Admin.Products
         public bool IsActive { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
+        public string? FocusKeyword { get; set; }
+        public List<Guid> TagIds { get; set; } = new();
         public int SortOrder { get; set; }
         public int AvailableStock { get; set; }
         public bool HasVariants { get; set; }
@@ -50,6 +53,7 @@ namespace Vitorize.Web.Models.Admin.Products
         [MaxLength(1000)] public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
         public string? ThumbnailImagePath { get; set; }
+        [MaxLength(250)] public string? ThumbnailAltText { get; set; }
         [Range(1, 99, ErrorMessage = "نوع محصول معتبر نیست.")]
         public byte ProductType { get; set; } = (byte)Vitorize.Shared.Enums.ProductType.GiftCard;
         [Range(1, 3, ErrorMessage = "نوع تحویل معتبر نیست.")]
@@ -68,6 +72,8 @@ namespace Vitorize.Web.Models.Admin.Products
         public bool IsActive { get; set; } = true;
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }
+        [MaxLength(200)] public string? FocusKeyword { get; set; }
+        public List<Guid> TagIds { get; set; } = new();
         [Range(0, 100000)] public int SortOrder { get; set; }
         public List<ProductFeatureModel> Features { get; set; } = new();
         public List<ProductInputFieldModel> InputFields { get; set; } = new();

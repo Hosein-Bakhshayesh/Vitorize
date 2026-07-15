@@ -2,10 +2,11 @@
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject NavigationManager Nav
 @using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<PageTitle>@_branding.PageTitle()</PageTitle>
+<SeoHead Description="@_branding.MetaDescription" CanonicalPath="/" ImagePath="@_branding.OgImagePath" JsonLd="@HomeJsonLd()" />
 
 @if (_loading)
 {
@@ -185,7 +186,7 @@ else
                     <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
                         @if (!string.IsNullOrWhiteSpace(b.ImagePath))
                         {
-                            <img src="@Media.Resolve(b.ImagePath)" alt="@b.Title"
+                            <img src="@Media.Resolve(b.ImagePath)" alt="@(b.ImageAltText ?? b.Title)" loading="lazy"
                                  onerror="this.style.display='none';var s=this.nextElementSibling;if(s)s.style.display='block';" />
                             <span style="display:none">@b.Title</span>
                         }
@@ -209,7 +210,7 @@ else
                 {
                     <a class="st-pcard" href="@($"/blog/{post.Slug}")">
                         <div class="st-pcard__media">
-                            <StoreImage Url="@post.CoverImagePath" Alt="@post.Title" Icon="file-text" />
+                            <StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" Icon="file-text" />
                         </div>
                         <div class="st-pcard__body">
                             <div class="st-pcard__title">@post.Title</div>
@@ -325,5 +326,31 @@ else
         }
         Toasts.Success("از عضویت شما سپاسگزاریم! به‌زودی با شما در تماس خواهیم بود.");
         _newsletterEmail = string.Empty;
+    }
+
+    private string HomeJsonLd()
+    {
+        var home = SeoUrlBuilder.Canonical(_branding, Nav.Uri, "/");
+        var organization = new Dictionary<string, object?>
+        {
+            ["@type"] = "Organization", ["@id"] = home + "#organization",
+            ["name"] = _branding.SiteName, ["url"] = home
+        };
+        if (!string.IsNullOrWhiteSpace(_branding.HeaderLogoPath))
+            organization["logo"] = Media.Resolve(_branding.HeaderLogoPath);
+        var website = new Dictionary<string, object?>
+        {
+            ["@type"] = "WebSite", ["@id"] = home + "#website", ["url"] = home,
+            ["name"] = _branding.SiteName, ["publisher"] = new Dictionary<string, object?> { ["@id"] = home + "#organization" },
+            ["potentialAction"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "SearchAction", ["target"] = home.TrimEnd('/') + "/search?q={search_term_string}",
+                ["query-input"] = "required name=search_term_string"
+            }
+        };
+        return SeoJsonLd.Serialize(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org", ["@graph"] = new object[] { organization, website }
+        });
     }
 }

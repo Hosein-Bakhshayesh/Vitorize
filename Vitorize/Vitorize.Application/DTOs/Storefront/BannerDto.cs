@@ -9,6 +9,8 @@
         public string ImagePath { get; set; } = null!;
 
         public string? MobileImagePath { get; set; }
+        public string? AltText { get; set; }
+        public string? MobileAltText { get; set; }
 
         public string? LinkUrl { get; set; }
 

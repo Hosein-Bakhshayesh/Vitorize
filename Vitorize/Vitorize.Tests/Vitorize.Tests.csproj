@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Vitorize.Application\Vitorize.Application.csproj" />
     <ProjectReference Include="..\Vitorize.Infrastructure\Vitorize.Infrastructure.csproj" />
     <ProjectReference Include="..\Vitorize.Shared\Vitorize.Shared.csproj" />
+    <ProjectReference Include="..\Vitorize.Web\Vitorize.Web.csproj" />
   </ItemGroup>
 
 </Project>

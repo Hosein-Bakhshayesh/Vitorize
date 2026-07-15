@@ -1,11 +1,12 @@
 @page "/{*PageRoute}"
 @using Vitorize.Web.Helpers
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContextAccessor
 
 @* در Blazor Web App (.NET 8) بخش NotFound روتر برای مسیرهای ناموجود رندر نمی‌شود؛
    این صفحه‌ی Catch-all (کم‌اولویت‌ترین مسیر) نقش ۴۰۴ برنددار فروشگاه را دارد. *@
 
-<PageTitle>@_info.Title | @_b.SiteName</PageTitle>
+<SeoHead Title="@_info.Title" Description="صفحه درخواستی یافت نشد." Index="false" Follow="false" />
 
 <StoreState Info="_info" />
 
@@ -18,6 +19,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var response = HttpContextAccessor.HttpContext?.Response;
+        if (response is not null && !response.HasStarted) response.StatusCode = StatusCodes.Status404NotFound;
         _b = await Branding.GetAsync();
         _info = ErrorStates.Resolve("404", _b);
     }

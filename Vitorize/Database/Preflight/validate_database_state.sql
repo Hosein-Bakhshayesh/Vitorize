@@ -187,6 +187,22 @@ IF OBJECT_ID(N'dbo.WalletTransactions', N'U') IS NOT NULL AND EXISTS
 )
     INSERT @Findings VALUES ('ERROR', N'Wallet financial idempotency', N'Duplicate financial references must be reconciled before V0004.');
 
+DECLARE @DuplicateLegacyRedirectCount int = 0;
+IF OBJECT_ID(N'dbo.LegacyRedirects', N'U') IS NOT NULL
+    EXEC sys.sp_executesql
+        N'SELECT @Count = COUNT(*) FROM (SELECT SourcePath FROM dbo.LegacyRedirects GROUP BY SourcePath HAVING COUNT(*) > 1) d;',
+        N'@Count int OUTPUT', @Count = @DuplicateLegacyRedirectCount OUTPUT;
+IF @DuplicateLegacyRedirectCount > 0
+    INSERT @Findings VALUES ('ERROR', N'Duplicate legacy redirects', N'dbo.LegacyRedirects contains duplicate SourcePath values. Resolve them before V0005.');
+
+DECLARE @UnsafeLegacyRedirectCount int = 0;
+IF OBJECT_ID(N'dbo.LegacyRedirects', N'U') IS NOT NULL
+    EXEC sys.sp_executesql
+        N'SELECT @Count = COUNT(*) FROM dbo.LegacyRedirects WHERE SourcePath LIKE N''%?%'' OR SourcePath LIKE N''%#%'' OR LEFT(SourcePath, 1) <> N''/'';',
+        N'@Count int OUTPUT', @Count = @UnsafeLegacyRedirectCount OUTPUT;
+IF @UnsafeLegacyRedirectCount > 0
+    INSERT @Findings VALUES ('ERROR', N'Unsafe legacy redirect path', N'Legacy redirect source paths must be root-relative and query/fragment free.');
+
 SELECT Severity, CheckName, Detail
 FROM @Findings
 ORDER BY CASE Severity WHEN 'ERROR' THEN 1 WHEN 'WARN' THEN 2 ELSE 3 END, CheckName;
@@ -200,7 +216,7 @@ FROM @Findings;
 DECLARE @RequiredVersions TABLE (Version nvarchar(50) PRIMARY KEY);
 INSERT @RequiredVersions VALUES
     (N'V0001'), (N'V0002'), (N'H20260713-SMS-SCHEMA'),
-    (N'H20260714-PRODUCT-SCHEMA'), (N'V0003'), (N'V0004'), (N'H20260708-UI'),
+    (N'H20260714-PRODUCT-SCHEMA'), (N'V0003'), (N'V0004'), (N'V0005'), (N'H20260708-UI'),
     (N'H20260713-SMS-SEED'), (N'H20260714-PRODUCT-SEED');
 
 IF @LedgerCompatible = 1

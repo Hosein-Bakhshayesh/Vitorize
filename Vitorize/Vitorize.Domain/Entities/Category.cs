@@ -27,6 +27,10 @@ public partial class Category
 
     public string? SeoDescription { get; set; }
 
+    public string? FocusKeyword { get; set; }
+
+    public string? ImageAltText { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

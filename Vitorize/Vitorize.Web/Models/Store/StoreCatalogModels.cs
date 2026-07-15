@@ -7,6 +7,7 @@ namespace Vitorize.Web.Models.Store
         public string Slug { get; set; } = string.Empty;
         public string? ShortDescription { get; set; }
         public string? ThumbnailImagePath { get; set; }
+        public string? ThumbnailAltText { get; set; }
         public decimal BasePrice { get; set; }
         public decimal? DiscountPrice { get; set; }
         public byte ProductType { get; set; }
@@ -81,17 +82,32 @@ namespace Vitorize.Web.Models.Store
         public int? MaxOrderQuantity { get; set; }
         public bool IsFeatured { get; set; }
         public string? ThumbnailImagePath { get; set; }
+        public string? ThumbnailAltText { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
         public string CategoryTitle { get; set; } = string.Empty;
+        public string CategorySlug { get; set; } = string.Empty;
         public string? BrandTitle { get; set; }
+        public string? BrandSlug { get; set; }
         public List<string> Images { get; set; } = new();
+        public List<StoreProductImageModel> ImageItems { get; set; } = new();
         public List<string> Tags { get; set; } = new();
         public List<StoreVariantModel> Variants { get; set; } = new();
         public int AvailableStock { get; set; }
         public List<StoreProductFeatureModel> Features { get; set; } = new();
         public List<StoreProductInputFieldModel> InputFields { get; set; } = new();
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         public decimal FinalPrice => DiscountPrice is > 0 && DiscountPrice < BasePrice ? DiscountPrice.Value : BasePrice;
         public bool HasDiscount => DiscountPrice is > 0 && DiscountPrice < BasePrice;
+    }
+
+    public class StoreProductImageModel
+    {
+        public string ImagePath { get; set; } = string.Empty;
+        public string? AltText { get; set; }
+        public int SortOrder { get; set; }
     }
 
     public class StoreVariantModel
@@ -116,6 +132,12 @@ namespace Vitorize.Web.Models.Store
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
+        public string? Description { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
     public class StoreHomeModel
@@ -134,6 +156,8 @@ namespace Vitorize.Web.Models.Store
         public string Title { get; set; } = string.Empty;
         public string ImagePath { get; set; } = string.Empty;
         public string? MobileImagePath { get; set; }
+        public string? AltText { get; set; }
+        public string? MobileAltText { get; set; }
         public string? LinkUrl { get; set; }
         public string Position { get; set; } = string.Empty;
         public int SortOrder { get; set; }
@@ -146,6 +170,7 @@ namespace Vitorize.Web.Models.Store
         public string Slug { get; set; } = string.Empty;
         public string? Icon { get; set; }
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
     }
 
     public class StoreBrandModel
@@ -154,6 +179,7 @@ namespace Vitorize.Web.Models.Store
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
     }
 
     public class StoreBlogPostModel
@@ -163,8 +189,12 @@ namespace Vitorize.Web.Models.Store
         public string Slug { get; set; } = string.Empty;
         public string? Summary { get; set; }
         public string? CoverImagePath { get; set; }
+        public string? CoverImageAltText { get; set; }
         public string? ContentHtml { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
     public class StoreFaqModel

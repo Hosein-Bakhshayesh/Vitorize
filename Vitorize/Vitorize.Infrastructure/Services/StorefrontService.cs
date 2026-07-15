@@ -32,6 +32,8 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     ImagePath = x.ImagePath,
                     MobileImagePath = x.MobileImagePath,
+                    AltText = x.AltText,
+                    MobileAltText = x.MobileAltText,
                     LinkUrl = x.LinkUrl,
                     Position = x.Position,
                     SortOrder = x.SortOrder
@@ -53,6 +55,7 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     Icon = x.Icon,
                     ImagePath = x.ImagePath
+                    ,ImageAltText = x.ImageAltText
                 })
                 .ToListAsync();
 
@@ -67,6 +70,7 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     Slug = x.Slug,
                     ImagePath = x.ImagePath
+                    ,ImageAltText = x.ImageAltText
                 })
                 .ToListAsync();
 
@@ -104,7 +108,9 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     Summary = x.Summary,
                     CoverImagePath = x.CoverImagePath,
-                    CreatedAt = x.CreatedAt
+                    CoverImageAltText = x.CoverImageAltText,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .ToListAsync();
 
@@ -159,6 +165,8 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     ImagePath = x.ImagePath,
                     MobileImagePath = x.MobileImagePath,
+                    AltText = x.AltText,
+                    MobileAltText = x.MobileAltText,
                     LinkUrl = x.LinkUrl,
                     Position = x.Position,
                     SortOrder = x.SortOrder
@@ -201,7 +209,9 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     ContentHtml = x.ContentHtml,
                     SeoTitle = x.SeoTitle,
-                    SeoDescription = x.SeoDescription
+                    SeoDescription = x.SeoDescription,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .FirstOrDefaultAsync();
 
@@ -224,7 +234,9 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     Summary = x.Summary,
                     CoverImagePath = x.CoverImagePath,
-                    CreatedAt = x.CreatedAt
+                    CoverImageAltText = x.CoverImageAltText,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .ToListAsync();
         }
@@ -249,9 +261,11 @@ namespace Vitorize.Infrastructure.Services
                     Summary = x.Summary,
                     ContentHtml = x.ContentHtml,
                     CoverImagePath = x.CoverImagePath,
+                    CoverImageAltText = x.CoverImageAltText,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
-                    CreatedAt = x.CreatedAt
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
                 })
                 .FirstOrDefaultAsync();
 

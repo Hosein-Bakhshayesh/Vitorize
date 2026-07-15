@@ -13,15 +13,15 @@
 @* ---------- category pill rail ---------- *@
 @if (_categories.Count > 0)
 {
-    <div class="st-catrail">
-        <a class="st-catpill @(string.IsNullOrEmpty(_categoryId) ? "active" : null)" @onclick="() => SelectCategory(null)" style="cursor:pointer">
+    <div class="st-catrail" aria-label="فیلتر دسته‌بندی محصولات">
+        <button type="button" class="st-catpill @(string.IsNullOrEmpty(_categoryId) ? "active" : null)" @onclick="() => SelectCategory(null)">
             <span class="st-catpill__ic"><Icon Name="grid" Size="13" /></span> همه
-        </a>
+        </button>
         @foreach (var c in _categories)
         {
-            <a class="st-catpill @(_categoryId == c.Id.ToString() ? "active" : null)" @onclick="() => SelectCategory(c.Id.ToString())" style="cursor:pointer">
+            <button type="button" class="st-catpill @(_categoryId == c.Id.ToString() ? "active" : null)" @onclick="() => SelectCategory(c.Id.ToString())">
                 <span class="st-catpill__ic"><StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="13" Contain="true" /></span> @c.Title
-            </a>
+            </button>
         }
     </div>
 }
@@ -243,13 +243,13 @@
                 }
             </div>
             <div class="st-pager">
-                <button @onclick="() => GoPage(_page - 1)" disabled="@(_page <= 1)"><Icon Name="chevron-right" Size="16" /></button>
+                <button @onclick="() => GoPage(_page - 1)" disabled="@(_page <= 1)" aria-label="صفحه قبل"><Icon Name="chevron-right" Size="16" /></button>
                 @foreach (var p in PagerPages())
                 {
                     var pageNo = p;
                     <button class="@(pageNo == _page ? "active" : null)" @onclick="() => GoPage(pageNo)">@AUI.Number(pageNo)</button>
                 }
-                <button @onclick="() => GoPage(_page + 1)" disabled="@(_page >= _totalPages)"><Icon Name="chevron-left" Size="16" /></button>
+                <button @onclick="() => GoPage(_page + 1)" disabled="@(_page >= _totalPages)" aria-label="صفحه بعد"><Icon Name="chevron-left" Size="16" /></button>
             </div>
         }
     </div>

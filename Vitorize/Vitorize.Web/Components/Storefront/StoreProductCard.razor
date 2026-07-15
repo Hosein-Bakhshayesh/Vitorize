@@ -9,7 +9,7 @@
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <div class="st-pcard">
-    <a class="st-pcard__media" href="@($"/product/{Product.Slug}")">
+    <a class="st-pcard__media" href="@($"/product/{Product.Slug}")" aria-label="مشاهده @Product.Title">
         <StoreImage Url="@Product.ThumbnailImagePath" Alt="@Product.Title" Icon="gamepad" />
         @if (Product.DiscountPercent > 0)
         {

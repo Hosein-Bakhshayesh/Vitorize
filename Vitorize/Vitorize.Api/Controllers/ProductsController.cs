@@ -89,5 +89,13 @@ namespace Vitorize.Api.Controllers
                 result,
                 "برندها با موفقیت دریافت شدند."));
         }
+
+        [HttpGet("categories/{slug}")]
+        public async Task<ActionResult<ApiResult<ProductLookupDto>>> GetCategory(string slug) =>
+            Ok(ApiResult<ProductLookupDto>.Success(await _productService.GetCategoryBySlugAsync(slug)));
+
+        [HttpGet("brands/{slug}")]
+        public async Task<ActionResult<ApiResult<ProductLookupDto>>> GetBrand(string slug) =>
+            Ok(ApiResult<ProductLookupDto>.Success(await _productService.GetBrandBySlugAsync(slug)));
     }
 }

@@ -11,11 +11,13 @@ namespace Vitorize.Web.Models.Admin.Categories
         public string Slug { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? ImagePath { get; set; }
+        public string? ImageAltText { get; set; }
         public string? Icon { get; set; }
         public int SortOrder { get; set; }
         public bool IsActive { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
+        public string? FocusKeyword { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public int ProductCount { get; set; }
@@ -37,11 +39,13 @@ namespace Vitorize.Web.Models.Admin.Categories
 
         public string? Description { get; set; }
         public string? ImagePath { get; set; }
+        [MaxLength(250)] public string? ImageAltText { get; set; }
         [MaxLength(100)] public string? Icon { get; set; }
         [Range(0, 100000, ErrorMessage = "ترتیب نمایش معتبر نیست.")]
         public int SortOrder { get; set; }
         public bool IsActive { get; set; } = true;
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }
+        [MaxLength(200)] public string? FocusKeyword { get; set; }
     }
 }
