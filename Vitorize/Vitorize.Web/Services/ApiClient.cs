@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Vitorize.Shared.Common;
+using Vitorize.Shared.Logging;
 using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Services
@@ -19,6 +20,7 @@ namespace Vitorize.Web.Services
         private readonly IAccessTokenProvider _tokenProvider;
         private readonly IServiceProvider _serviceProvider;
         private readonly PrerenderApiState _prerenderState;
+        private readonly ILogger<ApiClient> _logger;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -29,12 +31,14 @@ namespace Vitorize.Web.Services
             HttpClient httpClient,
             IAccessTokenProvider tokenProvider,
             IServiceProvider serviceProvider,
-            PrerenderApiState prerenderState)
+            PrerenderApiState prerenderState,
+            ILogger<ApiClient> logger)
         {
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
             _serviceProvider = serviceProvider;
             _prerenderState = prerenderState;
+            _logger = logger;
         }
 
         public async Task<ApiResult<T>> GetAsync<T>(string url)
@@ -66,6 +70,7 @@ namespace Vitorize.Web.Services
             {
                 using var request = BuildRequest(HttpMethod.Get, url, null);
                 await ApplyAuthAsync(request);
+                ApplyCorrelation(request);
                 using var response = await _httpClient.SendAsync(request);
                 HandleAuthFailure(url, response.StatusCode);
                 var content = await response.Content.ReadAsStringAsync();
@@ -73,8 +78,9 @@ namespace Vitorize.Web.Services
                     ? ApiResult<string>.Success(content)
                     : ApiResult<string>.Failure("دریافت فایل خروجی ناموفق بود.");
             }
-            catch
+            catch (Exception ex)
             {
+                LogTransportFailure(ex, HttpMethod.Get, url);
                 return ApiResult<string>.Failure(ConnectionErrorMessage);
             }
         }
@@ -112,6 +118,7 @@ namespace Vitorize.Web.Services
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 await ApplyAuthAsync(request);
+                ApplyCorrelation(request);
 
                 using var content = new MultipartFormDataContent();
                 var fileContent = new StreamContent(fileStream);
@@ -130,8 +137,9 @@ namespace Vitorize.Web.Services
 
                 return Deserialize<ApiResult<T>>(json, response);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                LogTransportFailure(ex, HttpMethod.Post, url);
                 return ApiResult<T>.Failure(ConnectionErrorMessage);
             }
         }
@@ -146,6 +154,7 @@ namespace Vitorize.Web.Services
             {
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
+                ApplyCorrelation(request);
 
                 if (headers is not null)
                 {
@@ -159,8 +168,9 @@ namespace Vitorize.Web.Services
 
                 return Deserialize<ApiResult<T>>(json, response);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                LogTransportFailure(ex, method, url);
                 return ApiResult<T>.Failure(ConnectionErrorMessage);
             }
         }
@@ -174,6 +184,7 @@ namespace Vitorize.Web.Services
             {
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
+                ApplyCorrelation(request);
 
                 using var response = await _httpClient.SendAsync(request);
                 HandleAuthFailure(url, response.StatusCode);
@@ -181,8 +192,9 @@ namespace Vitorize.Web.Services
 
                 return Deserialize<ApiResult>(json, response);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                LogTransportFailure(ex, method, url);
                 return ApiResult.Failure(ConnectionErrorMessage);
             }
         }
@@ -212,6 +224,20 @@ namespace Vitorize.Web.Services
                 request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
             }
+        }
+
+        private static void ApplyCorrelation(HttpRequestMessage request)
+        {
+            var correlationId = CorrelationContext.Current ?? CorrelationIdPolicy.Generate();
+            request.Headers.TryAddWithoutValidation(CorrelationIdPolicy.HeaderName, correlationId);
+        }
+
+        private void LogTransportFailure(Exception exception, HttpMethod method, string url)
+        {
+            var endpoint = SensitiveLogData.Sanitize(url.Split('?', 2)[0], 160);
+            _logger.LogWarning(
+                "API transport failed for {Method} {Endpoint}. ExceptionType={ExceptionType} EventType={EventType}",
+                method.Method, endpoint, exception.GetType().Name, "ApiTransportFailed");
         }
 
         /// <summary>

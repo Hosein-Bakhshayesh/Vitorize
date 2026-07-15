@@ -8,6 +8,17 @@ DECLARE @ProductId uniqueidentifier = '31000000-0000-0000-0000-000000000002';
 DECLARE @TagId uniqueidentifier = '31000000-0000-0000-0000-000000000003';
 DECLARE @ReviewUserId uniqueidentifier = '31000000-0000-0000-0000-000000000004';
 DECLARE @ReviewId uniqueidentifier = '31000000-0000-0000-0000-000000000005';
+DECLARE @E2eAdminId uniqueidentifier = (SELECT TOP (1) Id FROM dbo.Users WHERE Mobile = N'09120000011');
+
+-- The monitoring suite bootstraps a new random password for every isolated run.
+-- Remove only its dedicated test identity; production databases must never run this fixture.
+IF @E2eAdminId IS NOT NULL
+BEGIN
+    DELETE FROM dbo.SecurityLogs WHERE UserId = @E2eAdminId;
+    DELETE FROM dbo.UserRefreshTokens WHERE UserId = @E2eAdminId;
+    DELETE FROM dbo.UserRoles WHERE UserId = @E2eAdminId;
+    DELETE FROM dbo.Users WHERE Id = @E2eAdminId;
+END;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Id = @CategoryId)
     INSERT dbo.Categories (Id, Title, Slug, [Description], SeoTitle, SeoDescription, FocusKeyword, ImageAltText, IsActive, IsDeleted, CreatedAt)

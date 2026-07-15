@@ -1,0 +1,58 @@
+.monitoring-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.monitoring-card {
+    margin-top: 18px;
+    padding: 22px;
+    min-width: 0;
+}
+
+.monitoring-grid .monitoring-card {
+    margin-top: 0;
+}
+
+.monitoring-title {
+    margin: 0 0 16px;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.monitoring-kv {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+.monitoring-kv > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.monitoring-kv > div:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.monitoring-kv dt { color: var(--text-secondary); }
+.monitoring-kv dd { margin: 0; color: var(--text-primary); font-weight: 700; }
+
+.monitoring-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+@media (max-width: 800px) {
+    .monitoring-grid { grid-template-columns: 1fr; }
+    .monitoring-card { padding: 16px; }
+    .monitoring-kv > div { align-items: flex-start; }
+}

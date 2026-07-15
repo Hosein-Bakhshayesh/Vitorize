@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Orders;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,15 +20,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
+        private readonly ILogger<OrderService> _logger;
 
         public OrderService(
             VitorizeDbContext dbContext,
             INotificationService notificationService,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            ILogger<OrderService>? logger = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
+            _logger = logger ?? NullLogger<OrderService>.Instance;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -321,6 +326,10 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(content) || content.Length > 4000)
                 throw new BusinessException("محتوای تحویل باید بین ۱ تا ۴۰۰۰ نویسه باشد.");
 
+            _logger.LogInformation(
+                "Manual order delivery started. EventType={EventType} OrderId={OrderId} OrderItemId={OrderItemId}",
+                "ManualDeliveryStarted", orderId, request.OrderItemId);
+
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"manual-delivery:item:{request.OrderItemId:N}");
 
@@ -377,13 +386,17 @@ namespace Vitorize.Infrastructure.Services
             {
                 EventType = "ManualDeliveryCompleted", EntityType = "OrderItemDelivery",
                 EntityId = delivery.Id, UserId = adminUserId, CorrelationId = order.Id,
-                Detail = $"order:{order.OrderNumber};item:{item.Id:N};content-hash:{delivery.ContentHash}",
+                Detail = $"order:{order.OrderNumber};item:{item.Id:N};encrypted:true",
                 CreatedAt = now
             });
             await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.GiftCodeDelivered,
                 "تحویل سفارش", $"محتوای سفارش {order.OrderNumber} در حساب کاربری شما ثبت شد.");
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            _logger.LogInformation(
+                "Manual order delivery completed. EventType={EventType} OrderId={OrderId} OrderItemId={OrderItemId} OrderNumber={OrderNumber} VisibleToCustomer={VisibleToCustomer}",
+                "ManualDeliveryCompleted", order.Id, item.Id, order.OrderNumber, request.IsVisibleToCustomer);
         }
 
         private static OrderDto MapOrderSummary(Order order)

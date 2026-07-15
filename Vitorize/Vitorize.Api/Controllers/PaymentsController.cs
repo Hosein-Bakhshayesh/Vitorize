@@ -7,6 +7,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Helpers;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api.Controllers
 {
@@ -129,7 +130,7 @@ namespace Vitorize.Api.Controllers
             {
                 await _idempotencyService.FailAsync(
                     idempotencyKey,
-                    ex.Message);
+                    SensitiveLogData.SafeExceptionMessage(ex));
 
                 throw;
             }

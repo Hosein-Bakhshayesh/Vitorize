@@ -6,14 +6,17 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IO.Compression;
 using System.Text;
+using Serilog;
 using Vitorize.Api.BackgroundServices;
 using Vitorize.Api.Extensions;
 using Vitorize.Api.Filters;
+using Vitorize.Api.Logging;
 using Vitorize.Api.Middlewares;
 using Vitorize.Application;
 using Vitorize.Application.Common;
 using Vitorize.Infrastructure;
 using Vitorize.Shared.Common;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api
 {
@@ -21,7 +24,13 @@ namespace Vitorize.Api
     {
         public static void Main(string[] args)
         {
+            Log.Logger = SerilogHostConfiguration.CreateBootstrapLogger();
+            try
+            {
+            Log.ForContext("EventType", "ApplicationBootstrapStarted")
+                .Information("Vitorize API bootstrap starting");
             var builder = WebApplication.CreateBuilder(args);
+            builder.Host.UseSerilog(SerilogHostConfiguration.Configure);
             builder.Services.AddHsts(options =>
             {
                 options.MaxAge = TimeSpan.FromDays(365);
@@ -233,8 +242,13 @@ namespace Vitorize.Api
             // Background Services
             builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
             builder.Services.AddHostedService<BackgroundJobProcessor>();
+            builder.Services.Configure<SeqOptions>(builder.Configuration.GetSection("Seq"));
+            builder.Services.AddHostedService<SeqConnectivityProbe>();
 
             var app = builder.Build();
+
+            app.UseMiddleware<CorrelationIdMiddleware>();
+            app.UseVitorizeRequestLogging();
 
             app.SeedVitorizeInitialDataAsync();
 
@@ -305,7 +319,34 @@ namespace Vitorize.Api
 
             app.MapControllers();
 
+            var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+            var seqState = SerilogHostConfiguration.SeqState(app.Configuration);
+            if (seqState == "InvalidConfiguration")
+                startupLogger.LogWarning("Seq was requested but its URL is invalid; console and file sinks remain active. EventType={EventType}", "SeqConfigurationInvalid");
+            else if (seqState == "Disabled")
+                startupLogger.LogWarning("Seq is disabled; console and file sinks remain active. EventType={EventType}", "SeqDisabled");
+
+            app.Lifetime.ApplicationStarted.Register(() => startupLogger.LogInformation(
+                "Vitorize API started in {Environment}. EventType={EventType}", app.Environment.EnvironmentName, OperationalEventNames.ApplicationStarted));
+            app.Lifetime.ApplicationStopping.Register(() => startupLogger.LogInformation(
+                "Vitorize API is stopping. EventType={EventType}", OperationalEventNames.ApplicationStopping));
+
             app.Run();
+            }
+            catch (Exception exception)
+            {
+                Log.Fatal(
+                    "Vitorize API terminated during startup. ExceptionType={ExceptionType} SafeException={SafeException} ExceptionStack={ExceptionStack} EventType={EventType}",
+                    exception.GetType().Name,
+                    SensitiveLogData.SafeExceptionMessage(exception),
+                    SensitiveLogData.RedactFreeText(exception.StackTrace, 8000),
+                    "ApplicationStartupFailed");
+                throw;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
     }
 }

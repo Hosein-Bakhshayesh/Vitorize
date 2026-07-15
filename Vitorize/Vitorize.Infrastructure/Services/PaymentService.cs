@@ -9,6 +9,10 @@ using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -23,6 +27,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly IZarinpalGatewayService _zarinpalGatewayService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
+        private readonly ILogger<PaymentService> _logger;
 
         public PaymentService(
             VitorizeDbContext dbContext,
@@ -31,7 +36,8 @@ namespace Vitorize.Infrastructure.Services
             IWalletService walletService,
             INotificationService notificationService,
             IZarinpalGatewayService zarinpalGatewayService,
-            ISmsOutboxEnqueuer smsOutbox)
+            ISmsOutboxEnqueuer smsOutbox,
+            ILogger<PaymentService>? logger = null)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
@@ -40,10 +46,15 @@ namespace Vitorize.Infrastructure.Services
             _notificationService = notificationService;
             _zarinpalGatewayService = zarinpalGatewayService;
             _smsOutbox = smsOutbox;
+            _logger = logger ?? NullLogger<PaymentService>.Instance;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation(
+                "Payment start requested for order {OrderId} by user {UserId}. Provider={Provider} EventType={EventType}",
+                orderId, userId, ZarinpalGatewayName, OperationalEventNames.PaymentStarted);
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
@@ -84,6 +95,9 @@ namespace Vitorize.Infrastructure.Services
                     await _zarinpalGatewayService.BuildPaymentUrlAsync(payment.Authority);
 
                 await transaction.CommitAsync();
+                _logger.LogInformation(
+                    "Existing payment authority reused for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
+                    order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentStarted);
                 return new PaymentStartResultDto
                 {
                     PaymentId = payment.Id,
@@ -114,6 +128,10 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                _logger.LogWarning(
+                    "Payment provider request failed for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
+                    order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
+
                 throw new BusinessException("امکان اتصال به درگاه پرداخت وجود ندارد.");
             }
 
@@ -135,6 +153,10 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            _logger.LogInformation(
+                "Payment provider request created for order {OrderNumber}. Provider={Provider} Authority={Authority} ElapsedMs={ElapsedMs} EventType={EventType}",
+                order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(gatewayResult.Authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentStarted);
+
             return new PaymentStartResultDto
             {
                 PaymentId = payment.Id,
@@ -149,6 +171,7 @@ namespace Vitorize.Infrastructure.Services
             string authority,
             string status)
         {
+            var stopwatch = Stopwatch.StartNew();
             if (string.IsNullOrWhiteSpace(authority))
                 throw new BusinessException("Authority معتبر نیست.");
 
@@ -185,6 +208,10 @@ namespace Vitorize.Infrastructure.Services
                     await _dbContext.SaveChangesAsync();
                     await transaction.CommitAsync();
 
+                    _logger.LogInformation(
+                        "Duplicate payment callback ignored for order {OrderNumber}. Provider={Provider} Authority={Authority} EventType={EventType}",
+                        order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(authority, 100), OperationalEventNames.PaymentCallbackDuplicate);
+
                     return CreateVerifyResult(payment, order);
                 }
 
@@ -198,6 +225,10 @@ namespace Vitorize.Infrastructure.Services
 
                     await _dbContext.SaveChangesAsync();
                     await transaction.CommitAsync();
+
+                    _logger.LogWarning(
+                        "Payment callback was unsuccessful for order {OrderNumber}. Provider={Provider} StatusCategory={StatusCategory} ElapsedMs={ElapsedMs} EventType={EventType}",
+                        order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(normalizedStatus, 32), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
 
                     return CreateFailedVerifyResult(payment, order);
                 }
@@ -232,6 +263,10 @@ namespace Vitorize.Infrastructure.Services
                     await _dbContext.SaveChangesAsync();
                     await transaction.CommitAsync();
 
+                    _logger.LogWarning(
+                        "Payment verification failed for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
+                        order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
+
                     return CreateFailedVerifyResult(payment, order);
                 }
 
@@ -259,6 +294,10 @@ namespace Vitorize.Infrastructure.Services
 
                 await transaction.CommitAsync();
 
+                _logger.LogInformation(
+                    "Payment verified for order {OrderNumber}. Provider={Provider} Authority={Authority} ElapsedMs={ElapsedMs} EventType={EventType}",
+                    order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerified);
+
                 return CreateVerifyResult(payment, order);
             }
             catch
@@ -270,6 +309,10 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<int> ReconcilePendingZarinpalPaymentsAsync()
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation(
+                "Payment reconciliation started. Provider={Provider} EventType={EventType}",
+                ZarinpalGatewayName, OperationalEventNames.PaymentReconciliationStarted);
             var threshold = DateTime.UtcNow.AddMinutes(-30);
 
             var paymentIds = await _dbContext.Payments
@@ -381,13 +424,21 @@ namespace Vitorize.Infrastructure.Services
 
                     if (failedPayment != null)
                     {
-                        failedPayment.ErrorMessage = $"Reconcile error: {ex.Message}";
+                        failedPayment.ErrorMessage = $"Reconcile error: {SensitiveLogData.SafeExceptionMessage(ex)}";
                         failedPayment.UpdatedAt = DateTime.UtcNow;
 
                         await _dbContext.SaveChangesAsync();
                     }
+
+                    _logger.LogError(
+                        "Payment reconciliation failed for payment {PaymentId}. Provider={Provider} ExceptionType={ExceptionType} EventType={EventType}",
+                        paymentId, ZarinpalGatewayName, ex.GetType().Name, OperationalEventNames.PaymentReconciliationFailed);
                 }
             }
+
+            _logger.LogInformation(
+                "Payment reconciliation completed. CandidateCount={CandidateCount} ProcessedCount={ProcessedCount} ElapsedMs={ElapsedMs} EventType={EventType}",
+                paymentIds.Count, processed, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentReconciliationCompleted);
 
             return processed;
         }
@@ -518,6 +569,10 @@ namespace Vitorize.Infrastructure.Services
             Guid adminUserId,
             PaymentRefundRequestDto request)
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation(
+                "Refund requested for payment {PaymentId} by admin {AdminUserId}. Method={RefundMethod} EventType={EventType}",
+                paymentId, adminUserId, request?.Method, "RefundRequested");
             if (paymentId == Guid.Empty || adminUserId == Guid.Empty)
                 throw new BusinessException("شناسه پرداخت یا کاربر معتبر نیست.");
             request ??= new PaymentRefundRequestDto();
@@ -581,6 +636,10 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
+            _logger.LogInformation(
+                "Refund state created for order {OrderNumber}. RefundId={RefundId} Status={RefundStatus} ElapsedMs={ElapsedMs} EventType={EventType}",
+                payment.Order.OrderNumber, refund.Id, refund.Status, stopwatch.ElapsedMilliseconds,
+                refund.Status == (byte)PaymentRefundStatus.Completed ? "RefundCompleted" : "RefundRequested");
             return MapRefund(refund);
         }
 
@@ -615,6 +674,9 @@ namespace Vitorize.Infrastructure.Services
                 $"gateway-reference:{gatewayReference.Trim()}");
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
+            _logger.LogInformation(
+                "Refund completed for order {OrderNumber}. RefundId={RefundId} EventType={EventType}",
+                refund.Payment.Order.OrderNumber, refund.Id, "RefundCompleted");
             return MapRefund(refund);
         }
 

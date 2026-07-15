@@ -6,6 +6,10 @@ using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -15,23 +19,30 @@ namespace Vitorize.Infrastructure.Services
         private readonly ICouponService _couponService;
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
+        private readonly ILogger<CheckoutService> _logger;
 
         public CheckoutService(
             VitorizeDbContext dbContext,
             ICouponService couponService,
             INotificationService notificationService,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            ILogger<CheckoutService>? logger = null)
         {
             _dbContext = dbContext;
             _couponService = couponService;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
+            _logger = logger ?? NullLogger<CheckoutService>.Instance;
         }
 
         public async Task<CheckoutResultDto> CheckoutAsync(
             Guid userId,
             CheckoutRequestDto request)
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation(
+                "Checkout started for user {UserId}. EventType={EventType}",
+                userId, OperationalEventNames.CheckoutStarted);
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
@@ -282,6 +293,11 @@ namespace Vitorize.Infrastructure.Services
 
                 await transaction.CommitAsync();
 
+                stopwatch.Stop();
+                _logger.LogInformation(
+                    "Checkout completed for order {OrderNumber}. ItemCount={ItemCount} ReservationCount={ReservationCount} ElapsedMs={ElapsedMs} EventType={EventType}",
+                    order.OrderNumber, orderItems.Count, reservationIds.Count, stopwatch.ElapsedMilliseconds, OperationalEventNames.CheckoutCompleted);
+
                 return new CheckoutResultDto
                 {
                     OrderId = order.Id,
@@ -293,6 +309,15 @@ namespace Vitorize.Infrastructure.Services
                     PaymentStatus = order.PaymentStatus,
                     ReservationIds = reservationIds
                 };
+            }
+            catch (BusinessException exception)
+            {
+                await transaction.RollbackAsync();
+                stopwatch.Stop();
+                _logger.LogWarning(
+                    "Checkout rejected for user {UserId}. ReasonCategory={ReasonCategory} ElapsedMs={ElapsedMs} EventType={EventType}",
+                    userId, exception.GetType().Name, stopwatch.ElapsedMilliseconds, OperationalEventNames.CheckoutFailed);
+                throw;
             }
             catch
             {

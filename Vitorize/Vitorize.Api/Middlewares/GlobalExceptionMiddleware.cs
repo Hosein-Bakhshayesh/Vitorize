@@ -3,6 +3,7 @@ using System.Text.Json;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api.Middlewares
 {
@@ -52,8 +53,14 @@ namespace Vitorize.Api.Middlewares
             if (statusCode == HttpStatusCode.InternalServerError)
             {
                 _logger.LogError(
-                    exception,
-                    exception.Message);
+                    "Unhandled exception for {RequestMethod} {RequestPath}. CorrelationId={CorrelationId} ExceptionType={ExceptionType} SafeException={SafeException} ExceptionStack={ExceptionStack} EventType={EventType}",
+                    context.Request.Method,
+                    context.Request.Path.Value,
+                    context.Items[CorrelationIdPolicy.HeaderName]?.ToString(),
+                    exception.GetType().Name,
+                    SensitiveLogData.SafeExceptionMessage(exception),
+                    SensitiveLogData.RedactFreeText(exception.StackTrace, 8000),
+                    OperationalEventNames.UnhandledException);
 
                 await errorLogService.LogAsync(exception);
             }
@@ -65,6 +72,8 @@ namespace Vitorize.Api.Middlewares
 
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)statusCode;
+            context.Response.Headers[CorrelationIdPolicy.HeaderName] =
+                context.Items[CorrelationIdPolicy.HeaderName]?.ToString() ?? CorrelationIdPolicy.Generate();
 
             var json = JsonSerializer.Serialize(
                 response,

@@ -12,6 +12,7 @@ using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -129,7 +130,11 @@ namespace Vitorize.Infrastructure.Services
                     null,
                     "LOGIN",
                     false,
-                    $"Failed login for mobile {request.Mobile}");
+                    $"Failed login for mobile {SensitiveLogData.MaskMobile(request.Mobile)}");
+
+                _logger.LogWarning(
+                    "Login failed for {MaskedMobile}. ReasonCategory={ReasonCategory} EventType={EventType}",
+                    SensitiveLogData.MaskMobile(request.Mobile), "UnknownUser", "LoginFailed");
 
                 throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
             }
@@ -142,7 +147,11 @@ namespace Vitorize.Infrastructure.Services
                     user.Id,
                     "LOGIN",
                     false,
-                    $"Invalid password for user {user.Mobile}");
+                    $"Invalid password for user {SensitiveLogData.MaskMobile(user.Mobile)}");
+
+                _logger.LogWarning(
+                    "Login failed for user {UserId} and {MaskedMobile}. ReasonCategory={ReasonCategory} EventType={EventType}",
+                    user.Id, SensitiveLogData.MaskMobile(user.Mobile), "InvalidCredential", "LoginFailed");
 
                 throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
             }
@@ -178,6 +187,10 @@ namespace Vitorize.Infrastructure.Services
                 "LOGIN",
                 true,
                 "User login successful");
+
+            _logger.LogInformation(
+                "Login succeeded for user {UserId}. EventType={EventType}",
+                user.Id, "LoginSucceeded");
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
@@ -630,7 +643,6 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.OtpCodes.AddAsync(otp);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
-            await transaction.CommitAsync();
 
             var templateKey = TemplateKeyForPurpose(purpose);
             var sendResult = await _smsService.SendOtpAsync(
@@ -661,6 +673,19 @@ namespace Vitorize.Infrastructure.Services
                 ip,
                 userAgent);
 
+            if (sendResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "OTP requested and sent. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} TemplateKey={TemplateKey} EventType={EventType}",
+                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, templateKey, OperationalEventNames.OtpRequested);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "OTP delivery failed. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} TemplateKey={TemplateKey} FailureReason={FailureReason} EventType={EventType}",
+                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, templateKey, sendResult.FailureReason, OperationalEventNames.OtpFailed);
+            }
+
             // اگر ارسال پیامک شکست بخورد، کد یکبار‌مصرف عمل اصلی است؛ خطای امن برمی‌گردانیم.
             if (!sendResult.IsSuccess)
             {
@@ -680,6 +705,9 @@ namespace Vitorize.Infrastructure.Services
 
             if (todayCount >= Math.Max(1, opts.DailyOtpLimitPerMobile))
             {
+                _logger.LogWarning(
+                    "OTP daily rate limit reached. MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
+                    SensitiveLogData.MaskMobile(mobile), purpose, OperationalEventNames.OtpRateLimited);
                 throw new BusinessException(
                     "تعداد درخواست‌های کد تایید برای امروز به حداکثر رسیده است. لطفاً فردا دوباره تلاش کنید.");
             }
@@ -698,6 +726,9 @@ namespace Vitorize.Infrastructure.Services
 
                 if (elapsed < cooldown)
                 {
+                    _logger.LogWarning(
+                        "OTP resend cooldown active. MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
+                        SensitiveLogData.MaskMobile(mobile), purpose, OperationalEventNames.OtpRateLimited);
                     throw new BusinessException(
                         "کد تایید اخیراً ارسال شده است. لطفاً پس از پایان شمارش معکوس دوباره تلاش کنید.");
                 }
@@ -778,6 +809,9 @@ namespace Vitorize.Infrastructure.Services
                 await _securityLogService.LogAsync(
                     null, "OTP_LOGIN_FAILED", false,
                     $"No active login OTP for {IranMobile.Mask(mobile)}", ipAddress, userAgent);
+                _logger.LogWarning(
+                    "OTP verification failed because no active code exists. MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
+                    SensitiveLogData.MaskMobile(mobile), OtpPurpose.Login, OperationalEventNames.OtpFailed);
                 throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
             }
 
@@ -798,6 +832,10 @@ namespace Vitorize.Infrastructure.Services
                 await _securityLogService.LogAsync(
                     otp.UserId, "OTP_LOGIN_FAILED", false,
                     $"Invalid login OTP for {IranMobile.Mask(mobile)}", ipAddress, userAgent);
+
+                _logger.LogWarning(
+                    "OTP verification failed. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} AttemptCount={AttemptCount} MaxAttempt={MaxAttempt} EventType={EventType}",
+                    otp.UserId, SensitiveLogData.MaskMobile(mobile), OtpPurpose.Login, otp.AttemptCount, otp.MaxAttempt, OperationalEventNames.OtpFailed);
 
                 throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
             }
@@ -848,6 +886,10 @@ namespace Vitorize.Infrastructure.Services
             await _securityLogService.LogAsync(
                 user.Id, "OTP_LOGIN_SUCCESS", true,
                 "Customer OTP login successful", ipAddress, userAgent);
+
+            _logger.LogInformation(
+                "OTP verification succeeded. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
+                user.Id, SensitiveLogData.MaskMobile(mobile), OtpPurpose.Login, OperationalEventNames.OtpVerified);
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 

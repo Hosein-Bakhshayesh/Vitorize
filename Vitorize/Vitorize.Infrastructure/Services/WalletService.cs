@@ -6,6 +6,9 @@ using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -13,13 +16,16 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
+        private readonly ILogger<WalletService> _logger;
 
         public WalletService(
             VitorizeDbContext dbContext,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ILogger<WalletService>? logger = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
+            _logger = logger ?? NullLogger<WalletService>.Instance;
         }
 
         public async Task<WalletDto> GetMyWalletAsync(Guid userId)
@@ -187,6 +193,9 @@ namespace Vitorize.Infrastructure.Services
                 {
                     if (transaction != null)
                         await transaction.CommitAsync();
+                    _logger.LogInformation(
+                        "Duplicate wallet operation ignored for user {UserId}. ReferenceType={ReferenceType} ReferenceId={ReferenceId} EventType={EventType}",
+                        userId, referenceType, referenceId, "WalletOperationDuplicate");
                     return MapWallet(wallet);
                 }
 
@@ -258,7 +267,24 @@ namespace Vitorize.Infrastructure.Services
                 if (transaction != null)
                     await transaction.CommitAsync();
 
+                _logger.LogInformation(
+                    "Wallet operation completed for user {UserId}. WalletTransactionId={WalletTransactionId} OperationType={OperationType} ReferenceType={ReferenceType} ReferenceId={ReferenceId} EventType={EventType}",
+                    userId, walletTransaction.Id, transactionType, referenceType, referenceId,
+                    transactionType == (byte)WalletTransactionType.Credit ? "WalletCreditSucceeded" : "WalletDebitSucceeded");
+
                 return MapWallet(wallet);
+            }
+            catch (BusinessException exception)
+            {
+                if (transaction != null)
+                    await transaction.RollbackAsync();
+
+                _logger.LogWarning(
+                    "Wallet operation rejected for user {UserId}. OperationType={OperationType} ReasonCategory={ReasonCategory} EventType={EventType}",
+                    userId, transactionType, exception.GetType().Name,
+                    transactionType == (byte)WalletTransactionType.Debit ? "WalletDebitFailed" : "WalletCreditFailed");
+
+                throw;
             }
             catch
             {

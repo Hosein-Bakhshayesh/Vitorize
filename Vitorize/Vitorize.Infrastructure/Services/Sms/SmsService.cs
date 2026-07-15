@@ -3,6 +3,7 @@ using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Application.Models.Sms;
 using Vitorize.Shared.Enums;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services.Sms
 {
@@ -73,8 +74,8 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (templateId is null)
             {
                 _logger.LogWarning(
-                    "SMS template not configured. TemplateKey={TemplateKey} Mobile={Mobile}",
-                    templateKey, IranMobile.Mask(normalized));
+                    "SMS template not configured. TemplateKey={TemplateKey} Mobile={Mobile} EventType={EventType}",
+                    templateKey, IranMobile.Mask(normalized), OperationalEventNames.SmsFailed);
                 return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
             }
 
@@ -215,14 +216,14 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "SMS sent. Purpose={Purpose} Mobile={Mobile} Provider={Provider} TemplateId={TemplateId} MessageId={MessageId} Cost={Cost}",
-                    purpose, maskedMobile, provider, templateId, result.ProviderMessageId, result.Cost);
+                    "SMS sent. Purpose={Purpose} Mobile={Mobile} Provider={Provider} TemplateId={TemplateId} MessageId={MessageId} EventType={EventType}",
+                    purpose, maskedMobile, provider, templateId, result.ProviderMessageId, OperationalEventNames.SmsSent);
             }
             else
             {
                 _logger.LogWarning(
-                    "SMS failed. Purpose={Purpose} Mobile={Mobile} Provider={Provider} TemplateId={TemplateId} Reason={Reason} ProviderStatus={Status} ProviderMessage={ProviderMessage}",
-                    purpose, maskedMobile, provider, templateId, result.FailureReason, result.ProviderStatus, result.ProviderMessage);
+                    "SMS failed. Purpose={Purpose} Mobile={Mobile} Provider={Provider} TemplateId={TemplateId} Reason={Reason} ProviderStatus={Status} EventType={EventType}",
+                    purpose, maskedMobile, provider, templateId, result.FailureReason, result.ProviderStatus, OperationalEventNames.SmsFailed);
             }
         }
     }

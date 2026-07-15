@@ -13,10 +13,16 @@ $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:ConnectionStrings__DefaultConnection = $connection
 $env:Jwt__SecretKey = $random
 $env:Encryption__Key = $random.Substring(0, 32)
-$env:BootstrapAdmin__Enabled = 'false'
+$env:BootstrapAdmin__Enabled = 'true'
+if (-not $env:E2E_ADMIN_MOBILE -or -not $env:E2E_ADMIN_PASSWORD) { throw 'Playwright must supply randomized E2E bootstrap credentials.' }
+$env:BootstrapAdmin__Mobile = $env:E2E_ADMIN_MOBILE
+$env:BootstrapAdmin__Password = $env:E2E_ADMIN_PASSWORD
+$env:BootstrapAdmin__FullName = 'E2E Monitoring Admin'
 $env:DevelopmentDemoUser__Enabled = 'false'
 $env:ApiSettings__BaseUrl = 'http://127.0.0.1:5177/api/'
 $env:ApiSettings__MediaBaseUrl = 'http://127.0.0.1:5177'
+$env:Monitoring__ShowSeqLink = 'true'
+$env:Monitoring__SeqUiUrl = 'https://seq.e2e.invalid'
 
 $logRoot = Join-Path $PSScriptRoot '..\artifacts\stack'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null

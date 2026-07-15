@@ -7,6 +7,7 @@ using Vitorize.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.StaticFiles;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api.Controllers
 {
@@ -19,17 +20,20 @@ namespace Vitorize.Api.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly VitorizeDbContext _dbContext;
         private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<VerificationController> _logger;
 
         public VerificationController(
             IVerificationService verificationService,
             ICurrentUserService currentUserService,
             VitorizeDbContext dbContext,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            ILogger<VerificationController> logger)
         {
             _verificationService = verificationService;
             _currentUserService = currentUserService;
             _dbContext = dbContext;
             _environment = environment;
+            _logger = logger;
         }
 
         [HttpGet("me")]
@@ -93,6 +97,10 @@ namespace Vitorize.Api.Controllers
             var fullPath = ResolvePrivateDocumentPath(document.FilePath, document.OwnerId);
             if (!System.IO.File.Exists(fullPath))
                 throw new NotFoundException("فایل مدرک یافت نشد.");
+
+            _logger.LogInformation(
+                "Protected KYC document viewed. UserId={UserId} FileId={FileId} OwnerAccess={OwnerAccess} ReviewAccess={ReviewAccess} EventType={EventType}",
+                userId, documentId, document.OwnerId == userId, canReview, OperationalEventNames.KycViewed);
             Response.Headers.CacheControl = "no-store, private";
             Response.Headers["Content-Disposition"] = "inline";
             var provider = new FileExtensionContentTypeProvider();

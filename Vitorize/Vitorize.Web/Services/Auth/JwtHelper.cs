@@ -10,18 +10,27 @@ namespace Vitorize.Web.Services.Auth
     public static class JwtHelper
     {
         public static IReadOnlyList<string> ExtractRoles(string? token)
+            => ExtractClaimValues(token, name =>
+                name.Equals("role", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("roles", StringComparison.OrdinalIgnoreCase) ||
+                name.EndsWith("/role", StringComparison.OrdinalIgnoreCase));
+
+        public static IReadOnlyList<string> ExtractPermissions(string? token)
+            => ExtractClaimValues(token, name => name.Equals("permission", StringComparison.OrdinalIgnoreCase));
+
+        private static IReadOnlyList<string> ExtractClaimValues(string? token, Func<string, bool> matches)
         {
-            var roles = new List<string>();
+            var values = new List<string>();
 
             if (string.IsNullOrWhiteSpace(token))
-                return roles;
+                return values;
 
             try
             {
                 var parts = token.Split('.');
 
                 if (parts.Length < 2)
-                    return roles;
+                    return values;
 
                 var payloadJson = DecodeBase64Url(parts[1]);
 
@@ -31,12 +40,7 @@ namespace Vitorize.Web.Services.Auth
                 {
                     var name = property.Name;
 
-                    var isRoleClaim =
-                        name.Equals("role", StringComparison.OrdinalIgnoreCase) ||
-                        name.Equals("roles", StringComparison.OrdinalIgnoreCase) ||
-                        name.EndsWith("/role", StringComparison.OrdinalIgnoreCase);
-
-                    if (!isRoleClaim)
+                    if (!matches(name))
                         continue;
 
                     if (property.Value.ValueKind == JsonValueKind.Array)
@@ -44,23 +48,23 @@ namespace Vitorize.Web.Services.Auth
                         foreach (var item in property.Value.EnumerateArray())
                         {
                             if (item.ValueKind == JsonValueKind.String)
-                                roles.Add(item.GetString() ?? string.Empty);
+                                values.Add(item.GetString() ?? string.Empty);
                         }
                     }
                     else if (property.Value.ValueKind == JsonValueKind.String)
                     {
-                        roles.Add(property.Value.GetString() ?? string.Empty);
+                        values.Add(property.Value.GetString() ?? string.Empty);
                     }
                 }
 
-                return roles
+                return values
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
             catch
             {
-                return roles;
+                return values;
             }
         }
 

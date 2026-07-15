@@ -6,6 +6,10 @@ using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -13,19 +17,23 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly IEncryptionService _encryptionService;
+        private readonly ILogger<GiftCodeDeliveryService> _logger;
 
         public GiftCodeDeliveryService(
             VitorizeDbContext dbContext,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            ILogger<GiftCodeDeliveryService>? logger = null)
         {
             _dbContext = dbContext;
             _encryptionService = encryptionService;
+            _logger = logger ?? NullLogger<GiftCodeDeliveryService>.Instance;
         }
 
         public async Task DeliverOrderAsync(
             Guid orderId,
             Guid? deliveredByUserId = null)
         {
+            var stopwatch = Stopwatch.StartNew();
             if (orderId == Guid.Empty)
                 throw new BusinessException("شناسه سفارش معتبر نیست.");
 
@@ -107,7 +115,7 @@ namespace Vitorize.Infrastructure.Services
                     EntityId = delivery.Id,
                     UserId = deliveredByUserId,
                     CorrelationId = order.Id,
-                    Detail = $"order:{order.OrderNumber};content-hash:{delivery.ContentHash}",
+                    Detail = $"order:{order.OrderNumber}",
                     CreatedAt = now
                 });
             }
@@ -137,6 +145,9 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.OrderStatusHistories.AddAsync(history);
 
             await _dbContext.SaveChangesAsync();
+            _logger.LogInformation(
+                "Gift-code delivery completed for order {OrderNumber}. DeliveredCount={DeliveredCount} ElapsedMs={ElapsedMs} EventType={EventType}",
+                order.OrderNumber, soldReservations.Count, stopwatch.ElapsedMilliseconds, "GiftCodeDelivered");
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Application.Interfaces;
@@ -7,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Vitorize.Shared.Enums;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api.BackgroundServices
 {
@@ -14,21 +16,27 @@ namespace Vitorize.Api.BackgroundServices
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BackgroundJobProcessor> _logger;
+        private readonly IWorkerHeartbeatRegistry _heartbeatRegistry;
 
         public BackgroundJobProcessor(
             IServiceProvider serviceProvider,
-            ILogger<BackgroundJobProcessor> logger)
+            ILogger<BackgroundJobProcessor> logger,
+            IWorkerHeartbeatRegistry heartbeatRegistry)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _heartbeatRegistry = heartbeatRegistry;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Background Job Processor started");
+            _logger.LogInformation(
+                "Maintenance worker started. EventType={EventType} WorkerName={WorkerName}",
+                OperationalEventNames.WorkerStarted, nameof(BackgroundJobProcessor));
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                var stopwatch = Stopwatch.StartNew();
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
@@ -36,22 +44,57 @@ namespace Vitorize.Api.BackgroundServices
 
                     await scope.ServiceProvider.GetRequiredService<IGiftCodeReservationService>()
                         .ReleaseExpiredReservationsAsync();
-                    await scope.ServiceProvider.GetRequiredService<IPaymentService>()
+                    var reconciliationCount = await scope.ServiceProvider.GetRequiredService<IPaymentService>()
                         .ReconcilePendingZarinpalPaymentsAsync();
-                    await CleanupOtp(db, stoppingToken);
-                    await CleanupRefreshTokens(db, stoppingToken);
-                    await CleanupIdempotency(db, stoppingToken);
-                    await ProtectLegacySensitiveData(db,
+                    var processed = reconciliationCount;
+                    processed += await CleanupOtp(db, stoppingToken);
+                    processed += await CleanupRefreshTokens(db, stoppingToken);
+                    processed += await CleanupIdempotency(db, stoppingToken);
+                    processed += await ProtectLegacySensitiveData(db,
                         scope.ServiceProvider.GetRequiredService<IEncryptionService>(), stoppingToken);
-                    await CleanupOperationalLogs(db, stoppingToken);
+                    processed += await CleanupOperationalLogs(db, stoppingToken);
+
+                    stopwatch.Stop();
+                    _heartbeatRegistry.Record(nameof(BackgroundJobProcessor), processed, stopwatch.Elapsed, "Succeeded");
+                    if (processed > 0)
+                    {
+                        _logger.LogInformation(
+                            "Maintenance worker iteration completed. EventType={EventType} WorkerName={WorkerName} BatchCount={BatchCount} ReconciledPayments={ReconciledPayments} DurationMs={DurationMs}",
+                            OperationalEventNames.WorkerIterationCompleted, nameof(BackgroundJobProcessor), processed, reconciliationCount, stopwatch.ElapsedMilliseconds);
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "Maintenance worker idle. EventType={EventType} WorkerName={WorkerName} DurationMs={DurationMs}",
+                            OperationalEventNames.WorkerIterationCompleted, nameof(BackgroundJobProcessor), stopwatch.ElapsedMilliseconds);
+                    }
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Background job error");
+                    stopwatch.Stop();
+                    _heartbeatRegistry.Record(nameof(BackgroundJobProcessor), 0, stopwatch.Elapsed, "Failed");
+                    _logger.LogError(
+                        "Maintenance worker iteration failed. EventType={EventType} WorkerName={WorkerName} ExceptionType={ExceptionType} DurationMs={DurationMs}",
+                        OperationalEventNames.WorkerIterationFailed, nameof(BackgroundJobProcessor), ex.GetType().Name, stopwatch.ElapsedMilliseconds);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
+
+            _logger.LogInformation(
+                "Maintenance worker stopped. EventType={EventType} WorkerName={WorkerName}",
+                OperationalEventNames.WorkerStopped, nameof(BackgroundJobProcessor));
         }
         private async Task ExpireGiftCodes(VitorizeDbContext db, CancellationToken ct)
         {
@@ -79,7 +122,7 @@ namespace Vitorize.Api.BackgroundServices
                 await db.SaveChangesAsync(ct);
         }
 
-        private async Task CleanupOtp(VitorizeDbContext db, CancellationToken ct)
+        private async Task<int> CleanupOtp(VitorizeDbContext db, CancellationToken ct)
         {
             var now = DateTime.UtcNow;
 
@@ -93,9 +136,10 @@ namespace Vitorize.Api.BackgroundServices
                 db.OtpCodes.RemoveRange(old);
                 await db.SaveChangesAsync(ct);
             }
+            return old.Count;
         }
 
-        private async Task CleanupRefreshTokens(VitorizeDbContext db, CancellationToken ct)
+        private async Task<int> CleanupRefreshTokens(VitorizeDbContext db, CancellationToken ct)
         {
             var now = DateTime.UtcNow;
 
@@ -109,9 +153,10 @@ namespace Vitorize.Api.BackgroundServices
                 db.UserRefreshTokens.RemoveRange(tokens);
                 await db.SaveChangesAsync(ct);
             }
+            return tokens.Count;
         }
 
-        private async Task CleanupIdempotency(VitorizeDbContext db, CancellationToken ct)
+        private async Task<int> CleanupIdempotency(VitorizeDbContext db, CancellationToken ct)
         {
             var now = DateTime.UtcNow;
 
@@ -125,9 +170,10 @@ namespace Vitorize.Api.BackgroundServices
                 db.IdempotencyKeys.RemoveRange(keys);
                 await db.SaveChangesAsync(ct);
             }
+            return keys.Count;
         }
 
-        private static async Task CleanupOperationalLogs(VitorizeDbContext db, CancellationToken ct)
+        private static async Task<int> CleanupOperationalLogs(VitorizeDbContext db, CancellationToken ct)
         {
             var auditCutoff = DateTime.UtcNow.AddDays(-365);
             var securityCutoff = DateTime.UtcNow.AddDays(-730);
@@ -136,9 +182,10 @@ namespace Vitorize.Api.BackgroundServices
             if (audits.Count > 0) db.AuditLogs.RemoveRange(audits);
             if (security.Count > 0) db.SecurityLogs.RemoveRange(security);
             if (audits.Count > 0 || security.Count > 0) await db.SaveChangesAsync(ct);
+            return audits.Count + security.Count;
         }
 
-        private static async Task ProtectLegacySensitiveData(
+        private static async Task<int> ProtectLegacySensitiveData(
             VitorizeDbContext db,
             IEncryptionService encryption,
             CancellationToken ct)
@@ -176,6 +223,7 @@ namespace Vitorize.Api.BackgroundServices
                 if (user is not null) user.NationalCode = null;
             }
             if (deliveries.Count > 0 || profiles.Count > 0) await db.SaveChangesAsync(ct);
+            return deliveries.Count + profiles.Count;
         }
     }
 }

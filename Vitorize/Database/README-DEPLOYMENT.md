@@ -1,5 +1,7 @@
 # Vitorize — Manual Deployment Guide (Database-First)
 
+> Monitoring/Serilog/Seq introduces no database change. After database deployment, follow [Monitoring and logging](../docs/MONITORING-AND-LOGGING.md), [Seq deployment](../docs/SEQ-DEPLOYMENT.md), and the [logging runbook](../docs/LOGGING-RUNBOOK.md). Supply `Seq__*` and private `Monitoring__*` values through the deployment secret/config provider, never SQL Settings or committed configuration.
+
 این پروژه Database-First است و **هیچ EF Migration ندارد**. تغییرات دیتابیس فقط از طریق
 اسکریپت‌های SQL این پوشه اعمال می‌شوند.
 

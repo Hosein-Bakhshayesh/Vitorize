@@ -6,6 +6,9 @@ using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -15,17 +18,20 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
         private readonly IEncryptionService _encryptionService;
+        private readonly ILogger<VerificationService> _logger;
 
         public VerificationService(
             VitorizeDbContext dbContext,
             INotificationService notificationService,
             ISmsOutboxEnqueuer smsOutbox,
-            IEncryptionService encryptionService)
+            IEncryptionService encryptionService,
+            ILogger<VerificationService>? logger = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _smsOutbox = smsOutbox;
             _encryptionService = encryptionService;
+            _logger = logger ?? NullLogger<VerificationService>.Instance;
         }
 
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
@@ -109,6 +115,10 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
+            _logger.LogInformation(
+                "KYC profile submitted. UserId={UserId} ProfileId={ProfileId} DocumentCount={DocumentCount} EventType={EventType}",
+                userId, profile.Id, profile.VerificationDocuments.Count, OperationalEventNames.KycUploaded);
+
             return MapProfile(profile);
         }
 
@@ -154,6 +164,10 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.VerificationDocuments.AddAsync(document);
             await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "KYC document registered. UserId={UserId} ProfileId={ProfileId} FileId={FileId} DocumentType={DocumentType} EventType={EventType}",
+                userId, profile.Id, document.Id, documentType, OperationalEventNames.KycUploaded);
 
             return MapDocument(document);
         }
@@ -293,6 +307,11 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "KYC review completed. UserId={UserId} ProfileId={ProfileId} AdminUserId={AdminUserId} DocumentCount={DocumentCount} Approved={Approved} EventType={EventType}",
+                user.Id, profile.Id, adminUserId, profile.VerificationDocuments.Count, request.Approve,
+                request.Approve ? OperationalEventNames.KycApproved : OperationalEventNames.KycRejected);
 
             return MapProfile(profile);
         }

@@ -6,8 +6,17 @@ using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.UI;
 using Vitorize.Shared.Common;
 using System.IO.Compression;
+using Serilog;
+using Vitorize.Shared.Logging;
+using Vitorize.Web.Logging;
 
+Log.Logger = SerilogHostConfiguration.CreateBootstrapLogger();
+try
+{
+Log.ForContext("EventType", "ApplicationBootstrapStarted")
+    .Information("Vitorize Web bootstrap starting");
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog(SerilogHostConfiguration.Configure);
 builder.Services.AddHsts(options =>
 {
     options.MaxAge = TimeSpan.FromDays(365);
@@ -28,6 +37,8 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(x => x.Level = CompressionLevel.Fastest);
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(x => x.Level = CompressionLevel.Fastest);
 builder.Services.AddMemoryCache();
+builder.Services.Configure<SeqOptions>(builder.Configuration.GetSection("Seq"));
+builder.Services.AddHostedService<SeqConnectivityProbe>();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
@@ -106,6 +117,13 @@ builder.Services.AddAuthorization(options =>
         policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.CustomerScheme);
         policy.RequireAuthenticatedUser();
     });
+
+    options.AddPolicy("SecurityDiagnostics", policy =>
+    {
+        policy.AuthenticationSchemes.Add(VitorizeAuthSchemes.AdminScheme);
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("permission", "security.diagnostics");
+    });
 });
 
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
@@ -139,6 +157,7 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseResponseCompression();
 
 if (!app.Environment.IsDevelopment())
@@ -170,6 +189,8 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
+app.UseVitorizeRequestLogging();
+
 // UseRouting صریح بعد از StaticFiles: صفحه‌ی Catch-all (۴۰۴) نباید فایل‌های استاتیک را ببلعد.
 // بدون این خط، Routing خودکارِ ابتدای Pipeline مسیر فایل‌ها را به Endpoint صفحه‌ی ۴۰۴ می‌داد
 // و StaticFiles (که Endpoint-aware است) از سرو کردن فایل صرف‌نظر می‌کرد.
@@ -189,4 +210,31 @@ app.MapSeoEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var seqState = SerilogHostConfiguration.SeqState(app.Configuration);
+if (seqState == "InvalidConfiguration")
+    startupLogger.LogWarning("Seq was requested but its URL is invalid; console and file sinks remain active. EventType={EventType}", "SeqConfigurationInvalid");
+else if (seqState == "Disabled")
+    startupLogger.LogWarning("Seq is disabled; console and file sinks remain active. EventType={EventType}", "SeqDisabled");
+
+app.Lifetime.ApplicationStarted.Register(() => startupLogger.LogInformation(
+    "Vitorize Web started in {Environment}. EventType={EventType}", app.Environment.EnvironmentName, OperationalEventNames.ApplicationStarted));
+app.Lifetime.ApplicationStopping.Register(() => startupLogger.LogInformation(
+    "Vitorize Web is stopping. EventType={EventType}", OperationalEventNames.ApplicationStopping));
+
 app.Run();
+}
+catch (Exception exception)
+{
+    Log.Fatal(
+        "Vitorize Web terminated during startup. ExceptionType={ExceptionType} SafeException={SafeException} ExceptionStack={ExceptionStack} EventType={EventType}",
+        exception.GetType().Name,
+        SensitiveLogData.SafeExceptionMessage(exception),
+        SensitiveLogData.RedactFreeText(exception.StackTrace, 8000),
+        "ApplicationStartupFailed");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}

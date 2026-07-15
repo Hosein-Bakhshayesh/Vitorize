@@ -8,6 +8,9 @@ namespace Vitorize.Application.DTOs.Outbox
     {
         public Guid? SmsMessageId { get; set; }
 
+        /// <summary>Validated operational correlation identifier; never a secret.</summary>
+        public string? CorrelationId { get; set; }
+
         public string Mobile { get; set; } = string.Empty;
 
         /// <summary>کلید منطقی قالب؛ اگر مقدار داشته باشد، ارسال قالبی انجام می‌شود.</summary>

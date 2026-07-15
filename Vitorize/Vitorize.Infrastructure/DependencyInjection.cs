@@ -9,6 +9,7 @@ using Vitorize.Infrastructure.Interceptors;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
 using Vitorize.Infrastructure.Services.Sms;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure
 {
@@ -81,6 +82,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<AuditSaveChangesInterceptor>();
 
             services.TryAddScoped<IAdminSystemReadService, AdminSystemReadService>();
+            services.TryAddScoped<IAdminMonitoringService, AdminMonitoringService>();
+            services.TryAddSingleton<IWorkerHeartbeatRegistry, WorkerHeartbeatRegistry>();
             services.TryAddScoped<IAdminPaymentReadService, AdminPaymentReadService>();
             services.TryAddScoped<IAdminRoleReadService, AdminRoleReadService>();
             services.TryAddScoped<IAdminNotificationReadService, AdminNotificationReadService>();
@@ -101,6 +104,8 @@ namespace Vitorize.Infrastructure
 
             services.Configure<ZarinpalSettings>(
                 configuration.GetSection("Zarinpal"));
+            services.Configure<MonitoringOptions>(
+                configuration.GetSection("Monitoring"));
 
 
             // Framework Services

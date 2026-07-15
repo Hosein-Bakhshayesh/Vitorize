@@ -7,6 +7,7 @@ using Vitorize.Application.Models.Sms;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services.Sms
 {
@@ -81,9 +82,11 @@ namespace Vitorize.Infrastructure.Services.Sms
                     x => x.IdempotencyKey == finalIdempotencyKey, cancellationToken))
                 return;
 
+            var payloadCorrelationId = ResolvePayloadCorrelationId();
             var payload = new SmsOutboxPayload
             {
                 SmsMessageId = historyId,
+                CorrelationId = payloadCorrelationId,
                 Mobile = normalized,
                 TemplateKey = templateKey,
                 Purpose = purpose,
@@ -131,7 +134,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 RelatedEntityId = aggregateId,
                 RelatedEntityReference = relatedEntityReference ?? publicReference,
                 IdempotencyKey = finalIdempotencyKey,
-                CorrelationId = Guid.NewGuid(),
+                CorrelationId = ResolveCorrelationId(payloadCorrelationId),
                 OutboxMessageId = outboxId
             }, cancellationToken);
         }
@@ -165,9 +168,11 @@ namespace Vitorize.Infrastructure.Services.Sms
                 return;
 
             var options = await _settingsProvider.GetAsync(cancellationToken);
+            var payloadCorrelationId = ResolvePayloadCorrelationId();
             var payload = new SmsOutboxPayload
             {
                 SmsMessageId = historyId,
+                CorrelationId = payloadCorrelationId,
                 Mobile = normalized,
                 Text = text.Trim(),
                 Purpose = purpose
@@ -205,9 +210,19 @@ namespace Vitorize.Infrastructure.Services.Sms
                 RelatedEntityId = aggregateId,
                 RelatedEntityReference = relatedEntityReference,
                 IdempotencyKey = finalIdempotencyKey,
-                CorrelationId = Guid.NewGuid(),
+                CorrelationId = ResolveCorrelationId(payloadCorrelationId),
                 OutboxMessageId = outboxId
             }, cancellationToken);
         }
+
+        private static Guid ResolveCorrelationId(string correlation) =>
+            Guid.TryParseExact(correlation, "N", out var correlationId)
+                ? correlationId
+                : Guid.NewGuid();
+
+        private static string ResolvePayloadCorrelationId() =>
+            CorrelationIdPolicy.IsValid(CorrelationContext.Current)
+                ? CorrelationContext.Current!
+                : CorrelationIdPolicy.Generate();
     }
 }

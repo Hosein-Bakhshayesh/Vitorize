@@ -9,6 +9,7 @@ using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -116,7 +117,8 @@ namespace Vitorize.Infrastructure.Services
             }
 
             _logger.LogWarning(
-                "The initial SuperAdmin was created by explicit bootstrap configuration. Disable BootstrapAdmin:Enabled and remove all BootstrapAdmin secret values now.");
+                "The initial SuperAdmin was created by explicit bootstrap configuration. Disable BootstrapAdmin:Enabled and remove all BootstrapAdmin secret values now. EventType={EventType}",
+                OperationalEventNames.BootstrapSuperAdminCreated);
         }
 
         private async Task SeedDevelopmentDemoUserAsync(CancellationToken cancellationToken)

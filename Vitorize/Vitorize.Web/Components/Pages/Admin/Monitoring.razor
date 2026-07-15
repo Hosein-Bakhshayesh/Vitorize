@@ -1,0 +1,115 @@
+@page "/admin/monitoring"
+@attribute [Authorize(Policy = "SecurityDiagnostics")]
+@inject ApiClient Api
+@inject ToastService Toasts
+@using Microsoft.AspNetCore.Authorization
+@using Vitorize.Web.Models.Admin.System
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="پایش سامانه" Subtitle="نمای امن وضعیت عملیاتی؛ جزئیات فنی کامل در Seq"
+            Icon="activity" Breadcrumbs="@(new(){ ("پایش سامانه", null) })">
+    <Actions>
+        @if (_data?.ShowSeqLink == true && !string.IsNullOrWhiteSpace(_data.SeqUiUrl))
+        {
+            <a class="vz-btn vz-btn--outline" href="@_data.SeqUiUrl" target="_blank" rel="noopener noreferrer">
+                <Icon Name="external-link" Size="17" /> مشاهده لاگ‌های فنی در Seq
+            </a>
+        }
+        <button class="vz-btn vz-btn--primary" @onclick="Load" disabled="@_loading">
+            <Icon Name="refresh" Size="17" /> بروزرسانی
+        </button>
+    </Actions>
+</PageHeader>
+
+@if (_loading)
+{
+    <div class="vz-state"><div class="vz-spinner"></div><span>در حال دریافت وضعیت عملیاتی...</span></div>
+}
+else if (_data is null)
+{
+    <div class="vz-empty"><Icon Name="alert-triangle" Size="30" /><strong>دریافت وضعیت سامانه ناموفق بود.</strong></div>
+}
+else
+{
+    <div class="vz-stats">
+        <StatCard Label="API" Value="@_data.ApiStatus" Icon="server" Accent="@(_data.ApiStatus == "Healthy" ? "green" : "red")" />
+        <StatCard Label="Web" Value="Healthy" Icon="monitor" Accent="green" />
+        <StatCard Label="دیتابیس" Value="@(_data.DatabaseReady ? "آماده" : "نامتاح")" Icon="database" Accent="@(_data.DatabaseReady ? "green" : "red")" />
+        <StatCard Label="پرداخت معلق" Value="@AUI.Number(_data.PendingPayments)" Icon="credit-card" Accent="@(_data.PendingPayments > 0 ? "amber" : "green")" />
+        <StatCard Label="Outbox متوقف" Value="@AUI.Number(_data.OutboxStuck + _data.OutboxDeadLetter)" Icon="inbox" Accent="@(_data.OutboxStuck + _data.OutboxDeadLetter > 0 ? "red" : "green")" />
+        <StatCard Label="خطاهای بازه" Value="@AUI.Number(_data.ErrorLogsInWindow)" Icon="alert-circle" Accent="@(_data.ErrorLogsInWindow > 0 ? "amber" : "green")" />
+        <StatCard Label="هشدار امنیتی" Value="@AUI.Number(_data.SecurityWarningsInWindow)" Icon="shield" Accent="@(_data.SecurityWarningsInWindow > 0 ? "amber" : "green")" />
+    </div>
+
+    <div class="monitoring-grid">
+        <section class="vz-card monitoring-card">
+            <h2 class="monitoring-title">پرداخت و تحویل</h2>
+            <dl class="monitoring-kv">
+                <div><dt>پرداخت ناموفق ۲۴ ساعت</dt><dd>@AUI.Number(_data.FailedPaymentsLast24Hours)</dd></div>
+                <div><dt>بازپرداخت ناموفق</dt><dd>@AUI.Number(_data.RefundFailures)</dd></div>
+                <div><dt>جبران کیف پول ناموفق</dt><dd>@AUI.Number(_data.WalletCompensationFailures)</dd></div>
+                <div><dt>تحویل دستی معلق</dt><dd>@AUI.Number(_data.PendingManualDeliveries)</dd></div>
+                <div><dt>تحویل گیفت ناموفق</dt><dd>@AUI.Number(_data.FailedGiftCodeDeliveries)</dd></div>
+            </dl>
+        </section>
+        <section class="vz-card monitoring-card">
+            <h2 class="monitoring-title">صف و پیامک</h2>
+            <dl class="monitoring-kv">
+                <div><dt>Outbox آماده</dt><dd>@AUI.Number(_data.OutboxPending)</dd></div>
+                <div><dt>Outbox در حال بازتلاش</dt><dd>@AUI.Number(_data.OutboxRetrying)</dd></div>
+                <div><dt>Outbox متوقف / Dead-letter</dt><dd>@AUI.Number(_data.OutboxStuck + _data.OutboxDeadLetter)</dd></div>
+                <div><dt>SMS ناموفق</dt><dd>@AUI.Number(_data.SmsFailed)</dd></div>
+                <div><dt>SMS Dead-letter</dt><dd>@AUI.Number(_data.SmsDeadLetter)</dd></div>
+            </dl>
+        </section>
+    </div>
+
+    <section class="vz-card monitoring-card">
+        <div class="vz-spread"><h2 class="monitoring-title">Workerها</h2><span class="vz-muted">Heartbeat همین نمونه برنامه</span></div>
+        @if (_data.Workers.Count == 0)
+        {
+            <div class="vz-empty"><span>هنوز Heartbeat ثبت نشده است.</span></div>
+        }
+        else
+        {
+            <div class="vz-table-wrap"><table class="vz-table"><thead><tr><th>Worker</th><th>وضعیت</th><th>آخرین اجرا</th><th>Batch</th><th>زمان</th><th>نتیجه</th></tr></thead><tbody>
+            @foreach (var worker in _data.Workers)
+            {
+                <tr><td>@worker.WorkerName</td><td><span class="vz-badge @(worker.IsHealthy ? "vz-badge-success" : "vz-badge-danger")">@(worker.IsHealthy ? "سالم" : "نیازمند بررسی")</span></td><td><PersianDateDisplay Value="worker.LastHeartbeatUtc" /></td><td>@AUI.Number(worker.LastBatchCount)</td><td>@AUI.Number(worker.LastDurationMs) ms</td><td>@worker.LastOutcome</td></tr>
+            }
+            </tbody></table></div>
+        }
+    </section>
+
+    <section class="vz-card monitoring-card">
+        <h2 class="monitoring-title">استقرار و پیگیری</h2>
+        <dl class="monitoring-kv">
+            <div><dt>نسخه Schema مورد انتظار / فعلی</dt><dd>@_data.ExpectedSchemaVersion / @(_data.CurrentSchemaVersion ?? "نامشخص")</dd></div>
+            <div><dt>نسخه برنامه</dt><dd>@_data.ApplicationVersion</dd></div>
+            <div><dt>محیط</dt><dd>@_data.Environment</dd></div>
+            <div><dt>آخرین استقرار ثبت‌شده</dt><dd>@(_data.LastDeploymentAt.HasValue ? _data.LastDeploymentAt.Value.ToString("u") : "نامشخص")</dd></div>
+            <div><dt>خطای تبدیل KYC</dt><dd>@AUI.Number(_data.KycConversionFailures)</dd></div>
+        </dl>
+        <div class="monitoring-actions">
+            <a class="vz-btn vz-btn--ghost" href="/admin/error-logs">لاگ خطاها</a>
+            <a class="vz-btn vz-btn--ghost" href="/admin/security-logs">لاگ امنیتی</a>
+            <a class="vz-btn vz-btn--ghost" href="/admin/audit-logs">لاگ عملیات</a>
+        </div>
+    </section>
+}
+
+@code {
+    private AdminMonitoringModel? _data;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        var result = await Api.GetAsync<AdminMonitoringModel>("admin/monitoring");
+        _loading = false;
+        if (result.IsSuccess && result.Data is not null) _data = result.Data;
+        else { _data = null; Toasts.Error(result.Message); }
+    }
+}

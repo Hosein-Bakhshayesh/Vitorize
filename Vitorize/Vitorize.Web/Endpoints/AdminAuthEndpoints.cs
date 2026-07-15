@@ -96,6 +96,8 @@ namespace Vitorize.Web.Endpoints
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
+            foreach (var permission in JwtHelper.ExtractPermissions(accessToken))
+                claims.Add(new Claim("permission", permission));
 
             var identity = new ClaimsIdentity(claims, VitorizeAuthSchemes.AdminScheme);
             var principal = new ClaimsPrincipal(identity);

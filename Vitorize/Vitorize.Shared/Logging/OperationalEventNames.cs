@@ -1,0 +1,58 @@
+namespace Vitorize.Shared.Logging;
+
+public static class OperationalEventNames
+{
+    public const string ApplicationStarted = nameof(ApplicationStarted);
+    public const string ApplicationStopping = nameof(ApplicationStopping);
+    public const string DatabaseSchemaMismatch = nameof(DatabaseSchemaMismatch);
+    public const string UnhandledException = nameof(UnhandledException);
+    public const string CheckoutStarted = nameof(CheckoutStarted);
+    public const string CheckoutCompleted = nameof(CheckoutCompleted);
+    public const string CheckoutFailed = nameof(CheckoutFailed);
+    public const string PaymentStarted = nameof(PaymentStarted);
+    public const string PaymentVerified = nameof(PaymentVerified);
+    public const string PaymentVerificationFailed = nameof(PaymentVerificationFailed);
+    public const string PaymentCallbackDuplicate = nameof(PaymentCallbackDuplicate);
+    public const string PaymentReconciliationStarted = nameof(PaymentReconciliationStarted);
+    public const string PaymentReconciliationCompleted = nameof(PaymentReconciliationCompleted);
+    public const string PaymentReconciliationFailed = nameof(PaymentReconciliationFailed);
+    public const string WalletDebitSucceeded = nameof(WalletDebitSucceeded);
+    public const string WalletDebitFailed = nameof(WalletDebitFailed);
+    public const string WalletTopUpCompleted = nameof(WalletTopUpCompleted);
+    public const string WalletCompensationCreated = nameof(WalletCompensationCreated);
+    public const string RefundRequested = nameof(RefundRequested);
+    public const string RefundCompleted = nameof(RefundCompleted);
+    public const string RefundFailed = nameof(RefundFailed);
+    public const string GiftCodeReserved = nameof(GiftCodeReserved);
+    public const string GiftCodeDelivered = nameof(GiftCodeDelivered);
+    public const string GiftCodeDeliveryFailed = nameof(GiftCodeDeliveryFailed);
+    public const string ManualDeliveryCreated = nameof(ManualDeliveryCreated);
+    public const string ManualDeliveryFailed = nameof(ManualDeliveryFailed);
+    public const string CouponApplied = nameof(CouponApplied);
+    public const string CouponRejected = nameof(CouponRejected);
+    public const string SmsQueued = nameof(SmsQueued);
+    public const string OutboxMessageClaimed = nameof(OutboxMessageClaimed);
+    public const string OutboxMessageRetried = nameof(OutboxMessageRetried);
+    public const string OutboxMessageRecovered = nameof(OutboxMessageRecovered);
+    public const string OutboxMessageDeadLettered = nameof(OutboxMessageDeadLettered);
+    public const string SmsSent = nameof(SmsSent);
+    public const string SmsFailed = nameof(SmsFailed);
+    public const string SmsDeadLettered = nameof(SmsDeadLettered);
+    public const string OtpRequested = nameof(OtpRequested);
+    public const string OtpVerified = nameof(OtpVerified);
+    public const string OtpFailed = nameof(OtpFailed);
+    public const string OtpRateLimited = nameof(OtpRateLimited);
+    public const string KycUploaded = nameof(KycUploaded);
+    public const string KycViewed = nameof(KycViewed);
+    public const string KycApproved = nameof(KycApproved);
+    public const string KycRejected = nameof(KycRejected);
+    public const string KycLegacyConversionFailed = nameof(KycLegacyConversionFailed);
+    public const string AdminPermissionDenied = nameof(AdminPermissionDenied);
+    public const string BootstrapSuperAdminCreated = nameof(BootstrapSuperAdminCreated);
+    public const string BackgroundWorkerHeartbeatMissing = nameof(BackgroundWorkerHeartbeatMissing);
+    public const string HttpRequestCompleted = nameof(HttpRequestCompleted);
+    public const string WorkerStarted = nameof(WorkerStarted);
+    public const string WorkerStopped = nameof(WorkerStopped);
+    public const string WorkerIterationCompleted = nameof(WorkerIterationCompleted);
+    public const string WorkerIterationFailed = nameof(WorkerIterationFailed);
+}
