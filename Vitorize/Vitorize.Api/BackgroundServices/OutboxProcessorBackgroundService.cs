@@ -213,9 +213,20 @@ namespace Vitorize.Api.BackgroundServices
             }
             catch (Exception ex)
             {
+                var concurrencyEntities = ex is DbUpdateConcurrencyException concurrency
+                    ? string.Join(',', concurrency.Entries.Select(x => x.Metadata.ClrType.Name).Distinct())
+                    : string.Empty;
                 _logger.LogError(
-                    "Outbox message processing failed. EventType={EventType} ExceptionType={ExceptionType} RetryCount={RetryCount}",
-                    OperationalEventNames.WorkerIterationFailed, ex.GetType().Name, message.RetryCount);
+                    "Outbox message processing failed. EventType={EventType} ExceptionType={ExceptionType} ConcurrencyEntities={ConcurrencyEntities} RetryCount={RetryCount}",
+                    OperationalEventNames.WorkerIterationFailed, ex.GetType().Name, concurrencyEntities, message.RetryCount);
+
+                // ExecuteUpdate is used for the atomic lease claim. If a later persistence operation
+                // fails, discard every potentially stale tracked instance before recording recovery
+                // state; otherwise the recovery SaveChanges can itself throw a concurrency exception.
+                var messageId = message.Id;
+                dbContext.ChangeTracker.Clear();
+                message = await dbContext.OutboxMessages
+                    .SingleAsync(x => x.Id == messageId, cancellationToken);
                 message.RetryCount += 1;
                 message.Status = message.RetryCount >= MaxRetryCount
                     ? (byte)OutboxMessageStatus.Failed
@@ -307,8 +318,7 @@ namespace Vitorize.Api.BackgroundServices
                         Status = (byte)SmsMessageStatus.Processing,
                         AttemptedAt = attemptedAt
                     };
-                    history.Attempts.Add(attempt);
-                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await dbContext.SmsMessageAttempts.AddAsync(attempt, cancellationToken);
                 }
 
                 SmsSendResult result;

@@ -550,6 +550,7 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             await _securityLogService.LogAsync(
                 user.Id,

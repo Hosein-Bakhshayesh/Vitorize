@@ -64,7 +64,21 @@ namespace Vitorize.Infrastructure.Services
                 .Any(x => x.DeliveryType == (byte)DeliveryType.Instant);
 
             if (hasInstantItems && !soldReservations.Any())
+            {
+                var instantItemsAlreadyDelivered = order.OrderItems
+                    .Where(x => x.DeliveryType == (byte)DeliveryType.Instant)
+                    .All(x => x.DeliveryStatus == (byte)DeliveryStatus.Delivered &&
+                              x.OrderItemDeliveries.Any());
+                if (instantItemsAlreadyDelivered)
+                {
+                    _logger.LogInformation(
+                        "Gift-code delivery replay ignored for completed fulfillment. OrderNumber={OrderNumber} EventType={EventType}",
+                        order.OrderNumber, "GiftCodeDeliveryReplayIgnored");
+                    return;
+                }
+
                 throw new BusinessException("کد قابل تحویلی برای این سفارش یافت نشد.");
+            }
 
             foreach (var reservation in soldReservations)
             {
