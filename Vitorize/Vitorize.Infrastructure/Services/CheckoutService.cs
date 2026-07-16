@@ -327,6 +327,6 @@ namespace Vitorize.Infrastructure.Services
         }
 
         private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
-            discountPrice is >= 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
+            discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
     }
 }
