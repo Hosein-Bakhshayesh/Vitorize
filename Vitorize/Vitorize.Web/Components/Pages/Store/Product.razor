@@ -80,15 +80,15 @@ else
             {
                 <section class="st-product-features" aria-labelledby="product-features-title">
                     <h2 id="product-features-title">ویژگی‌ها و مشخصات</h2>
-                    <dl class="st-feature-grid">
+                    <div class="st-feature-grid">
                         @foreach (var feature in _p.Features.Where(x => x.IsActive).OrderBy(x => x.SortOrder))
                         {
-                            <div class="st-feature-card">
+                            <article class="st-feature-card">
                                 <span class="st-feature-card__icon"><LucideIcon IconKey="@feature.IconKey" Size="20" FallbackIconKey="circle-check" /></span>
-                                <div><dt>@feature.Title</dt><dd>@feature.Value</dd></div>
-                            </div>
+                                <dl><div><dt>@feature.Title</dt><dd>@feature.Value</dd></div></dl>
+                            </article>
                         }
-                    </dl>
+                    </div>
                 </section>
             }
 
@@ -109,7 +109,7 @@ else
                         else { <p class="st-muted">توضیحاتی برای این محصول ثبت نشده است.</p> }
                     </div>
 
-                    <div class="st-trustchips">
+                    <div class="st-trustchips" tabindex="0" role="region" aria-label="مزایای خرید و تحویل محصول">
                         <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="shield-check" Size="14" /></span><div><div class="st-trustchip__t">ضمانت اصالت</div><div class="st-trustchip__s">فروشنده معتبر</div></div></div>
                         <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="zap" Size="14" /></span><div><div class="st-trustchip__t">تحویل آنی</div><div class="st-trustchip__s">بلافاصله پس از پرداخت</div></div></div>
                         <div class="st-trustchip"><span class="st-trustchip__ic"><Icon Name="lock" Size="14" /></span><div><div class="st-trustchip__t">پرداخت امن</div><div class="st-trustchip__s">رمزگذاری ۲۵۶ بیتی</div></div></div>
@@ -466,7 +466,23 @@ else
                     ["worstRating"] = 1
                 }
             }).ToList();
-        return SeoJsonLd.Serialize(product);
+        var home = SeoUrlBuilder.Canonical(_branding, Nav.Uri, "/");
+        var shop = SeoUrlBuilder.Canonical(_branding, Nav.Uri, "/shop");
+        var breadcrumbs = new Dictionary<string, object?>
+        {
+            ["@type"] = "BreadcrumbList",
+            ["itemListElement"] = new[]
+            {
+                new Dictionary<string, object?> { ["@type"] = "ListItem", ["position"] = 1, ["name"] = "خانه", ["item"] = home },
+                new Dictionary<string, object?> { ["@type"] = "ListItem", ["position"] = 2, ["name"] = "فروشگاه", ["item"] = shop },
+                new Dictionary<string, object?> { ["@type"] = "ListItem", ["position"] = 3, ["name"] = _p.Title, ["item"] = canonical }
+            }
+        };
+        return SeoJsonLd.Serialize(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@graph"] = new object[] { product, breadcrumbs }
+        });
     }
 
     private string AbsoluteMedia(string path, string canonical)

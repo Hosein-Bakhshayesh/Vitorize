@@ -72,7 +72,7 @@ else
                                 }
                                 else
                                 {
-                                    <UploadBox Value="null" ValueChanged="(p) => AddDoc(dt.Key, p)" Label="آپلود تصویر" Endpoint="uploads/verification-document" />
+                                    <UploadBox Value="@((string?)null)" ValueChanged="(p) => AddDoc(dt.Key, p)" Label="آپلود تصویر" Endpoint="uploads/verification-document" />
                                 }
                             </div>
                         }

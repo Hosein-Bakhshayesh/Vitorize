@@ -67,7 +67,16 @@ namespace Vitorize.Infrastructure
             // ───────────── SMS (SMS.ir) ─────────────
             // Sender و SettingsProvider به‌صورت Singleton ثبت می‌شوند تا HttpClient داخلی SDK
             // و کش تنظیمات میان درخواست‌ها بازاستفاده شود. SmsService و Enqueuer در سطح درخواست هستند.
-            services.AddSingleton<ISmsSender, SmsIrSender>();
+            if (configuration.GetValue<bool>("Testing:UseFakeSms"))
+            {
+                services.AddSingleton<TestingSmsSender>();
+                services.AddSingleton<ISmsSender>(provider =>
+                    provider.GetRequiredService<TestingSmsSender>());
+            }
+            else
+            {
+                services.AddSingleton<ISmsSender, SmsIrSender>();
+            }
             services.AddSingleton<ISmsSettingsProvider, SmsSettingsProvider>();
             services.AddScoped<ISmsService, SmsService>();
             services.AddScoped<ISmsOutboxEnqueuer, SmsOutboxEnqueuer>();

@@ -365,8 +365,10 @@ else
                     case "color":
                         <div class="vz-colorfield">
                             <input type="color" value="@(string.IsNullOrWhiteSpace(s.Value) ? "#0a8276" : s.Value)"
+                                   aria-label="@SettingLabel(s)"
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                             <input class="vz-input" placeholder="#0a8276" value="@s.Value"
+                                   aria-label="@SettingLabel(s)"
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                             @SaveInline(s)
                         </div>
@@ -376,6 +378,7 @@ else
                     case "decimal":
                         <div class="vz-setfield__row">
                             <input class="vz-input" type="number" value="@s.Value"
+                                   aria-label="@SettingLabel(s)"
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                             @SaveInline(s)
                         </div>
@@ -384,6 +387,7 @@ else
                     case "secret":
                         <div class="vz-setfield__row">
                             <input class="vz-input" type="password" autocomplete="new-password"
+                                   aria-label="@SettingLabel(s)"
                                    placeholder="برای تغییر، مقدار جدید وارد کنید" value="@s.Value"
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                             @SaveInline(s)
@@ -400,6 +404,7 @@ else
                         @if (IsMultiline(s))
                         {
                             <textarea class="vz-textarea" rows="3" value="@s.Value"
+                                      aria-label="@SettingLabel(s)"
                                       @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }"></textarea>
                             <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
                         }
@@ -407,6 +412,7 @@ else
                         {
                             <div class="vz-setfield__row">
                                 <input class="vz-input" value="@s.Value"
+                                       aria-label="@SettingLabel(s)"
                                        @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
                                 @SaveInline(s)
                             </div>
@@ -428,6 +434,9 @@ else
         setting.Value = value;
         MarkDirty(setting);
     }
+
+    private static string SettingLabel(SettingModel setting) =>
+        string.IsNullOrWhiteSpace(setting.Description) ? setting.Key : setting.Description;
 
     private RenderFragment SaveInline(SettingModel s) =>
         @<span class="vz-setfield__save">

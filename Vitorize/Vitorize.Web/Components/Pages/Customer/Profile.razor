@@ -18,20 +18,20 @@ else
             <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات حساب</div>
             <div class="st-card__pad">
                 <div class="st-field">
-                    <label class="st-label">نام و نام خانوادگی</label>
-                    <input class="st-input" @bind="_fullName" />
+                    <label class="st-label" for="profile-full-name">نام و نام خانوادگی</label>
+                    <input id="profile-full-name" class="st-input" @bind="_fullName" />
                 </div>
                 <div class="st-field">
-                    <label class="st-label">ایمیل</label>
-                    <input class="st-input" type="email" dir="ltr" placeholder="you@example.com" @bind="_email" />
+                    <label class="st-label" for="profile-email">ایمیل</label>
+                    <input id="profile-email" class="st-input" type="email" dir="ltr" placeholder="you@example.com" @bind="_email" />
                     @if (!string.IsNullOrWhiteSpace(_user?.Email) && _user!.IsEmailConfirmed == false)
                     {
                         <div class="st-hint" style="color:var(--st-warning)">ایمیل شما هنوز تایید نشده است.</div>
                     }
                 </div>
                 <div class="st-field">
-                    <label class="st-label">شماره موبایل</label>
-                    <input class="st-input st-mono" value="@(_user?.Mobile)" disabled />
+                    <label class="st-label" for="profile-mobile">شماره موبایل</label>
+                    <input id="profile-mobile" class="st-input st-mono" value="@(_user?.Mobile)" disabled />
                     <div class="st-hint">شماره موبایل قابل تغییر نیست.</div>
                 </div>
                 <button class="st-btn st-btn--primary" @onclick="SaveProfile" disabled="@_savingProfile">
@@ -53,9 +53,9 @@ else
         <div class="st-card st-anim d1">
             <div class="st-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</div>
             <div class="st-card__pad">
-                <div class="st-field"><label class="st-label">رمز عبور فعلی</label><input class="st-input" type="password" @bind="_current" /></div>
-                <div class="st-field"><label class="st-label">رمز عبور جدید</label><input class="st-input" type="password" @bind="_new" /></div>
-                <div class="st-field"><label class="st-label">تکرار رمز عبور جدید</label><input class="st-input" type="password" @bind="_confirm" /></div>
+                <div class="st-field"><label class="st-label" for="current-password">رمز عبور فعلی</label><input id="current-password" class="st-input" type="password" @bind="_current" /></div>
+                <div class="st-field"><label class="st-label" for="new-password">رمز عبور جدید</label><input id="new-password" class="st-input" type="password" @bind="_new" /></div>
+                <div class="st-field"><label class="st-label" for="confirm-password">تکرار رمز عبور جدید</label><input id="confirm-password" class="st-input" type="password" @bind="_confirm" /></div>
                 <button class="st-btn st-btn--primary" @onclick="ChangePassword" disabled="@_busy">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>تغییر رمز عبور</span> }
                 </button>

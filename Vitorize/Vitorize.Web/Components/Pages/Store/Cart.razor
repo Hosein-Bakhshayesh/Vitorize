@@ -27,13 +27,13 @@ else
         <div class="st-stack">
             @foreach (var item in _cart.Items)
             {
-                <div class="st-card st-card__pad" style="display:flex;gap:14px;align-items:center">
-                    <div style="width:70px;height:56px;border-radius:10px;overflow:hidden;background:var(--st-surface-2);flex:0 0 70px">
+                <div class="st-card st-card__pad st-cart-item" style="display:flex;gap:14px;align-items:center">
+                    <div class="st-cart-item__image" style="width:70px;height:56px;border-radius:10px;overflow:hidden;background:var(--st-surface-2);flex:0 0 70px">
                         @if (!string.IsNullOrWhiteSpace(item.ThumbnailImagePath))
                         { <img src="@Media.Resolve(item.ThumbnailImagePath)" alt="" style="width:100%;height:100%;object-fit:cover" /> }
                         else { <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--st-muted)"><Icon Name="box" Size="22" /></div> }
                     </div>
-                    <div style="flex:1;min-width:0">
+                    <div class="st-cart-item__info" style="flex:1;min-width:0">
                         <div style="font-weight:700;font-size:14px">@item.ProductTitle</div>
                         @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
                         { <div class="st-muted" style="font-size:12px">@item.VariantTitle</div> }
@@ -52,7 +52,7 @@ else
                         <span>@AUI.Number(item.Quantity)</span>
                         <button @onclick="() => UpdateQty(item, item.Quantity + 1)" disabled="@_busy">+</button>
                     </div>
-                    <div style="text-align:end;min-width:120px">
+                    <div class="st-cart-item__total" style="text-align:end;min-width:120px">
                         <div style="font-weight:800">@AUI.MoneyFa(item.TotalPrice)</div>
                         <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger);margin-top:4px" @onclick="() => Remove(item)" disabled="@_busy"><Icon Name="trash" Size="14" /> حذف</button>
                     </div>

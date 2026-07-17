@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IO.Compression;
@@ -15,6 +16,7 @@ using Vitorize.Api.Middlewares;
 using Vitorize.Application;
 using Vitorize.Application.Common;
 using Vitorize.Infrastructure;
+using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Logging;
 
@@ -213,13 +215,14 @@ namespace Vitorize.Api
             });
 
             // Rate Limiting برای جلوگیری از Brute Force و Spam
+            var testingRateLimit = builder.Environment.IsEnvironment("Testing") ? 1_000 : (int?)null;
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
                 options.AddFixedWindowLimiter("login", opt =>
                 {
-                    opt.PermitLimit = 5;
+                    opt.PermitLimit = testingRateLimit ?? 5;
                     opt.Window = TimeSpan.FromMinutes(1);
                     opt.QueueProcessingOrder =
                         System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
@@ -228,13 +231,13 @@ namespace Vitorize.Api
 
                 options.AddFixedWindowLimiter("otp", opt =>
                 {
-                    opt.PermitLimit = 3;
+                    opt.PermitLimit = testingRateLimit ?? 3;
                     opt.Window = TimeSpan.FromMinutes(1);
                 });
 
                 options.AddFixedWindowLimiter("register", opt =>
                 {
-                    opt.PermitLimit = 3;
+                    opt.PermitLimit = testingRateLimit ?? 3;
                     opt.Window = TimeSpan.FromMinutes(5);
                 });
             });
@@ -318,6 +321,32 @@ namespace Vitorize.Api
             app.UseRateLimiter();
 
             app.MapControllers();
+
+            if (app.Environment.IsEnvironment("Testing") &&
+                app.Configuration.GetValue<bool>("Testing:UseFakeSms"))
+            {
+                app.MapGet("/api/testing/sms/latest-otp", (
+                    string mobile,
+                    Vitorize.Infrastructure.Services.Sms.TestingSmsSender sender) =>
+                    sender.TryGetLatestOtp(mobile, out var code, out var expire)
+                        ? Results.Ok(new { code, expire })
+                        : Results.NotFound());
+
+                app.MapPost("/api/testing/otp/expire", async (
+                    string mobile,
+                    VitorizeDbContext db,
+                    CancellationToken cancellationToken) =>
+                {
+                    if (!IranMobile.TryNormalize(mobile, out var normalized))
+                        return Results.BadRequest();
+
+                    var affected = await db.OtpCodes
+                        .Where(x => x.Mobile == normalized && x.ConsumedAt == null)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(x => x.ExpiresAt, DateTime.UtcNow.AddMinutes(-1)), cancellationToken);
+                    return Results.Ok(new { affected });
+                });
+            }
 
             var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
             var seqState = SerilogHostConfiguration.SeqState(app.Configuration);

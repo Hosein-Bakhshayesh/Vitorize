@@ -37,13 +37,25 @@ public sealed class CommerceIntegrationTests
         var separate = await AddAsync(client, product.Id, "REF-TWO");
         separate.Items.Should().HaveCount(2, "different custom inputs are part of cart identity");
 
+        var editResponse = await client.PutAsJsonAsync($"/api/cart/items/{separate.Items[0].Id}",
+            new UpdateCartItemRequestDto
+            {
+                Quantity = separate.Items[0].Quantity,
+                InputValues = new Dictionary<string, string?> { ["customer_reference"] = "REF-EDITED" }
+            });
+        var editBody = await editResponse.Content.ReadAsStringAsync();
+        editResponse.StatusCode.Should().Be(HttpStatusCode.OK, editBody);
+        var edited = (await editResponse.Content.ReadFromJsonAsync<ApiResult<CartDto>>())!.Data!;
+        edited.Items.Should().HaveCount(2);
+        edited.Items.SelectMany(x => x.InputValues).Should().OnlyContain(x => x.IsMasked);
+
         await using (var db = _fixture.CreateDbContext())
         {
             var values = await db.CartItemInputValues
                 .Where(x => x.CartItem.Cart.UserId == user.Id)
                 .ToListAsync();
             values.Should().OnlyContain(x => x.Value == null && x.EncryptedValue != null);
-            values.Should().NotContain(x => x.EncryptedValue == "REF-ONE" || x.EncryptedValue == "REF-TWO");
+            values.Should().NotContain(x => x.EncryptedValue == "REF-ONE" || x.EncryptedValue == "REF-TWO" || x.EncryptedValue == "REF-EDITED");
 
             var storedProduct = await db.Products.SingleAsync(x => x.Id == product.Id);
             storedProduct.BasePrice = 175m;

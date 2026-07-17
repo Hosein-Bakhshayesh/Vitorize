@@ -91,8 +91,7 @@ public class CartService : ICartService
         {
             var values = ValidateInputs(item.Product.ProductInputFields, request.InputValues, includeAllStages: true);
             item.InputFingerprint = ProductInputRules.Fingerprint(values);
-            _dbContext.CartItemInputValues.RemoveRange(item.InputValues);
-            AddInputValues(item, item.Product.ProductInputFields, values);
+            SyncInputValues(item, item.Product.ProductInputFields, values);
         }
         await _dbContext.SaveChangesAsync();
         return MapToDto(await LoadCartAsync(userId));
@@ -122,8 +121,28 @@ public class CartService : ICartService
     {
         var cart = await LoadCartOrDefaultAsync(userId);
         if (cart is not null) return cart;
-        await _dbContext.Carts.AddAsync(new Cart { Id = Guid.NewGuid(), UserId = userId, CreatedAt = DateTime.UtcNow });
-        await _dbContext.SaveChangesAsync();
+        var id = Guid.NewGuid();
+        var createdAt = DateTime.UtcNow;
+        if (!_dbContext.Database.IsRelational())
+        {
+            cart = new Cart { Id = id, UserId = userId, CreatedAt = createdAt };
+            await _dbContext.Carts.AddAsync(cart);
+            await _dbContext.SaveChangesAsync();
+            return cart;
+        }
+
+        // Multiple interactive components hydrate concurrently after authentication. A
+        // serializable key-range lock makes the create-if-missing operation atomic and
+        // avoids using a unique-index exception as normal control flow.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO dbo.Carts (Id, UserId, CreatedAt)
+            SELECT {id}, {userId}, {createdAt}
+            WHERE NOT EXISTS
+            (
+                SELECT 1
+                FROM dbo.Carts WITH (UPDLOCK, HOLDLOCK)
+                WHERE UserId = {userId}
+            );");
         return await LoadCartAsync(userId);
     }
 
@@ -199,6 +218,38 @@ public class CartService : ICartService
                 EncryptedValue = field.IsSensitive && value is not null ? _encryptionService.Encrypt(value) : null,
                 IsSensitive = field.IsSensitive, CreatedAt = DateTime.UtcNow
             });
+        }
+    }
+
+    private void SyncInputValues(CartItem item, IEnumerable<ProductInputField> definitions,
+        IReadOnlyDictionary<string, string?> values)
+    {
+        var removed = item.InputValues
+            .Where(existing => !values.ContainsKey(existing.FieldKey))
+            .ToList();
+        if (removed.Count > 0)
+            _dbContext.CartItemInputValues.RemoveRange(removed);
+
+        foreach (var field in definitions.Where(x => values.ContainsKey(x.Key)))
+        {
+            var value = values[field.Key];
+            var existing = item.InputValues.FirstOrDefault(x =>
+                x.FieldKey.Equals(field.Key, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                AddInputValues(item, new[] { field }, values);
+                continue;
+            }
+
+            existing.ProductInputFieldId = field.Id;
+            existing.FieldLabel = field.Label;
+            existing.FieldType = field.FieldType;
+            existing.Value = field.IsSensitive ? null : value;
+            existing.EncryptedValue = field.IsSensitive && value is not null
+                ? _encryptionService.Encrypt(value)
+                : null;
+            existing.IsSensitive = field.IsSensitive;
+            existing.UpdatedAt = DateTime.UtcNow;
         }
     }
 

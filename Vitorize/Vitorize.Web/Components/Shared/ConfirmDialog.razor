@@ -1,12 +1,13 @@
 @if (Visible)
 {
     <div class="vz-overlay" @onclick="CancelAsync">
-        <div class="vz-dialog sm" @onclick:stopPropagation="true">
+        <div class="vz-dialog sm" role="dialog" aria-modal="true" aria-labelledby="@_titleId"
+             tabindex="-1" @onclick:stopPropagation="true">
             <div class="vz-dialog__body" style="text-align:center">
                 <div class="vz-confirm-icon @Intent" style="margin:0 auto 16px">
                     <Icon Name="@Icon" Size="26" />
                 </div>
-                <h3 style="font-size:17px;margin-bottom:8px">@Title</h3>
+                <h3 id="@_titleId" style="font-size:17px;margin-bottom:8px">@Title</h3>
                 <p class="vz-muted" style="font-size:13.5px">@Message</p>
             </div>
             <div class="vz-dialog__foot" style="justify-content:center">
@@ -29,6 +30,7 @@
 }
 
 @code {
+    private readonly string _titleId = $"confirm-title-{Guid.NewGuid():N}";
     [Parameter] public bool Visible { get; set; }
     [Parameter] public string Title { get; set; } = "آیا مطمئن هستید؟";
     [Parameter] public string Message { get; set; } = "این عملیات قابل بازگشت نیست.";

@@ -26,7 +26,12 @@ builder.Services.AddHsts(options =>
 
 // Blazor Web App با رندر تعاملی سمت سرور
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+        options.DetailedErrors = builder.Environment.IsEnvironment("Testing"))
+    // A content-rich prerendered storefront can legitimately send more than SignalR's
+    // 32 KiB default when the browser starts its interactive circuit. Keep the limit
+    // bounded while allowing the home and product pages to hydrate reliably.
+    .AddHubOptions(options => options.MaximumReceiveMessageSize = 256 * 1024);
 
 builder.Services.AddResponseCompression(options =>
 {
@@ -74,7 +79,15 @@ builder.Services
 
             var hasAdmin = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.AdminAuthCookie);
             var hasCustomer = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.CustomerAuthCookie);
-            if (hasAdmin && !hasCustomer)
+            if (hasCustomer && Uri.TryCreate(origin, UriKind.Absolute, out var sourcePage) &&
+                !sourcePage.AbsolutePath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
+                return VitorizeAuthSchemes.CustomerScheme;
+
+            // When both sessions exist (for example support staff validating a
+            // customer flow in the same browser), an absent Referer must not silently
+            // downgrade an admin circuit to the customer identity. Explicit public
+            // Referers already returned the customer scheme above.
+            if (hasAdmin)
                 return VitorizeAuthSchemes.AdminScheme;
 
             return VitorizeAuthSchemes.CustomerScheme;
@@ -157,6 +170,8 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+var webContentSecurityPolicy = SecurityHeaderPolicy.BuildWebContentSecurityPolicy(
+    builder.Configuration["ApiSettings:MediaBaseUrl"]);
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseResponseCompression();
 
@@ -177,7 +192,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = SecurityHeaderPolicy.WebFrameOptions;
     context.Response.Headers["Referrer-Policy"] = SecurityHeaderPolicy.ReferrerPolicy;
     context.Response.Headers["Permissions-Policy"] = SecurityHeaderPolicy.PermissionsPolicy;
-    context.Response.Headers["Content-Security-Policy"] = SecurityHeaderPolicy.WebContentSecurityPolicy;
+    context.Response.Headers["Content-Security-Policy"] = webContentSecurityPolicy;
     await next();
 });
 

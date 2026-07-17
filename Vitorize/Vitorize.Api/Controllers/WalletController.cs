@@ -71,7 +71,7 @@ namespace Vitorize.Api.Controllers
             Guid topUpId)
         {
             // Dev-only: mock top-up credits the wallet without a real gateway. Never in production.
-            if (!_environment.IsDevelopment())
+            if (!_environment.IsDevelopment() && !_environment.IsEnvironment("Testing"))
                 throw new NotFoundException("مسیر مورد نظر یافت نشد.");
 
             var userId = GetUserId();

@@ -37,7 +37,7 @@ namespace Vitorize.Infrastructure.Services
             // orders complete without a real payment — so we degrade to a failure that surfaces a
             // friendly "gateway unavailable" message instead of an unhandled 500.
             if (string.IsNullOrWhiteSpace(merchantId))
-                return _environment.IsDevelopment()
+                return (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))
                     ? (true, $"MOCK-{Guid.NewGuid():N}", string.Empty)
                     : (false, string.Empty, string.Empty);
 

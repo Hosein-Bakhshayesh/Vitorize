@@ -3,7 +3,7 @@
 
 <div class="vz-ctx">
     <button @ref="_trigger" type="button" class="vz-ctx__trigger @(_open ? "open" : null)"
-            title="@Title" aria-label="@Title" aria-haspopup="menu" aria-expanded="@_open"
+            title="@Title" aria-label="@Title" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")"
             @onclick="ToggleAsync">
         <Icon Name="dots" Size="18" />
     </button>

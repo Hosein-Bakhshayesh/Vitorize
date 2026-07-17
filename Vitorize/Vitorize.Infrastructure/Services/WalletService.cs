@@ -309,18 +309,36 @@ namespace Vitorize.Infrastructure.Services
             if (wallet != null)
                 return wallet;
 
-            wallet = new Wallet
+            var walletId = Guid.NewGuid();
+            var createdAt = DateTime.UtcNow;
+            if (!_dbContext.Database.IsRelational())
             {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Balance = 0,
-                CreatedAt = DateTime.UtcNow
-            };
+                wallet = new Wallet
+                {
+                    Id = walletId,
+                    UserId = userId,
+                    Balance = 0m,
+                    CreatedAt = createdAt
+                };
+                await _dbContext.Wallets.AddAsync(wallet);
+                await _dbContext.SaveChangesAsync();
+                return wallet;
+            }
 
-            await _dbContext.Wallets.AddAsync(wallet);
-            await _dbContext.SaveChangesAsync();
+            // The customer wallet page requests the balance and transaction list in
+            // parallel. Serialize only the missing-row key range so both requests can
+            // safely converge on one wallet without relying on a unique-key exception.
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT INTO dbo.Wallets (Id, UserId, Balance, CreatedAt)
+                SELECT {walletId}, {userId}, {0m}, {createdAt}
+                WHERE NOT EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.Wallets WITH (UPDLOCK, HOLDLOCK)
+                    WHERE UserId = {userId}
+                );");
 
-            return wallet;
+            return await _dbContext.Wallets.FirstAsync(x => x.UserId == userId);
         }
 
         private static WalletDto MapWallet(Wallet wallet)

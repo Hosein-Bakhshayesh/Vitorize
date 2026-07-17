@@ -21,7 +21,7 @@
     </div>
 }
 
-<div class="vz-tabs" style="margin-bottom:18px">
+<div class="vz-tabs" style="margin-bottom:18px" tabindex="0" role="region" aria-label="بخش‌های مدیریت کد هدیه">
     <button class="vz-tab @(_tab == "batches" ? "active" : "")" @onclick='() => SwitchTab("batches")'>بچ‌های کد</button>
     <button class="vz-tab @(_tab == "codes" ? "active" : "")" @onclick='() => SwitchTab("codes")'>مرور کدها</button>
 </div>

@@ -69,7 +69,7 @@ namespace Vitorize.Api.Controllers
             // Mock verification bypasses the real gateway and marks a payment as paid. It must
             // never be reachable in production (it would let an authenticated user complete their
             // own order for free); real payments are confirmed via the Zarinpal callback instead.
-            if (!_environment.IsDevelopment())
+            if (!_environment.IsDevelopment() && !_environment.IsEnvironment("Testing"))
                 throw new NotFoundException("مسیر مورد نظر یافت نشد.");
 
             var userId = GetUserId();

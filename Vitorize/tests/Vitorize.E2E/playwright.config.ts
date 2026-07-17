@@ -1,11 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5077';
 const manageStack = process.env.E2E_MANAGE_STACK === 'true';
 if (manageStack) {
   process.env.E2E_ADMIN_MOBILE ??= '09120000011';
-  process.env.E2E_ADMIN_PASSWORD ??= `E2e-${randomBytes(24).toString('base64url')}aA1!`;
+  // Testing-only credential for the isolated browser database. Production never
+  // reads this Playwright configuration or enables the bootstrap flag.
+  process.env.E2E_ADMIN_PASSWORD ??= 'E2E-Admin-Only-aA1!';
 }
 
 export default defineConfig({

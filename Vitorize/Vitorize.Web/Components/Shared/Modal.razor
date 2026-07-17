@@ -1,7 +1,8 @@
 @if (Visible)
 {
-    <div class="vz-overlay" @onclick="BackdropClose">
-        <div class="vz-dialog @Size" @onclick:stopPropagation="true">
+    <div class="vz-overlay" @onclick="BackdropClose" @onkeydown="HandleKeyDown">
+        <div @ref="_dialog" class="vz-dialog @Size" role="dialog" aria-modal="true"
+             aria-labelledby="@_titleId" tabindex="-1" @onclick:stopPropagation="true">
             <div class="vz-dialog__head">
                 @if (!string.IsNullOrEmpty(Icon))
                 {
@@ -10,13 +11,13 @@
                     </div>
                 }
                 <div>
-                    <div class="vz-dialog__title">@Title</div>
+                    <div id="@_titleId" class="vz-dialog__title">@Title</div>
                     @if (!string.IsNullOrWhiteSpace(Subtitle))
                     {
                         <div class="vz-card__sub">@Subtitle</div>
                     }
                 </div>
-                <button class="vz-dialog__close" @onclick="CloseAsync" type="button">
+                <button class="vz-dialog__close" @onclick="CloseAsync" type="button" aria-label="بستن">
                     <Icon Name="x" Size="18" />
                 </button>
             </div>
@@ -34,6 +35,10 @@
 }
 
 @code {
+    private readonly string _titleId = $"dialog-title-{Guid.NewGuid():N}";
+    private ElementReference _dialog;
+    private bool _focused;
+
     [Parameter] public bool Visible { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
@@ -50,5 +55,24 @@
     {
         if (CloseOnBackdrop)
             await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            await CloseAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Visible && !_focused)
+        {
+            _focused = true;
+            await _dialog.FocusAsync();
+        }
+        else if (!Visible)
+        {
+            _focused = false;
+        }
     }
 }

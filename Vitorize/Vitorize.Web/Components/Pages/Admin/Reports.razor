@@ -8,7 +8,7 @@
 
 <div class="vz-filterbar">
     <div class="vz-spread">
-        <div class="vz-tabs">
+        <div class="vz-tabs" tabindex="0" role="region" aria-label="بخش‌های گزارش مدیریتی">
             <button class="vz-tab @(_tab == "sales" ? "active" : "")" @onclick='() => Switch("sales")'>فروش</button>
             <button class="vz-tab @(_tab == "payments" ? "active" : "")" @onclick='() => Switch("payments")'>پرداخت‌ها</button>
             <button class="vz-tab @(_tab == "wallet" ? "active" : "")" @onclick='() => Switch("wallet")'>کیف پول</button>

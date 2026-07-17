@@ -95,6 +95,16 @@ public sealed class FinancialSecurityHardeningTests
         Assert.Contains("upgrade-insecure-requests", SecurityHeaderPolicy.WebContentSecurityPolicy);
     }
 
+    [Fact]
+    public void Web_csp_only_allows_an_explicit_http_media_origin_for_loopback_testing()
+    {
+        var testing = SecurityHeaderPolicy.BuildWebContentSecurityPolicy("http://127.0.0.1:5177/uploads");
+        var unsafePublicHttp = SecurityHeaderPolicy.BuildWebContentSecurityPolicy("http://media.example.com");
+
+        Assert.Contains("img-src 'self' data: https: http://127.0.0.1:5177;", testing);
+        Assert.Equal(SecurityHeaderPolicy.WebContentSecurityPolicy, unsafePublicHttp);
+    }
+
     private static string CreateLegacyCipher(string value)
     {
         using var aes = Aes.Create();

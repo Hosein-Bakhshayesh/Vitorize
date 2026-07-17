@@ -197,7 +197,16 @@ else
                                         <td class="num">@AUI.Number(item.Quantity)</td>
                                         <td><MoneyDisplay Amount="item.UnitPrice" /></td>
                                         <td><MoneyDisplay Amount="item.TotalPrice" /></td>
-                                        <td><StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" /></td>
+                                        <td>
+                                            <StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" />
+                                            @if (item.DeliveryType == (byte)DeliveryType.Manual && item.DeliveryStatus != (byte)DeliveryStatus.Delivered)
+                                            {
+                                                <button class="vz-btn vz-btn--primary vz-btn--sm vz-manual-delivery" style="margin-top:8px"
+                                                        @onclick="() => OpenManualDelivery(d, item)">
+                                                    <Icon Name="package-check" Size="13" /> تحویل دستی
+                                                </button>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -222,6 +231,34 @@ else
             </button>
         }
         <button class="vz-btn vz-btn--outline" @onclick="() => _detailOpen = false">بستن</button>
+    </Footer>
+</Modal>
+
+@* ---------- manual delivery ---------- *@
+<Modal Visible="_manualDeliveryOpen" Title="تحویل دستی سفارش" Icon="package-check" Size="sm" OnClose="CloseManualDelivery">
+    <ChildContent>
+        <div class="vz-stack">
+            <div class="vz-alert vz-alert--info">
+                محتوای تحویل فقط برای آیتم انتخاب‌شده ثبت می‌شود و در گزارش حسابرسی سفارش باقی می‌ماند.
+            </div>
+            <div class="vz-field">
+                <label class="vz-label" for="manual-delivery-content">محتوای تحویل</label>
+                <textarea id="manual-delivery-content" class="vz-textarea" maxlength="4000" rows="6"
+                          @bind="_manualDeliveryContent" placeholder="اطلاعات لازم برای دریافت محصول یا خدمت"></textarea>
+            </div>
+            <label class="vz-checkrow" for="manual-delivery-visible">
+                <input id="manual-delivery-visible" type="checkbox" @bind="_manualDeliveryVisible" />
+                <span>نمایش محتوا به مشتری در جزئیات سفارش</span>
+            </label>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseManualDelivery" disabled="@_manualDeliveryBusy">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="SubmitManualDelivery" disabled="@_manualDeliveryBusy">
+            @if (_manualDeliveryBusy) { <span class="vz-spinner sm"></span> }
+            else { <Icon Name="package-check" Size="15" /> }
+            ثبت تحویل
+        </button>
     </Footer>
 </Modal>
 
@@ -263,6 +300,10 @@ else
     private bool _cancelOpen, _bulkCancel, _bulkBusy;
     private string _cancelReason = string.Empty;
     private AdminOrderModel? _cancelTarget;
+    private bool _manualDeliveryOpen, _manualDeliveryBusy, _manualDeliveryVisible = true;
+    private string _manualDeliveryContent = string.Empty;
+    private AdminOrderModel? _manualDeliveryOrder;
+    private AdminOrderItemModel? _manualDeliveryItem;
 
     private DotNetObjectReference<Orders>? _selfRef;
 
@@ -449,6 +490,55 @@ else
     private void QuickCancel(AdminOrderModel o) { CloseMenu(); _cancelTarget = o; _bulkCancel = false; _cancelReason = string.Empty; _cancelOpen = true; }
     private void OpenCancel() { _cancelTarget = _detail; _bulkCancel = false; _cancelReason = string.Empty; _cancelOpen = true; }
 
+    private void OpenManualDelivery(AdminOrderModel order, AdminOrderItemModel item)
+    {
+        _manualDeliveryOrder = order;
+        _manualDeliveryItem = item;
+        _manualDeliveryContent = string.Empty;
+        _manualDeliveryVisible = true;
+        _manualDeliveryOpen = true;
+    }
+
+    private void CloseManualDelivery()
+    {
+        if (_manualDeliveryBusy) return;
+        _manualDeliveryOpen = false;
+        _manualDeliveryOrder = null;
+        _manualDeliveryItem = null;
+        _manualDeliveryContent = string.Empty;
+    }
+
+    private async Task SubmitManualDelivery()
+    {
+        if (_manualDeliveryOrder is null || _manualDeliveryItem is null) return;
+        if (string.IsNullOrWhiteSpace(_manualDeliveryContent))
+        {
+            Toasts.Error("محتوای تحویل را وارد کنید.");
+            return;
+        }
+
+        var orderId = _manualDeliveryOrder.Id;
+        _manualDeliveryBusy = true;
+        var result = await Api.PostAsync($"admin/orders/{orderId}/deliver-manual", new
+        {
+            OrderItemId = _manualDeliveryItem.Id,
+            Content = _manualDeliveryContent.Trim(),
+            IsVisibleToCustomer = _manualDeliveryVisible
+        });
+        _manualDeliveryBusy = false;
+
+        if (!result.IsSuccess)
+        {
+            Toasts.Error(result.Message);
+            return;
+        }
+
+        _manualDeliveryOpen = false;
+        Toasts.Success("تحویل دستی با موفقیت ثبت شد.");
+        await Load();
+        await OpenDetails(orderId);
+    }
+
     private async Task ConfirmCancel()
     {
         _acting = true;
@@ -530,7 +620,8 @@ else
             case "/": await JS.InvokeVoidAsync("vzAdmin.focusById", "order-search"); break;
             case "r": await Load(); break;
             case "Escape":
-                if (_cancelOpen) _cancelOpen = false;
+                if (_manualDeliveryOpen) CloseManualDelivery();
+                else if (_cancelOpen) _cancelOpen = false;
                 else if (_detailOpen) _detailOpen = false;
                 else if (_openMenuId is not null) CloseMenu();
                 else if (_selected.Count > 0) ClearSelection();
