@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using Serilog;
@@ -31,6 +32,20 @@ namespace Vitorize.Api
             {
             Log.ForContext("EventType", "ApplicationBootstrapStarted")
                 .Information("Vitorize API bootstrap starting");
+            // Local interactive debugging (e.g. the Visual Studio multi-project "New Profile" launch)
+            // does not always apply a launch profile, so ASPNETCORE_ENVIRONMENT defaults to Production
+            // and the Development-only User Secrets configuration source is skipped - which is why the
+            // secret guards below would otherwise fail on a developer machine. When a debugger is
+            // attached AND no environment was explicitly chosen, default to Development so the standard,
+            // correctly-ordered secret sources load (User Secrets sit just below environment variables).
+            // Deployed Production hosts run without a debugger, so this never affects them and the
+            // startup validation below remains fully enforced.
+            if (Debugger.IsAttached &&
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")))
+            {
+                Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+            }
+
             var builder = WebApplication.CreateBuilder(args);
             builder.Host.UseSerilog(SerilogHostConfiguration.Configure);
             builder.Services.AddHsts(options =>

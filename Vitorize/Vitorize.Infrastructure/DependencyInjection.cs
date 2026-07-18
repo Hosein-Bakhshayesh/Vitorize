@@ -64,6 +64,10 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
 
+            // Testing-environment-only fault injection (Off by default; guarded by IHostEnvironment).
+            services.Configure<Services.Testing.TestingFaultInjectionOptions>(
+                configuration.GetSection(Services.Testing.TestingFaultInjectionOptions.SectionName));
+
             // ───────────── SMS (SMS.ir) ─────────────
             // Sender و SettingsProvider به‌صورت Singleton ثبت می‌شوند تا HttpClient داخلی SDK
             // و کش تنظیمات میان درخواست‌ها بازاستفاده شود. SmsService و Enqueuer در سطح درخواست هستند.

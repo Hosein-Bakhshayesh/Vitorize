@@ -49,6 +49,34 @@ public sealed class PaymentDeliveryIntegrationTests
     }
 
     [Fact]
+    public async Task Failed_gateway_verification_leaves_order_unpaid_with_no_financial_side_effects()
+    {
+        // Resilience (Part 8): when the payment gateway reports verification failure, the order must
+        // stay unpaid, the payment must not be marked Paid, and NO wallet debit/credit may occur.
+        // NullWallet throws on any balance operation, so a stray wallet call would fail this test.
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var authority = $"FAILVERIFY-{Guid.NewGuid():N}";
+        var payment = NewPayment(user.Id, order.Id, authority);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(payment); await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var result = await NewPaymentService(db, new FailingGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+            result.IsPaid.Should().BeFalse();
+        }
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Payments.SingleAsync(x => x.Id == payment.Id)).Status.Should().NotBe((byte)PaymentStatus.Paid);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().NotBe((byte)PaymentStatus.Paid);
+        (await verify.WalletTransactions.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Wallet_refund_is_atomic_idempotent_and_financially_audited()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
@@ -254,6 +282,14 @@ public sealed class PaymentDeliveryIntegrationTests
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount)
         { VerifyCount++; return Task.FromResult((true, 12345L)); }
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
+    }
+    private sealed class FailingGateway : IZarinpalGatewayService
+    {
+        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, string description, string? mobile = null, string? email = null, string? orderId = null) =>
+            Task.FromResult((false, string.Empty, string.Empty));
+        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
+            Task.FromResult((false, 0L));
+        public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult(string.Empty);
     }
     private sealed class NullGiftDelivery : IGiftCodeDeliveryService { public Task DeliverOrderAsync(Guid orderId, Guid? deliveredByUserId = null) => Task.CompletedTask; }
     private sealed class NullCoupon : ICouponService

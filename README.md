@@ -122,3 +122,112 @@ There is no automated test project. After `dotnet build` succeeds, verify manual
 What could **not** be tested in this environment: runtime execution (no SQL Server / `VitorizeDb`
 instance available here). Verification was limited to a clean `dotnet build` of the full
 solution (0 errors).
+
+---
+
+## Development Secret Configuration
+
+The API validates two secrets at startup and **refuses to start** without them — by design, so real
+secrets never live in source control. `appsettings.json` intentionally ships them empty:
+
+```jsonc
+"Jwt":        { "SecretKey": "" },
+"Encryption": { "Key": "" }
+```
+
+### Required secrets
+
+| Config key | Minimum length | Notes |
+|---|---|---|
+| `Jwt:SecretKey` | **≥ 32 bytes** (UTF‑8) | HMAC signing key for JWTs |
+| `Encryption:Key` | **exactly 32 bytes** (UTF‑8) | AES‑256 key for encrypting stored secrets (gift codes, KYC, sensitive inputs) |
+
+> Use ASCII/hex values so **1 character = 1 byte**. `Encryption:Key` must be *exactly* 32 characters
+> of ASCII; `Jwt:SecretKey` must be at least 32.
+
+### Configuration priority
+
+The app reads configuration in this order (**later sources win**), so an environment variable always
+overrides a User Secret:
+
+- **Development:** `appsettings*.json` → **User Secrets** → **Environment Variables** → launch‑profile env vars
+- **Production:** `appsettings*.json` → **Environment Variables** → external secret provider (if configured)
+
+User Secrets are loaded automatically **only in the Development environment**. Local Visual Studio
+debugging (F5) now defaults to Development when no environment is set (see *How it works* below), so
+User Secrets are the recommended local mechanism.
+
+### Configure with `dotnet user-secrets` (recommended)
+
+Run once per machine from the API project folder. The keys below are throwaway **local‑dev** values —
+generate your own:
+
+```powershell
+cd Vitorize/Vitorize.Api
+
+# Generate secrets (PowerShell) — hex, so length == byte count
+$jwt = -join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })   # 64 bytes
+$enc = -join ((1..32) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })   # 32 bytes exactly
+
+dotnet user-secrets set "Jwt:SecretKey"  $jwt
+dotnet user-secrets set "Encryption:Key" $enc
+dotnet user-secrets list
+```
+
+### Configure in Visual Studio
+
+Right‑click **Vitorize.Api → Manage User Secrets**, then add:
+
+```json
+{
+  "Jwt:SecretKey": "<64+ hex chars>",
+  "Encryption:Key": "<exactly 32 hex chars>"
+}
+```
+
+### Configure via `launchSettings.json` (dev‑only env vars — do NOT commit real secrets)
+
+`Vitorize.Api/Properties/launchSettings.json` already sets `ASPNETCORE_ENVIRONMENT=Development` per
+profile. You *may* add local secret values here for convenience, but **launchSettings.json is
+source‑controlled**, so treat any value committed here as throwaway‑local only:
+
+```jsonc
+"environmentVariables": {
+  "ASPNETCORE_ENVIRONMENT": "Development",
+  "Jwt__SecretKey": "<64+ hex chars>",
+  "Encryption__Key": "<exactly 32 hex chars>"
+}
+```
+
+> Note the `__` (double underscore) separator for nested keys in environment variables.
+
+### Configure via Windows Environment Variables
+
+```powershell
+# User-scoped, persists across sessions (new terminals/VS must be restarted to pick them up)
+setx Jwt__SecretKey  "<64+ hex chars>"
+setx Encryption__Key "<exactly 32 hex chars>"
+```
+
+### Configure via PowerShell (current session only)
+
+```powershell
+$env:Jwt__SecretKey  = "<64+ hex chars>"
+$env:Encryption__Key = "<exactly 32 hex chars>"
+dotnet run --project Vitorize/Vitorize.Api
+```
+
+### Production
+
+Do **not** use User Secrets in Production. Supply the two keys via **environment variables** (or your
+host's secret provider). The startup validation is identical in every environment — the keys are
+mandatory and length‑checked.
+
+### How local Development startup works
+
+The Visual Studio *multi‑project* launch ("New Profile") does not always apply a per‑project launch
+profile, which left `ASPNETCORE_ENVIRONMENT` unset (→ Production) and skipped User Secrets. To fix the
+local experience without weakening Production, `Program.cs` (API and Web) sets the environment to
+**Development only when a debugger is attached and no environment was explicitly chosen**. Deployed
+Production hosts run without a debugger, so they are unaffected and the secret validation stays fully
+enforced.

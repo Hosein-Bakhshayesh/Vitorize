@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Text.Json;
 using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Cart;
@@ -47,30 +48,54 @@ public class CartService : ICartService
             : ResolveFinalPrice(variant.Price, variant.DiscountPrice);
         var values = ValidateInputs(product.ProductInputFields, request.InputValues, includeAllStages: false);
         var fingerprint = ProductInputRules.Fingerprint(values);
-        var cart = await GetOrCreateCartAsync(userId);
-        var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
-            x.ProductVariantId == request.ProductVariantId && x.InputFingerprint == fingerprint);
 
-        if (existing is not null)
+        // Concurrent identical add-to-cart calls race between reading the existing line and inserting a
+        // new one, which produced duplicate cart lines instead of merging (Phase 4 regression). Serialize
+        // the read-modify-write per user with the same transaction-scoped application lock the wallet and
+        // coupon services use so identical items merge deterministically.
+        var isRelational = _dbContext.Database.IsRelational();
+        var hasAmbientTransaction = _dbContext.Database.CurrentTransaction is not null;
+        await using var transaction = isRelational && !hasAmbientTransaction
+            ? await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
+        try
         {
-            existing.Quantity += request.Quantity;
-            existing.UnitPrice = unitPrice;
-            existing.UpdatedAt = DateTime.UtcNow;
-        }
-        else
-        {
-            var item = new CartItem
+            if (isRelational)
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"cart:user:{userId:N}");
+
+            var cart = await GetOrCreateCartAsync(userId);
+            var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
+                x.ProductVariantId == request.ProductVariantId && x.InputFingerprint == fingerprint);
+
+            if (existing is not null)
             {
-                Id = Guid.NewGuid(), CartId = cart.Id, ProductId = request.ProductId,
-                ProductVariantId = request.ProductVariantId, InputFingerprint = fingerprint,
-                Quantity = request.Quantity, UnitPrice = unitPrice, CreatedAt = DateTime.UtcNow
-            };
-            AddInputValues(item, product.ProductInputFields, values);
-            await _dbContext.CartItems.AddAsync(item);
-        }
+                existing.Quantity += request.Quantity;
+                existing.UnitPrice = unitPrice;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                var item = new CartItem
+                {
+                    Id = Guid.NewGuid(), CartId = cart.Id, ProductId = request.ProductId,
+                    ProductVariantId = request.ProductVariantId, InputFingerprint = fingerprint,
+                    Quantity = request.Quantity, UnitPrice = unitPrice, CreatedAt = DateTime.UtcNow
+                };
+                AddInputValues(item, product.ProductInputFields, values);
+                await _dbContext.CartItems.AddAsync(item);
+            }
 
-        await _dbContext.SaveChangesAsync();
-        return MapToDto(await LoadCartAsync(userId));
+            await _dbContext.SaveChangesAsync();
+            if (transaction is not null)
+                await transaction.CommitAsync();
+            return MapToDto(await LoadCartAsync(userId));
+        }
+        catch
+        {
+            if (transaction is not null)
+                await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<CartDto> UpdateItemAsync(Guid userId, Guid cartItemId, UpdateCartItemRequestDto request)

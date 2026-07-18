@@ -1,8 +1,10 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
+using Vitorize.Infrastructure.Services.Testing;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -11,16 +13,25 @@ namespace Vitorize.Infrastructure.Services
         private readonly HttpClient _httpClient;
         private readonly ISettingService _settingService;
         private readonly IHostEnvironment _environment;
+        private readonly IOptionsMonitor<TestingFaultInjectionOptions> _faults;
 
         public ZarinpalGatewayService(
             HttpClient httpClient,
             ISettingService settingService,
-            IHostEnvironment environment)
+            IHostEnvironment environment,
+            IOptionsMonitor<TestingFaultInjectionOptions> faults)
         {
             _httpClient = httpClient;
             _settingService = settingService;
             _environment = environment;
+            _faults = faults;
         }
+
+        // Testing-environment-only fault injection. Impossible outside "Testing"; Off by default.
+        private bool PaymentFaultEnabled(string mode) =>
+            _environment.IsEnvironment("Testing") &&
+            _faults.CurrentValue.IsPaymentFaultRequested &&
+            _faults.CurrentValue.Payment.Trim().Equals(mode, StringComparison.OrdinalIgnoreCase);
 
         public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
             decimal amount,
@@ -29,6 +40,9 @@ namespace Vitorize.Infrastructure.Services
             string? email = null,
             string? orderId = null)
         {
+            if (PaymentFaultEnabled("CreateFail"))
+                return (false, string.Empty, string.Empty);
+
             var merchantId = await GetSettingOrDefaultAsync("ZarinpalMerchantId", string.Empty);
 
             // No real gateway configured. In development we return a mock authority with an empty
@@ -107,6 +121,9 @@ namespace Vitorize.Infrastructure.Services
             string authority,
             decimal amount)
         {
+            if (PaymentFaultEnabled("VerifyFail"))
+                return (false, 0);
+
             var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
 
             var baseUrl = await GetSettingOrDefaultAsync(

@@ -44,6 +44,15 @@ namespace Vitorize.Infrastructure.Services
             {
                 var search = filter.Search.Trim();
 
+                // EF sizes each Contains parameter to the matched column width, so a search term longer
+                // than the narrowest searched column (ProductTag.Title, nvarchar(100)) raises a
+                // "String or binary data would be truncated" SqlException and a 500. A ~250-char term is
+                // a valid short URL in production, so cap the term - anything longer than the longest
+                // tag/title cannot yield a meaningful match anyway.
+                const int maxSearchLength = 100;
+                if (search.Length > maxSearchLength)
+                    search = search[..maxSearchLength];
+
                 query = query.Where(x =>
                     x.Title.Contains(search) ||
                     x.Slug.Contains(search) ||

@@ -15,6 +15,16 @@ try
 {
 Log.ForContext("EventType", "ApplicationBootstrapStarted")
     .Information("Vitorize Web bootstrap starting");
+
+// Keep the local multi-project launch on the Development environment (see the API Program.cs note):
+// when a debugger is attached and no environment was explicitly chosen, default to Development so the
+// Development configuration and secret sources apply. Production hosts run without a debugger.
+if (System.Diagnostics.Debugger.IsAttached &&
+    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")))
+{
+    Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+}
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog(SerilogHostConfiguration.Configure);
 builder.Services.AddHsts(options =>
