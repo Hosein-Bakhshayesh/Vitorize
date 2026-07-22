@@ -68,47 +68,19 @@ builder.Services
     })
     .AddPolicyScheme(VitorizeAuthSchemes.SmartScheme, VitorizeAuthSchemes.SmartScheme, options =>
     {
-        options.ForwardDefaultSelector = context =>
-        {
-            // Admin panel pages resolve to the admin cookie by path.
-            if (context.Request.Path.StartsWithSegments("/admin"))
-                return VitorizeAuthSchemes.AdminScheme;
-
-            // The Blazor interactive circuit (and other framework endpoints such as
-            // /_blazor) do NOT carry the /admin path segment, so path alone would wrongly
-            // route the admin circuit to the customer scheme — that made the admin panel
-            // bounce back to the login page after a successful sign-in. Decide by the page
-            // that opened the connection (Referer / Origin), then fall back to whichever
-            // auth cookie is actually present in the browser.
-            var origin = context.Request.Headers.Referer.ToString();
-            if (string.IsNullOrEmpty(origin))
-                origin = context.Request.Headers.Origin.ToString();
-
-            if (origin.Contains("/admin", StringComparison.OrdinalIgnoreCase))
-                return VitorizeAuthSchemes.AdminScheme;
-
-            var hasAdmin = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.AdminAuthCookie);
-            var hasCustomer = context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.CustomerAuthCookie);
-            if (hasCustomer && Uri.TryCreate(origin, UriKind.Absolute, out var sourcePage) &&
-                !sourcePage.AbsolutePath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
-                return VitorizeAuthSchemes.CustomerScheme;
-
-            // When both sessions exist (for example support staff validating a
-            // customer flow in the same browser), an absent Referer must not silently
-            // downgrade an admin circuit to the customer identity. Explicit public
-            // Referers already returned the customer scheme above.
-            if (hasAdmin)
-                return VitorizeAuthSchemes.AdminScheme;
-
-            return VitorizeAuthSchemes.CustomerScheme;
-        };
+        options.ForwardDefaultSelector = context => SmartSchemeResolver.Resolve(
+            context.Request.Path.Value ?? string.Empty,
+            context.Request.Headers.Referer.ToString(),
+            context.Request.Headers.Origin.ToString(),
+            context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.AdminAuthCookie),
+            context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.CustomerAuthCookie));
     })
     .AddCookie(VitorizeAuthSchemes.AdminScheme, options =>
     {
         options.Cookie.Name = VitorizeAuthSchemes.AdminAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SecurePolicy = AuthCookiePolicy.SecurePolicy(builder.Environment);
         options.LoginPath = "/admin/login";
         options.AccessDeniedPath = "/admin/access-denied";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
@@ -119,7 +91,7 @@ builder.Services
         options.Cookie.Name = VitorizeAuthSchemes.CustomerAuthCookie;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SecurePolicy = AuthCookiePolicy.SecurePolicy(builder.Environment);
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/access-denied";
         options.ExpireTimeSpan = TimeSpan.FromDays(14);

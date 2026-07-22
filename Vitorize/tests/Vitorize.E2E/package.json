@@ -3,9 +3,21 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
+    "test:regression": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:auth": "playwright test tests/auth-lifecycle.spec.ts tests/authentication.spec.ts",
+    "test:admin": "playwright test tests/admin-flows.spec.ts tests/monitoring.spec.ts",
+    "test:customer": "playwright test tests/customer-account.spec.ts tests/authentication.spec.ts tests/storefront-commerce.spec.ts",
+    "test:business": "playwright test tests/storefront-commerce.spec.ts",
+    "test:security": "playwright test tests/auth-lifecycle.spec.ts --grep-invert @performance",
     "test:seo": "playwright test tests/seo.spec.ts",
+    "test:ui": "playwright test tests/ui-quality.spec.ts tests/console-quality.spec.ts tests/accessibility.spec.ts",
     "test:a11y": "playwright test tests/accessibility.spec.ts",
-    "install:browsers": "playwright install chromium"
+    "test:performance": "playwright test tests/performance.spec.ts",
+    "test:visual": "playwright test tests/visual-regression.spec.ts",
+    "test:tag": "playwright test --grep",
+    "report": "playwright show-report artifacts/report",
+    "install:browsers": "playwright install chromium ffmpeg"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",

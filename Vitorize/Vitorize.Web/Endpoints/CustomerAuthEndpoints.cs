@@ -170,7 +170,7 @@ namespace Vitorize.Web.Endpoints
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = AuthCookiePolicy.IsSecure(http),
                 SameSite = SameSiteMode.Lax,
                 Expires = expiresUtc,
                 Path = "/"
@@ -187,7 +187,7 @@ namespace Vitorize.Web.Endpoints
                     new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = true,
+                        Secure = AuthCookiePolicy.IsSecure(http),
                         SameSite = SameSiteMode.Lax,
                         Expires = DateTimeOffset.UtcNow.AddDays(30),
                         Path = "/"
@@ -204,10 +204,6 @@ namespace Vitorize.Web.Endpoints
         }
 
         private static string SafeReturn(string? returnUrl) =>
-            !string.IsNullOrWhiteSpace(returnUrl) &&
-            returnUrl.StartsWith("/") &&
-            !returnUrl.StartsWith("//")
-                ? returnUrl
-                : "/customer/dashboard";
+            SafeRedirect.LocalOrDefault(returnUrl, "/customer/dashboard");
     }
 }

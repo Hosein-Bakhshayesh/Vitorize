@@ -39,6 +39,69 @@ BEGIN
           (SELECT 1 FROM dbo.UserRoles ur WHERE ur.UserId = @E2eAdminId AND ur.RoleId = r.Id);
 END;
 
+-- ── Deterministic Testing-only authentication accounts (E2E database ONLY) ──────
+-- A plain Admin (role Admin, NOT SuperAdmin) and a Customer, both sharing the known
+-- Testing password of the bootstrap admin. Used by the authentication-lifecycle
+-- browser tests to exercise role separation. These identities exist only in the
+-- isolated browser database and never in production data. The password hash below
+-- is BCrypt of the Testing-only bootstrap password.
+DECLARE @E2ePasswordHash nvarchar(400) = N'$2a$11$oRlRYEDBoNTt6xcAxAEcmeoOi/Ketcai3BWjZBLeCjnLhrwxIWc2y';
+DECLARE @E2eAdminUserId uniqueidentifier = '31000000-0000-0000-0000-000000000020';
+DECLARE @E2eCustomerUserId uniqueidentifier = '31000000-0000-0000-0000-000000000021';
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @E2eAdminUserId)
+    INSERT dbo.Users (Id, FullName, Mobile, Email, PasswordHash, Status, IsMobileConfirmed, CreatedAt)
+    VALUES (@E2eAdminUserId, N'E2E Admin', N'09120000012', N'e2e-admin@example.test', @E2ePasswordHash, 1, 1, SYSUTCDATETIME());
+UPDATE dbo.Users SET PasswordHash = @E2ePasswordHash, Status = 1, IsMobileConfirmed = 1, IsDeleted = 0 WHERE Id = @E2eAdminUserId;
+INSERT dbo.UserRoles (UserId, RoleId)
+SELECT @E2eAdminUserId, r.Id FROM dbo.Roles r
+WHERE r.Name = N'Admin'
+  AND NOT EXISTS (SELECT 1 FROM dbo.UserRoles ur WHERE ur.UserId = @E2eAdminUserId AND ur.RoleId = r.Id);
+-- Guarantee role separation: this identity is Admin only, never SuperAdmin/Support/Customer.
+DELETE ur FROM dbo.UserRoles ur JOIN dbo.Roles r ON r.Id = ur.RoleId
+WHERE ur.UserId = @E2eAdminUserId AND r.Name IN (N'SuperAdmin', N'Support', N'Customer');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @E2eCustomerUserId)
+    INSERT dbo.Users (Id, FullName, Mobile, Email, PasswordHash, Status, IsMobileConfirmed, CreatedAt)
+    VALUES (@E2eCustomerUserId, N'E2E Customer', N'09120000013', N'e2e-customer@example.test', @E2ePasswordHash, 1, 1, SYSUTCDATETIME());
+UPDATE dbo.Users SET PasswordHash = @E2ePasswordHash, Status = 1, IsMobileConfirmed = 1, IsDeleted = 0 WHERE Id = @E2eCustomerUserId;
+INSERT dbo.UserRoles (UserId, RoleId)
+SELECT @E2eCustomerUserId, r.Id FROM dbo.Roles r
+WHERE r.Name = N'Customer'
+  AND NOT EXISTS (SELECT 1 FROM dbo.UserRoles ur WHERE ur.UserId = @E2eCustomerUserId AND ur.RoleId = r.Id);
+-- The customer must never hold an admin role.
+DELETE ur FROM dbo.UserRoles ur JOIN dbo.Roles r ON r.Id = ur.RoleId
+WHERE ur.UserId = @E2eCustomerUserId AND r.Name IN (N'Admin', N'SuperAdmin', N'Support');
+
+-- A "VIP" customer: role Customer, but verified (KYC approved) and with a pre-funded wallet so the
+-- wallet-payment and verified-only workflows are deterministic. Not a distinct role - the platform
+-- has no VIP role; VIP == a verified, funded customer for QA purposes.
+DECLARE @E2eVipUserId uniqueidentifier = '31000000-0000-0000-0000-000000000022';
+IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @E2eVipUserId)
+    INSERT dbo.Users (Id, FullName, Mobile, Email, PasswordHash, Status, VerificationStatus, IsMobileConfirmed, CreatedAt)
+    VALUES (@E2eVipUserId, N'E2E VIP Customer', N'09120000014', N'e2e-vip@example.test', @E2ePasswordHash, 1, 1, 1, SYSUTCDATETIME());
+UPDATE dbo.Users SET PasswordHash = @E2ePasswordHash, Status = 1, VerificationStatus = 1, IsMobileConfirmed = 1, IsDeleted = 0 WHERE Id = @E2eVipUserId;
+INSERT dbo.UserRoles (UserId, RoleId)
+SELECT @E2eVipUserId, r.Id FROM dbo.Roles r
+WHERE r.Name = N'Customer'
+  AND NOT EXISTS (SELECT 1 FROM dbo.UserRoles ur WHERE ur.UserId = @E2eVipUserId AND ur.RoleId = r.Id);
+DELETE ur FROM dbo.UserRoles ur JOIN dbo.Roles r ON r.Id = ur.RoleId
+WHERE ur.UserId = @E2eVipUserId AND r.Name IN (N'Admin', N'SuperAdmin', N'Support');
+-- Deterministic wallet balance for wallet-payment scenarios (idempotent reset each run).
+IF NOT EXISTS (SELECT 1 FROM dbo.Wallets WHERE UserId = @E2eVipUserId)
+    INSERT dbo.Wallets (Id, UserId, Balance, CreatedAt)
+    VALUES ('31000000-0000-0000-0000-000000000023', @E2eVipUserId, 5000000, SYSUTCDATETIME());
+ELSE
+    UPDATE dbo.Wallets SET Balance = 5000000, UpdatedAt = SYSUTCDATETIME() WHERE UserId = @E2eVipUserId;
+
+-- Self-healing: remove volatile catalog entities created by prior admin UI test runs (they use
+-- timestamped slugs). A run that failed between create and delete can leave an orphaned ACTIVE
+-- category, which breaks the storefront "unique catpill" assertions. The stable e2e-category is kept.
+-- FK-safe: only categories that own no products are removed.
+DELETE c FROM dbo.Categories c
+WHERE c.Slug LIKE 'e2e-category-1%'
+  AND NOT EXISTS (SELECT 1 FROM dbo.Products p WHERE p.CategoryId = c.Id);
+
 IF NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Id = @CategoryId)
     INSERT dbo.Categories (Id, Title, Slug, [Description], SeoTitle, SeoDescription, FocusKeyword, ImageAltText, IsActive, IsDeleted, CreatedAt)
     VALUES (@CategoryId, N'دسته آزمون مرورگر', N'e2e-category', N'دسته‌بندی قطعی آزمون مرورگر.', N'دسته آزمون مرورگر', N'توضیح دسته آزمون مرورگر.', N'محصول تست', N'تصویر دسته آزمون', 1, 0, SYSUTCDATETIME());
@@ -123,6 +186,30 @@ SET Status = 5,
     ReservationExpiresAt = NULL,
     UpdatedAt = SYSUTCDATETIME()
 WHERE ProductId = @RelatedProductId AND Status IN (0, 1);
+
+-- Deterministic SupportRequired (ticket-delivered) product for the support/ticket delivery E2E.
+-- DeliveryType=SupportRequired(3); NO gift-code inventory is required. Only the catalog is seeded -
+-- the purchase, ticket and support delivery happen through the real browser UI.
+DECLARE @SupportProductId uniqueidentifier = '31000000-0000-0000-0000-000000000030';
+DECLARE @SupportInputFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000031';
+IF NOT EXISTS (SELECT 1 FROM dbo.Products WHERE Id = @SupportProductId)
+    INSERT dbo.Products
+        (Id, CategoryId, BrandId, Title, Slug, ShortDescription, FullDescription, SeoTitle, SeoDescription, FocusKeyword,
+         ThumbnailImagePath, ThumbnailAltText, ProductType, DeliveryType, BasePrice, CurrencyType,
+         MinOrderQuantity, IsActive, IsFeatured, IsDeleted, CreatedAt)
+    VALUES (@SupportProductId, @CategoryId, @BrandId, N'E2E Support Product', N'e2e-support-product',
+            N'Support-delivered service for browser coverage.',
+            N'<p>This <strong>support-required</strong> service is delivered through a ticket.</p>',
+            N'E2E Support SEO', N'E2E support product meta.', N'e2e support',
+            N'/uploads/products/95f7a15fd1a443d7abf1ad2ff22efbd7.png', N'E2E support artwork',
+            3, 3, 90000, 2, 1, 1, 0, 0, SYSUTCDATETIME());
+UPDATE dbo.Products SET DeliveryType = 3, IsActive = 1, IsDeleted = 0, BrandId = @BrandId WHERE Id = @SupportProductId;
+IF NOT EXISTS (SELECT 1 FROM dbo.ProductInputFields WHERE Id = @SupportInputFieldId)
+    INSERT dbo.ProductInputFields
+        (Id, ProductId, [Key], Label, [Description], Placeholder, FieldType, IsRequired,
+         IsSensitive, RequiresConfirmation, DisplayStage, SortOrder, IsActive, CreatedAt)
+    VALUES (@SupportInputFieldId, @SupportProductId, 'support_ref', N'Reference', N'A non-sensitive reference for this order.',
+            N'your username', 1, 1, 0, 0, 1, 1, 1, SYSUTCDATETIME());
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Coupons WHERE Id = @CouponId)
     INSERT dbo.Coupons

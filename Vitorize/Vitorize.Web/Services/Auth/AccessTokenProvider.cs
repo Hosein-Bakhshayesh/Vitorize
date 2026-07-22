@@ -24,25 +24,29 @@ namespace Vitorize.Web.Services.Auth
 
             if (httpContext is not null)
             {
-                var isAdminPath = httpContext.Request.Path.StartsWithSegments("/admin");
+                // Select the token by the AUTHENTICATED SCHEME, not the request path. Framework
+                // requests such as the Blazor circuit (/_blazor) are not under /admin, so a path check
+                // would wrongly pick the customer token for an admin circuit when both cookies exist -
+                // the admin API call then fails with 403 and the panel bounces to access-denied. The
+                // resolved scheme (SmartScheme -> Admin/Customer) is the correct signal; fall back to
+                // the path only for anonymous framework requests.
+                var isAdminArea =
+                    string.Equals(httpContext.User.Identity?.AuthenticationType,
+                        VitorizeAuthSchemes.AdminScheme, StringComparison.Ordinal) ||
+                    httpContext.Request.Path.StartsWithSegments("/admin");
 
-                // ابتدا کوکی حوزه‌ی مرتبط با مسیر، سپس کوکی دیگر به‌عنوان fallback.
-                var primaryCookie = isAdminPath
+                var areaCookie = isAdminArea
                     ? VitorizeAuthSchemes.AdminAccessTokenCookie
                     : VitorizeAuthSchemes.CustomerAccessTokenCookie;
 
-                var secondaryCookie = isAdminPath
-                    ? VitorizeAuthSchemes.CustomerAccessTokenCookie
-                    : VitorizeAuthSchemes.AdminAccessTokenCookie;
-
+                // Only ever the matching area's token: the fresh area cookie first, then the
+                // authenticated principal's own claim. Never the other area's token (that caused the
+                // admin panel to send the customer token and receive 403 when both cookies existed).
                 var token =
-                    httpContext.Request.Cookies[primaryCookie] ??
-                    httpContext.Request.Cookies[secondaryCookie];
+                    httpContext.Request.Cookies[areaCookie] ??
+                    httpContext.User.FindFirst("access_token")?.Value;
 
-                if (!string.IsNullOrWhiteSpace(token))
-                    return token;
-
-                return httpContext.User.FindFirst("access_token")?.Value;
+                return string.IsNullOrWhiteSpace(token) ? null : token;
             }
 
             // در مدار تعاملی (SignalR) HttpContext وجود ندارد؛ توکن از claimهای کاربر مدار خوانده می‌شود.

@@ -361,6 +361,42 @@ namespace Vitorize.Api
                             .SetProperty(x => x.ExpiresAt, DateTime.UtcNow.AddMinutes(-1)), cancellationToken);
                     return Results.Ok(new { affected });
                 });
+
+                // Safe, non-sensitive aggregate state for an order, used by the support/ticket delivery
+                // E2E to assert database invariants (no codes, message text or PII are ever returned).
+                app.MapGet("/api/testing/support-state", async (
+                    Guid orderId,
+                    VitorizeDbContext db,
+                    CancellationToken cancellationToken) =>
+                {
+                    var order = await db.Orders.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken);
+                    if (order is null) return Results.NotFound();
+
+                    var itemIds = await db.OrderItems.Where(x => x.OrderId == orderId)
+                        .Select(x => x.Id).ToListAsync(cancellationToken);
+
+                    return Results.Ok(new
+                    {
+                        orderUserId = order.UserId,
+                        paid = order.PaymentStatus == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid,
+                        orderStatus = order.Status,
+                        orderItems = itemIds.Count,
+                        supportItems = await db.OrderItems.CountAsync(x =>
+                            x.OrderId == orderId && x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.SupportRequired, cancellationToken),
+                        giftCodesAssigned = await db.GiftCodes.CountAsync(x =>
+                            x.OrderItemId != null && itemIds.Contains(x.OrderItemId.Value), cancellationToken),
+                        instantDeliveries = await db.OrderItemDeliveries.CountAsync(x =>
+                            itemIds.Contains(x.OrderItemId) && x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Instant, cancellationToken),
+                        manualDeliveries = await db.OrderItemDeliveries.CountAsync(x =>
+                            itemIds.Contains(x.OrderItemId) &&
+                            (x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Manual ||
+                             x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.SupportRequired), cancellationToken),
+                        tickets = await db.Tickets.CountAsync(x => x.OrderId == orderId, cancellationToken),
+                        ticketUserId = await db.Tickets.Where(x => x.OrderId == orderId)
+                            .Select(x => (Guid?)x.UserId).FirstOrDefaultAsync(cancellationToken)
+                    });
+                });
             }
 
             var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();

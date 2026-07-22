@@ -11,13 +11,20 @@ if (manageStack) {
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 45_000,
+  // Full-stack Blazor Server admin pages (interactive circuit + API data) are heavy; 60s gives
+  // headroom on slower CI machines without masking real hangs (steps still fail fast on assertions).
+  timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : 1,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'artifacts/report' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: 'artifacts/report' }],
+    ['junit', { outputFile: 'artifacts/results/junit.xml' }],
+    ['json', { outputFile: 'artifacts/results/results.json' }]
+  ],
   outputDir: 'artifacts/results',
   use: {
     baseURL,
@@ -25,7 +32,8 @@ export default defineConfig({
     timezoneId: 'Asia/Tehran',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: process.env.E2E_VIDEO === 'true' ? 'retain-on-failure' : 'off',
+    // Videos are captured for every failure by default; set E2E_VIDEO=off to disable on slow machines.
+    video: process.env.E2E_VIDEO === 'off' ? 'off' : 'retain-on-failure',
     ignoreHTTPSErrors: true
   },
   projects: [

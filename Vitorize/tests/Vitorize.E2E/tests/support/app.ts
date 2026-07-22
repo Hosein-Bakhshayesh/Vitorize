@@ -66,6 +66,42 @@ export async function loginAdmin(page: Page): Promise<void> {
   ]);
 }
 
+// The bootstrap admin (adminMobile) is promoted to SuperAdmin by the E2E fixture. The fixture also
+// seeds a dedicated plain-Admin and a Customer so role separation can be exercised deterministically.
+export const superAdminMobile = process.env.E2E_SUPERADMIN_MOBILE ?? adminMobile;
+export const superAdminPassword = process.env.E2E_SUPERADMIN_PASSWORD ?? adminPassword;
+export const plainAdminMobile = process.env.E2E_PLAIN_ADMIN_MOBILE ?? '09120000012';
+export const plainAdminPassword = process.env.E2E_PLAIN_ADMIN_PASSWORD ?? adminPassword;
+
+export const seededCustomer: CustomerIdentity = {
+  fullName: 'E2E Customer',
+  mobile: process.env.E2E_CUSTOMER_MOBILE ?? '09120000013',
+  email: 'e2e-customer@example.test',
+  password: process.env.E2E_CUSTOMER_PASSWORD ?? adminPassword
+};
+
+export async function loginAdminWith(page: Page, mobile: string, password: string): Promise<void> {
+  await page.goto('/admin/login');
+  await page.locator('input[name="mobile"]').fill(mobile);
+  await page.locator('input[name="password"]').fill(password);
+  await Promise.all([
+    page.waitForURL(/\/admin(\/dashboard)?$/i),
+    page.locator('form[action="/admin/auth/login"] button[type="submit"]').click()
+  ]);
+}
+
+// Admin logout is a real form POST rendered only inside the open profile menu. Submit it
+// programmatically (still a full-document POST) so the menu's close-overlay can't intercept the click.
+export async function logoutAdmin(page: Page): Promise<void> {
+  await page.locator('button.vz-profile').click();
+  const form = page.locator('form[action="/admin/auth/logout"]');
+  await expect(form).toBeVisible();
+  await Promise.all([
+    page.waitForURL(/\/admin\/login/),
+    form.evaluate((f: HTMLFormElement) => f.requestSubmit())
+  ]);
+}
+
 export async function latestOtp(request: APIRequestContext, mobile: string, previousCode?: string): Promise<string> {
   let code: string | null = null;
   await expect.poll(async () => {

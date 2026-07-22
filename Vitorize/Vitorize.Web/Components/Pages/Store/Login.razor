@@ -39,7 +39,7 @@
         @if (_tab == LoginTab.Password)
         {
             @* ── روش ۱: موبایل + رمز عبور (POST سرور برای ست‌شدن کوکی) ── *@
-            <form method="post" action="/auth/customer/login">
+            <form method="post" action="/auth/customer/login" data-enhance="false">
                 <input type="hidden" name="returnUrl" value="@ReturnUrl" />
                 <div class="st-field">
                     <label class="st-label" for="pw-mobile">شماره موبایل</label>
@@ -140,7 +140,7 @@
 </div>
 
 @* فرم پنهان نهایی: پس از تایید موفق کد، توکن‌ها را به سرور می‌فرستد تا کوکی مشتری ست شود. *@
-<form id="otp-complete" method="post" action="/auth/customer/login/otp/complete" style="display:none">
+<form id="otp-complete" method="post" action="/auth/customer/login/otp/complete" style="display:none" data-enhance="false">
     <input name="userId" value="@_cUserId" />
     <input name="fullName" value="@_cFullName" />
     <input name="mobile" value="@_cMobile" />
