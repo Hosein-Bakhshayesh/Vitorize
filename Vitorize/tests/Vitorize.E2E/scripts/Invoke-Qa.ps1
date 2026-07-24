@@ -8,12 +8,13 @@
         ./scripts/Invoke-Qa.ps1 -Suite smoke
         ./scripts/Invoke-Qa.ps1 -Suite regression -Project all
         ./scripts/Invoke-Qa.ps1 -Suite admin -Repeat 3
+        ./scripts/Invoke-Qa.ps1 -Suite product -Repeat 10 -Reset
 
     It NEVER touches Production: the stack runs in the Testing environment against a dedicated E2E
     database with fake SMS + fake payment providers and ephemeral keys.
 
 .PARAMETER Suite
-    smoke | auth | admin | customer | business | security | seo | ui | a11y | performance | visual | regression | all
+    smoke | auth | admin | customer | business | product | security | seo | ui | a11y | performance | visual | regression | release | all
 
 .PARAMETER Project
     Playwright project(s): desktop-light (default, fastest) or all (desktop-light, desktop-dark, mobile-dark).
@@ -26,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('smoke','auth','admin','customer','business','security','seo','ui','a11y','performance','visual','regression','release','all')]
+    [ValidateSet('smoke','auth','admin','customer','business','product','security','seo','ui','a11y','performance','visual','regression','release','all')]
     [string] $Suite = 'smoke',
     [ValidateSet('desktop-light','desktop-dark','mobile-dark','all')]
     [string] $Project = 'desktop-light',
@@ -75,9 +76,10 @@ function Wait-Url([string] $url, [int] $seconds = 90) {
 $selection = switch ($Suite) {
     'smoke'       { @('--grep','@smoke') }
     'auth'        { @('tests/auth-lifecycle.spec.ts','tests/authentication.spec.ts') }
-    'admin'       { @('tests/admin-flows.spec.ts','tests/monitoring.spec.ts','tests/support-delivery.spec.ts') }
-    'customer'    { @('tests/customer-account.spec.ts','tests/authentication.spec.ts','tests/storefront-commerce.spec.ts','tests/support-delivery.spec.ts') }
-    'business'    { @('tests/storefront-commerce.spec.ts','tests/support-delivery.spec.ts') }
+    'admin'       { @('tests/admin-flows.spec.ts','tests/monitoring.spec.ts','tests/support-delivery.spec.ts','tests/product-matrix.spec.ts','tests/product-variants.spec.ts','tests/product-admin-edit.spec.ts','tests/product-negative.spec.ts') }
+    'customer'    { @('tests/customer-account.spec.ts','tests/authentication.spec.ts','tests/storefront-commerce.spec.ts','tests/support-delivery.spec.ts','tests/product-matrix.spec.ts','tests/product-variants.spec.ts','tests/product-admin-edit.spec.ts') }
+    'business'    { @('tests/storefront-commerce.spec.ts','tests/support-delivery.spec.ts','tests/product-matrix.spec.ts','tests/product-variants.spec.ts','tests/product-admin-edit.spec.ts') }
+    'product'     { @('tests/product-matrix.spec.ts','tests/product-variants.spec.ts','tests/product-admin-edit.spec.ts','tests/product-negative.spec.ts') }
     'security'    { @('--grep','@security') }
     'seo'         { @('tests/seo.spec.ts') }
     'ui'          { @('tests/ui-quality.spec.ts','tests/console-quality.spec.ts','tests/accessibility.spec.ts') }

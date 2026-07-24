@@ -1,6 +1,6 @@
 import {
   test, expect, TAG, USERS,
-  AdminLoginPage, AdminTicketsPage, StoreLoginPage
+  AdminLoginPage, AdminTicketsPage, StoreLoginPage, loginSeededCustomerWithEmptyCart
 } from '../framework/fixtures';
 import { apiBaseUrl } from './support/app';
 
@@ -22,7 +22,7 @@ test.describe('support/ticket delivery', () => {
     tag: [TAG.supportDelivery, TAG.business, TAG.customer, TAG.admin, TAG.ticket, TAG.regression, TAG.release]
   }, async ({ page, browser, storeLogin, storefront, customerTickets }) => {
     // --- Customer buys the SupportRequired product through the storefront UI ---
-    await storeLogin.signIn(USERS.Customer);
+    await loginSeededCustomerWithEmptyCart(page);
     await storefront.addToCart(SUPPORT_SLUG, { support_ref: 'e2e-buyer-ref' });
     const orderId = await storefront.checkoutAndPay();
 

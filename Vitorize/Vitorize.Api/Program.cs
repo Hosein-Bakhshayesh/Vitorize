@@ -397,6 +397,97 @@ namespace Vitorize.Api
                             .Select(x => (Guid?)x.UserId).FirstOrDefaultAsync(cancellationToken)
                     });
                 });
+
+                // Testing-only catalog projection used by browser tests to verify that Admin UI
+                // operations reached the relational model. It intentionally exposes no customer,
+                // order, gift-code value, or other production-sensitive data and is never mapped
+                // outside the isolated Testing environment.
+                app.MapGet("/api/testing/product-state", async (
+                    string slug,
+                    VitorizeDbContext db,
+                    CancellationToken cancellationToken) =>
+                {
+                    var normalizedSlug = (slug ?? string.Empty).Trim().ToLowerInvariant();
+                    var product = await db.Products.AsNoTracking()
+                        .Where(x => x.Slug == normalizedSlug && !x.IsDeleted)
+                        .Select(x => new
+                        {
+                            x.Id,
+                            x.CategoryId,
+                            x.BrandId,
+                            x.Title,
+                            x.Slug,
+                            x.ShortDescription,
+                            x.FullDescription,
+                            x.ProductType,
+                            x.DeliveryType,
+                            x.BasePrice,
+                            x.DiscountPrice,
+                            x.CurrencyType,
+                            x.MinOrderQuantity,
+                            x.MaxOrderQuantity,
+                            x.IsFeatured,
+                            x.IsActive,
+                            x.SeoTitle,
+                            x.SeoDescription,
+                            x.FocusKeyword,
+                            x.ThumbnailImagePath,
+                            x.ThumbnailAltText,
+                            Tags = x.Tags.OrderBy(t => t.Title).Select(t => new { t.Id, t.Title }).ToList(),
+                            Variants = x.ProductVariants.OrderBy(v => v.SortOrder).ThenBy(v => v.Title).Select(v => new
+                            {
+                                v.Id, v.Title, v.Sku, v.Price, v.DiscountPrice, v.Value,
+                                v.StockMode, v.IsDefault, v.IsActive, v.SortOrder
+                            }).ToList(),
+                            Images = x.ProductImages.OrderBy(i => i.SortOrder).Select(i => new
+                            {
+                                i.Id, i.ImagePath, i.AltText, i.SortOrder
+                            }).ToList(),
+                            Features = x.ProductFeatures.OrderBy(f => f.SortOrder).Select(f => new
+                            {
+                                f.Id, f.Title, f.Value, f.IconKey, f.IsActive, f.SortOrder
+                            }).ToList(),
+                            InputFields = x.ProductInputFields.OrderBy(f => f.SortOrder).Select(f => new
+                            {
+                                f.Id, f.Key, f.Label, f.FieldType, f.IsRequired, f.DisplayStage,
+                                f.IsActive, f.SortOrder
+                            }).ToList()
+                        })
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (product is null) return Results.NotFound();
+
+                    var duplicateSkus = await db.ProductVariants.AsNoTracking()
+                        .Where(x => x.Sku != null && x.Sku != string.Empty)
+                        .GroupBy(x => x.Sku)
+                        .CountAsync(x => x.Count() > 1, cancellationToken);
+                    var productsWithMultipleDefaults = await db.ProductVariants.AsNoTracking()
+                        .Where(x => x.IsDefault)
+                        .GroupBy(x => x.ProductId)
+                        .CountAsync(x => x.Count() > 1, cancellationToken);
+
+                    return Results.Ok(new
+                    {
+                        product,
+                        integrity = new
+                        {
+                            duplicateSkus,
+                            productsWithMultipleDefaults,
+                            invalidProductPricing = await db.Products.CountAsync(x => !x.IsDeleted &&
+                                (x.BasePrice < 0 || x.DiscountPrice < 0 || x.DiscountPrice > x.BasePrice), cancellationToken),
+                            invalidVariantPricing = await db.ProductVariants.CountAsync(x =>
+                                x.Price < 0 || x.DiscountPrice < 0 || x.DiscountPrice > x.Price, cancellationToken),
+                            orphanVariants = await db.ProductVariants.CountAsync(x =>
+                                !db.Products.Any(p => p.Id == x.ProductId), cancellationToken),
+                            orphanImages = await db.ProductImages.CountAsync(x =>
+                                !db.Products.Any(p => p.Id == x.ProductId), cancellationToken),
+                            orphanFeatures = await db.ProductFeatures.CountAsync(x =>
+                                !db.Products.Any(p => p.Id == x.ProductId), cancellationToken),
+                            orphanInputFields = await db.ProductInputFields.CountAsync(x =>
+                                !db.Products.Any(p => p.Id == x.ProductId), cancellationToken)
+                        }
+                    });
+                });
             }
 
             var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();

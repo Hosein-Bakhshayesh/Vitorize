@@ -10,6 +10,7 @@ screenshots, traces and videos on failure.
 ./scripts/Invoke-Qa.ps1 -Suite regression   # full browser suite
 ./scripts/Invoke-Qa.ps1 -Suite release      # full release gate (see below)
 ./scripts/Invoke-Qa.ps1 -Suite admin -Repeat 3
+./scripts/Invoke-Qa.ps1 -Suite product -Repeat 10 -Reset
 ```
 
 ### The one-command release gate
@@ -42,10 +43,13 @@ tests/Vitorize.E2E/
 │  ├─ users.ts               # the 4 deterministic roles + credentials (env-overridable)
 │  ├─ tags.ts                # tag vocabulary (@smoke, @admin, @customer, @security, …)
 │  ├─ fixtures.ts            # base `test`/`expect` with page objects + auth + console guard
-│  └─ pages/                 # Page Objects (BasePage, AdminLoginPage, AdminShellPage, …)
+│  ├─ builders/              # ProductBuilder, VariantBuilder, supported scenario factory
+│  ├─ productState.ts        # Testing-only relational projection + integrity assertions
+│  └─ pages/                 # Page Objects (including AdminProduct/AdminVariant/storefront product)
 ├─ tests/                     # spec files (Playwright testDir)
 │  ├─ smoke.spec.ts          # @smoke critical path (framework-based)
 │  ├─ auth-lifecycle.spec.ts # admin/customer/mixed-cookie login lifecycle
+│  ├─ product-*.spec.ts      # type/delivery matrix, variants, rich editing and negatives
 │  └─ … (storefront-commerce, admin-flows, seo, a11y, ui-quality, …)
 │  └─ support/app.ts         # legacy helpers (reused by the framework; kept for back-compat)
 ├─ fixtures/seed-e2e.sql      # deterministic data incl. the 4 QA users
@@ -89,9 +93,10 @@ test('admin can open the products list', { tag: [TAG.admin] }, async ({ loginAs,
 ```
 
 Fixtures available on every test: `adminLogin`, `adminShell`, `storeLogin`, `storefront`,
-`consoleGuard` (console/pageerror/requestfailed capture — call `consoleGuard.assertClean()`), and
-`loginAs(role)`. Each test gets an isolated browser context (fresh cookie jar) so tests are
-independent and parallel-safe.
+`adminProduct`, `adminVariant`, `storefrontProduct`, `consoleGuard`
+(console/pageerror/requestfailed capture — call `consoleGuard.assertClean()`), and `loginAs(role)`.
+`loginSeededCustomerWithEmptyCart(page)` supports deterministic auxiliary customer contexts. Each
+test gets an isolated browser context (fresh cookie jar) so tests are independent and parallel-safe.
 
 **Add a Page Object** under `framework/pages/` extending `BasePage`; expose intent-revealing methods,
 keep selectors inside the page object. **Add a fixture** in `framework/fixtures.ts` to make it
@@ -109,6 +114,7 @@ injectable.
 | `admin` | admin-flows + monitoring | `npm run test:admin` |
 | `customer` | customer-account + authentication + storefront-commerce | `npm run test:customer` |
 | `business` | storefront-commerce (purchase/delivery/coupon/wallet) | `npm run test:business` |
+| `product` | product type/delivery matrix + variants + rich edit + invalid configurations | `npm run test:product` |
 | `security` | auth boundaries (E2E); see also the .NET security suites | `npm run test:security` |
 | `seo` | seo | `npm run test:seo` |
 | `ui` | ui-quality + console-quality + accessibility | `npm run test:ui` |
@@ -142,16 +148,22 @@ schema deployed (see `scripts/Prepare-E2EDatabase.ps1`); the runner starts the a
 
 ## Deterministic data & visual baselines
 
-`Invoke-Qa.ps1` re-seeds before every run, and `seed-e2e.sql` is **self-healing**: it removes volatile
+`Invoke-Qa.ps1` re-seeds before every gate invocation, and `seed-e2e.sql` is **self-healing**: it removes volatile
 entities left by prior UI-create tests (e.g. timestamped `e2e-category-*`) so a partial failure can't
-poison the next run. Functional suites are fully deterministic.
+poison the next run. `-Repeat N` deliberately preserves state between repetitions so uniqueness,
+ranking and cleanup leaks are exposed. Functional suites are fully deterministic.
 
-`visual-regression.spec.ts` pixel-compares screenshots against committed baselines. **Data-driven
-pages (the admin dashboard metrics) drift when the deterministic dataset changes** (e.g. new seed
-users, or accumulated orders on a long-lived E2E DB). When such a change is intentional, re-approve on
-a **pristine** database: reset/redeploy the E2E DB, then
+Product-matrix tests retire their UI-created catalog rows through the real Admin editor and clear the
+deterministic Customer cart after assertions. This keeps later suites isolated while still leaving
+the database rows available for relational-integrity diagnostics.
+
+`visual-regression.spec.ts` pixel-compares screenshots against committed baselines. Data-driven home
+product grids use a fixed one-row masked region, and the Admin order screenshot filters to a stable
+empty result while normalizing only volatile count text. Dedicated category, product, cart and
+checkout screenshots remain unmasked. When a visual change is intentional, re-approve on a
+**pristine** database: reset/redeploy the E2E DB, then
 `playwright test tests/visual-regression.spec.ts --update-snapshots`. Layout-only baselines
-(storefront) are stable. Prefer masking volatile numbers over re-approving where possible.
+are stable. Prefer masking volatile data over re-approving where possible.
 
 ## Coverage matrix (business workflow → spec → status)
 
@@ -162,6 +174,7 @@ a **pristine** database: reset/redeploy the E2E DB, then
 | Admin: nav every surface · category create/filter/delete · product editor (rich text/variants/fields/Lucide) · settings (branding/typography/trust seals/SMS) · gift-code import/remove | `admin-flows.spec.ts` | ✅ core (CRUD depth in progress) |
 | Monitoring route auth + safe diagnostics + Seq link | `monitoring.spec.ts` | ✅ full |
 | Storefront browse/search/filter/sort · product detail (variant/gallery/features/related/dynamic fields) · cart merge/separate/qty/coupon · **gateway checkout** · **wallet checkout** · failed payment · **manual delivery** · **instant gift-code delivery** | `storefront-commerce.spec.ts` | ✅ full |
+| **Product Type / Variant Matrix**: GiftCard, GameAccount, GameService, Subscription and Other across supported Instant/Manual/Support delivery; no-brand/child-category/discount/free/quantity/featured/SEO/sanitized HTML/gallery/features/dynamic fields; variant create/edit/default/active/sort/SKU/price/cart/delete/fallback; critical invalid states and DB integrity via `/api/testing/product-state` | `product-matrix.spec.ts` · `product-variants.spec.ts` · `product-admin-edit.spec.ts` · `product-negative.spec.ts` | ✅ full for repository-supported configurations |
 | Customer account surfaces (orders/wallet/profile) | `customer-account.spec.ts` · `smoke.spec.ts` | 🟡 partial |
 | Cross-persona critical path (both personas, 4 roles incl. CustomerVIP) | `smoke.spec.ts` | ✅ full |
 | **Support/Ticket delivery** end-to-end: buy SupportRequired product → open ticket from order → admin delivers via reply + closes → customer verifies + reply-blocked; + anon/not-found/IDOR/XSS negatives; DB invariants via `/api/testing/support-state` | `support-delivery.spec.ts` | ✅ full |
@@ -177,7 +190,6 @@ a **pristine** database: reset/redeploy the E2E DB, then
 
 ### Remaining coverage (extension backlog, use the framework's building blocks)
 - **Admin master-data depth** (Phase 1): child categories, parent change, image/logo upload, brand + tag full CRUD, duplicate-slug validation, storefront visibility of inactive/deleted.
-- **Product-type matrix** (Phase 2): each product/delivery type + variant SKU/stock/default/duplicate-SKU.
 - **Cart/checkout matrix** (Phase 5): out-of-stock, price-change-before-checkout, per-user coupon limit, wallet-partial, duplicate-callback via UI.
 - **Customer account depth** (Phase 6): addresses, notifications read, wishlist, reviews+vote, KYC submit/approve/reject.
 - **Admin operations depth** (Phase 7): refunds, wallet adjustments, roles/permissions UI, reviews/SMS/logs/reports.

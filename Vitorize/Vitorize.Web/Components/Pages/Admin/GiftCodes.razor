@@ -129,11 +129,23 @@ else
             <div class="vz-field span-2">
                 <label class="vz-label">محصول <span class="req">*</span></label>
                 <select class="vz-select" value="@(_import.ProductId == Guid.Empty ? "" : _import.ProductId.ToString())"
-                        @onchange="e => _import.ProductId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
+                        @onchange="OnImportProductChanged">
                     <option value="">— انتخاب محصول —</option>
                     @foreach (var p in _products) { <option value="@p.Id">@p.Title</option> }
                 </select>
             </div>
+            @if (_importVariants.Count > 0)
+            {
+                <div class="vz-field span-2">
+                    <label class="vz-label">واریانت</label>
+                    <select class="vz-select" value="@(_import.ProductVariantId?.ToString() ?? "")"
+                            @onchange="e => _import.ProductVariantId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : null">
+                        <option value="">— بدون واریانت —</option>
+                        @foreach (var variant in _importVariants) { <option value="@variant.Id">@variant.Title</option> }
+                    </select>
+                    <span class="vz-hint">برای موجودی یک واریانت مشخص، انتخاب واریانت الزامی است.</span>
+                </div>
+            }
             <div class="vz-field">
                 <label class="vz-label">عنوان بچ <span class="req">*</span></label>
                 <input class="vz-input" @bind="_import.BatchTitle" />
@@ -200,6 +212,7 @@ else
     private string _codeStatus = string.Empty;
 
     private List<AdminProductModel> _products = new();
+    private List<AdminProductVariantModel> _importVariants = new();
 
     private bool _importOpen, _importing, _fileDrag;
     private GiftCodeImportRequestModel _import = new();
@@ -258,9 +271,19 @@ else
     private void OpenImport()
     {
         _import = new GiftCodeImportRequestModel();
+        _importVariants = new();
         _codesText = string.Empty;
         _fileDrag = false;
         _importOpen = true;
+    }
+
+    private async Task OnImportProductChanged(ChangeEventArgs e)
+    {
+        _import.ProductId = Guid.TryParse(e.Value?.ToString(), out var productId) ? productId : Guid.Empty;
+        _import.ProductVariantId = null;
+        if (_import.ProductId == Guid.Empty) { _importVariants = new(); return; }
+        var result = await Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{_import.ProductId}/variants");
+        _importVariants = result.Data ?? new();
     }
 
     private async Task OnCodesFile(InputFileChangeEventArgs e)

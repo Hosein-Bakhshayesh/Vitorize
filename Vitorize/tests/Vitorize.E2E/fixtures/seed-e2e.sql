@@ -15,6 +15,7 @@ DECLARE @InputFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000009';
 DECLARE @ImageId uniqueidentifier = '31000000-0000-0000-0000-000000000010';
 DECLARE @RelatedProductId uniqueidentifier = '31000000-0000-0000-0000-000000000011';
 DECLARE @CouponId uniqueidentifier = '31000000-0000-0000-0000-000000000012';
+DECLARE @ChildCategoryId uniqueidentifier = '31000000-0000-0000-0000-000000000032';
 DECLARE @E2eAdminId uniqueidentifier = (SELECT TOP (1) Id FROM dbo.Users WHERE Mobile = N'09120000011');
 
 -- Keep the dedicated Testing-only administrator stable between runs. Browser
@@ -105,6 +106,16 @@ WHERE c.Slug LIKE 'e2e-category-1%'
 IF NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Id = @CategoryId)
     INSERT dbo.Categories (Id, Title, Slug, [Description], SeoTitle, SeoDescription, FocusKeyword, ImageAltText, IsActive, IsDeleted, CreatedAt)
     VALUES (@CategoryId, N'دسته آزمون مرورگر', N'e2e-category', N'دسته‌بندی قطعی آزمون مرورگر.', N'دسته آزمون مرورگر', N'توضیح دسته آزمون مرورگر.', N'محصول تست', N'تصویر دسته آزمون', 1, 0, SYSUTCDATETIME());
+
+-- Auxiliary parent/child catalog data. Final matrix products are still created through the Admin UI.
+IF NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Id = @ChildCategoryId)
+    INSERT dbo.Categories (Id, ParentId, Title, Slug, [Description], SeoTitle, SeoDescription, IsActive, IsDeleted, CreatedAt)
+    VALUES (@ChildCategoryId, @CategoryId, N'E2E Child Category', N'e2e-child-category',
+            N'Deterministic child category for browser product-matrix coverage.', N'E2E Child Category SEO',
+            N'E2E child category meta description.', 1, 0, SYSUTCDATETIME());
+UPDATE dbo.Categories
+SET ParentId = @CategoryId, Title = N'E2E Child Category', IsActive = 1, IsDeleted = 0
+WHERE Id = @ChildCategoryId;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Products WHERE Id = @ProductId)
     INSERT dbo.Products
@@ -235,6 +246,8 @@ IF NOT EXISTS (SELECT 1 FROM dbo.ProductTags WHERE Id = @TagId)
 
 IF NOT EXISTS (SELECT 1 FROM dbo.ProductTagMappings WHERE ProductId = @ProductId AND TagId = @TagId)
     INSERT dbo.ProductTagMappings (ProductId, TagId) VALUES (@ProductId, @TagId);
+IF NOT EXISTS (SELECT 1 FROM dbo.ProductTagMappings WHERE ProductId = @RelatedProductId AND TagId = @TagId)
+    INSERT dbo.ProductTagMappings (ProductId, TagId) VALUES (@RelatedProductId, @TagId);
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @ReviewUserId)
     INSERT dbo.Users (Id, FullName, Mobile, PasswordHash, Status, IsMobileConfirmed, CreatedAt)
