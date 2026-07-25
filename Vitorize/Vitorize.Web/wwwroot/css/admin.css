@@ -1252,6 +1252,11 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 .vz-icon-picker__search input { min-width:0; flex:1; border:0; outline:0; color:var(--text); background:transparent; font:inherit; }
 .vz-icon-picker__search input::placeholder { color:var(--text-3); }
 .vz-icon-picker__search button { width:28px; height:28px; display:grid; place-items:center; border:0; border-radius:7px; color:var(--text-3); background:transparent; cursor:pointer; }
+.vz-icon-picker__collections { display:flex; gap:6px; padding:10px 0 2px; overflow:auto hidden; scrollbar-width:thin; }
+.vz-icon-picker__collections button { flex:0 0 auto; min-height:34px; display:inline-flex; align-items:center; gap:6px; padding:6px 13px; border:1px solid var(--border); border-radius:999px; color:var(--text-2); background:var(--surface-2); font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+.vz-icon-picker__collections button:hover,.vz-icon-picker__collections button:focus-visible { border-color:var(--border-strong); color:var(--text); outline:0; }
+.vz-icon-picker__collections button.active { border-color:var(--admin-primary); color:var(--admin-primary-strong); background:var(--admin-primary-soft); }
+.vz-icon-picker__count { font-size:10.5px; font-weight:700; opacity:.7; padding:1px 6px; border-radius:999px; background:var(--surface-solid); }
 .vz-icon-picker__categories { display:flex; gap:6px; padding:10px 0 11px; overflow:auto hidden; scrollbar-width:thin; }
 .vz-icon-picker__categories button { flex:0 0 auto; min-height:34px; padding:6px 12px; border:1px solid var(--border); border-radius:999px; color:var(--text-2); background:var(--surface-2); font:inherit; font-size:12px; cursor:pointer; }
 .vz-icon-picker__categories button:hover,.vz-icon-picker__categories button:focus-visible { border-color:var(--border-strong); color:var(--text); outline:0; }

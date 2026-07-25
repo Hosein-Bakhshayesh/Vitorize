@@ -123,7 +123,7 @@
                     <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
                 </div>
                 <div class="vz-field">
-                    <label class="vz-label">اسلاگ <span class="req">*</span></label>
+                    <label class="vz-label" dir="ltr" style="text-align:start">Slug <span class="req">*</span></label>
                     <InputText class="vz-input vz-mono" @bind-Value="_model.Slug" />
                     <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
                 </div>
@@ -154,7 +154,7 @@
                     <ImageGuideline Spec="ImageSpecs.Category" />
                 </div>
                 <div class="vz-field">
-                    <label class="vz-label">عنوان سئو</label>
+                    <label class="vz-label" dir="ltr" style="text-align:start">SEO Title</label>
                     <InputText class="vz-input" @bind-Value="_model.SeoTitle" />
                 </div>
                 <div class="vz-field">
@@ -162,11 +162,11 @@
                     <LucideIconPicker @bind-Value="_model.Icon" Placeholder="انتخاب آیکون دسته‌بندی" />
                 </div>
                 <div class="vz-field span-2">
-                    <label class="vz-label">توضیحات سئو</label>
+                    <label class="vz-label" dir="ltr" style="text-align:start">SEO Description</label>
                     <InputTextArea class="vz-textarea" style="min-height:70px" @bind-Value="_model.SeoDescription" />
                 </div>
                 <div class="vz-field span-2">
-                    <label class="vz-label">عبارت هدف تحریریه</label>
+                    <label class="vz-label" dir="ltr" style="text-align:start">Focus Keyword</label>
                     <InputText class="vz-input" @bind-Value="_model.FocusKeyword" />
                 </div>
                 <div class="vz-field span-2">

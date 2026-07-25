@@ -1,0 +1,137 @@
+/* Vitorize admin theme for CKEditor 5.
+   Maps CKEditor CSS variables onto the admin design tokens and adds the
+   fullscreen wrapper, chrome bar, RTL surface, dark mode and responsive rules. */
+
+.vz-ck {
+    --vz-ck-min-height: 320px;
+    position: relative;
+    border: 1px solid var(--border-strong, #d5dbe3);
+    border-radius: var(--clip-xs, 10px);
+    background: var(--surface, #fff);
+    overflow: hidden;
+
+    /* CKEditor token remap (light) */
+    --ck-border-radius: var(--clip-xs, 10px);
+    --ck-color-base-background: var(--surface, #fff);
+    --ck-color-base-border: var(--border, #e3e8ef);
+    --ck-color-text: var(--text, #1f2733);
+    --ck-color-toolbar-background: var(--surface-2, #f6f8fb);
+    --ck-color-toolbar-border: var(--border, #e3e8ef);
+    --ck-color-button-default-hover-background: var(--admin-primary-soft, #e6f7f2);
+    --ck-color-button-default-active-background: var(--admin-primary-soft, #e6f7f2);
+    --ck-color-button-on-background: var(--admin-primary-soft, #e6f7f2);
+    --ck-color-button-on-hover-background: var(--admin-primary-soft, #d6f1e8);
+    --ck-color-button-on-color: var(--admin-primary-strong, #0d7a5f);
+    --ck-color-panel-background: var(--surface-solid, #fff);
+    --ck-color-panel-border: var(--border, #e3e8ef);
+    --ck-color-dropdown-panel-background: var(--surface-solid, #fff);
+    --ck-color-list-background: var(--surface-solid, #fff);
+    --ck-color-list-button-hover-background: var(--admin-primary-soft, #e6f7f2);
+    --ck-color-list-button-on-background: var(--admin-primary, #10b981);
+    --ck-color-input-background: var(--surface, #fff);
+    --ck-color-input-border: var(--border-strong, #d5dbe3);
+    --ck-color-input-text: var(--text, #1f2733);
+    --ck-color-focus-border: var(--admin-primary, #10b981);
+    --ck-color-labeled-field-label-background: var(--surface, #fff);
+}
+
+.vz-ck .ck.ck-editor { width: 100%; }
+
+.vz-ck .ck-editor__editable_inline {
+    min-height: var(--vz-ck-min-height);
+    font-family: var(--font, "Vazirmatn", Tahoma, sans-serif);
+    line-height: 1.9;
+}
+
+.vz-ck[dir="rtl"] .ck-editor__editable_inline { text-align: right; }
+
+/* Sticky toolbar sits under the chrome bar, not the viewport top. */
+.vz-ck .ck.ck-sticky-panel__content_sticky { top: 0 !important; }
+
+/* Chrome bar (fullscreen + attach + status) rendered by the Blazor component. */
+.vz-ck__chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 7px 10px;
+    background: var(--surface-2, #f6f8fb);
+    border-bottom: 1px solid var(--border, #e3e8ef);
+}
+
+.vz-ck__chrome-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text, #1f2733);
+    background: var(--surface-solid, #fff);
+    border: 1px solid var(--border-strong, #d5dbe3);
+    border-radius: var(--clip-xs, 8px);
+    padding: 5px 11px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+}
+
+.vz-ck__chrome-btn:hover:not(:disabled) {
+    border-color: var(--admin-primary, #10b981);
+    color: var(--admin-primary-strong, #0d7a5f);
+    background: var(--admin-primary-soft, #e6f7f2);
+}
+
+.vz-ck__chrome-btn:disabled { opacity: .55; cursor: default; }
+
+.vz-ck__status { font-size: 12px; color: var(--text-muted, #6b7686); }
+.vz-ck__status.is-error { color: var(--danger, #dc2626); font-weight: 600; }
+
+.vz-ck__slot { display: block; }
+
+/* CSS-only fullscreen (the build ships no Fullscreen plugin). */
+body.vz-ck-fullscreen-lock { overflow: hidden; }
+
+.vz-ck--fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    border-radius: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface, #fff);
+}
+
+.vz-ck--fullscreen .vz-ck__slot { flex: 1 1 auto; overflow: auto; }
+.vz-ck--fullscreen .ck-editor__editable_inline { min-height: calc(100vh - 140px); }
+
+/* Dark mode: overrides win over the light defaults above. */
+:root[data-theme="dark"] .vz-ck,
+.vz-ck[data-theme="dark"] {
+    --ck-color-base-background: var(--surface, #161b22);
+    --ck-color-base-border: var(--border, #2a323d);
+    --ck-color-text: var(--text, #e6edf3);
+    --ck-color-toolbar-background: var(--surface-2, #1b2129);
+    --ck-color-toolbar-border: var(--border, #2a323d);
+    --ck-color-panel-background: var(--surface-solid, #1b2129);
+    --ck-color-panel-border: var(--border, #2a323d);
+    --ck-color-dropdown-panel-background: var(--surface-solid, #1b2129);
+    --ck-color-list-background: var(--surface-solid, #1b2129);
+    --ck-color-input-background: var(--surface, #161b22);
+    --ck-color-input-text: var(--text, #e6edf3);
+    --ck-color-widget-hover-border: var(--admin-primary, #10b981);
+    --ck-color-image-caption-background: var(--surface-2, #1b2129);
+    --ck-color-image-caption-text: var(--text-muted, #9aa4b2);
+}
+
+:root[data-theme="dark"] .vz-ck .ck-editor__editable_inline { color: var(--text, #e6edf3); }
+:root[data-theme="dark"] .vz-ck .ck.ck-content code {
+    background: rgba(255,255,255,.08);
+}
+
+/* Responsive: let the toolbar wrap instead of overflowing the card. */
+@media (max-width: 640px) {
+    .vz-ck .ck.ck-toolbar { flex-wrap: wrap; }
+    .vz-ck__chrome { padding: 6px 8px; }
+    .vz-ck__chrome-btn span { display: none; }
+}

@@ -13,7 +13,7 @@ public static class SecurityHeaderPolicy
 
     public const string WebContentSecurityPolicy =
         "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'; " +
-        "img-src 'self' data: https:; font-src 'self' data: https:; " +
+        "img-src 'self' data: blob: https:; font-src 'self' data: https:; " +
         "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
         "connect-src 'self' https: wss:; form-action 'self'; upgrade-insecure-requests";
 
@@ -30,8 +30,8 @@ public static class SecurityHeaderPolicy
 
         var origin = uri.GetLeftPart(UriPartial.Authority);
         return WebContentSecurityPolicy.Replace(
-            "img-src 'self' data: https:;",
-            $"img-src 'self' data: https: {origin};",
+            "img-src 'self' data: blob: https:;",
+            $"img-src 'self' data: blob: https: {origin};",
             StringComparison.Ordinal);
     }
 }

@@ -31,7 +31,25 @@ namespace Vitorize.Api.Controllers.Admin
         private static readonly string[] SettingsAllowedExtensions = [.. AllowedExtensions, ".ico"];
         private static readonly string[] SettingsAllowedContentTypes = [.. AllowedContentTypes, "image/x-icon", "image/vnd.microsoft.icon"];
 
+        // Curated, non-executable attachment set for the rich-text editor.
+        private static readonly string[] AttachmentExtensions =
+        {
+            ".pdf", ".txt", ".csv", ".zip", ".docx", ".xlsx", ".pptx",
+            ".png", ".jpg", ".jpeg", ".webp"
+        };
+
+        private static readonly string[] AttachmentContentTypes =
+        {
+            "application/pdf", "text/plain", "text/csv", "application/csv",
+            "application/zip", "application/x-zip-compressed", "application/octet-stream",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "image/png", "image/jpeg", "image/webp"
+        };
+
         private const long MaxFileSize = 2 * 1024 * 1024;
+        private const long MaxAttachmentSize = 10 * 1024 * 1024;
 
         public AdminUploadsController(IWebHostEnvironment environment)
         {
@@ -62,6 +80,20 @@ namespace Vitorize.Api.Controllers.Admin
         [RequestSizeLimit(MaxFileSize)]
         public Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadSettingsImage(IFormFile file)
             => UploadAsync(file, "settings", "تصویر با موفقیت آپلود شد.", SettingsAllowedExtensions, SettingsAllowedContentTypes);
+
+        /// <summary>
+        /// پیوست فایل ویرایشگر متن (CKEditor). فقط فرمت‌های امن و غیراجرایی
+        /// پذیرفته می‌شوند و نام فایل روی سرور تصادفی‌سازی می‌شود.
+        /// </summary>
+        [HttpPost("editor-file")]
+        [RequestSizeLimit(MaxAttachmentSize)]
+        public async Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadEditorFile(IFormFile file)
+        {
+            var result = await UploadHelper.SaveAttachmentAsync(
+                _environment, file, "attachments", MaxAttachmentSize, AttachmentExtensions, AttachmentContentTypes);
+
+            return Ok(ApiResult<UploadFileResultDto>.Success(result, "فایل با موفقیت آپلود شد."));
+        }
 
         private async Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadAsync(
             IFormFile file,
@@ -135,6 +167,58 @@ namespace Vitorize.Api.Controllers.Admin
             };
         }
 
+        public static async Task<UploadFileResultDto> SaveAttachmentAsync(
+            IWebHostEnvironment environment,
+            IFormFile file,
+            string folderName,
+            long maxFileSize,
+            string[] allowedExtensions,
+            string[] allowedContentTypes)
+        {
+            if (file == null || file.Length == 0)
+                throw new BusinessException("فایلی ارسال نشده است.");
+
+            if (file.Length > maxFileSize)
+                throw new BusinessException($"حجم فایل نباید بیشتر از {maxFileSize / (1024 * 1024)} مگابایت باشد.");
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+                throw new BusinessException("این نوع فایل برای پیوست مجاز نیست.");
+
+            if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                throw new BusinessException("نوع فایل پیوست معتبر نیست.");
+
+            var webRoot = environment.WebRootPath
+                ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+
+            var uploadRoot = Path.Combine(webRoot, "uploads", folderName);
+            Directory.CreateDirectory(uploadRoot);
+
+            // نام تصادفی؛ نام اصلی هرگز روی سرور استفاده نمی‌شود تا از پیمایش مسیر جلوگیری شود.
+            var fileName = $"{Guid.NewGuid():N}{extension}";
+            var fullPath = Path.Combine(uploadRoot, fileName);
+
+            await using (var stream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            if (!await IsAllowedAttachmentSignatureAsync(fullPath, extension))
+            {
+                System.IO.File.Delete(fullPath);
+                throw new BusinessException("محتوای فایل با پسوند آن مطابقت ندارد.");
+            }
+
+            return new UploadFileResultDto
+            {
+                FileName = fileName,
+                FilePath = $"/uploads/{folderName}/{fileName}",
+                ContentType = file.ContentType,
+                Size = file.Length
+            };
+        }
+
         public static async Task<UploadFileResultDto> SavePrivateImageAsync(
             IWebHostEnvironment environment,
             IFormFile file,
@@ -173,6 +257,40 @@ namespace Vitorize.Api.Controllers.Admin
                 ContentType = file.ContentType,
                 Size = file.Length
             };
+        }
+
+        // Verifies the binary signature matches the declared extension. Plain-text
+        // formats have no signature and are accepted after the extension/MIME gate.
+        private static async Task<bool> IsAllowedAttachmentSignatureAsync(string path, string extension)
+        {
+            switch (extension)
+            {
+                case ".txt":
+                case ".csv":
+                    return true;
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".webp":
+                    return await IsValidImageSignatureAsync(path);
+            }
+
+            var header = new byte[8];
+            await using var stream = System.IO.File.OpenRead(path);
+            var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+            if (read < 4) return false;
+
+            // PDF: "%PDF"
+            if (extension == ".pdf")
+                return header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46;
+
+            // ZIP and OOXML (docx/xlsx/pptx) are ZIP containers: "PK\x03\x04"
+            // (empty archives use PK\x05\x06 / spanned PK\x07\x08).
+            if (extension is ".zip" or ".docx" or ".xlsx" or ".pptx")
+                return header[0] == 0x50 && header[1] == 0x4B &&
+                       (header[2] == 0x03 || header[2] == 0x05 || header[2] == 0x07);
+
+            return false;
         }
 
         private static async Task<bool> IsValidImageSignatureAsync(string path)

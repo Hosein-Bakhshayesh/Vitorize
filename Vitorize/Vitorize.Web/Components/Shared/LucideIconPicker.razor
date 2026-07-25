@@ -1,14 +1,15 @@
 @using System.Security.Claims
+@using Vitorize.Shared.Icons
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="vz-icon-field @(Compact ? "compact" : null) @(!string.IsNullOrWhiteSpace(Value) && CurrentEntry is null ? "invalid" : null)">
     <button @ref="_trigger" type="button" class="vz-icon-field__trigger" disabled="@(Disabled || ReadOnly)"
-            aria-haspopup="dialog" aria-expanded="@_open" @onclick="OpenAsync">
+            aria-haspopup="dialog" aria-expanded="@_open" @onclick="OpenAsync" data-testid="icon-picker-trigger">
         <span class="vz-icon-field__preview">
             @if (CurrentEntry is not null)
             {
-                <LucideIcon IconKey="@CurrentEntry.Key" Size="@(Compact ? 22 : 28)" />
+                <LucideIcon IconKey="@CurrentEntry.Id" Size="@(Compact ? 22 : 28)" />
             }
             else
             {
@@ -19,8 +20,8 @@
         <span class="vz-icon-field__text">
             @if (CurrentEntry is not null)
             {
-                <strong>@CurrentEntry.EnglishName</strong>
-                <small>@CurrentEntry.Key</small>
+                <strong>@CurrentEntry.DisplayName</strong>
+                <small>@CurrentEntry.Id</small>
             }
             else if (!string.IsNullOrWhiteSpace(Value))
             {
@@ -42,7 +43,7 @@
     }
     @if (!string.IsNullOrWhiteSpace(Value) && CurrentEntry is null)
     {
-        <div class="vz-field-error">این مقدار در کاتالوگ Lucide وجود ندارد؛ آن را با یک آیکون معتبر جایگزین کنید.</div>
+        <div class="vz-field-error">این مقدار در کاتالوگ آیکون‌ها یافت نشد؛ آن را با یک آیکون معتبر جایگزین کنید.</div>
     }
 </div>
 
@@ -50,8 +51,8 @@
     <div class="vz-icon-picker__shell">
         <header class="vz-icon-picker__header">
             <div>
-                <h2 id="@_titleId">انتخاب آیکون Lucide</h2>
-                <p>@LucideIconCatalog.Count آیکون رسمی — نسخه @LucideIconCatalog.Version</p>
+                <h2 id="@_titleId">انتخاب آیکون</h2>
+                <p>@PersianNumber(TotalCount) آیکون در @PersianNumber(IconCatalog.Collections.Count) مجموعه — Lucide، Tabler، Phosphor</p>
             </div>
             <button type="button" class="vz-iconaction" aria-label="بستن" title="بستن" @onclick="CancelAsync">
                 <LucideIcon IconKey="x" Size="19" />
@@ -61,46 +62,57 @@
         <div class="vz-icon-picker__searchbar">
             <div class="vz-icon-picker__search">
                 <LucideIcon IconKey="search" Size="18" />
-                <input type="search" placeholder="جستجو: game، wallet، سفارش، فضای ابری…"
-                       aria-label="جستجوی آیکون" @bind="_search" @bind:event="oninput" @bind:after="ApplyFilter" />
+                <input type="search" placeholder="جستجو: game، wallet، steam، سفارش…"
+                       aria-label="جستجوی آیکون" data-testid="icon-picker-search"
+                       @bind="_search" @bind:event="oninput" @bind:after="ApplyFilter" />
                 @if (!string.IsNullOrWhiteSpace(_search))
                 {
                     <button type="button" aria-label="پاک کردن جستجو" @onclick="ClearSearch"><LucideIcon IconKey="x" Size="15" /></button>
                 }
             </div>
-            <div class="vz-icon-picker__categories" role="tablist" aria-label="دسته‌بندی آیکون‌ها">
-                <button type="button" role="tab" aria-selected="@(_category is null)" class="@(_category is null ? "active" : null)"
-                        @onclick="() => SelectCategory(null)">همه</button>
-                @foreach (var category in AvailableCategories)
+            <div class="vz-icon-picker__collections" role="tablist" aria-label="مجموعه آیکون‌ها">
+                @foreach (var collection in IconCatalog.Collections)
                 {
-                    <button type="button" role="tab" aria-selected="@(_category == category.Key)"
-                            class="@(_category == category.Key ? "active" : null)" @onclick="() => SelectCategory(category.Key)">
-                        @category.PersianTitle
+                    <button type="button" role="tab" data-testid="icon-collection-@collection.Prefix"
+                            aria-selected="@(_collectionPrefix == collection.Prefix)"
+                            class="@(_collectionPrefix == collection.Prefix ? "active" : null)"
+                            @onclick="() => SelectCollection(collection.Prefix)">
+                        @collection.Title <span class="vz-icon-picker__count">@PersianNumber(collection.Count)</span>
                     </button>
                 }
             </div>
+            @if (_collectionPrefix == IconCatalog.LucidePrefix)
+            {
+                <div class="vz-icon-picker__categories" role="tablist" aria-label="دسته‌بندی آیکون‌ها">
+                    <button type="button" role="tab" aria-selected="@(_category is null)" class="@(_category is null ? "active" : null)"
+                            @onclick="() => SelectCategory(null)">همه</button>
+                    @foreach (var category in AvailableCategories)
+                    {
+                        <button type="button" role="tab" aria-selected="@(_category == category.Key)"
+                                class="@(_category == category.Key ? "active" : null)" @onclick="() => SelectCategory(category.Key)">
+                            @category.PersianTitle
+                        </button>
+                    }
+                </div>
+            }
         </div>
 
         <div class="vz-icon-picker__body">
             <aside class="vz-icon-picker__preview" aria-live="polite">
                 @if (PendingEntry is not null)
                 {
-                    <div class="vz-icon-picker__large"><LucideIcon IconKey="@PendingEntry.Key" Size="72" StrokeWidth="1.6" /></div>
-                    <strong>@PendingEntry.EnglishName</strong>
-                    <code dir="ltr">@PendingEntry.Key</code>
-                    <span>@CategoryTitle(PendingEntry.Category)</span>
-                    @if (!string.IsNullOrWhiteSpace(PendingEntry.PersianAliases))
-                    {
-                        <p>@PendingEntry.PersianAliases</p>
-                    }
+                    <div class="vz-icon-picker__large"><LucideIcon IconKey="@PendingEntry.Id" Size="72" StrokeWidth="1.6" /></div>
+                    <strong>@PendingEntry.DisplayName</strong>
+                    <code dir="ltr">@PendingEntry.Id</code>
+                    <span>@CollectionTitle(PendingEntry.Prefix)</span>
                     <div class="vz-icon-picker__preview-actions">
-                        <button type="button" class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => CopyAsync(PendingEntry.Key)">
-                            <LucideIcon IconKey="copy" Size="14" /> کپی نام
+                        <button type="button" class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => CopyAsync(PendingEntry.Id)">
+                            <LucideIcon IconKey="copy" Size="14" /> کپی شناسه
                         </button>
-                        <button type="button" class="vz-btn vz-btn--ghost vz-btn--sm" aria-pressed="@IsFavorite(PendingEntry.Key)"
-                                @onclick="() => ToggleFavoriteAsync(PendingEntry.Key)">
-                            <LucideIcon IconKey="@(IsFavorite(PendingEntry.Key) ? "star" : "star-off")" Size="14" />
-                            @(IsFavorite(PendingEntry.Key) ? "حذف علاقه‌مندی" : "افزودن علاقه‌مندی")
+                        <button type="button" class="vz-btn vz-btn--ghost vz-btn--sm" aria-pressed="@IsFavorite(PendingEntry.Id)"
+                                @onclick="() => ToggleFavoriteAsync(PendingEntry.Id)">
+                            <LucideIcon IconKey="@(IsFavorite(PendingEntry.Id) ? "star" : "star-off")" Size="14" />
+                            @(IsFavorite(PendingEntry.Id) ? "حذف علاقه‌مندی" : "افزودن علاقه‌مندی")
                         </button>
                     </div>
                 }
@@ -108,7 +120,7 @@
                 {
                     <div class="vz-icon-picker__large muted"><LucideIcon IconKey="mouse-pointer-click" Size="58" /></div>
                     <strong>یک آیکون انتخاب کنید</strong>
-                    <p>نام رسمی Lucide در پایگاه داده ذخیره می‌شود.</p>
+                    <p>شناسه آیکون در پایگاه داده ذخیره می‌شود.</p>
                 }
             </aside>
 
@@ -129,15 +141,15 @@
                 }
 
                 <div class="vz-icon-picker__result-head">
-                    <span>@PersianNumber(_filtered.Count) نتیجه</span>
+                    <span data-testid="icon-picker-result-count">@PersianNumber(_filtered.Count) نتیجه</span>
                     @if (_filtered.Count > _visibleCount) { <small>نمایش تدریجی برای عملکرد بهتر</small> }
                 </div>
                 @if (_filtered.Count == 0)
                 {
-                    <div class="vz-icon-picker__empty">
+                    <div class="vz-icon-picker__empty" data-testid="icon-picker-empty">
                         <LucideIcon IconKey="search-x" Size="42" />
                         <strong>آیکونی پیدا نشد</strong>
-                        <span>عبارت دیگری یا دسته‌بندی «همه» را امتحان کنید.</span>
+                        <span>عبارت دیگری یا مجموعه‌ی دیگری را امتحان کنید.</span>
                     </div>
                 }
                 else
@@ -145,16 +157,16 @@
                     <div class="vz-icon-picker__grid" role="listbox" aria-label="نتایج آیکون‌ها">
                         @foreach (var entry in VisibleEntries)
                         {
-                            <div class="vz-icon-picker__cell @(_pending == entry.Key ? "selected" : null)" @key="entry.Key">
+                            <div class="vz-icon-picker__cell @(_pending == entry.Id ? "selected" : null)" @key="entry.Id">
                                 <button type="button" class="vz-icon-picker__cell-main" role="option"
-                                        aria-selected="@(_pending == entry.Key)" title="@CellTitle(entry)"
-                                        @onclick="() => Select(entry.Key)" @ondblclick="() => ConfirmEntryAsync(entry.Key)">
-                                    <LucideIcon IconKey="@entry.Key" Size="25" />
-                                    <span dir="ltr">@entry.Key</span>
+                                        aria-selected="@(_pending == entry.Id)" title="@entry.DisplayName"
+                                        @onclick="() => Select(entry.Id)" @ondblclick="() => ConfirmEntryAsync(entry.Id)">
+                                    <LucideIcon IconKey="@entry.Id" Size="25" />
+                                    <span dir="ltr">@entry.Name</span>
                                 </button>
                                 <button type="button" class="vz-icon-picker__favorite" aria-label="علاقه‌مندی"
-                                        aria-pressed="@IsFavorite(entry.Key)" @onclick="() => ToggleFavoriteAsync(entry.Key)">
-                                    <LucideIcon IconKey="@(IsFavorite(entry.Key) ? "star" : "star-off")" Size="13" />
+                                        aria-pressed="@IsFavorite(entry.Id)" @onclick="() => ToggleFavoriteAsync(entry.Id)">
+                                    <LucideIcon IconKey="@(IsFavorite(entry.Id) ? "star" : "star-off")" Size="13" />
                                 </button>
                             </div>
                         }
@@ -178,7 +190,8 @@
             </div>
             <div>
                 <button type="button" class="vz-btn vz-btn--outline" @onclick="CancelAsync">انصراف</button>
-                <button type="button" class="vz-btn vz-btn--primary" disabled="@(PendingEntry is null)" @onclick="ConfirmAsync">
+                <button type="button" class="vz-btn vz-btn--primary" data-testid="icon-picker-confirm"
+                        disabled="@(PendingEntry is null)" @onclick="ConfirmAsync">
                     <LucideIcon IconKey="check" Size="16" /> تأیید انتخاب
                 </button>
             </div>
@@ -197,24 +210,28 @@
     [Parameter] public IReadOnlyCollection<string>? ExcludedIcons { get; set; }
     [Parameter] public bool Compact { get; set; }
 
-    private readonly string _titleId = $"lucide-picker-{Guid.NewGuid():N}";
+    private readonly string _titleId = $"icon-picker-{Guid.NewGuid():N}";
     private ElementReference _dialog;
     private ElementReference _trigger;
     private bool _open;
     private string? _pending;
     private string _search = string.Empty;
     private string? _category;
+    private string _collectionPrefix = IconCatalog.LucidePrefix;
     private int _visibleCount = 120;
     private string _preferenceScope = "admin";
-    private List<LucideIconEntry> _filtered = [];
+    private List<IconRef> _filtered = [];
     private List<string> _favorites = [];
     private List<string> _recent = [];
 
-    private LucideIconEntry? CurrentEntry => LucideIconCatalog.Find(Value);
-    private LucideIconEntry? PendingEntry => LucideIconCatalog.Find(_pending);
-    private IEnumerable<LucideIconEntry> VisibleEntries => _filtered.Take(_visibleCount);
-    private List<LucideIconEntry> FavoriteEntries => PreferenceEntries(_favorites);
-    private List<LucideIconEntry> RecentEntries => PreferenceEntries(_recent);
+    private static int TotalCount => IconCatalog.Collections.Sum(x => x.Count);
+
+    private IconRef? CurrentEntry => IconCatalog.Find(Value);
+    private IconRef? PendingEntry => IconCatalog.Find(_pending);
+    private IEnumerable<IconRef> VisibleEntries => _filtered.Take(_visibleCount);
+    private List<IconRef> FavoriteEntries => PreferenceEntries(_favorites);
+    private List<IconRef> RecentEntries => PreferenceEntries(_recent);
+
     private IEnumerable<LucideIconCategory> AvailableCategories => LucideIconCatalog.Categories
         .Where(x => AllowedCategories is null || AllowedCategories.Contains(x.Key, StringComparer.OrdinalIgnoreCase))
         .Where(x => LucideIconCatalog.Entries.Any(e => e.Category == x.Key));
@@ -232,7 +249,9 @@
         if (Disabled || ReadOnly) return;
         var prefs = await JS.InvokeAsync<IconPreferences>("vitorizeLucide.loadPreferences", _preferenceScope);
         ApplyPreferences(prefs);
-        _pending = LucideIconCatalog.TryNormalizeKey(Value, out var normalized) ? normalized : null;
+        var current = CurrentEntry;
+        _pending = current?.Id;
+        _collectionPrefix = current?.Prefix ?? IconCatalog.LucidePrefix;
         _search = string.Empty;
         _category = null;
         _open = true;
@@ -244,24 +263,39 @@
     private void ApplyFilter()
     {
         _visibleCount = 120;
-        _filtered = LucideIconCatalog.Search(_search, _category, LucideIconCatalog.Count, ExcludedIcons).ToList();
-        if (AllowedCategories is not null)
-            _filtered = _filtered.Where(x => AllowedCategories.Contains(x.Category, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (_collectionPrefix == IconCatalog.LucidePrefix)
+        {
+            var entries = LucideIconCatalog.Search(_search, _category, LucideIconCatalog.Count, ExcludedIcons);
+            if (AllowedCategories is not null)
+                entries = entries.Where(x => AllowedCategories.Contains(x.Category, StringComparer.OrdinalIgnoreCase)).ToArray();
+            _filtered = entries.Select(e => IconCatalog.Find(e.Key)!).Where(x => x is not null).ToList();
+        }
+        else
+        {
+            _filtered = IconCatalog.Search(_search, _collectionPrefix, 5000).ToList();
+        }
+    }
+
+    private void SelectCollection(string prefix)
+    {
+        _collectionPrefix = prefix;
+        _category = null;
+        ApplyFilter();
     }
 
     private void SelectCategory(string? category) { _category = category; ApplyFilter(); }
     private void ClearSearch() { _search = string.Empty; ApplyFilter(); }
-    private void Select(string key) => _pending = key;
+    private void Select(string id) => _pending = id;
     private void ShowMore() => _visibleCount = Math.Min(_visibleCount + 120, _filtered.Count);
 
-    private async Task ConfirmEntryAsync(string key) { _pending = key; await ConfirmAsync(); }
+    private async Task ConfirmEntryAsync(string id) { _pending = id; await ConfirmAsync(); }
 
     private async Task ConfirmAsync()
     {
-        if (!LucideIconCatalog.TryNormalizeKey(_pending, out var normalized)) return;
-        Value = normalized;
-        await ValueChanged.InvokeAsync(normalized);
-        ApplyPreferences(await JS.InvokeAsync<IconPreferences>("vitorizeLucide.recordRecent", _preferenceScope, normalized));
+        if (string.IsNullOrWhiteSpace(_pending) || !IconCatalog.IsKnown(_pending)) return;
+        Value = _pending;
+        await ValueChanged.InvokeAsync(_pending);
+        ApplyPreferences(await JS.InvokeAsync<IconPreferences>("vitorizeLucide.recordRecent", _preferenceScope, _pending));
         await CloseAsync();
     }
 
@@ -275,22 +309,21 @@
         await JS.InvokeVoidAsync("vitorizeLucide.closeDialog", _dialog);
     }
 
-    private async Task ToggleFavoriteAsync(string key)
+    private async Task ToggleFavoriteAsync(string id)
     {
-        var selected = !_favorites.Contains(key, StringComparer.OrdinalIgnoreCase);
-        ApplyPreferences(await JS.InvokeAsync<IconPreferences>("vitorizeLucide.setFavorite", _preferenceScope, key, selected));
+        var selected = !_favorites.Contains(id, StringComparer.OrdinalIgnoreCase);
+        ApplyPreferences(await JS.InvokeAsync<IconPreferences>("vitorizeLucide.setFavorite", _preferenceScope, id, selected));
     }
 
-    private async Task CopyAsync(string key) => await JS.InvokeVoidAsync("vitorizeLucide.copy", key);
-    private bool IsFavorite(string key) => _favorites.Contains(key, StringComparer.OrdinalIgnoreCase);
+    private async Task CopyAsync(string id) => await JS.InvokeVoidAsync("vitorizeLucide.copy", id);
+    private bool IsFavorite(string id) => _favorites.Contains(id, StringComparer.OrdinalIgnoreCase);
     private void ApplyPreferences(IconPreferences? value) { _favorites = value?.Favorites ?? []; _recent = value?.Recent ?? []; }
     private static string PersianNumber(int value) => string.Concat(value.ToString(CultureInfo.InvariantCulture).Select(ch => char.IsDigit(ch) ? "۰۱۲۳۴۵۶۷۸۹"[ch - '0'] : ch));
-    private static string CellTitle(LucideIconEntry entry) => string.IsNullOrWhiteSpace(entry.PersianAliases) ? entry.EnglishName : $"{entry.EnglishName} — {entry.PersianAliases}";
-    private static string CategoryTitle(string key) => LucideIconCatalog.Categories.FirstOrDefault(x => x.Key == key)?.PersianTitle ?? key;
-    private static List<LucideIconEntry> PreferenceEntries(IEnumerable<string> keys) => keys.Select(LucideIconCatalog.Find).OfType<LucideIconEntry>().ToList();
+    private static string CollectionTitle(string prefix) => IconCatalog.Collections.FirstOrDefault(x => x.Prefix == prefix)?.PersianTitle ?? prefix;
+    private static List<IconRef> PreferenceEntries(IEnumerable<string> keys) => keys.Select(IconCatalog.Find).OfType<IconRef>().ToList();
 
-    private RenderFragment QuickIcon(LucideIconEntry entry) => @<button type="button" title="@CellTitle(entry)" class="@(_pending == entry.Key ? "selected" : null)" @onclick="() => Select(entry.Key)">
-        <LucideIcon IconKey="@entry.Key" Size="21" /><span dir="ltr">@entry.Key</span>
+    private RenderFragment QuickIcon(IconRef entry) => @<button type="button" title="@entry.DisplayName" class="@(_pending == entry.Id ? "selected" : null)" @onclick="() => Select(entry.Id)">
+        <LucideIcon IconKey="@entry.Id" Size="21" /><span dir="ltr">@entry.Name</span>
     </button>;
 
     private sealed class IconPreferences

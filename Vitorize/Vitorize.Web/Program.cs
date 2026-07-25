@@ -202,6 +202,7 @@ app.UseAntiforgery();
 
 app.MapAdminAuthEndpoints();
 app.MapCustomerAuthEndpoints();
+app.MapAdminEditorUploadEndpoints();
 app.MapSeoEndpoints();
 
 app.MapRazorComponents<App>()

@@ -37,17 +37,18 @@ export class AdminProductPage extends BasePage {
     await this.setHiddenCheckbox(this.page.getByTestId('product-featured'), product.featured);
 
     if (product.htmlDescription !== undefined) {
-      const editor = this.page.locator('.vz-rich-editor .ql-editor');
-      await editor.evaluate((element, html) => {
-        element.focus();
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-        document.execCommand('insertHTML', false, html);
-        element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+      // CKEditor 5 owns its DOM; set content through its instance API so the
+      // model, view and the Blazor-bound value all stay consistent.
+      const editable = this.page.locator('.vz-ck .ck-editor__editable_inline').first();
+      await editable.waitFor({ state: 'visible' });
+      await editable.evaluate((element, html) => {
+        const editor = (element as unknown as { ckeditorInstance?: { setData(v: string): void } }).ckeditorInstance;
+        editor?.setData(html);
       }, product.htmlDescription);
+      // Settle the editor's fixed 220ms change debounce so the HTML reaches the
+      // Blazor-bound value before save. The persisted value is asserted from the
+      // DB in the spec, so this is a debounce settle, not a correctness crutch.
+      await this.page.waitForTimeout(400);
     }
 
     for (const feature of product.features) await this.addFeature(feature.title, feature.value, feature.active ?? true);

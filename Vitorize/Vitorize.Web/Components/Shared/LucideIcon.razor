@@ -25,7 +25,9 @@
     [Parameter] public string FallbackIconKey { get; set; } = "circle-question-mark";
     [Parameter] public bool Decorative { get; set; } = true;
 
-    private string ResolvedKey => LucideIconCatalog.ResolveOrFallback(IconKey, FallbackIconKey);
-    private string SpriteReference => $"/lib/lucide/lucide-sprite.svg#{ResolvedKey}";
-    private string AccessibleLabel => AriaLabel ?? Title ?? LucideIconCatalog.Find(ResolvedKey)?.EnglishName ?? "Icon";
+    // Collection-aware: bare/legacy keys resolve to Lucide (unchanged); namespaced
+    // "prefix:name" values resolve to the matching self-hosted sprite.
+    private IconRenderInfo Resolved => IconCatalog.Resolve(IconKey, FallbackIconKey);
+    private string SpriteReference => $"{Resolved.SpritePath}#{Resolved.SymbolId}";
+    private string AccessibleLabel => AriaLabel ?? Title ?? IconCatalog.Find(IconKey)?.DisplayName ?? "Icon";
 }

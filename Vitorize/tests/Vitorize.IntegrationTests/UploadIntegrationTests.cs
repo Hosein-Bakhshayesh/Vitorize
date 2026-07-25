@@ -64,6 +64,51 @@ public sealed class UploadIntegrationTests
             .Should().Be(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task Editor_file_attachment_stores_pdf_with_random_server_filename()
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var client = _fixture.CreateClient(token);
+        var pdf = "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"u8.ToArray();
+        using var content = Multipart("../../my report.pdf", "application/pdf", pdf);
+
+        var response = await client.PostAsync("/api/admin/uploads/editor-file", content);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = (await response.Content.ReadFromJsonAsync<ApiResult<UploadFileResultDto>>())!.Data!;
+        result.FileName.Should().MatchRegex("^[a-f0-9]{32}\\.pdf$");
+        result.FilePath.Should().Be($"/uploads/attachments/{result.FileName}");
+
+        var environment = _fixture.Factory.Services.GetRequiredService<IWebHostEnvironment>();
+        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+        var stored = Path.Combine(webRoot, "uploads", "attachments", result.FileName);
+        File.Exists(stored).Should().BeTrue();
+        File.Delete(stored);
+    }
+
+    [Theory]
+    [InlineData("payload.exe", "application/octet-stream")]   // executable rejected by extension gate
+    [InlineData("payload.svg", "image/svg+xml")]              // SVG not permitted
+    [InlineData("payload.pdf", "application/pdf")]            // extension ok but signature mismatch
+    public async Task Editor_file_attachment_rejects_unsafe_or_spoofed_files(string fileName, string contentType)
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var client = _fixture.CreateClient(token);
+        using var content = Multipart(fileName, contentType, "this is not a pdf"u8.ToArray());
+
+        (await client.PostAsync("/api/admin/uploads/editor-file", content)).StatusCode
+            .Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Customer_cannot_use_editor_file_attachment_endpoint()
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        using var client = _fixture.CreateClient(token);
+        using var content = Multipart("report.pdf", "application/pdf", "%PDF-1.4"u8.ToArray());
+        (await client.PostAsync("/api/admin/uploads/editor-file", content)).StatusCode
+            .Should().Be(HttpStatusCode.Forbidden);
+    }
+
     private static MultipartFormDataContent Multipart(string fileName, string contentType, byte[] bytes)
     {
         var multipart = new MultipartFormDataContent();

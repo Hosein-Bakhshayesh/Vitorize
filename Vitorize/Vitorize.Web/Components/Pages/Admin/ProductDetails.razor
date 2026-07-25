@@ -84,7 +84,7 @@ else if (_product is not null)
                     <p class="vz-section__desc">عنوان و دسته‌بندی که در فروشگاه نمایش داده می‌شود.</p>
                     <dl class="vz-deflist">
                         <dt>عنوان</dt><dd>@p.Title</dd>
-                        <dt>اسلاگ</dt><dd class="vz-mono">@p.Slug</dd>
+                        <dt dir="ltr" style="text-align:start">Slug</dt><dd class="vz-mono">@p.Slug</dd>
                         <dt>دسته‌بندی</dt><dd>@(string.IsNullOrWhiteSpace(p.CategoryTitle) ? "—" : p.CategoryTitle)</dd>
                         <dt>برند</dt><dd>@(string.IsNullOrWhiteSpace(p.BrandTitle) ? "—" : p.BrandTitle)</dd>
                         <dt>نوع محصول</dt><dd><span class="vz-chip">@AUI.ProductType(p.ProductType)</span></dd>
@@ -177,12 +177,12 @@ else if (_product is not null)
                     <div class="vz-card__body">
                         <div class="vz-section__head">
                             <span class="vz-section__badge"><Icon Name="search" Size="16" /></span>
-                            <span class="vz-section__title">تنظیمات سئو</span>
+                            <span class="vz-section__title" dir="ltr" style="text-align:start">SEO Settings</span>
                         </div>
                         <p class="vz-section__desc">عنوان و توضیحات نمایش‌داده‌شده در نتایج جستجو.</p>
                         <dl class="vz-deflist">
-                            <dt>عنوان سئو</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoTitle) ? "—" : p.SeoTitle)</dd>
-                            <dt>توضیحات متا</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoDescription) ? "—" : p.SeoDescription)</dd>
+                            <dt dir="ltr" style="text-align:start">SEO Title</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoTitle) ? "—" : p.SeoTitle)</dd>
+                            <dt dir="ltr" style="text-align:start">SEO Description</dt><dd>@(string.IsNullOrWhiteSpace(p.SeoDescription) ? "—" : p.SeoDescription)</dd>
                         </dl>
                     </div>
                 </div>

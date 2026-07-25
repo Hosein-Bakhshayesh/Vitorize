@@ -77,7 +77,7 @@ else
                                 <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
-                                <label class="vz-label">اسلاگ <span class="req">*</span></label>
+                                <label class="vz-label" dir="ltr" style="text-align:start">Slug <span class="req">*</span></label>
                                 <InputText class="vz-input vz-mono" data-testid="product-slug" @bind-Value="_model.Slug" />
                                 <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
                             </div>
@@ -299,22 +299,22 @@ else
                     <div class="vz-card__body">
                         <div class="vz-section__head">
                             <span class="vz-section__badge"><Icon Name="search" Size="16" /></span>
-                            <span class="vz-section__title">تنظیمات سئو</span>
+                            <span class="vz-section__title" dir="ltr" style="text-align:start">SEO Settings</span>
                         </div>
                         <p class="vz-section__desc">عنوان و توضیحات نمایش‌داده‌شده در نتایج موتورهای جستجو.</p>
                         <div class="vz-form-grid one">
                             <div class="vz-field">
-                                <label class="vz-label">عنوان سئو</label>
+                                <label class="vz-label" dir="ltr" style="text-align:start">SEO Title</label>
                                 <InputText class="vz-input" data-testid="product-seo-title" @bind-Value="_model.SeoTitle" />
                                 <ValidationMessage For="() => _model.SeoTitle" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
-                                <label class="vz-label">توضیحات متا</label>
+                                <label class="vz-label" dir="ltr" style="text-align:start">SEO Description</label>
                                 <InputTextArea class="vz-textarea" data-testid="product-seo-description" style="min-height:70px" @bind-Value="_model.SeoDescription" />
                                 <ValidationMessage For="() => _model.SeoDescription" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
-                                <label class="vz-label">عبارت هدف</label>
+                                <label class="vz-label" dir="ltr" style="text-align:start">Focus Keyword</label>
                                 <InputText class="vz-input" data-testid="product-focus-keyword" @bind-Value="_model.FocusKeyword" />
                                 <span class="vz-help">فقط راهنمای تحریریه است و به‌عنوان meta keywords منتشر نمی‌شود.</span>
                             </div>

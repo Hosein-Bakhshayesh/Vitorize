@@ -16,7 +16,7 @@
     else if (Filtered.Count == 0) { <EmptyState Title="برچسبی ثبت نشده" Text="برای ارتباط محصولات و بهبود جستجوی داخلی برچسب بسازید." Icon="tags" /> }
     else
     {
-        <div class="vz-table-wrap"><table class="vz-table"><thead><tr><th>عنوان</th><th>اسلاگ</th><th>نام‌های مستعار</th><th>محصول</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr></thead><tbody>
+        <div class="vz-table-wrap"><table class="vz-table"><thead><tr><th>عنوان</th><th dir="ltr" style="text-align:start">Slug</th><th>نام‌های مستعار</th><th>محصول</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr></thead><tbody>
         @foreach (var item in Filtered)
         {
             <tr><td class="vz-cell-title">@item.Title</td><td class="vz-mono">@item.Slug</td><td class="vz-muted">@(item.Aliases ?? "—")</td><td>@AUI.Number(item.ProductCount)</td><td><StatusBadge Text="@(item.IsActive ? "فعال" : "غیرفعال")" Intent="@(item.IsActive ? "success" : "muted")" /></td><td class="col-actions"><button class="vz-iconaction" aria-label="ویرایش برچسب @item.Title" @onclick="() => Edit(item)"><Icon Name="edit" Size="16" /></button><button class="vz-iconaction danger" aria-label="حذف برچسب @item.Title" @onclick="() => AskDelete(item)"><Icon Name="trash" Size="16" /></button></td></tr>

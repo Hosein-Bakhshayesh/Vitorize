@@ -101,7 +101,7 @@ public sealed class FinancialSecurityHardeningTests
         var testing = SecurityHeaderPolicy.BuildWebContentSecurityPolicy("http://127.0.0.1:5177/uploads");
         var unsafePublicHttp = SecurityHeaderPolicy.BuildWebContentSecurityPolicy("http://media.example.com");
 
-        Assert.Contains("img-src 'self' data: https: http://127.0.0.1:5177;", testing);
+        Assert.Contains("img-src 'self' data: blob: https: http://127.0.0.1:5177;", testing);
         Assert.Equal(SecurityHeaderPolicy.WebContentSecurityPolicy, unsafePublicHttp);
     }
 

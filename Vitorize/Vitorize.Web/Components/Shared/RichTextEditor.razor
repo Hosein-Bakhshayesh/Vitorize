@@ -1,45 +1,134 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IConfiguration Configuration
 
-<div class="vz-rich-editor @Class" @ref="_host" dir="rtl"></div>
+@* Reusable CKEditor 5 admin editor. Self-hosted build; all lifecycle is driven
+   through the vzCkEditor interop module keyed by a stable instance id. *@
+<div class="vz-ck @(_fullscreen ? "vz-ck--fullscreen" : null) @Class"
+     style="--vz-ck-min-height:@(MinHeight)px" dir="@Direction" data-testid="@TestId">
+    <div class="vz-ck__chrome">
+        <button type="button" class="vz-ck__chrome-btn" @onclick="ToggleFullscreenAsync"
+                title="@(_fullscreen ? "خروج از تمام‌صفحه" : "ویرایش تمام‌صفحه")"
+                aria-pressed="@_fullscreen" disabled="@(!_ready)">
+            <LucideIcon IconKey="@(_fullscreen ? "minimize" : "maximize")" Size="15" />
+            <span>@(_fullscreen ? "خروج از تمام‌صفحه" : "تمام‌صفحه")</span>
+        </button>
+        <button type="button" class="vz-ck__chrome-btn" @onclick="AttachFileAsync"
+                title="پیوست فایل" disabled="@(!_ready || ReadOnly || Disabled)">
+            <LucideIcon IconKey="paperclip" Size="15" />
+            <span>پیوست فایل</span>
+        </button>
+        @if (!string.IsNullOrEmpty(_attachStatus))
+        {
+            <span class="vz-ck__status @(_attachError ? "is-error" : null)" role="status">@_attachStatus</span>
+        }
+    </div>
+    <div class="vz-ck__slot">
+        <div @ref="_host" class="vz-ck__host"></div>
+    </div>
+</div>
 
 @code {
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string Placeholder { get; set; } = "توضیحات کامل محصول را وارد کنید…";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public int MinHeight { get; set; } = 320;
+    [Parameter] public string Direction { get; set; } = "rtl";
+    [Parameter] public string ImageUploadUrl { get; set; } = "/admin/editor/upload/image";
+    [Parameter] public string FileUploadUrl { get; set; } = "/admin/editor/upload/file";
+    [Parameter] public string? EditorId { get; set; }
+    [Parameter] public string TestId { get; set; } = "rich-text-editor";
+
     private ElementReference _host;
     private DotNetObjectReference<RichTextEditor>? _self;
+    private string _instanceId = string.Empty;
     private bool _ready;
     private string? _lastValue;
+    private bool _lastReadOnly;
+    private bool _fullscreen;
+    private string? _attachStatus;
+    private bool _attachError;
+
+    protected override void OnInitialized() =>
+        _instanceId = string.IsNullOrWhiteSpace(EditorId) ? $"vz-ck-{Guid.NewGuid():N}" : EditorId!;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             _self = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("vzRichEditor.create", _host, _self, Value ?? string.Empty, Placeholder);
+            _lastReadOnly = ReadOnly || Disabled;
+            var options = new
+            {
+                value = Value ?? string.Empty,
+                placeholder = Placeholder,
+                direction = Direction,
+                readOnly = ReadOnly,
+                disabled = Disabled,
+                imageUploadUrl = ImageUploadUrl,
+                licenseKey = Configuration["CkEditor:LicenseKey"] ?? "GPL"
+            };
+            _ready = await JS.InvokeAsync<bool>("vzCkEditor.create", _host, _self, _instanceId, options);
             _lastValue = Value;
-            _ready = true;
+            if (_ready) StateHasChanged();
+            return;
         }
-        else if (_ready && Value != _lastValue)
+
+        if (!_ready) return;
+
+        if (Value != _lastValue)
         {
-            await JS.InvokeVoidAsync("vzRichEditor.setHtml", _host, Value ?? string.Empty);
+            await JS.InvokeVoidAsync("vzCkEditor.setData", _instanceId, Value ?? string.Empty);
             _lastValue = Value;
+        }
+
+        var readOnly = ReadOnly || Disabled;
+        if (readOnly != _lastReadOnly)
+        {
+            await JS.InvokeVoidAsync("vzCkEditor.setReadOnly", _instanceId, readOnly);
+            _lastReadOnly = readOnly;
         }
     }
 
     [JSInvokable]
-    public async Task OnHtmlChanged(string html)
+    public async Task OnEditorChanged(string html)
     {
-        var normalized = html == "<p><br></p>" ? null : html;
+        var normalized = string.IsNullOrWhiteSpace(html) ? null : html;
         _lastValue = normalized;
         await ValueChanged.InvokeAsync(normalized);
     }
 
+    [JSInvokable]
+    public void OnAttachmentStatus(string message, bool isError)
+    {
+        _attachStatus = string.IsNullOrWhiteSpace(message) ? null : message;
+        _attachError = isError;
+        StateHasChanged();
+    }
+
+    private async Task ToggleFullscreenAsync()
+    {
+        if (!_ready) return;
+        _fullscreen = await JS.InvokeAsync<bool>("vzCkEditor.toggleFullscreen", _instanceId);
+    }
+
+    private async Task AttachFileAsync()
+    {
+        if (!_ready || ReadOnly || Disabled) return;
+        await JS.InvokeVoidAsync("vzCkEditor.pickAndAttach", _instanceId, FileUploadUrl);
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_ready) try { await JS.InvokeVoidAsync("vzRichEditor.dispose", _host); } catch (JSDisconnectedException) { }
+        if (_ready)
+        {
+            try { await JS.InvokeVoidAsync("vzCkEditor.dispose", _instanceId); }
+            catch (JSDisconnectedException) { }
+            catch (Exception) { }
+        }
         _self?.Dispose();
     }
 }

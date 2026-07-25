@@ -1509,6 +1509,20 @@ body { background: var(--st-bg, #fff); }
 .st-rich-content :is(h2,h3,h4) { color: var(--st-text); margin: 1.3em 0 .5em; }.st-rich-content :is(ul,ol) { padding-inline-start: 24px; }
 .st-rich-content a { color: var(--st-primary); text-decoration: underline; }.st-rich-content img { max-width: 100%; height: auto; }
 .st-rich-content table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }.st-rich-content :is(td,th) { border: 1px solid var(--st-border); padding: 8px; }
+/* CKEditor 5 content classes (image alignment/resize, table & code figures). */
+.st-rich-content figure { margin: 1em 0; }
+.st-rich-content figure.image { display: table; }
+.st-rich-content figure.image img { display: block; max-width: 100%; height: auto; }
+.st-rich-content figure.image > figcaption { display: table-caption; caption-side: bottom; font-size: 12.5px; color: var(--st-muted); padding: 6px 4px; text-align: center; }
+.st-rich-content .image-style-align-center, .st-rich-content figure.image.image-style-align-center { margin-inline: auto; }
+.st-rich-content .image-style-align-left, .st-rich-content figure.image.image-style-align-left { float: inline-start; margin-inline-end: 1em; }
+.st-rich-content .image-style-align-right, .st-rich-content figure.image.image-style-align-right { float: inline-end; margin-inline-start: 1em; }
+.st-rich-content img.image_resized, .st-rich-content figure.image.image_resized { height: auto; }
+.st-rich-content figure.image.image_resized img { width: 100%; }
+.st-rich-content figure.table { display: block; overflow-x: auto; }
+.st-rich-content figure.table > figcaption { font-size: 12.5px; color: var(--st-muted); padding: 6px 4px; text-align: center; }
+.st-rich-content pre { background: var(--st-surface-2, #f4f6f9); border: 1px solid var(--st-border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; direction: ltr; text-align: left; }
+.st-rich-content :is(p,h2,h3,h4,li)[style*="text-align"] { /* honour inline alignment */ }
 .st-required-info { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; padding: 10px; border-radius: var(--st-clip-btn); background: var(--st-info-soft); color: var(--st-info); font-size: 12.5px; }
 .st-dynamic-form { display: grid; gap: 14px; }.st-field { display: grid; gap: 6px; }.st-help { color: var(--st-muted); font-size: 12px; }
 .st-input-summary { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 6px 0; color: var(--st-text-2); font-size: 11.5px; }.st-input-summary span { overflow-wrap: anywhere; }
