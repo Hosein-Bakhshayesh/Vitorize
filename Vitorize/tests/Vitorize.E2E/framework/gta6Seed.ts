@@ -9,10 +9,7 @@ import { apiBaseUrl, adminMobile, adminPassword } from '../tests/support/app';
 // key, so re-running reconciles in place and never duplicates rows or images.
 
 export const GTA6_SLUG = 'gta-vi-legal-account-playstation-5';
-// Reuse an existing seeded category so no new storefront catpill is added (the
-// shared regression database's visual-regression baselines pin the category
-// rail). The task permits reusing the most suitable existing category.
-const CATEGORY_SLUG = 'e2e-child-category';
+const CATEGORY_SLUG = 'playstation-games-accounts';
 const BRAND_SLUG = 'rockstar-games';
 
 const mediaBase = new URL(apiBaseUrl).origin; // e.g. http://127.0.0.1:5177
@@ -221,10 +218,7 @@ export async function seedGta6Product(request: APIRequestContext): Promise<Gta6S
     requiresVerification: false,
     requiresSupportMessage: true, // opt in to automatic support-ticket creation
     minOrderQuantity: 1,
-    // Not featured: a featured test product lands in the cache-timed storefront
-    // "featured" rail and makes the shared visual-regression baseline flaky.
-    // Featured is optional per the scenario; the product stays active/purchasable.
-    isFeatured: false,
+    isFeatured: true,
     isActive: true,
     seoTitle: GTA6.seoTitle, seoDescription: GTA6.seoDescription, focusKeyword: GTA6.focusKeyword,
     thumbnailImagePath: thumbnailPath, thumbnailAltText: GTA6.coverAlt,
