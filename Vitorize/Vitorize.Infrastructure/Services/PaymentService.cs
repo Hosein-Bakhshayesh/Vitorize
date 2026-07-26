@@ -926,6 +926,85 @@ namespace Vitorize.Infrastructure.Services
 
                 await _dbContext.SaveChangesAsync();
             }
+
+            // Support-delivery products that opt in (Product.RequiresSupportMessage)
+            // get exactly one auto-created support ticket per order.
+            await CreateSupportTicketIfRequiredAsync(order, now);
+        }
+
+        /// <summary>
+        /// Creates exactly one support ticket for a paid order that contains a
+        /// SupportRequired item whose product opted in via
+        /// <see cref="Product.RequiresSupportMessage"/>. Runs inside the same
+        /// Serializable transaction / per-order lock as payment capture and only
+        /// after the Paid-guard, so it is idempotent across payment retries,
+        /// gateway callbacks and order reprocessing; the explicit existing-ticket
+        /// check is defence in depth. Products that do not opt in (the default)
+        /// never get an automatic ticket, preserving the customer-initiated flow.
+        /// </summary>
+        private async Task CreateSupportTicketIfRequiredAsync(Order order, DateTime now)
+        {
+            var supportItems = order.OrderItems
+                .Where(x => x.DeliveryType == (byte)DeliveryType.SupportRequired && x.SupportTicketId == null)
+                .ToList();
+            if (supportItems.Count == 0)
+                return;
+
+            var productIds = supportItems.Select(x => x.ProductId).Distinct().ToList();
+            var optInProductIds = await _dbContext.Products
+                .Where(p => productIds.Contains(p.Id) && p.RequiresSupportMessage)
+                .Select(p => p.Id)
+                .ToListAsync();
+            if (optInProductIds.Count == 0)
+                return;
+
+            // Idempotency: never a second automatic ticket for the same order.
+            if (await _dbContext.Tickets.AnyAsync(t => t.OrderId == order.Id))
+                return;
+
+            var item = supportItems.First(x => optInProductIds.Contains(x.ProductId));
+            var edition = string.IsNullOrWhiteSpace(item.VariantTitle) ? "—" : item.VariantTitle!;
+            var ticketId = Guid.NewGuid();
+
+            var ticket = new Ticket
+            {
+                Id = ticketId,
+                UserId = order.UserId,
+                OrderId = order.Id,
+                Subject = $"تحویل اکانت GTA VI - سفارش {order.OrderNumber}",
+                Department = (byte)TicketDepartment.Orders,
+                Priority = (byte)TicketPriority.Normal,
+                Status = (byte)TicketStatus.WaitingForAdmin,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            ticket.TicketMessages.Add(new TicketMessage
+            {
+                Id = Guid.NewGuid(),
+                TicketId = ticketId,
+                SenderUserId = order.UserId,
+                Message =
+                    $"سفارش شما با موفقیت ثبت شد. محصول «{item.ProductTitle}» نیازمند آماده‌سازی توسط پشتیبانی است. " +
+                    "اطلاعات اکانت و راهنمای فعال‌سازی پس از آماده‌شدن از طریق همین تیکت ارسال خواهد شد." +
+                    $"\nنسخه انتخاب‌شده: {edition}",
+                IsInternalNote = false,
+                CreatedAt = now
+            });
+            await _dbContext.Tickets.AddAsync(ticket);
+            item.SupportTicketId = ticketId;
+
+            // The notification announces the ticket only — never account credentials.
+            await _notificationService.CreateAsync(
+                order.UserId,
+                (byte)NotificationType.TicketCreated,
+                "تیکت پشتیبانی ایجاد شد",
+                $"برای سفارش {order.OrderNumber} یک تیکت پشتیبانی جهت تحویل محصول ایجاد شد.");
+
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Support delivery ticket auto-created. EventType={EventType} OrderId={OrderId} OrderNumber={OrderNumber} TicketId={TicketId}",
+                "SupportTicketAutoCreated", order.Id, order.OrderNumber, ticketId);
         }
 
         private static PaymentVerifyResultDto CreateVerifyResult(Payment payment, Order order)

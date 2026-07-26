@@ -238,6 +238,111 @@ public sealed class PaymentDeliveryIntegrationTests
             .Should().Be(1);
     }
 
+    // ---- SupportRequired opt-in auto-ticket creation (Product.RequiresSupportMessage) ----
+
+    [Fact]
+    public async Task SupportRequired_optin_order_auto_creates_one_customer_visible_ticket_linked_to_order_item()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var category = NewCategory();
+        var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.RequiresSupportMessage = true; // opt in
+        var order = NewOrder(user.Id);
+        var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
+        item.VariantTitle = "نسخه استاندارد";
+        var authority = $"SUP-{Guid.NewGuid():N}";
+        var payment = NewPayment(user.Id, order.Id, authority);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Categories.Add(category); seed.Products.Add(product);
+            seed.Orders.Add(order); seed.OrderItems.Add(item); seed.Payments.Add(payment);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+            await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+
+        await using var verify = _fixture.CreateDbContext();
+        var tickets = await verify.Tickets.Include(x => x.TicketMessages)
+            .Where(x => x.OrderId == order.Id).ToListAsync();
+        tickets.Should().ContainSingle("a support-delivery opt-in order auto-creates exactly one ticket");
+        var ticket = tickets[0];
+        ticket.UserId.Should().Be(user.Id);
+        ticket.Status.Should().Be((byte)TicketStatus.WaitingForAdmin);
+        ticket.TicketMessages.Should().ContainSingle();
+        ticket.TicketMessages.Single().IsInternalNote.Should().BeFalse("the first message is customer-visible");
+        ticket.TicketMessages.Single().Message.Should().Contain("نسخه استاندارد", "the selected edition is included");
+        (await verify.OrderItems.SingleAsync(x => x.Id == item.Id)).SupportTicketId.Should().Be(ticket.Id);
+        // No gift-code reservation or allocation for a support-delivered order.
+        (await verify.GiftCodeReservations.CountAsync(x => x.OrderId == order.Id)).Should().Be(0);
+        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == item.Id)).Should().Be(0);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
+    }
+
+    [Fact]
+    public async Task Duplicate_callbacks_and_reverification_do_not_duplicate_the_support_ticket()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var category = NewCategory();
+        var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.RequiresSupportMessage = true;
+        var order = NewOrder(user.Id);
+        var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
+        item.VariantTitle = "نسخه آلتیمیت";
+        var authority = $"SUP-{Guid.NewGuid():N}";
+        var payment = NewPayment(user.Id, order.Id, authority);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Categories.Add(category); seed.Products.Add(product);
+            seed.Orders.Add(order); seed.OrderItems.Add(item); seed.Payments.Add(payment);
+            await seed.SaveChangesAsync();
+        }
+
+        // Two concurrent gateway callbacks, then a third sequential re-verification.
+        await Task.WhenAll(Enumerable.Range(0, 2).Select(async _ =>
+        {
+            await using var db = _fixture.CreateDbContext();
+            await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+        }));
+        await using (var again = _fixture.CreateDbContext())
+            await NewPaymentService(again, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Tickets.CountAsync(x => x.OrderId == order.Id)).Should().Be(1, "the ticket must be idempotent across retries");
+        (await verify.TicketMessages.CountAsync(x => x.Ticket.OrderId == order.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SupportRequired_without_optin_does_not_auto_create_a_ticket()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var category = NewCategory();
+        var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.RequiresSupportMessage = false; // default: customer-initiated flow preserved
+        var order = NewOrder(user.Id);
+        var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
+        var authority = $"SUP-{Guid.NewGuid():N}";
+        var payment = NewPayment(user.Id, order.Id, authority);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Categories.Add(category); seed.Products.Add(product);
+            seed.Orders.Add(order); seed.OrderItems.Add(item); seed.Payments.Add(payment);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+            await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Tickets.CountAsync(x => x.OrderId == order.Id)).Should().Be(0);
+        (await verify.OrderItems.SingleAsync(x => x.Id == item.Id)).SupportTicketId.Should().BeNull();
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
+    }
+
     private PaymentService NewPaymentService(Vitorize.Infrastructure.Persistence.VitorizeDbContext db,
         IZarinpalGatewayService gateway, IWalletService wallet) =>
         new(db, new NullGiftDelivery(), new NullCoupon(), wallet, new NullNotifications(), gateway, new NullSmsOutbox());
