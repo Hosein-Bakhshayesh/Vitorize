@@ -20,6 +20,9 @@ test.describe('CKEditor 5 and icon picker', () => {
     const editable = page.locator('.vz-ck .ck-editor__editable_inline');
     await expect(editable).toHaveCount(1);
     await expect(editable).toBeVisible();
+    // The editor must be writable — a rejected license locks it read-only.
+    await expect(editable).toHaveAttribute('contenteditable', 'true');
+    await expect(editable).not.toHaveClass(/ck-read-only/);
     await expect(page.locator('.vz-ck .ck-toolbar')).toBeVisible();
     await expect(page.locator('.vz-ck__chrome .vz-ck__chrome-btn')).toHaveCount(2);
 

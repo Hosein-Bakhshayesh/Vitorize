@@ -129,6 +129,11 @@ builder.Services.AddScoped<PrerenderApiState>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<WishlistState>();
 
+// مجوز CKEditor 5: در Production کلید تجاری الزامی است و در صورت نبود/خالی/GPL
+// برنامه در همان زمان راه‌اندازی با خطا متوقف می‌شود (fail fast).
+var ckEditorOptions = CkEditorOptions.Resolve(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton(ckEditorOptions);
+
 // کلاینت API؛ آدرس پایه شامل /api/ است
 var apiClientBuilder = builder.Services.AddHttpClient<ApiClient>(client =>
 {

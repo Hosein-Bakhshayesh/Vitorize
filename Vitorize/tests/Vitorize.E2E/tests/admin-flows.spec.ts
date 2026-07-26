@@ -87,8 +87,11 @@ test('global context menu portals above the grid, supports Escape and remains in
 test('product editor initializes rich text, variants, features, dynamic fields and Lucide picker', async ({ page }) => {
   await loginAdmin(page);
   await page.goto(`/admin/products/${productId}`, { waitUntil: 'networkidle' });
-  await expect(page.locator('.vz-rich-editor .ql-editor')).toBeVisible();
-  await expect(page.locator('.vz-rich-editor .ql-editor')).toContainText('Rich E2E Description');
+  const richEditor = page.locator('.vz-ck .ck-editor__editable_inline');
+  await expect(richEditor).toBeVisible();
+  // A rejected license would lock the editor read-only; it must be writable.
+  await expect(richEditor).toHaveAttribute('contenteditable', 'true');
+  await expect(richEditor).toContainText('Rich E2E Description');
   const editorInputs = page.locator('.vz-builder-row input.vz-input');
   const featureInputIndex = await editorInputs.evaluateAll(inputs =>
     inputs.findIndex(input => (input as HTMLInputElement).value === 'Platform'));

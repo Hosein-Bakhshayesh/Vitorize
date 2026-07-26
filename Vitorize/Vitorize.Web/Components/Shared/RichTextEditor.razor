@@ -1,6 +1,6 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject IConfiguration Configuration
+@inject CkEditorOptions CkEditor
 
 @* Reusable CKEditor 5 admin editor. Self-hosted build; all lifecycle is driven
    through the vzCkEditor interop module keyed by a stable instance id. *@
@@ -69,7 +69,7 @@
                 readOnly = ReadOnly,
                 disabled = Disabled,
                 imageUploadUrl = ImageUploadUrl,
-                licenseKey = Configuration["CkEditor:LicenseKey"] ?? "GPL"
+                licenseKey = CkEditor.LicenseKey
             };
             _ready = await JS.InvokeAsync<bool>("vzCkEditor.create", _host, _self, _instanceId, options);
             _lastValue = Value;

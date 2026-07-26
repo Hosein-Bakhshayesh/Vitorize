@@ -52,7 +52,9 @@
         };
 
         return {
-            licenseKey: opts.licenseKey || "GPL",
+            // Supplied by the server after environment validation — never defaulted
+            // here so a Production node can't silently fall back to GPL.
+            licenseKey: opts.licenseKey,
             language: { ui: "fa", content: rtl ? "fa" : "en" },
             initialData: opts.value || "",
             placeholder: opts.placeholder || "",
