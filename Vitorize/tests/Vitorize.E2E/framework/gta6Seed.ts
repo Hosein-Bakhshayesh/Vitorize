@@ -221,7 +221,10 @@ export async function seedGta6Product(request: APIRequestContext): Promise<Gta6S
     requiresVerification: false,
     requiresSupportMessage: true, // opt in to automatic support-ticket creation
     minOrderQuantity: 1,
-    isFeatured: true,
+    // Not featured: a featured test product lands in the cache-timed storefront
+    // "featured" rail and makes the shared visual-regression baseline flaky.
+    // Featured is optional per the scenario; the product stays active/purchasable.
+    isFeatured: false,
     isActive: true,
     seoTitle: GTA6.seoTitle, seoDescription: GTA6.seoDescription, focusKeyword: GTA6.focusKeyword,
     thumbnailImagePath: thumbnailPath, thumbnailAltText: GTA6.coverAlt,
