@@ -246,6 +246,7 @@ public sealed class PaymentDeliveryIntegrationTests
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var category = NewCategory();
         var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.IsActive = false; // keep this catalog fixture out of the public sitemap
         product.RequiresSupportMessage = true; // opt in
         var order = NewOrder(user.Id);
         var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
@@ -286,6 +287,7 @@ public sealed class PaymentDeliveryIntegrationTests
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var category = NewCategory();
         var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.IsActive = false; // keep this catalog fixture out of the public sitemap
         product.RequiresSupportMessage = true;
         var order = NewOrder(user.Id);
         var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
@@ -321,6 +323,7 @@ public sealed class PaymentDeliveryIntegrationTests
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var category = NewCategory();
         var product = NewProduct(category.Id, DeliveryType.SupportRequired);
+        product.IsActive = false; // keep this catalog fixture out of the public sitemap
         product.RequiresSupportMessage = false; // default: customer-initiated flow preserved
         var order = NewOrder(user.Id);
         var item = NewOrderItem(order.Id, product, DeliveryType.SupportRequired);
