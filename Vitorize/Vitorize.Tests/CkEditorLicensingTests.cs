@@ -13,10 +13,11 @@ namespace Vitorize.Tests;
 /// </summary>
 public sealed class CkEditorLicensingTests
 {
-    private static IConfiguration Config(string? licenseKey)
+    private static IConfiguration Config(string? licenseKey, string? allowGplInProduction = null)
     {
         var values = new Dictionary<string, string?>();
         if (licenseKey is not null) values["CkEditor:LicenseKey"] = licenseKey;
+        if (allowGplInProduction is not null) values["CkEditor:AllowGplInProduction"] = allowGplInProduction;
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
@@ -64,6 +65,70 @@ public sealed class CkEditorLicensingTests
 
         Assert.Throws<InvalidOperationException>(
             () => CkEditorOptions.Resolve(Config(null), Env(Environments.Production)));
+    }
+
+    // ---- Production combinations for the temporary GPL-in-Production override ----
+
+    [Theory]
+    [InlineData("GPL", "true")]
+    [InlineData("gpl", "true")]
+    [InlineData(" GPL ", "True")]
+    public void Production_allows_gpl_only_when_explicitly_opted_in(string key, string allow)
+    {
+        var options = CkEditorOptions.Resolve(Config(key, allow), Env(Environments.Production));
+        Assert.True(options.IsGpl);
+        Assert.True(options.IsGplInProduction);
+    }
+
+    [Theory]
+    [InlineData("GPL", "false")]
+    [InlineData("GPL", "FALSE")]
+    [InlineData("GPL", "not-a-bool")]
+    [InlineData("GPL", null)]        // AllowGplInProduction absent -> default false
+    public void Production_rejects_gpl_without_opt_in(string key, string? allow)
+    {
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => CkEditorOptions.Resolve(Config(key, allow), Env(Environments.Production)));
+        Assert.Contains("CkEditor__AllowGplInProduction", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(null, "true")]
+    [InlineData("", "true")]
+    [InlineData("   ", "true")]
+    public void Production_still_rejects_empty_key_even_with_opt_in(string? key, string allow)
+    {
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => CkEditorOptions.Resolve(Config(key, allow), Env(Environments.Production)));
+        Assert.Contains("CkEditor__LicenseKey", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    [InlineData(null)]
+    public void Production_commercial_key_ignores_the_opt_in_flag(string? allow)
+    {
+        var options = CkEditorOptions.Resolve(Config("commercial-key-123", allow), Env(Environments.Production));
+        Assert.Equal("commercial-key-123", options.LicenseKey);
+        Assert.False(options.IsGpl);
+        Assert.False(options.IsGplInProduction);   // never flagged for a commercial key
+    }
+
+    [Fact]
+    public void Development_gpl_is_never_flagged_as_gpl_in_production()
+    {
+        var options = CkEditorOptions.Resolve(Config("GPL", "true"), Env(Environments.Development));
+        Assert.True(options.IsGpl);
+        Assert.False(options.IsGplInProduction);   // opt-in flag only applies to Production
+    }
+
+    [Fact]
+    public void Gpl_in_production_warning_message_is_exact()
+    {
+        Assert.Equal(
+            "CKEditor 5 is running in GPL mode in Production. Ensure the application complies with the applicable GPL license obligations.",
+            CkEditorOptions.GplInProductionWarning);
     }
 
     // Regression for the read-only defect: the CDN "cloud" distribution build

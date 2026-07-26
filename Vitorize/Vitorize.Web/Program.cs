@@ -129,9 +129,15 @@ builder.Services.AddScoped<PrerenderApiState>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<WishlistState>();
 
-// مجوز CKEditor 5: در Production کلید تجاری الزامی است و در صورت نبود/خالی/GPL
-// برنامه در همان زمان راه‌اندازی با خطا متوقف می‌شود (fail fast).
+// مجوز CKEditor 5: در Production کلید تجاری الزامی است و در صورت نبود/خالی برنامه
+// در همان زمان راه‌اندازی با خطا متوقف می‌شود (fail fast). حالت GPL در Production
+// فقط با CkEditor:AllowGplInProduction=true و همراه با هشدار مجاز است.
 var ckEditorOptions = CkEditorOptions.Resolve(builder.Configuration, builder.Environment);
+if (ckEditorOptions.IsGplInProduction)
+{
+    Log.ForContext("EventType", "CkEditorGplInProduction")
+        .Warning(CkEditorOptions.GplInProductionWarning);
+}
 builder.Services.AddSingleton(ckEditorOptions);
 
 // کلاینت API؛ آدرس پایه شامل /api/ است

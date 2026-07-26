@@ -4,29 +4,63 @@ The admin product description editor uses a self-hosted **CKEditor 5** build.
 CKEditor 5 is dual-licensed (GPL **or** commercial). Vitorize is a proprietary,
 commercial application, so Production must run under a **commercial license key**.
 
-## Configuration key
+## Configuration keys
 
-| Setting | Value |
-| --- | --- |
-| Configuration path | `CkEditor:LicenseKey` |
-| Environment variable | `CkEditor__LicenseKey` |
-| Type | string (CKEditor commercial key, or the literal `GPL`) |
+| Setting | Configuration path | Environment variable | Type / default |
+| --- | --- | --- | --- |
+| License key | `CkEditor:LicenseKey` | `CkEditor__LicenseKey` | string (commercial key, or the literal `GPL`) |
+| Allow GPL in Production | `CkEditor:AllowGplInProduction` | `CkEditor__AllowGplInProduction` | bool, default **`false`** |
 
-The key is resolved and validated at Web host startup by
+Both are resolved and validated at Web host startup by
 `Vitorize.Web.Services.CkEditorOptions.Resolve(...)`.
 
 ## Behaviour by environment
 
-| Environment | Configured value | Result |
-| --- | --- | --- |
-| **Production** | commercial key | ✅ used |
-| **Production** | empty / missing | ❌ **startup fails fast** with a configuration error |
-| **Production** | `GPL` | ❌ **startup fails fast** (GPL is not permitted in Production) |
-| **Development** (and other non-Production) | `GPL` | ✅ used (explicitly configured in `appsettings.Development.json`) |
-| **Development** (and other non-Production) | commercial key | ✅ used |
-| **Development** (and other non-Production) | empty / missing | falls back to `GPL` for local convenience |
+| Environment | License key | `AllowGplInProduction` | Result |
+| --- | --- | --- | --- |
+| **Production** | commercial key | any | ✅ used (the flag is ignored) |
+| **Production** | `GPL` | `true` | ✅ used, with a startup **warning** (temporary GPL mode) |
+| **Production** | `GPL` | `false` / missing | ❌ **startup fails fast** |
+| **Production** | empty / missing | any | ❌ **startup fails fast** |
+| **Development** (and other non-Production) | `GPL` | n/a | ✅ used (explicit in `appsettings.Development.json`) |
+| **Development** (and other non-Production) | commercial key | n/a | ✅ used |
+| **Development** (and other non-Production) | empty / missing | n/a | falls back to `GPL` for local convenience |
 
-The startup error message names the environment variable to set and points here.
+The startup error messages name the environment variable(s) to set and point here.
+
+## Temporary GPL mode in Production
+
+To run Production under CKEditor's GPL licence **temporarily** (e.g. before a
+commercial key is purchased), supply **both** environment variables:
+
+```
+CkEditor__LicenseKey=GPL
+CkEditor__AllowGplInProduction=true
+```
+
+On startup the host logs the warning:
+
+> CKEditor 5 is running in GPL mode in Production. Ensure the application complies with the applicable GPL license obligations.
+
+The **"Powered by CKEditor"** badge remains visible in this mode (see below).
+
+Keep `AllowGplInProduction=false` in source (`appsettings.json`); the `true`
+override is a runtime environment variable only and must **not** be committed.
+
+## Switching to a commercial key later
+
+1. Obtain a CKEditor 5 commercial licence key.
+2. Set `CkEditor__LicenseKey=<commercial-key>` in the Production environment /
+   secret store.
+3. **Remove** `CkEditor__AllowGplInProduction` (or set it to `false`). The flag is
+   ignored for a commercial key, but removing it restores the default fail-fast
+   guard so a future accidental `GPL` value cannot silently ship.
+4. Redeploy. CKEditor removes the "Powered by CKEditor" badge automatically under
+   a valid commercial licence.
+
+> **Recommendation:** once the commercial licence is in place, delete the
+> `CkEditor__AllowGplInProduction` override entirely so GPL can never be used in
+> Production again by mistake.
 
 ## Secret handling
 
