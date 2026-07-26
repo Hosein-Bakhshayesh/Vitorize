@@ -9,7 +9,10 @@ import { apiBaseUrl, adminMobile, adminPassword } from '../tests/support/app';
 // key, so re-running reconciles in place and never duplicates rows or images.
 
 export const GTA6_SLUG = 'gta-vi-legal-account-playstation-5';
-const CATEGORY_SLUG = 'playstation-games-accounts';
+// Reuse an existing seeded category so no new storefront catpill is added (the
+// shared regression database's visual-regression baselines pin the category
+// rail). The task permits reusing the most suitable existing category.
+const CATEGORY_SLUG = 'e2e-child-category';
 const BRAND_SLUG = 'rockstar-games';
 
 const mediaBase = new URL(apiBaseUrl).origin; // e.g. http://127.0.0.1:5177
