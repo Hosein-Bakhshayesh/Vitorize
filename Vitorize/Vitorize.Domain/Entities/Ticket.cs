@@ -19,6 +19,10 @@ public partial class Ticket
 
     public byte Status { get; set; }
 
+    // True only for the order-level ticket created by paid support fulfilment.
+    // Customer-created tickets always remain false, even when they reference an order.
+    public bool IsFulfillmentTicket { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

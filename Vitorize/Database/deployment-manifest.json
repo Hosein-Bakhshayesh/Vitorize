@@ -86,6 +86,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 59,
+      "version": "V0007",
+      "name": "V0007__support_fulfillment_ticket_uniqueness.sql",
+      "path": "Versioned/V0007__support_fulfillment_ticket_uniqueness.sql",
+      "sha256": "b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10",
+      "classification": "required",
+      "dependencies": ["V0006", "dbo.Tickets", "dbo.OrderItems", "dbo.TicketMessages"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

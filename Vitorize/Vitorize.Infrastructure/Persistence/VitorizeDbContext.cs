@@ -1066,11 +1066,16 @@ public partial class VitorizeDbContext : DbContext
         {
             entity.HasIndex(e => e.OrderId, "IX_Tickets_OrderId");
 
+            entity.HasIndex(e => e.OrderId, "UX_Tickets_OneFulfillmentPerOrder")
+                .IsUnique()
+                .HasFilter("[IsFulfillmentTicket] = 1 AND [OrderId] IS NOT NULL");
+
             entity.HasIndex(e => e.UserId, "IX_Tickets_UserId");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Priority).HasDefaultValue((byte)1);
+            entity.Property(e => e.IsFulfillmentTicket).HasDefaultValue(false);
             entity.Property(e => e.Subject).HasMaxLength(250);
 
             entity.HasOne(d => d.Order).WithMany(p => p.Tickets)

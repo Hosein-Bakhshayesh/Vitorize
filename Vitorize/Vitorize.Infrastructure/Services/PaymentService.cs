@@ -960,7 +960,7 @@ namespace Vitorize.Infrastructure.Services
         private async Task CreateSupportTicketIfRequiredAsync(Order order, DateTime now)
         {
             var supportItems = order.OrderItems
-                .Where(x => x.DeliveryType == (byte)DeliveryType.SupportRequired && x.SupportTicketId == null)
+                .Where(x => x.DeliveryType == (byte)DeliveryType.SupportRequired)
                 .ToList();
             if (supportItems.Count == 0)
                 return;
@@ -973,12 +973,17 @@ namespace Vitorize.Infrastructure.Services
             if (optInProductIds.Count == 0)
                 return;
 
-            // Idempotency: never a second automatic ticket for the same order.
-            if (await _dbContext.Tickets.AnyAsync(t => t.OrderId == order.Id))
+            var qualifyingItems = supportItems.Where(x => optInProductIds.Contains(x.ProductId)).ToList();
+            var existing = await _dbContext.Tickets
+                .FirstOrDefaultAsync(t => t.OrderId == order.Id && t.IsFulfillmentTicket);
+            if (existing is not null)
+            {
+                foreach (var item in qualifyingItems.Where(x => x.SupportTicketId != existing.Id))
+                    item.SupportTicketId = existing.Id;
+                await _dbContext.SaveChangesAsync();
                 return;
+            }
 
-            var item = supportItems.First(x => optInProductIds.Contains(x.ProductId));
-            var edition = string.IsNullOrWhiteSpace(item.VariantTitle) ? "—" : item.VariantTitle!;
             var ticketId = Guid.NewGuid();
 
             var ticket = new Ticket
@@ -986,10 +991,11 @@ namespace Vitorize.Infrastructure.Services
                 Id = ticketId,
                 UserId = order.UserId,
                 OrderId = order.Id,
-                Subject = $"پیگیری تحویل «{item.ProductTitle}» - سفارش {order.OrderNumber}",
+                Subject = $"پیگیری تحویل پشتیبانی - سفارش {order.OrderNumber}",
                 Department = (byte)TicketDepartment.Orders,
                 Priority = (byte)TicketPriority.Normal,
                 Status = (byte)TicketStatus.WaitingForAdmin,
+                IsFulfillmentTicket = true,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -998,15 +1004,13 @@ namespace Vitorize.Infrastructure.Services
                 Id = Guid.NewGuid(),
                 TicketId = ticketId,
                 SenderUserId = order.UserId,
-                Message =
-                    $"سفارش شما با موفقیت ثبت شد. محصول «{item.ProductTitle}» نیازمند آماده‌سازی توسط پشتیبانی است. " +
-                    "اطلاعات اکانت و راهنمای فعال‌سازی پس از آماده‌شدن از طریق همین تیکت ارسال خواهد شد." +
-                    $"\nنسخه انتخاب‌شده: {edition}",
+                Message = BuildSupportFulfillmentMessage(order.OrderNumber, qualifyingItems),
                 IsInternalNote = false,
                 CreatedAt = now
             });
             await _dbContext.Tickets.AddAsync(ticket);
-            item.SupportTicketId = ticketId;
+            foreach (var item in qualifyingItems)
+                item.SupportTicketId = ticketId;
 
             // The notification announces the ticket only — never account credentials.
             await _notificationService.CreateAsync(
@@ -1020,6 +1024,13 @@ namespace Vitorize.Infrastructure.Services
             _logger.LogInformation(
                 "Support delivery ticket auto-created. EventType={EventType} OrderId={OrderId} OrderNumber={OrderNumber} TicketId={TicketId}",
                 "SupportTicketAutoCreated", order.Id, order.OrderNumber, ticketId);
+        }
+
+        private static string BuildSupportFulfillmentMessage(string orderNumber, IReadOnlyCollection<OrderItem> items)
+        {
+            var summary = string.Join("\n", items.Select(item =>
+                $"• {item.ProductTitle} | نسخه: {(string.IsNullOrWhiteSpace(item.VariantTitle) ? "—" : item.VariantTitle)} | تعداد: {item.Quantity} | آیتم: {item.Id}"));
+            return $"سفارش {orderNumber} با موفقیت ثبت شد و موارد زیر نیازمند آماده‌سازی پشتیبانی هستند:\n{summary}\nاطلاعات تحویل پس از آماده‌سازی از طریق همین تیکت ارسال خواهد شد.";
         }
 
         private static PaymentVerifyResultDto CreateVerifyResult(Payment payment, Order order)
