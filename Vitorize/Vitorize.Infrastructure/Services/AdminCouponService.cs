@@ -38,6 +38,15 @@ namespace Vitorize.Infrastructure.Services
                 query = query.Where(x => x.Code.Contains(search) || x.Title.Contains(search));
             }
             if (filter.IsActive.HasValue) query = query.Where(x => x.IsActive == filter.IsActive.Value);
+            var now = DateTime.UtcNow;
+            query = filter.State?.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(x => x.IsActive && (x.StartsAt == null || x.StartsAt <= now) && (x.EndsAt == null || x.EndsAt >= now)),
+                "scheduled" => query.Where(x => x.IsActive && x.StartsAt != null && x.StartsAt > now),
+                "expired" => query.Where(x => x.IsActive && x.EndsAt != null && x.EndsAt < now),
+                "inactive" => query.Where(x => !x.IsActive),
+                _ => query
+            };
             var totalCount = await query.CountAsync(cancellationToken);
             query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
             {

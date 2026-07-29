@@ -23,7 +23,7 @@
         <div class="vz-pills">
             @foreach (var f in ReadChips)
             {
-                <button class="vz-pill @(_readFilter == f.Key ? "active" : "")" @onclick="() => _readFilter = f.Key">
+                <button class="vz-pill @(_readFilter == f.Key ? "active" : "")" @onclick="() => SetReadFilter(f.Key)">
                     @f.Label <span class="vz-pill__count">@AUI.Number(CountFor(f.Key))</span>
                 </button>
             }
@@ -66,6 +66,7 @@
                     </tbody>
                 </table>
             </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -103,6 +104,9 @@
     private bool _loading = true;
     private string? _error;
     private List<AdminNotificationModel> _items = new();
+    private int _total;
+    private int _page = 1;
+    private const int _pageSize = 25;
 
     private string _search = string.Empty, _readFilter = "all";
 
@@ -132,20 +136,19 @@
     private async Task Load()
     {
         _loading = true; _error = null;
-        var r = await Api.GetAsync<List<AdminNotificationModel>>("admin/notifications?page=1&pageSize=500");
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var query = $"admin/notifications/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (_readFilter == "read") query += "&isRead=true";
+        else if (_readFilter == "unread") query += "&isRead=false";
+        var r = await Api.GetAsync<PagedResult<AdminNotificationModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
 
-    private List<AdminNotificationModel> Filtered => _items
-        .Where(n => string.IsNullOrWhiteSpace(_search)
-            || n.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || n.Message.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (n.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(n => _readFilter switch { "read" => n.IsRead, "unread" => !n.IsRead, _ => true })
-        .OrderByDescending(n => n.CreatedAt)
-        .ToList();
+    private List<AdminNotificationModel> Filtered => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SetReadFilter(string filter) { _readFilter = filter; _page = 1; await Load(); }
 
     private async Task MarkRead(AdminNotificationModel n)
     {

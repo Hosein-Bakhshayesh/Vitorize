@@ -28,7 +28,7 @@
         <div class="vz-pills">
             @foreach (var f in Filters)
             {
-                <button class="vz-pill @(_stateFilter == f.Key ? "active" : "")" @onclick="() => _stateFilter = f.Key">
+                <button class="vz-pill @(_stateFilter == f.Key ? "active" : "")" @onclick="() => SetStateFilter(f.Key)">
                     @f.Label <span class="vz-pill__count">@AUI.Number(CountFor(f.Key))</span>
                 </button>
             }
@@ -99,6 +99,7 @@
                     </tbody>
                 </table>
             </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -193,6 +194,9 @@
     private bool _loading = true;
     private string? _error;
     private List<AdminCouponModel> _items = new();
+    private int _total;
+    private int _page = 1;
+    private const int _pageSize = 25;
 
     private string _search = string.Empty;
     private string _stateFilter = "all";
@@ -229,8 +233,11 @@
     private async Task Load()
     {
         _loading = true; _error = null;
-        var result = await Api.GetAsync<List<AdminCouponModel>>("admin/coupons");
-        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        var query = $"admin/coupons/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (_stateFilter != "all") query += $"&state={_stateFilter}";
+        var result = await Api.GetAsync<PagedResult<AdminCouponModel>>(query);
+        if (result.IsSuccess && result.Data is not null) { _items = result.Data.Items.ToList(); _total = result.Data.TotalCount; }
         else _error = result.Message;
         _loading = false;
     }
@@ -254,13 +261,9 @@
     };
     private int CountFor(string key) => key == "all" ? _items.Count : _items.Count(c => State(c) == key);
 
-    private List<AdminCouponModel> Filtered => _items
-        .Where(c => string.IsNullOrWhiteSpace(_search)
-            || c.Code.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(c => _stateFilter == "all" || State(c) == _stateFilter)
-        .OrderByDescending(c => c.CreatedAt)
-        .ToList();
+    private List<AdminCouponModel> Filtered => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SetStateFilter(string filter) { _stateFilter = filter; _page = 1; await Load(); }
 
     // ----- menu -----
     private void ToggleMenu(Guid id) => _openMenuId = _openMenuId == id ? null : id;
