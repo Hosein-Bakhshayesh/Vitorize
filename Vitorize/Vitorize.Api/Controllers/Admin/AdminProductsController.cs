@@ -40,7 +40,7 @@ namespace Vitorize.Api.Controllers.Admin
         public async Task<ActionResult<ApiResult<List<AdminProductDto>>>> ExportSelection(
             SelectedRowsRequestDto request, CancellationToken cancellationToken)
         {
-            var result = await _productService.GetSelectedForExportAsync(request.Ids, cancellationToken);
+            var result = await _productService.GetSelectedForExportAsync(request?.Ids ?? [], cancellationToken);
             return Ok(ApiResult<List<AdminProductDto>>.Success(result, "محصولات انتخاب‌شده برای خروجی تأیید شدند."));
         }
 

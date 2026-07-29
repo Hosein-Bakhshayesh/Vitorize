@@ -38,6 +38,14 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<PagedResult<AdminProductVariantDto>>.Success(result, "تنوع‌های صفحه‌بندی‌شده محصول دریافت شد."));
         }
 
+        [HttpGet("products/{productId:guid}/variants/lookup")]
+        public async Task<ActionResult<ApiResult<List<AdminProductVariantLookupDto>>>> GetLookupByProductId(
+            Guid productId, [FromQuery] string? search, [FromQuery] Guid? selectedId, CancellationToken cancellationToken)
+        {
+            var result = await _variantService.GetLookupByProductIdAsync(productId, search, selectedId, cancellationToken);
+            return Ok(ApiResult<List<AdminProductVariantLookupDto>>.Success(result, "فهرست محدود تنوع‌های محصول دریافت شد."));
+        }
+
         [HttpGet("product-variants/{id:guid}")]
         public async Task<ActionResult<ApiResult<AdminProductVariantDto>>> GetById(Guid id)
         {

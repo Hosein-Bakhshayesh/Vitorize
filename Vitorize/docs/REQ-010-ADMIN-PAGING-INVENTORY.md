@@ -23,6 +23,37 @@ Reviewed against the Admin controllers, read services, and Blazor pages on 2026-
 | Media/files | Uploads are product-scoped; no global media browser exists. | Not applicable. |
 | Settings/fonts/tools/seed/monitoring | Configuration, diagnostics, or bounded control surfaces. | Not applicable; no operational table paging. |
 
+## Product-edit child-list reconciliation
+
+- Variants: SQL-paged at 25 rows in the editor and at most 100 rows in the API, with
+  deterministic `SortOrder`, title, and id ordering. The editor cancels superseded loads and
+  normalizes the page after a delete.
+- Media: SQL-paged in the dedicated media manager; the editor requests only a one-row page to
+  obtain the authoritative gallery count. Product details use their own paged media grid.
+- Gift-code import variants: the import dialog uses the SQL-backed `variants/lookup` projection,
+  searches title/SKU, caps results at 100, and cancels stale requests. It never loads a product's
+  full variant collection. The product selector is the already bounded 100-row product lookup.
+- Features (maximum 50), buyer input definitions (maximum 30), and product tag associations
+  (maximum 30) are saved atomically as bounded product metadata. Their limits and validation are
+  enforced by `AdminProductService`, not by the browser.
+- Pricing, availability, delivery/support settings, SEO fields, category/brand references, and
+  associations are scalar fields or bounded configuration selectors; there is no separate child
+  history for the product editor.
+
+## Export policy and final scan classification
+
+- Selected product and order exports are server-authorized `POST` operations. Empty/duplicate/
+  empty-GUID/over-200/missing selections fail as a whole; no partial result or existence signal is
+  returned. Results are SQL ordered deterministically and use approved, minimal projections.
+- Current-page exports (coupons, payments, wallets, audit/error/security logs) deliberately export
+  exactly the page rendered from the server. Their labels state that scope. SMS CSV is generated
+  server-side from its authorized filter.
+- `AdminCsv` is the central client CSV defense: text beginning with a spreadsheet formula prefix is
+  apostrophe-neutralized; numeric values remain numeric. The SMS server CSV uses the same policy.
+- Remaining `Take(50|100|200|500)` matches are classified as SQL page caps, bounded lookups, or
+  background batch/retention controls. No Admin operational table is intentionally capped before
+  filtering/paging.
+
 ## Detail and export reconciliation in progress
 
 - Payment refund/audit, wallet transaction, ticket-message, and product variant/media child lists are now

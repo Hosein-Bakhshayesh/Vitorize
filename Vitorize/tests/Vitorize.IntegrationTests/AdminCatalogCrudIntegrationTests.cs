@@ -8,6 +8,7 @@ using Vitorize.Application.DTOs.Admin.Categories;
 using Vitorize.Application.DTOs.Admin.ProductImages;
 using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.DTOs.Admin.ProductVariants;
+using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.DTOs.Products;
 using Vitorize.IntegrationTests.Infrastructure;
 using Vitorize.Shared.Common;
@@ -216,7 +217,7 @@ public sealed class AdminCatalogCrudIntegrationTests
         {
             db.Categories.Add(category);
             db.Products.Add(product);
-            db.ProductVariants.AddRange(Enumerable.Range(1, 55).Select(index => new ProductVariant
+            db.ProductVariants.AddRange(Enumerable.Range(1, 105).Select(index => new ProductVariant
             {
                 Id = Guid.NewGuid(), ProductId = product.Id, Title = $"Variant {index:000}",
                 Price = 10m, StockMode = (byte)ProductVariantStockMode.Manual, IsActive = true,
@@ -236,16 +237,25 @@ public sealed class AdminCatalogCrudIntegrationTests
         var variants = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductVariantDto>>>(
             $"/api/admin/products/{product.Id}/variants/paged?page=1&pageSize=20");
         var variantLast = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductVariantDto>>>(
-            $"/api/admin/products/{product.Id}/variants/paged?page=3&pageSize=20");
+            $"/api/admin/products/{product.Id}/variants/paged?page=6&pageSize=20");
         var images = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductImageDto>>>(
             $"/api/admin/products/{product.Id}/images/paged?page=1&pageSize=20");
         var imageLast = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductImageDto>>>(
             $"/api/admin/products/{product.Id}/images/paged?page=3&pageSize=20");
 
-        variants!.Data!.TotalCount.Should().Be(55); variants.Data.Items.Should().HaveCount(20);
-        variantLast!.Data!.Items.Should().HaveCount(15);
+        variants!.Data!.TotalCount.Should().Be(105); variants.Data.Items.Should().HaveCount(20);
+        variantLast!.Data!.Items.Should().HaveCount(5);
         images!.Data!.TotalCount.Should().Be(55); images.Data.Items.Should().HaveCount(20);
         imageLast!.Data!.Items.Should().HaveCount(15);
+
+        var lookup = await admin.GetFromJsonAsync<ApiResult<List<AdminProductVariantLookupDto>>>(
+            $"/api/admin/products/{product.Id}/variants/lookup?search=Variant");
+        lookup!.Data.Should().HaveCount(100);
+        lookup.Data.Should().OnlyContain(x => x.Title.StartsWith("Variant") && x.Sku == null);
+        var selectedVariantId = variantLast.Data.Items.First().Id;
+        var hydratedSelection = await admin.GetFromJsonAsync<ApiResult<List<AdminProductVariantLookupDto>>>(
+            $"/api/admin/products/{product.Id}/variants/lookup?search=no-match&selectedId={selectedVariantId}");
+        hydratedSelection!.Data!.Select(x => x.Id).Should().ContainSingle().Which.Should().Be(selectedVariantId);
     }
 
     [Fact]
@@ -269,7 +279,45 @@ public sealed class AdminCatalogCrudIntegrationTests
         (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = Array.Empty<Guid>() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id, first.Id } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id, Guid.NewGuid() } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id, Guid.Empty } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = Enumerable.Range(0, 201).Select(_ => Guid.NewGuid()).ToArray() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Selected_order_export_validates_the_entire_request_and_returns_a_safe_deterministic_projection()
+    {
+        var (adminUser, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var older = new Order
+        {
+            Id = Guid.NewGuid(), UserId = adminUser.Id, OrderNumber = $"VT-EXPORT-OLD-{Guid.NewGuid():N}",
+            Status = (byte)OrderStatus.PendingPayment, PaymentStatus = (byte)PaymentStatus.Pending,
+            SubtotalAmount = 10, FinalAmount = 10, CurrencyType = (byte)CurrencyType.Toman,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+        };
+        var newer = new Order
+        {
+            Id = Guid.NewGuid(), UserId = adminUser.Id, OrderNumber = $"VT-EXPORT-NEW-{Guid.NewGuid():N}",
+            Status = (byte)OrderStatus.Processing, PaymentStatus = (byte)PaymentStatus.Paid,
+            SubtotalAmount = 20, FinalAmount = 20, CurrencyType = (byte)CurrencyType.Toman,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+        };
+        await using (var db = _fixture.CreateDbContext()) { db.Orders.AddRange(older, newer); await db.SaveChangesAsync(); }
+        using var admin = _fixture.CreateClient(adminToken);
+        using var customer = _fixture.CreateClient(customerToken);
+
+        var valid = await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id, newer.Id } });
+        valid.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await valid.Content.ReadFromJsonAsync<ApiResult<List<OrderDto>>>();
+        body!.Data!.Select(x => x.Id).Should().Equal(newer.Id, older.Id);
+        body.Data.Should().OnlyContain(x => x.Items.Count == 0 && x.SubtotalAmount == 0 && x.DiscountAmount == 0);
+
+        (await customer.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id } })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = Array.Empty<Guid>() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id, older.Id } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id, Guid.Empty } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id, Guid.NewGuid() } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = Enumerable.Range(0, 201).Select(_ => Guid.NewGuid()).ToArray() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     private static async Task<T> PostDataAsync<T>(HttpClient client, string path, object request)

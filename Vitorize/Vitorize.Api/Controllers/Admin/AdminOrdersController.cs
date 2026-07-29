@@ -68,7 +68,7 @@ namespace Vitorize.Api.Controllers.Admin
         [HttpPost("export-selection")]
         public async Task<ActionResult<ApiResult<List<OrderDto>>>> ExportSelection(SelectedRowsRequestDto request, CancellationToken cancellationToken)
         {
-            var result = await _orderService.GetSelectedAdminOrdersForExportAsync(request.Ids, cancellationToken);
+            var result = await _orderService.GetSelectedAdminOrdersForExportAsync(request?.Ids ?? [], cancellationToken);
             return Ok(ApiResult<List<OrderDto>>.Success(result, "سفارش‌های انتخاب‌شده برای خروجی تأیید شدند."));
         }
 

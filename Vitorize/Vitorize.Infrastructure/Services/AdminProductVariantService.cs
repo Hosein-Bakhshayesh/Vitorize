@@ -78,6 +78,27 @@ namespace Vitorize.Infrastructure.Services
                 { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
+        public async Task<List<AdminProductVariantLookupDto>> GetLookupByProductIdAsync(
+            Guid productId, string? search, Guid? selectedId, CancellationToken cancellationToken = default)
+        {
+            if (!await _dbContext.Products.AsNoTracking().AnyAsync(x => x.Id == productId && !x.IsDeleted, cancellationToken))
+                throw new NotFoundException("محصول یافت نشد.");
+
+            var normalizedSearch = search?.Trim();
+            var query = _dbContext.ProductVariants.AsNoTracking().Where(x => x.ProductId == productId);
+            if (!string.IsNullOrWhiteSpace(normalizedSearch))
+            {
+                query = selectedId.HasValue && selectedId.Value != Guid.Empty
+                    ? query.Where(x => x.Id == selectedId || x.Title.Contains(normalizedSearch) || (x.Sku != null && x.Sku.Contains(normalizedSearch)))
+                    : query.Where(x => x.Title.Contains(normalizedSearch) || (x.Sku != null && x.Sku.Contains(normalizedSearch)));
+            }
+
+            return await query.OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id)
+                .Take(100)
+                .Select(x => new AdminProductVariantLookupDto { Id = x.Id, Title = x.Title, Sku = x.Sku })
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<AdminProductVariantDto> GetByIdAsync(Guid id)
         {
             var variant = await _dbContext.ProductVariants

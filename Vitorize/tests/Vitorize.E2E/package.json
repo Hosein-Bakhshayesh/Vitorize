@@ -6,7 +6,7 @@
     "test:regression": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
     "test:auth": "playwright test tests/auth-lifecycle.spec.ts tests/authentication.spec.ts",
-    "test:admin": "playwright test tests/admin-flows.spec.ts tests/monitoring.spec.ts tests/support-delivery.spec.ts tests/product-matrix.spec.ts tests/product-variants.spec.ts tests/product-admin-edit.spec.ts tests/product-negative.spec.ts",
+    "test:admin": "playwright test tests/admin-flows.spec.ts tests/admin-paging-exports.spec.ts tests/monitoring.spec.ts tests/support-delivery.spec.ts tests/product-matrix.spec.ts tests/product-variants.spec.ts tests/product-admin-edit.spec.ts tests/product-negative.spec.ts",
     "test:customer": "playwright test tests/customer-account.spec.ts tests/authentication.spec.ts tests/storefront-commerce.spec.ts tests/support-delivery.spec.ts tests/product-matrix.spec.ts tests/product-variants.spec.ts tests/product-admin-edit.spec.ts",
     "test:business": "playwright test tests/storefront-commerce.spec.ts tests/support-delivery.spec.ts tests/product-matrix.spec.ts tests/product-variants.spec.ts tests/product-admin-edit.spec.ts",
     "test:product": "playwright test tests/product-matrix.spec.ts tests/product-variants.spec.ts tests/product-admin-edit.spec.ts tests/product-negative.spec.ts",

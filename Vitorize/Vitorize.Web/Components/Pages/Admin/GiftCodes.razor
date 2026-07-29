@@ -1,4 +1,5 @@
 @page "/admin/gift-codes"
+@implements IDisposable
 @inject ApiClient Api
 @inject ToastService Toasts
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
@@ -134,15 +135,22 @@ else
                     @foreach (var p in _products) { <option value="@p.Id">@p.Title</option> }
                 </select>
             </div>
-            @if (_importVariants.Count > 0)
+            @if (_import.ProductId != Guid.Empty)
             {
                 <div class="vz-field span-2">
                     <label class="vz-label">واریانت</label>
+                    <div class="vz-inline" style="margin-bottom:8px">
+                        <input class="vz-input" data-testid="gift-code-variant-search" placeholder="جست‌وجوی عنوان یا SKU" @bind="_variantSearch" />
+                        <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" @onclick="LoadImportVariants" disabled="@_loadingImportVariants">جست‌وجو</button>
+                    </div>
                     <select class="vz-select" value="@(_import.ProductVariantId?.ToString() ?? "")"
                             @onchange="e => _import.ProductVariantId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : null">
                         <option value="">— بدون واریانت —</option>
                         @foreach (var variant in _importVariants) { <option value="@variant.Id">@variant.Title</option> }
                     </select>
+                    @if (_loadingImportVariants) { <span class="vz-hint">در حال دریافت واریانت‌ها…</span> }
+                    else if (_importVariants.Count == 0) { <span class="vz-hint">واریانتی مطابق جست‌وجو یافت نشد.</span> }
+                    else { <span class="vz-hint">حداکثر ۱۰۰ واریانت مطابق جست‌وجو نمایش داده می‌شود.</span> }
                     <span class="vz-hint">برای موجودی یک واریانت مشخص، انتخاب واریانت الزامی است.</span>
                 </div>
             }
@@ -213,6 +221,9 @@ else
 
     private List<AdminProductModel> _products = new();
     private List<AdminProductVariantModel> _importVariants = new();
+    private string _variantSearch = string.Empty;
+    private bool _loadingImportVariants;
+    private CancellationTokenSource? _importVariantLookupCts;
 
     private bool _importOpen, _importing, _fileDrag;
     private GiftCodeImportRequestModel _import = new();
@@ -274,6 +285,7 @@ else
     {
         _import = new GiftCodeImportRequestModel();
         _importVariants = new();
+        _variantSearch = string.Empty;
         _codesText = string.Empty;
         _fileDrag = false;
         _importOpen = true;
@@ -283,9 +295,34 @@ else
     {
         _import.ProductId = Guid.TryParse(e.Value?.ToString(), out var productId) ? productId : Guid.Empty;
         _import.ProductVariantId = null;
+        _variantSearch = string.Empty;
         if (_import.ProductId == Guid.Empty) { _importVariants = new(); return; }
-        var result = await Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{_import.ProductId}/variants");
-        _importVariants = result.Data ?? new();
+        await LoadImportVariants();
+    }
+
+    private async Task LoadImportVariants()
+    {
+        if (_import.ProductId == Guid.Empty) return;
+        _importVariantLookupCts?.Cancel();
+        _importVariantLookupCts?.Dispose();
+        var cts = _importVariantLookupCts = new CancellationTokenSource();
+        var productId = _import.ProductId;
+        _loadingImportVariants = true;
+        var query = $"admin/products/{productId}/variants/lookup";
+        if (!string.IsNullOrWhiteSpace(_variantSearch)) query += $"?search={Uri.EscapeDataString(_variantSearch)}";
+        var result = await Api.GetAsync<List<AdminProductVariantModel>>(query, cts.Token);
+        if (!cts.IsCancellationRequested && _import.ProductId == productId)
+        {
+            _importVariants = result.Data ?? new();
+            if (!result.IsSuccess) Toasts.Error(result.Message);
+            _loadingImportVariants = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _importVariantLookupCts?.Cancel();
+        _importVariantLookupCts?.Dispose();
     }
 
     private async Task OnCodesFile(InputFileChangeEventArgs e)
