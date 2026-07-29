@@ -138,6 +138,23 @@ namespace Vitorize.Infrastructure.Services
             return new Vitorize.Shared.Common.PagedResult<AdminProductDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
+        public async Task<List<AdminProductLookupDto>> GetLookupAsync(string? search, Guid? selectedId, CancellationToken cancellationToken = default)
+        {
+            var query = _dbContext.Products.AsNoTracking().Where(x => !x.IsDeleted && x.IsActive);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                if (term.Length > 250) term = term[..250];
+                query = query.Where(x => x.Title.Contains(term) || x.Slug.Contains(term));
+            }
+            if (selectedId.HasValue)
+                query = query.Where(x => x.Id == selectedId.Value || string.IsNullOrWhiteSpace(search) || x.Title.Contains(search!) || x.Slug.Contains(search!));
+            return await query.OrderByDescending(x => selectedId.HasValue && x.Id == selectedId.Value).ThenBy(x => x.Title).ThenBy(x => x.Id).Take(100).Select(x => new AdminProductLookupDto
+            {
+                Id = x.Id, Title = x.Title, Slug = x.Slug
+            }).ToListAsync(cancellationToken);
+        }
+
         public async Task<AdminProductDto> GetByIdAsync(Guid id)
         {
             var product = await _dbContext.Products

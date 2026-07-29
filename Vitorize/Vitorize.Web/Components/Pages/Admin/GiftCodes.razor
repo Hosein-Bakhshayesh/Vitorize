@@ -225,7 +225,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadBatches();
-        var prod = await Api.GetAsync<List<AdminProductModel>>("admin/products");
+        // Gift-code import is a selector, not an operational browse surface.
+        // The dedicated endpoint projects only the label/id and caps the response.
+        var prod = await Api.GetAsync<List<AdminProductModel>>("admin/products/lookup");
         _products = prod.Data ?? new();
     }
 
