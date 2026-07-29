@@ -147,6 +147,14 @@
                     <button class="vz-btn vz-btn--danger" disabled="@_submittingRefund" @onclick="RequestRefund">@(_submittingRefund ? "Submitting..." : "Request refund")</button>
                 </div></div>
             }
+            @if (d.AuditHistory.Count > 0)
+            {
+                <div class="vz-card__title" style="margin:16px 0 12px">Financial audit history</div>
+                @foreach (var audit in d.AuditHistory)
+                {
+                    <div class="vz-muted" style="margin:8px 0"><strong>@audit.EventType</strong> · @PersianDateHelper.ToDateTime(audit.CreatedAt) · @(audit.Amount is null ? "" : AUI.MoneyFa(audit.Amount.Value))<br />@audit.Detail</div>
+                }
+            }
             <Timeline Items="BuildTimeline(d)" />
         }
     </ChildContent>

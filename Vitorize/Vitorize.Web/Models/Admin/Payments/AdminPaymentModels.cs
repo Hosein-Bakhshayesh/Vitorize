@@ -22,6 +22,7 @@
         public DateTime? UpdatedAt { get; set; }
         public string? ErrorMessage { get; set; }
         public List<PaymentRefundModel> Refunds { get; set; } = [];
+        public List<FinancialAuditEntryModel> AuditHistory { get; set; } = [];
     }
 
     public class PaymentRefundModel
@@ -34,5 +35,14 @@
         public string Reason { get; set; } = string.Empty;
         public DateTime RequestedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
+    }
+
+    public class FinancialAuditEntryModel
+    {
+        public string EventType { get; set; } = string.Empty;
+        public Guid? EntityId { get; set; }
+        public decimal? Amount { get; set; }
+        public string? Detail { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

@@ -184,7 +184,7 @@ namespace Vitorize.Api.Controllers
                     : "پرداخت تایید نشد."));
         }
 
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "FinanceManage")]
         [HttpPost("zarinpal/reconcile")]
         [SwaggerOperation(
             Summary = "بررسی پرداخت‌های معلق زرین‌پال",

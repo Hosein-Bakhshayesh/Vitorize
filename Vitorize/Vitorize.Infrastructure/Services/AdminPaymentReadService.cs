@@ -105,6 +105,17 @@ namespace Vitorize.Infrastructure.Services
                         RequestedAt = x.RequestedAt, CompletedAt = x.CompletedAt
                     })
                     .ToListAsync();
+                var refundIds = item.Refunds.Select(x => x.Id).ToList();
+                item.AuditHistory = await _dbContext.FinancialAuditLogs.AsNoTracking()
+                    .Where(x => x.CorrelationId == item.OrderId || x.EntityId == item.Id || refundIds.Contains(x.EntityId))
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Take(50)
+                    .Select(x => new FinancialAuditEntryDto
+                    {
+                        EventType = x.EventType, EntityId = x.EntityId, Amount = x.Amount,
+                        Detail = x.Detail, CreatedAt = x.CreatedAt
+                    })
+                    .ToListAsync();
             }
 
             return item ?? throw new KeyNotFoundException("پرداخت پیدا نشد.");

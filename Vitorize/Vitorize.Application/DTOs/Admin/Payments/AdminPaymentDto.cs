@@ -22,5 +22,15 @@
         public DateTime? UpdatedAt { get; set; }
         public string? ErrorMessage { get; set; }
         public List<Vitorize.Application.DTOs.Payments.PaymentRefundDto> Refunds { get; set; } = [];
+        public List<FinancialAuditEntryDto> AuditHistory { get; set; } = [];
+    }
+
+    public sealed class FinancialAuditEntryDto
+    {
+        public string EventType { get; set; } = string.Empty;
+        public Guid? EntityId { get; set; }
+        public decimal? Amount { get; set; }
+        public string? Detail { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

@@ -370,3 +370,7 @@ FodyWeavers.xsd
 .codex/
 outputs/launch-hardening/*.png
 outputs/launch-hardening/*.ndjson
+
+# Local development data-protection keys are runtime state, never source artifacts.
+Vitorize/Vitorize.Api/data-protection-keys/
+Vitorize/Vitorize.Web/data-protection-keys/
