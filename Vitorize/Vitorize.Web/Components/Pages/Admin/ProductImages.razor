@@ -49,7 +49,7 @@ else
                     <div style="font-weight:800;font-size:15px">گالری تصاویر</div>
                     <div class="vz-muted" style="font-size:12.5px">با ستاره، تصویر شاخص را تعیین کنید و با فلش‌ها ترتیب را تغییر دهید.</div>
                 </div>
-                <span class="vz-chip">@AUI.Number(_images.Count) تصویر</span>
+                <span class="vz-chip">@AUI.Number(_imageTotal) تصویر</span>
             </div>
 
             @if (_images.Count == 0)
@@ -97,6 +97,7 @@ else
                         <span style="font-size:12px;font-weight:700">افزودن</span>
                     </label>
                 </div>
+                <Pagination Page="_imagePage" PageSize="_imagePageSize" TotalCount="_imageTotal" OnPageChanged="ChangePage" />
             }
         </div>
     </div>
@@ -114,6 +115,8 @@ else
     private string? _error;
     private string? _productTitle;
     private List<AdminProductImageModel> _images = new();
+    private int _imagePage = 1, _imageTotal;
+    private const int _imagePageSize = 25;
 
     private int _uploadTotal, _uploadDone;
     private string _uploadCurrentName = string.Empty;
@@ -130,7 +133,7 @@ else
         _loading = true; _error = null;
 
         var productTask = Api.GetAsync<AdminProductModel>($"admin/products/{Id}");
-        var imagesTask = Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
+        var imagesTask = Api.GetAsync<PagedResult<AdminProductImageModel>>($"admin/products/{Id}/images/paged?page={_imagePage}&pageSize={_imagePageSize}");
         await Task.WhenAll(productTask, imagesTask);
 
         if (!productTask.Result.IsSuccess || productTask.Result.Data is null)
@@ -141,8 +144,15 @@ else
         }
 
         _productTitle = productTask.Result.Data.Title;
-        _images = imagesTask.Result.Data ?? new();
+        _images = imagesTask.Result.Data?.Items.ToList() ?? new();
+        _imageTotal = imagesTask.Result.Data?.TotalCount ?? 0;
         _loading = false;
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _imagePage = page;
+        await Load();
     }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
