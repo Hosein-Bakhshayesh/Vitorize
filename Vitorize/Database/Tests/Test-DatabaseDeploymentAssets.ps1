@@ -68,6 +68,19 @@ try {
 finally { $ErrorActionPreference = $oldPreference }
 Assert-True ($guardExitCode -ne 0) 'Runner did not reject a SQL Server system database.'
 
+$rehearsalFiles = @(
+    'Rehearsal\Publish-CleanDatabase.ps1',
+    'Rehearsal\Upgrade-ExistingDatabase.ps1',
+    'Rehearsal\Test-DatabaseUpgradeRehearsal.ps1',
+    'Rehearsal\README.md'
+)
+foreach ($relativePath in $rehearsalFiles) {
+    Assert-True (Test-Path -LiteralPath (Join-Path $databaseRoot $relativePath) -PathType Leaf) "Missing database rehearsal asset: $relativePath"
+}
+$rehearsalReadme = Get-Content -LiteralPath (Join-Path $databaseRoot 'Rehearsal\README.md') -Raw -Encoding utf8
+Assert-True ($rehearsalReadme -match 'DBA sign-off') 'Rehearsal pack lacks a DBA sign-off template.'
+Assert-True ($rehearsalReadme -match 'checksum') 'Rehearsal pack lacks immutable checksum guidance.'
+
 $allDeploymentText = ($trackedSql | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw -Encoding utf8 }) -join "`n"
 Assert-True ($allDeploymentText -notmatch '(?im)^\s*INSERT\s+(?:INTO\s+)?(?:dbo\.)?Users\b') 'A deployment SQL script creates application users.'
 Assert-True ($allDeploymentText -notmatch '(?im)^\s*UPDATE\s+(?:dbo\.)?Users\s+SET\s+Password') 'A deployment SQL script updates user passwords.'
