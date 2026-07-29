@@ -91,7 +91,7 @@
             }
         </div>
 
-        @* Product type (client refine, multi) *@
+        @* Product type (server filtered, multi-select) *@
         <div class="st-fg">
             <div class="st-fg__head" @onclick="() => _gType = !_gType">
                 <span class="st-fg__label">نوع محصول @if (_types.Count > 0) { <span class="st-fg__sel">@AUI.Number(_types.Count)</span> }</span>
@@ -111,7 +111,7 @@
             }
         </div>
 
-        @* Availability + delivery (client/server) *@
+        @* Availability + delivery (server filtered) *@
         <div class="st-fg">
             <div class="st-fg__head" @onclick="() => _gAvail = !_gAvail">
                 <span class="st-fg__label">موجودی و تحویل</span>
@@ -123,10 +123,10 @@
                     <div class="st-fopt" @onclick="ToggleInStock">
                         <span class="st-fopt__l"><span class="st-fbox @(_inStockOnly ? "on" : null)">@if (_inStockOnly) { <Icon Name="check" Size="11" /> }</span><span>فقط کالاهای موجود</span></span>
                     </div>
-                    <div class="st-fopt" @onclick="() => { _instantOnly = !_instantOnly; ApplyClient(); }">
+                    <div class="st-fopt" @onclick="ToggleInstantOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_instantOnly ? "on" : null)">@if (_instantOnly) { <Icon Name="check" Size="11" /> }</span><span>تحویل آنی</span></span>
                     </div>
-                    <div class="st-fopt" @onclick="() => { _verifiedOnly = !_verifiedOnly; ApplyClient(); }">
+                    <div class="st-fopt" @onclick="ToggleVerifiedOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_verifiedOnly ? "on" : null)">@if (_verifiedOnly) { <Icon Name="check" Size="11" /> }</span><span>نیازمند احراز هویت</span></span>
                     </div>
                 </div>
@@ -283,7 +283,6 @@
     private List<StoreLookupModel> _categories = new();
     private List<StoreLookupModel> _brands = new();
 
-    private List<StoreProductModel> _all = new();
     private List<StoreProductModel> _view = new();
 
     private bool _loading = true;
@@ -307,7 +306,7 @@
 
     private static readonly Dictionary<byte, string> ProductTypes = new()
     {
-        { 1, "گیفت کارت" }, { 2, "اکانت بازی" }, { 3, "سرویس بازی" }, { 4, "اشتراک" }, { 5, "سایر" }
+        { 1, "گیفت کارت" }, { 2, "اکانت بازی" }, { 3, "سرویس بازی" }, { 4, "اشتراک" }, { 99, "سایر" }
     };
     private static readonly Dictionary<string, string> SortOptions = new()
     {
@@ -349,8 +348,8 @@
             foreach (var ty in _types.ToList())
                 chips.Add(new(ProductTypes.GetValueOrDefault(ty, "نوع"), EventCallback.Factory.Create(this, () => ToggleType(ty))));
             if (_inStockOnly) chips.Add(new("موجود", EventCallback.Factory.Create(this, ToggleInStock)));
-            if (_instantOnly) chips.Add(new("تحویل آنی", EventCallback.Factory.Create(this, () => { _instantOnly = false; ApplyClient(); })));
-            if (_verifiedOnly) chips.Add(new("احراز هویت", EventCallback.Factory.Create(this, () => { _verifiedOnly = false; ApplyClient(); })));
+            if (_instantOnly) chips.Add(new("تحویل آنی", EventCallback.Factory.Create(this, async () => { _instantOnly = false; await ReloadFromFilters(); })));
+            if (_verifiedOnly) chips.Add(new("احراز هویت", EventCallback.Factory.Create(this, async () => { _verifiedOnly = false; await ReloadFromFilters(); })));
             if (_discountTier > 0 || _discountOnly) chips.Add(new(_discountTier > 1 ? $"+{AUI.Number(_discountTier)}٪ تخفیف" : "تخفیف‌دار", EventCallback.Factory.Create(this, () => SetDiscount(0))));
             if (_minPrice is > 0 || _maxPrice is > 0) chips.Add(new("محدوده قیمت", EventCallback.Factory.Create(this, () => { _minPrice = null; _maxPrice = null; _ = ReloadFromFilters(); })));
             return chips;
@@ -358,7 +357,7 @@
     }
 
     private List<StoreProductModel> TopRated =>
-        _all.Where(p => p.ReviewCount > 0).OrderByDescending(p => p.AverageRating).ThenByDescending(p => p.ReviewCount).Take(3).ToList();
+        _view.Where(p => p.ReviewCount > 0).OrderByDescending(p => p.AverageRating).ThenByDescending(p => p.ReviewCount).Take(3).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -431,24 +430,17 @@
         if (_minPrice is > 0) query += $"&minPrice={_minPrice}";
         if (_maxPrice is > 0) query += $"&maxPrice={_maxPrice}";
         if (_discountOnly || _discountTier > 0) query += "&hasDiscount=true";
+        if (_discountTier > 1) query += $"&minDiscountPercent={_discountTier}";
         if (_inStockOnly) query += "&inStock=true";
+        if (_instantOnly) query += "&deliveryType=1";
+        if (_verifiedOnly) query += "&requiresVerification=true";
+        foreach (var productType in _types) query += $"&productTypes={productType}";
 
         var result = await Api.GetAsync<PagedResult<StoreProductModel>>(query);
-        _all = result.Data?.Items?.ToList() ?? new();
-        _totalCount = result.Data?.TotalCount ?? _all.Count;
+        _view = result.Data?.Items?.ToList() ?? new();
+        _totalCount = result.Data?.TotalCount ?? _view.Count;
         _totalPages = Math.Max(1, (int)Math.Ceiling((double)_totalCount / _pageSize));
         _loading = false;
-        ApplyClient();
-    }
-
-    private void ApplyClient()
-    {
-        IEnumerable<StoreProductModel> q = _all;
-        if (_types.Count > 0) q = q.Where(p => _types.Contains(p.ProductType));
-        if (_instantOnly) q = q.Where(p => p.DeliveryType == (byte)DeliveryType.Instant);
-        if (_verifiedOnly) q = q.Where(p => p.RequiresVerification);
-        if (_discountTier > 1) q = q.Where(p => p.DiscountPercent >= _discountTier);
-        _view = q.ToList();
         StateHasChanged();
     }
 
@@ -459,9 +451,21 @@
         for (var p = from; p <= to; p++) yield return p;
     }
 
-    private void ToggleType(byte t)
+    private async Task ToggleType(byte t)
     {
         if (!_types.Add(t)) _types.Remove(t);
-        ApplyClient();
+        await ReloadFromFilters();
+    }
+
+    private async Task ToggleInstantOnly()
+    {
+        _instantOnly = !_instantOnly;
+        await ReloadFromFilters();
+    }
+
+    private async Task ToggleVerifiedOnly()
+    {
+        _verifiedOnly = !_verifiedOnly;
+        await ReloadFromFilters();
     }
 }

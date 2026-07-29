@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Vitorize.Domain.Entities;
 using Vitorize.Application.DTOs.Admin.Brands;
 using Vitorize.Application.DTOs.Admin.Categories;
 using Vitorize.Application.DTOs.Admin.ProductImages;
@@ -131,6 +132,46 @@ public sealed class AdminCatalogCrudIntegrationTests
         (await admin.DeleteAsync($"/api/admin/product-tags/{tag.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await admin.DeleteAsync($"/api/admin/brands/{brand.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await admin.DeleteAsync($"/api/admin/categories/{category.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Storefront_catalog_applies_type_delivery_verification_and_discount_filters_before_paging()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = $"Catalog {suffix}", Slug = $"catalog-filter-{suffix}",
+            IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var matching = new Product
+        {
+            Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = $"Matching {suffix}",
+            Slug = $"matching-filter-{suffix}", ProductType = (byte)ProductType.GameAccount,
+            DeliveryType = (byte)DeliveryType.Instant, RequiresVerification = true,
+            BasePrice = 100m, DiscountPrice = 70m, CurrencyType = (byte)CurrencyType.Toman,
+            MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var excluded = new Product
+        {
+            Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = $"Excluded {suffix}",
+            Slug = $"excluded-filter-{suffix}", ProductType = (byte)ProductType.GameAccount,
+            DeliveryType = (byte)DeliveryType.Manual, RequiresVerification = true,
+            BasePrice = 100m, DiscountPrice = 70m, CurrencyType = (byte)CurrencyType.Toman,
+            MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.AddRange(category, matching, excluded);
+            await db.SaveChangesAsync();
+        }
+
+        using var client = _fixture.CreateClient();
+        var response = await client.GetFromJsonAsync<ApiResult<PagedResult<ProductListItemDto>>>(
+            "/api/products?productTypes=2&deliveryType=1&requiresVerification=true&minDiscountPercent=25&page=1&pageSize=1");
+
+        response!.IsSuccess.Should().BeTrue();
+        response.Data!.TotalCount.Should().Be(1);
+        response.Data.Items.Should().ContainSingle(x => x.Id == matching.Id);
     }
 
     [Fact]

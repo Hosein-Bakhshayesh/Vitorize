@@ -4,6 +4,7 @@ using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
+using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.Infrastructure.Services
@@ -25,9 +26,17 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<PagedResult<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter)
         {
+            filter ??= new ProductFilterDto();
             var page = filter.Page <= 0 ? 1 : filter.Page;
             var pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
             pageSize = pageSize > 100 ? 100 : pageSize;
+
+            if (filter.MinPrice is < 0 || filter.MaxPrice is < 0 ||
+                (filter.MinPrice.HasValue && filter.MaxPrice.HasValue && filter.MinPrice > filter.MaxPrice))
+                throw new BusinessException("بازه قیمت معتبر نیست.");
+
+            if (filter.MinDiscountPercent is < 0 or > 100)
+                throw new BusinessException("حداقل درصد تخفیف معتبر نیست.");
 
             var query = _dbContext.Products
                 .AsNoTracking()
@@ -117,6 +126,27 @@ namespace Vitorize.Infrastructure.Services
                     _dbContext.GiftCodes.Any(g =>
                         g.ProductId == x.Id &&
                         g.Status == GiftCodeStatusAvailable));
+            }
+
+            var productTypes = filter.ProductTypes?
+                .Distinct()
+                .Where(type => Enum.IsDefined(typeof(ProductType), type))
+                .ToArray();
+            if (productTypes is { Length: > 0 })
+                query = query.Where(x => productTypes.Contains(x.ProductType));
+
+            if (filter.DeliveryType.HasValue)
+                query = query.Where(x => x.DeliveryType == filter.DeliveryType.Value);
+
+            if (filter.RequiresVerification.HasValue)
+                query = query.Where(x => x.RequiresVerification == filter.RequiresVerification.Value);
+
+            if (filter.MinDiscountPercent is > 0)
+            {
+                var minimumDiscount = filter.MinDiscountPercent.Value / 100m;
+                query = query.Where(x =>
+                    x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice && x.BasePrice > 0 &&
+                    (x.BasePrice - x.DiscountPrice.Value) / x.BasePrice >= minimumDiscount);
             }
 
             var totalCount = await query.CountAsync();

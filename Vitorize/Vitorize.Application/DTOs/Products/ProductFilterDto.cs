@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Vitorize.Application.DTOs.Products
 {
     public class ProductFilterDto
@@ -17,6 +19,17 @@ namespace Vitorize.Application.DTOs.Products
         public bool? HasDiscount { get; set; }
 
         public bool? InStock { get; set; }
+
+        /// <summary>One or more product types. Repeated query parameters are supported.</summary>
+        public List<byte>? ProductTypes { get; set; }
+
+        public byte? DeliveryType { get; set; }
+
+        public bool? RequiresVerification { get; set; }
+
+        /// <summary>Minimum effective discount percentage (0-100).</summary>
+        [Range(typeof(decimal), "0", "100")]
+        public decimal? MinDiscountPercent { get; set; }
 
         /// <summary>
         /// newest | cheapest | expensive | discount | default (SortOrder)

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Cart;
+using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -62,6 +63,40 @@ public sealed class ProductExperienceIntegrationTests
         Assert.All(stored, x => Assert.NotNull(x.EncryptedValue));
         Assert.DoesNotContain(stored, x => x.EncryptedValue is "secret-A" or "secret-B");
         Assert.All(cart.Items.SelectMany(x => x.InputValues), x => Assert.True(x.IsMasked));
+    }
+
+    [Fact]
+    public async Task Product_filters_are_applied_before_counting_and_paging()
+    {
+        await using var db = CreateDb();
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = "Catalog", Slug = $"catalog-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var matching = new Product
+        {
+            Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = "Matching", Slug = $"matching-{Guid.NewGuid():N}",
+            ProductType = 2, DeliveryType = 1, RequiresVerification = true, BasePrice = 100m, DiscountPrice = 70m,
+            CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var excluded = new Product
+        {
+            Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = "Excluded", Slug = $"excluded-{Guid.NewGuid():N}",
+            ProductType = 2, DeliveryType = 2, RequiresVerification = true, BasePrice = 100m, DiscountPrice = 70m,
+            CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        db.AddRange(category, matching, excluded);
+        await db.SaveChangesAsync();
+
+        var result = await new ProductService(db, new StrictHtmlContentSanitizer()).GetProductsAsync(new ProductFilterDto
+        {
+            ProductTypes = new List<byte> { 2 }, DeliveryType = 1, RequiresVerification = true,
+            MinDiscountPercent = 25m, Page = 1, PageSize = 1
+        });
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Single(result.Items);
+        Assert.Equal(matching.Id, result.Items[0].Id);
     }
 
     private static VitorizeDbContext CreateDb()
