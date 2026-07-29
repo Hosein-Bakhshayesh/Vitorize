@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.Interfaces;
+using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Persistence;
 
 namespace Vitorize.Api.Controllers
@@ -14,13 +15,16 @@ namespace Vitorize.Api.Controllers
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly ISettingService _settingService;
+        private readonly IZarinpalPaymentConfigurationProvider _paymentConfiguration;
 
         public HealthController(
             VitorizeDbContext dbContext,
-            ISettingService settingService)
+            ISettingService settingService,
+            IZarinpalPaymentConfigurationProvider paymentConfiguration)
         {
             _dbContext = dbContext;
             _settingService = settingService;
+            _paymentConfiguration = paymentConfiguration;
         }
 
         [HttpGet]
@@ -105,19 +109,15 @@ namespace Vitorize.Api.Controllers
         {
             try
             {
-                var merchantId =
-                    await _settingService.GetValueAsync("ZarinpalMerchantId");
-
-                var sandbox =
-                    await _settingService.GetValueAsync("ZarinpalIsSandbox");
+                var configuration = await _paymentConfiguration.GetAsync();
+                var validation = await _paymentConfiguration.ValidateAsync();
 
                 return new
                 {
-                    Healthy = !string.IsNullOrWhiteSpace(merchantId),
-                    MerchantConfigured =
-                        !string.IsNullOrWhiteSpace(merchantId),
-
-                    Sandbox = sandbox
+                    Healthy = validation.IsValid,
+                    MerchantConfigured = !string.IsNullOrWhiteSpace(configuration.MerchantId),
+                    Sandbox = configuration.IsSandbox,
+                    Errors = validation.IsValid ? Array.Empty<string>() : validation.Errors
                 };
             }
             catch

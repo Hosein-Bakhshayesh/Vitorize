@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Vitorize.Application.Interfaces;
+using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 using Vitorize.Infrastructure.Services.Testing;
 using Vitorize.Shared.Enums;
@@ -12,18 +13,18 @@ namespace Vitorize.Infrastructure.Services
     public class ZarinpalGatewayService : IZarinpalGatewayService
     {
         private readonly HttpClient _httpClient;
-        private readonly ISettingService _settingService;
+        private readonly IZarinpalPaymentConfigurationProvider _configurationProvider;
         private readonly IHostEnvironment _environment;
         private readonly IOptionsMonitor<TestingFaultInjectionOptions> _faults;
 
         public ZarinpalGatewayService(
             HttpClient httpClient,
-            ISettingService settingService,
+            IZarinpalPaymentConfigurationProvider configurationProvider,
             IHostEnvironment environment,
             IOptionsMonitor<TestingFaultInjectionOptions> faults)
         {
             _httpClient = httpClient;
-            _settingService = settingService;
+            _configurationProvider = configurationProvider;
             _environment = environment;
             _faults = faults;
         }
@@ -45,36 +46,30 @@ namespace Vitorize.Infrastructure.Services
             if (PaymentFaultEnabled("CreateFail"))
                 return (false, string.Empty, string.Empty);
 
-            var merchantId = await GetSettingOrDefaultAsync("ZarinpalMerchantId", string.Empty);
+            var configuration = await _configurationProvider.GetAsync();
 
             // No real gateway configured. In development we return a mock authority with an empty
             // payment URL so the internal mock-verify flow can complete the order (enabling local
             // end-to-end testing). In production we must NOT silently "succeed" — that would let
             // orders complete without a real payment — so we degrade to a failure that surfaces a
             // friendly "gateway unavailable" message instead of an unhandled 500.
-            if (string.IsNullOrWhiteSpace(merchantId))
+            if (string.IsNullOrWhiteSpace(configuration.MerchantId))
                 return (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))
                     ? (true, $"MOCK-{Guid.NewGuid():N}", string.Empty)
                     : (false, string.Empty, string.Empty);
 
             try
             {
-                var callbackUrl = await GetRequiredSettingAsync("ZarinpalCallbackUrl");
+                var validation = await _configurationProvider.ValidateAsync();
+                if (!validation.IsValid || configuration.BaseUri is null || configuration.StartPayUri is null || configuration.CallbackUri is null)
+                    return (false, string.Empty, string.Empty);
 
-                var baseUrl = await GetSettingOrDefaultAsync(
-                    "ZarinpalBaseUrl",
-                    "https://sandbox.zarinpal.com/pg/v4/payment");
-
-                var startPayUrl = await GetSettingOrDefaultAsync(
-                    "ZarinpalStartPayUrl",
-                    "https://sandbox.zarinpal.com/pg/StartPay");
-
-                baseUrl = baseUrl.TrimEnd('/');
-                startPayUrl = startPayUrl.TrimEnd('/');
+                var baseUrl = configuration.BaseUri.AbsoluteUri.TrimEnd('/');
+                var startPayUrl = configuration.StartPayUri.AbsoluteUri.TrimEnd('/');
 
                 var request = new ZarinpalRequestDto
                 {
-                    merchant_id = merchantId,
+                    merchant_id = configuration.MerchantId,
                     amount = amount,
                     currency = currency switch
                     {
@@ -83,7 +78,7 @@ namespace Vitorize.Infrastructure.Services
                         _ => throw new InvalidOperationException("Unsupported payment currency.")
                     },
                     description = description,
-                    callback_url = callbackUrl,
+                    callback_url = configuration.CallbackUri.AbsoluteUri,
                     metadata = new ZarinpalMetadataDto
                     {
                         mobile = mobile,
@@ -131,17 +126,16 @@ namespace Vitorize.Infrastructure.Services
             if (PaymentFaultEnabled("VerifyFail"))
                 return (false, 0);
 
-            var merchantId = await GetRequiredSettingAsync("ZarinpalMerchantId");
+            var configuration = await _configurationProvider.GetAsync();
+            var validation = await _configurationProvider.ValidateAsync();
+            if (!validation.IsValid || configuration.BaseUri is null)
+                return (false, 0);
 
-            var baseUrl = await GetSettingOrDefaultAsync(
-                "ZarinpalBaseUrl",
-                "https://sandbox.zarinpal.com/pg/v4/payment");
-
-            baseUrl = baseUrl.TrimEnd('/');
+            var baseUrl = configuration.BaseUri.AbsoluteUri.TrimEnd('/');
 
             var request = new ZarinpalVerifyRequestDto
             {
-                merchant_id = merchantId,
+                merchant_id = configuration.MerchantId,
                 amount = amount,
                 authority = authority
             };
@@ -184,34 +178,13 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
-        private async Task<string> GetRequiredSettingAsync(string key)
-        {
-            var value = await _settingService.GetValueAsync(key);
-
-            if (string.IsNullOrWhiteSpace(value))
-                throw new InvalidOperationException($"Setting '{key}' is not configured.");
-
-            return value.Trim();
-        }
-
-        private async Task<string> GetSettingOrDefaultAsync(string key, string defaultValue)
-        {
-            var value = await _settingService.GetValueAsync(key);
-
-            return string.IsNullOrWhiteSpace(value)
-                ? defaultValue
-                : value.Trim();
-        }
-
         public async Task<string> BuildPaymentUrlAsync(string authority)
         {
-            var startPayUrl = await GetSettingOrDefaultAsync(
-                "ZarinpalStartPayUrl",
-                "https://sandbox.zarinpal.com/pg/StartPay");
-
-            startPayUrl = startPayUrl.TrimEnd('/');
-
-            return $"{startPayUrl}/{authority}";
+            var configuration = await _configurationProvider.GetAsync();
+            var validation = await _configurationProvider.ValidateAsync();
+            if (!validation.IsValid || configuration.StartPayUri is null)
+                throw new InvalidOperationException("Zarinpal payment configuration is invalid.");
+            return $"{configuration.StartPayUri.AbsoluteUri.TrimEnd('/')}/{authority}";
         }
     }
 }

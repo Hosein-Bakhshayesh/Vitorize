@@ -63,6 +63,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
+            services.AddScoped<IZarinpalPaymentConfigurationProvider, ZarinpalPaymentConfigurationProvider>();
 
             // Testing-environment-only fault injection (Off by default; guarded by IHostEnvironment).
             services.Configure<Services.Testing.TestingFaultInjectionOptions>(
@@ -115,8 +116,6 @@ namespace Vitorize.Infrastructure
             services.Configure<DevelopmentDemoUserOptions>(
                 configuration.GetSection(DevelopmentDemoUserOptions.SectionName));
 
-            services.Configure<ZarinpalSettings>(
-                configuration.GetSection("Zarinpal"));
             services.Configure<MonitoringOptions>(
                 configuration.GetSection("Monitoring"));
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using Vitorize.Application.Interfaces;
 using Vitorize.Application.Models.Sms;
+using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Services;
 using Vitorize.Infrastructure.Services.Sms;
 using Vitorize.Infrastructure.Services.Testing;
@@ -71,30 +72,32 @@ public sealed class TestingFaultInjectionTests
     [Fact]
     public async Task Payment_verify_fault_is_injected_in_testing_environment()
     {
-        var settings = Substitute.For<ISettingService>();
+        var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
         var gateway = new ZarinpalGatewayService(
-            new HttpClient(), settings, Env("Testing"),
+            new HttpClient(), configuration, Env("Testing"),
             Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }));
 
         var (success, refId) = await gateway.VerifyPaymentAsync("authority", 100m);
 
         Assert.False(success);
         Assert.Equal(0, refId);
-        // The fault short-circuits before any gateway/setting call.
-        await settings.DidNotReceive().GetValueAsync(Arg.Any<string>());
+        // The fault short-circuits before any gateway configuration call.
+        await configuration.DidNotReceive().GetAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Payment_verify_fault_is_ignored_outside_testing_environment()
     {
-        var settings = Substitute.For<ISettingService>();
-        settings.GetValueAsync("ZarinpalMerchantId").Returns((string?)null);
+        var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
+        configuration.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration("", null, null, null, null, null));
+        configuration.ValidateAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalConfigurationValidation(false, new[] { "invalid" }));
         var gateway = new ZarinpalGatewayService(
-            new HttpClient(), settings, Env("Production"),
+            new HttpClient(), configuration, Env("Production"),
             Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }));
 
-        // Fault ignored in Production -> the real path runs and fails on the missing merchant setting,
-        // proving the injected VerifyFail was NOT applied.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => gateway.VerifyPaymentAsync("authority", 100m));
+        // Fault ignored in Production -> real configuration validation runs and fails safely.
+        var result = await gateway.VerifyPaymentAsync("authority", 100m);
+        Assert.False(result.Success);
+        await configuration.Received(1).GetAsync(Arg.Any<CancellationToken>());
     }
 }
