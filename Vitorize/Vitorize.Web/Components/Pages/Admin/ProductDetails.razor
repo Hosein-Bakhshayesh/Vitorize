@@ -47,11 +47,11 @@ else if (_product is not null)
                 </div>
                 <div class="vz-summary__item">
                     <span class="vz-summary__label">تصاویر گالری</span>
-                    <span class="vz-summary__value">@AUI.Number(_images.Count)</span>
+                    <span class="vz-summary__value">@AUI.Number(_imageTotal)</span>
                 </div>
                 <div class="vz-summary__item">
                     <span class="vz-summary__label">واریانت‌ها</span>
-                    <span class="vz-summary__value">@AUI.Number(_variants.Count)</span>
+                    <span class="vz-summary__value">@AUI.Number(_variantTotal)</span>
                 </div>
                 <div class="vz-summary__item">
                     <span class="vz-summary__label">امتیاز و نظرات</span>
@@ -167,6 +167,7 @@ else if (_product is not null)
                                 </tbody>
                             </table>
                         </div>
+                        <Pagination Page="_variantPage" PageSize="_variantPageSize" TotalCount="_variantTotal" OnPageChanged="ChangeVariantPage" />
                     }
                 </div>
             </div>
@@ -254,6 +255,7 @@ else if (_product is not null)
                             }
                         </div>
                     }
+                    <Pagination Page="_imagePage" PageSize="_imagePageSize" TotalCount="_imageTotal" OnPageChanged="ChangeImagePage" />
                 </div>
             </div>
 
@@ -334,6 +336,8 @@ else if (_product is not null)
     private AdminProductModel? _product;
     private List<AdminProductImageModel> _images = new();
     private List<AdminProductVariantModel> _variants = new();
+    private int _imagePage = 1, _imageTotal, _variantPage = 1, _variantTotal;
+    private const int _imagePageSize = 8, _variantPageSize = 25;
 
     private CustomerReviewSummaryModel _reviews = new();
     private int _giftAvailable, _giftReserved, _giftSold, _giftTotal;
@@ -353,8 +357,8 @@ else if (_product is not null)
         _loading = true; _error = null;
 
         var productTask = Api.GetAsync<AdminProductModel>($"admin/products/{Id}");
-        var imagesTask = Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
-        var variantsTask = Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{Id}/variants");
+        var imagesTask = Api.GetAsync<PagedResult<AdminProductImageModel>>($"admin/products/{Id}/images/paged?page={_imagePage}&pageSize={_imagePageSize}");
+        var variantsTask = Api.GetAsync<PagedResult<AdminProductVariantModel>>($"admin/products/{Id}/variants/paged?page={_variantPage}&pageSize={_variantPageSize}");
         await Task.WhenAll(productTask, imagesTask, variantsTask);
 
         if (!productTask.Result.IsSuccess || productTask.Result.Data is null)
@@ -365,13 +369,27 @@ else if (_product is not null)
         }
 
         _product = productTask.Result.Data;
-        _images = imagesTask.Result.Data ?? new();
-        _variants = variantsTask.Result.Data ?? new();
+        _images = imagesTask.Result.Data?.Items.ToList() ?? new();
+        _imageTotal = imagesTask.Result.Data?.TotalCount ?? 0;
+        _variants = variantsTask.Result.Data?.Items.ToList() ?? new();
+        _variantTotal = variantsTask.Result.Data?.TotalCount ?? 0;
         _loading = false;
 
         // These panels are complementary — load them after the core render and never let a
         // failure break the page. Uses only existing read endpoints.
         await LoadInsights();
+    }
+
+    private async Task ChangeImagePage(int page)
+    {
+        _imagePage = page;
+        await Load();
+    }
+
+    private async Task ChangeVariantPage(int page)
+    {
+        _variantPage = page;
+        await Load();
     }
 
     private async Task LoadInsights()

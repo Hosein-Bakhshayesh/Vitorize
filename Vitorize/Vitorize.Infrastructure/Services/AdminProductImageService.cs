@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.ProductImages;
+using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -44,6 +45,30 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
 
             return images;
+        }
+
+        public async Task<Vitorize.Shared.Common.PagedResult<AdminProductImageDto>> GetPagedByProductIdAsync(
+            Guid productId, ProductDetailFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new ProductDetailFilterDto();
+            var thumbnailImagePath = await _dbContext.Products.AsNoTracking().Where(x => x.Id == productId && !x.IsDeleted)
+                .Select(x => x.ThumbnailImagePath).FirstOrDefaultAsync(cancellationToken);
+            if (thumbnailImagePath is null && !await _dbContext.Products.AsNoTracking().AnyAsync(x => x.Id == productId && !x.IsDeleted, cancellationToken))
+                throw new NotFoundException("محصول یافت نشد.");
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.ProductImages.AsNoTracking().Where(x => x.ProductId == productId);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderByDescending(x => x.SortOrder).ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                : query.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new AdminProductImageDto
+            {
+                Id = x.Id, ProductId = x.ProductId, ImagePath = x.ImagePath, AltText = x.AltText,
+                SortOrder = x.SortOrder, CreatedAt = x.CreatedAt, IsThumbnail = x.ImagePath == thumbnailImagePath
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<AdminProductImageDto>
+                { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
         public async Task<AdminProductImageDto> CreateAsync(

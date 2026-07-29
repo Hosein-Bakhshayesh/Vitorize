@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vitorize.Application.DTOs.Admin.ProductImages;
+using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 
@@ -28,6 +29,14 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<List<AdminProductImageDto>>.Success(
                 result,
                 "تصاویر محصول با موفقیت دریافت شدند."));
+        }
+
+        [HttpGet("products/{productId:guid}/images/paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminProductImageDto>>>> GetPagedByProductId(
+            Guid productId, [FromQuery] ProductDetailFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _productImageService.GetPagedByProductIdAsync(productId, filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<AdminProductImageDto>>.Success(result, "تصاویر صفحه‌بندی‌شده محصول دریافت شد."));
         }
 
         [HttpPost("products/{productId:guid}/images")]

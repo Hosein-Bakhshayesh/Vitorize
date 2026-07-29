@@ -194,6 +194,60 @@ public sealed class AdminCatalogCrudIntegrationTests
         (await admin.PostAsJsonAsync("/api/admin/categories", request)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Product_variant_and_media_detail_lists_are_paged_and_authorized()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var suffix = Guid.NewGuid().ToString("N");
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = "Paged details", Slug = $"paged-details-{suffix}",
+            IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var product = new Product
+        {
+            Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Paged product details",
+            Slug = $"paged-product-details-{suffix}", ProductType = (byte)ProductType.Other,
+            DeliveryType = (byte)DeliveryType.Manual, BasePrice = 10m, CurrencyType = (byte)CurrencyType.Toman,
+            MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.Categories.Add(category);
+            db.Products.Add(product);
+            db.ProductVariants.AddRange(Enumerable.Range(1, 55).Select(index => new ProductVariant
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, Title = $"Variant {index:000}",
+                Price = 10m, StockMode = (byte)ProductVariantStockMode.Manual, IsActive = true,
+                SortOrder = index, CreatedAt = product.CreatedAt
+            }));
+            db.ProductImages.AddRange(Enumerable.Range(1, 55).Select(index => new ProductImage
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, ImagePath = $"/uploads/paged-{suffix}-{index:000}.png",
+                SortOrder = index, CreatedAt = product.CreatedAt.AddMinutes(index)
+            }));
+            await db.SaveChangesAsync();
+        }
+
+        using var admin = _fixture.CreateClient(adminToken);
+        using var customer = _fixture.CreateClient(customerToken);
+        (await customer.GetAsync($"/api/admin/products/{product.Id}/variants/paged")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var variants = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductVariantDto>>>(
+            $"/api/admin/products/{product.Id}/variants/paged?page=1&pageSize=20");
+        var variantLast = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductVariantDto>>>(
+            $"/api/admin/products/{product.Id}/variants/paged?page=3&pageSize=20");
+        var images = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductImageDto>>>(
+            $"/api/admin/products/{product.Id}/images/paged?page=1&pageSize=20");
+        var imageLast = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductImageDto>>>(
+            $"/api/admin/products/{product.Id}/images/paged?page=3&pageSize=20");
+
+        variants!.Data!.TotalCount.Should().Be(55); variants.Data.Items.Should().HaveCount(20);
+        variantLast!.Data!.Items.Should().HaveCount(15);
+        images!.Data!.TotalCount.Should().Be(55); images.Data.Items.Should().HaveCount(20);
+        imageLast!.Data!.Items.Should().HaveCount(15);
+    }
+
     private static async Task<T> PostDataAsync<T>(HttpClient client, string path, object request)
     {
         var response = await client.PostAsJsonAsync(path, request);

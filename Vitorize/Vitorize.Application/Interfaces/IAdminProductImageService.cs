@@ -5,6 +5,7 @@ namespace Vitorize.Application.Interfaces
     public interface IAdminProductImageService
     {
         Task<List<AdminProductImageDto>> GetByProductIdAsync(Guid productId);
+        Task<Vitorize.Shared.Common.PagedResult<AdminProductImageDto>> GetPagedByProductIdAsync(Guid productId, Vitorize.Application.DTOs.Admin.Products.ProductDetailFilterDto filter, CancellationToken cancellationToken = default);
 
         Task<AdminProductImageDto> CreateAsync(
             Guid productId,

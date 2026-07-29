@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.ProductVariants;
+using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -51,6 +52,30 @@ namespace Vitorize.Infrastructure.Services
                         g.Status == GiftCodeStatusAvailable)
                 })
                 .ToListAsync();
+        }
+
+        public async Task<Vitorize.Shared.Common.PagedResult<AdminProductVariantDto>> GetPagedByProductIdAsync(
+            Guid productId, ProductDetailFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new ProductDetailFilterDto();
+            if (!await _dbContext.Products.AsNoTracking().AnyAsync(x => x.Id == productId && !x.IsDeleted, cancellationToken))
+                throw new NotFoundException("محصول یافت نشد.");
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.ProductVariants.AsNoTracking().Where(x => x.ProductId == productId);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderByDescending(x => x.SortOrder).ThenByDescending(x => x.Title).ThenBy(x => x.Id)
+                : query.OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new AdminProductVariantDto
+            {
+                Id = x.Id, ProductId = x.ProductId, ProductTitle = x.Product.Title, Title = x.Title,
+                Sku = x.Sku, Price = x.Price, DiscountPrice = x.DiscountPrice, Value = x.Value,
+                StockMode = x.StockMode, IsDefault = x.IsDefault, IsActive = x.IsActive, SortOrder = x.SortOrder,
+                AvailableStock = _dbContext.GiftCodes.Count(g => g.ProductVariantId == x.Id && g.Status == GiftCodeStatusAvailable)
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<AdminProductVariantDto>
+                { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
         public async Task<AdminProductVariantDto> GetByIdAsync(Guid id)

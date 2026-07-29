@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vitorize.Application.DTOs.Admin.ProductVariants;
+using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 
@@ -27,6 +28,14 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<List<AdminProductVariantDto>>.Success(
                 result,
                 "لیست تنوع‌های محصول با موفقیت دریافت شد."));
+        }
+
+        [HttpGet("products/{productId:guid}/variants/paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminProductVariantDto>>>> GetPagedByProductId(
+            Guid productId, [FromQuery] ProductDetailFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _variantService.GetPagedByProductIdAsync(productId, filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<AdminProductVariantDto>>.Success(result, "تنوع‌های صفحه‌بندی‌شده محصول دریافت شد."));
         }
 
         [HttpGet("product-variants/{id:guid}")]
