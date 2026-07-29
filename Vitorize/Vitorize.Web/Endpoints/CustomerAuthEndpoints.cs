@@ -126,8 +126,16 @@ namespace Vitorize.Web.Endpoints
             http.Response.Redirect(SafeReturn(returnUrl));
         }
 
-        private static async Task LogoutAsync(HttpContext http)
+        private static async Task LogoutAsync(HttpContext http, ApiClient apiClient)
         {
+            var refreshToken = http.Request.Cookies[VitorizeAuthSchemes.CustomerRefreshTokenCookie];
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                // Revoke at the API before clearing browser state. The API response is deliberately
+                // not reflected to the browser; logout remains safe and idempotent when a session is
+                // already expired or revoked.
+                await apiClient.PostAsync("auth/logout", new { RefreshToken = refreshToken });
+            }
             await http.SignOutAsync(VitorizeAuthSchemes.CustomerScheme);
             http.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerAccessTokenCookie);
             http.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerRefreshTokenCookie);

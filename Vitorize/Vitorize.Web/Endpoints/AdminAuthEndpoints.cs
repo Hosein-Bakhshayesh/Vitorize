@@ -146,8 +146,15 @@ namespace Vitorize.Web.Endpoints
             http.Response.Redirect(SafeRedirect.LocalOrDefault(returnUrl, "/admin/dashboard"));
         }
 
-        private static async Task LogoutAsync(HttpContext http)
+        private static async Task LogoutAsync(HttpContext http, ApiClient apiClient)
         {
+            var refreshToken = http.Request.Cookies[VitorizeAuthSchemes.AdminRefreshTokenCookie];
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                // Revocation happens before local cookie removal and uses the authenticated area
+                // token selected by ApiClient/AccessTokenProvider; refresh values are never logged.
+                await apiClient.PostAsync("auth/logout", new { RefreshToken = refreshToken });
+            }
             await http.SignOutAsync(VitorizeAuthSchemes.AdminScheme);
 
             http.Response.Cookies.Delete(VitorizeAuthSchemes.AdminAccessTokenCookie);
