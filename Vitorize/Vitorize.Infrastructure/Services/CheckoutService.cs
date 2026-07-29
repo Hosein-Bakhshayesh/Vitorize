@@ -138,6 +138,12 @@ namespace Vitorize.Infrastructure.Services
                 if (finalAmount < 0)
                     finalAmount = 0;
 
+                // There is no zero-value payment/fulfilment workflow.  Reject
+                // this before creating an order or reserving stock, rather than
+                // stranding a pending order that no payment path can settle.
+                if (finalAmount <= 0)
+                    throw new BusinessException("پرداخت سفارش رایگان پشتیبانی نمی‌شود. قیمت کالا یا تخفیف را اصلاح کنید.");
+
                 var order = new Order
                 {
                     Id = Guid.NewGuid(),

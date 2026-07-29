@@ -971,7 +971,7 @@ namespace Vitorize.Infrastructure.Services
                 Id = ticketId,
                 UserId = order.UserId,
                 OrderId = order.Id,
-                Subject = $"تحویل اکانت GTA VI - سفارش {order.OrderNumber}",
+                Subject = $"پیگیری تحویل «{item.ProductTitle}» - سفارش {order.OrderNumber}",
                 Department = (byte)TicketDepartment.Orders,
                 Priority = (byte)TicketPriority.Normal,
                 Status = (byte)TicketStatus.WaitingForAdmin,

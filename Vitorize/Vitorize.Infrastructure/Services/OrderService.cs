@@ -212,6 +212,12 @@ namespace Vitorize.Infrastructure.Services
             if (order.Status == (byte)OrderStatus.Cancelled)
                 throw new BusinessException("این سفارش قبلاً لغو شده است.");
 
+            // A paid order cannot take the ordinary cancellation path because
+            // that would leave captured customer funds without a refund record.
+            // Finance staff must use the idempotent refund workflow instead.
+            if (order.PaymentStatus == (byte)PaymentStatus.Paid)
+                throw new BusinessException("سفارش پرداخت‌شده باید ابتدا از مسیر بازپرداخت مالی لغو شود.");
+
             var hasDelivery = order.OrderItems
                 .Any(x => x.OrderItemDeliveries.Any());
 
@@ -285,6 +291,9 @@ namespace Vitorize.Infrastructure.Services
 
             if (order.PaymentStatus != (byte)PaymentStatus.Paid)
                 throw new BusinessException("سفارش پرداخت نشده قابل تکمیل نیست.");
+
+            if (order.OrderItems.Any(x => x.DeliveryStatus != (byte)DeliveryStatus.Delivered))
+                throw new BusinessException("تا زمان تحویل همه آیتم‌ها، تکمیل سفارش مجاز نیست.");
 
             var now = DateTime.UtcNow;
             var fromStatus = order.Status;
