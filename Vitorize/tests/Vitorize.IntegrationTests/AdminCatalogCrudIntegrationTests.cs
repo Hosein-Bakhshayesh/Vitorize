@@ -248,6 +248,30 @@ public sealed class AdminCatalogCrudIntegrationTests
         imageLast!.Data!.Items.Should().HaveCount(15);
     }
 
+    [Fact]
+    public async Task Selected_product_export_validates_the_entire_request_and_returns_a_safe_deterministic_projection()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var suffix = Guid.NewGuid().ToString("N");
+        var category = new Category { Id = Guid.NewGuid(), Title = "Export category", Slug = $"export-category-{suffix}", IsActive = true, CreatedAt = DateTime.UtcNow };
+        var first = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "=HYPERLINK(\"http://example.test\",\"open\")", Slug = $"export-a-{suffix}", ProductType = 1, DeliveryType = 2, BasePrice = 10m, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow };
+        var second = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Zulu", Slug = $"export-z-{suffix}", ProductType = 1, DeliveryType = 2, BasePrice = 10m, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow };
+        await using (var db = _fixture.CreateDbContext()) { db.AddRange(category, first, second); await db.SaveChangesAsync(); }
+        using var admin = _fixture.CreateClient(adminToken);
+        using var customer = _fixture.CreateClient(customerToken);
+
+        var valid = await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { second.Id, first.Id } });
+        valid.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await valid.Content.ReadFromJsonAsync<ApiResult<List<AdminProductDto>>>();
+        body!.Data!.Select(x => x.Id).Should().Equal(first.Id, second.Id);
+        (await customer.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id } })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = Array.Empty<Guid>() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id, first.Id } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = new[] { first.Id, Guid.NewGuid() } })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/admin/products/export-selection", new { Ids = Enumerable.Range(0, 201).Select(_ => Guid.NewGuid()).ToArray() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private static async Task<T> PostDataAsync<T>(HttpClient client, string path, object request)
     {
         var response = await client.PostAsJsonAsync(path, request);

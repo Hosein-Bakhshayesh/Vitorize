@@ -17,6 +17,7 @@ namespace Vitorize.Infrastructure.Services
 {
     public class OrderService : IOrderService
     {
+        private const int MaxExportSelection = 200;
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
@@ -227,7 +228,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var selected = ids.Where(x => x != Guid.Empty).Distinct().ToArray();
             if (selected.Length == 0) throw new BusinessException("حداقل یک سفارش باید انتخاب شود.");
-            if (selected.Length > 200) throw new BusinessException("حداکثر ۲۰۰ سفارش را می‌توان هم‌زمان خروجی گرفت.");
+            if (selected.Length > MaxExportSelection) throw new BusinessException($"حداکثر {MaxExportSelection} سفارش را می‌توان هم‌زمان خروجی گرفت.");
             if (selected.Length != ids.Count) throw new BusinessException("شناسه‌های انتخاب‌شده معتبر نیستند.");
             var query = _dbContext.Orders.AsNoTracking().Where(x => selected.Contains(x.Id));
             if (await query.CountAsync(cancellationToken) != selected.Length)
