@@ -138,6 +138,24 @@ namespace Vitorize.Infrastructure.Services
             return new Vitorize.Shared.Common.PagedResult<AdminProductDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
+        public async Task<List<AdminProductDto>> GetSelectedForExportAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+        {
+            var selected = ids.Where(x => x != Guid.Empty).Distinct().ToArray();
+            if (selected.Length == 0) throw new BusinessException("حداقل یک محصول باید انتخاب شود.");
+            if (selected.Length > 200) throw new BusinessException("حداکثر ۲۰۰ محصول را می‌توان هم‌زمان خروجی گرفت.");
+            if (selected.Length != ids.Count) throw new BusinessException("شناسه‌های انتخاب‌شده معتبر نیستند.");
+            var query = _dbContext.Products.AsNoTracking().Where(x => !x.IsDeleted && selected.Contains(x.Id));
+            if (await query.CountAsync(cancellationToken) != selected.Length)
+                throw new BusinessException("یکی از محصولات انتخاب‌شده معتبر نیست.");
+            return await query.OrderBy(x => x.Title).ThenBy(x => x.Id).Select(x => new AdminProductDto
+            {
+                Id = x.Id, Title = x.Title, Slug = x.Slug, CategoryTitle = x.Category.Title,
+                BrandTitle = x.Brand == null ? null : x.Brand.Title, ProductType = x.ProductType,
+                BasePrice = x.BasePrice, DiscountPrice = x.DiscountPrice, AvailableStock = x.GiftCodes.Count(c => c.Status == (byte)GiftCodeStatus.Available),
+                HasVariants = x.ProductVariants.Any(), IsActive = x.IsActive, IsFeatured = x.IsFeatured
+            }).ToListAsync(cancellationToken);
+        }
+
         public async Task<List<AdminProductLookupDto>> GetLookupAsync(string? search, Guid? selectedId, CancellationToken cancellationToken = default)
         {
             var query = _dbContext.Products.AsNoTracking().Where(x => !x.IsDeleted && x.IsActive);

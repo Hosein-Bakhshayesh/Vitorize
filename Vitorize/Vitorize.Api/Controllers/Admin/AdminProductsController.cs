@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vitorize.Application.DTOs.Admin.Products;
+using Vitorize.Application.DTOs.Admin;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
 
@@ -33,6 +34,14 @@ namespace Vitorize.Api.Controllers.Admin
         {
             var result = await _productService.GetPagedAsync(filter, cancellationToken);
             return Ok(ApiResult<PagedResult<AdminProductDto>>.Success(result, "فهرست صفحه‌بندی‌شده محصولات دریافت شد."));
+        }
+
+        [HttpPost("export-selection")]
+        public async Task<ActionResult<ApiResult<List<AdminProductDto>>>> ExportSelection(
+            SelectedRowsRequestDto request, CancellationToken cancellationToken)
+        {
+            var result = await _productService.GetSelectedForExportAsync(request.Ids, cancellationToken);
+            return Ok(ApiResult<List<AdminProductDto>>.Success(result, "محصولات انتخاب‌شده برای خروجی تأیید شدند."));
         }
 
         [HttpGet("lookup")]

@@ -316,7 +316,9 @@ else
     // ----- export -----
     private async Task ExportSelected()
     {
-        var rows = _items.Where(p => _selected.Contains(p.Id)).ToList();
+        var validated = await Api.PostAsync<List<AdminProductModel>>("admin/products/export-selection", new { Ids = _selected.ToList() });
+        if (!validated.IsSuccess || validated.Data is null) { Toasts.Error(validated.Message); return; }
+        var rows = validated.Data;
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Title,Slug,Category,Brand,Type,BasePrice,DiscountPrice,Stock,Active,Featured");
         foreach (var p in rows)
