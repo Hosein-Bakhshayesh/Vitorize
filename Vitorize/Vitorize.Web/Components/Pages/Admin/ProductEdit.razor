@@ -1,5 +1,6 @@
 @page "/admin/products/create"
 @page "/admin/products/{Id:guid}"
+@implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
@@ -291,6 +292,7 @@ else
                                     </tbody>
                                 </table>
                             </div>
+                            <Pagination Page="_variantPage" PageSize="_variantPageSize" TotalCount="_variantTotal" OnPageChanged="ChangeVariantPage" />
                         }
                     </div>
                 </div>
@@ -443,6 +445,9 @@ else
     private List<AdminBrandModel> _brands = new();
     private List<AdminProductTagModel> _tags = new();
     private List<AdminProductVariantModel> _variants = new();
+    private int _variantPage = 1, _variantTotal;
+    private const int _variantPageSize = 25;
+    private CancellationTokenSource? _variantLoadCts;
 
     // summary (edit mode)
     private int _availableStock;
@@ -516,14 +521,27 @@ else
 
     private async Task LoadVariants()
     {
-        var r = await Api.GetAsync<List<AdminProductVariantModel>>($"admin/products/{Id}/variants");
-        _variants = r.Data ?? new();
+        _variantLoadCts?.Cancel();
+        _variantLoadCts?.Dispose();
+        _variantLoadCts = new CancellationTokenSource();
+        var cancellationToken = _variantLoadCts.Token;
+        var r = await Api.GetAsync<PagedResult<AdminProductVariantModel>>(
+            $"admin/products/{Id}/variants/paged?page={_variantPage}&pageSize={_variantPageSize}", cancellationToken);
+        if (cancellationToken.IsCancellationRequested) return;
+        _variants = r.Data?.Items.ToList() ?? new();
+        _variantTotal = r.Data?.TotalCount ?? 0;
     }
 
     private async Task LoadImageCount()
     {
-        var r = await Api.GetAsync<List<AdminProductImageModel>>($"admin/products/{Id}/images");
-        _imageCount = r.Data?.Count ?? 0;
+        var r = await Api.GetAsync<PagedResult<AdminProductImageModel>>($"admin/products/{Id}/images/paged?page=1&pageSize=1");
+        _imageCount = r.Data?.TotalCount ?? 0;
+    }
+
+    private async Task ChangeVariantPage(int page)
+    {
+        _variantPage = page;
+        await LoadVariants();
     }
 
     private void OnTitleChanged()
@@ -622,7 +640,7 @@ else
             : await Api.PutAsync<AdminProductVariantModel>($"admin/product-variants/{_variantEditingId}", _variant);
         _savingVariant = false;
 
-        if (r.IsSuccess) { Toasts.Success("واریانت ذخیره شد."); _variantOpen = false; await LoadVariants(); }
+        if (r.IsSuccess) { Toasts.Success("واریانت ذخیره شد."); _variantOpen = false; _variantPage = 1; await LoadVariants(); }
         else Toasts.Error(r.Message);
     }
 
@@ -634,7 +652,18 @@ else
         _deletingVariant = true;
         var r = await Api.DeleteAsync($"admin/product-variants/{_variantTarget.Id}");
         _deletingVariant = false; _confirmVariantDelete = false;
-        if (r.IsSuccess) { Toasts.Success("واریانت حذف شد."); await LoadVariants(); }
+        if (r.IsSuccess)
+        {
+            Toasts.Success("واریانت حذف شد.");
+            if (_variants.Count == 1 && _variantPage > 1) _variantPage--;
+            await LoadVariants();
+        }
         else Toasts.Error(r.Message);
+    }
+
+    public void Dispose()
+    {
+        _variantLoadCts?.Cancel();
+        _variantLoadCts?.Dispose();
     }
 }
