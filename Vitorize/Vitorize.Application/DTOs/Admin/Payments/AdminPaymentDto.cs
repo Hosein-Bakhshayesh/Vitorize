@@ -21,5 +21,6 @@
         public DateTime? VerifiedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? ErrorMessage { get; set; }
+        public List<Vitorize.Application.DTOs.Payments.PaymentRefundDto> Refunds { get; set; } = [];
     }
 }

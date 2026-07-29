@@ -605,6 +605,12 @@ namespace Vitorize.Infrastructure.Services
                 return MapRefund(existing);
             }
 
+            var activeRefundExists = await _dbContext.PaymentRefunds.AsNoTracking()
+                .AnyAsync(x => x.PaymentId == paymentId &&
+                    (x.Status == (byte)PaymentRefundStatus.Pending || x.Status == (byte)PaymentRefundStatus.Completed));
+            if (activeRefundExists)
+                throw new BusinessException("An active or completed refund already exists for this payment.");
+
             var payment = await _dbContext.Payments
                 .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations).ThenInclude(x => x.GiftCode)
                 .FirstOrDefaultAsync(x => x.Id == paymentId)

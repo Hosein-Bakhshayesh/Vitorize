@@ -9,6 +9,9 @@
 <PageHeader Title="پرداخت‌ها" Subtitle="تراکنش‌های پرداخت سفارش‌ها"
             Icon="credit-card" Breadcrumbs="@(new(){ ("پرداخت‌ها", null) })">
     <Actions>
+        <button class="vz-btn vz-btn--outline" disabled="@_reconciling" @onclick="ReconcilePending">
+            <Icon Name="rotate-cw" Size="17" /> @(_reconciling ? "Reconciling..." : "Reconcile pending")
+        </button>
         <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="() => Load()"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
@@ -120,6 +123,30 @@
 
             <div class="vz-divider"></div>
             <div class="vz-card__title" style="margin-bottom:12px">سیر تراکنش</div>
+            <div class="vz-card__title" style="margin:16px 0 12px">Refund management</div>
+            @if (d.Refunds.Count > 0)
+            {
+                @foreach (var refund in d.Refunds)
+                {
+                    <div class="vz-card" style="margin-bottom:10px"><div class="vz-card__body">
+                        <div class="vz-spread"><strong>@(refund.Method == 1 ? "Wallet" : "Gateway manual")</strong><span class="vz-chip">@RefundStatus(refund.Status)</span></div>
+                        <div class="vz-muted" style="margin-top:6px">@refund.Reason · <MoneyDisplay Amount="refund.Amount" /></div>
+                        @if (refund.Status == 1 && refund.Method == 2)
+                        {
+                            <div class="vz-field" style="margin-top:10px"><label class="vz-label">Gateway refund reference</label><input class="vz-input" @bind="_gatewayReference" /></div>
+                            <button class="vz-btn vz-btn--primary" disabled="@_submittingRefund" @onclick="() => CompleteRefund(refund.Id)">Mark completed</button>
+                        }
+                    </div></div>
+                }
+            }
+            @if (CanRequestRefund(d))
+            {
+                <div class="vz-card" style="background:var(--admin-primary-soft);border:none"><div class="vz-card__body">
+                    <div class="vz-field"><label class="vz-label">Refund reason</label><textarea class="vz-input" rows="3" maxlength="1000" @bind="_refundReason"></textarea></div>
+                    <div class="vz-field"><label class="vz-label">Method</label><select class="vz-input" @bind="_refundMethod"><option value="1">Wallet</option><option value="2">Gateway manual</option></select></div>
+                    <button class="vz-btn vz-btn--danger" disabled="@_submittingRefund" @onclick="RequestRefund">@(_submittingRefund ? "Submitting..." : "Request refund")</button>
+                </div></div>
+            }
             <Timeline Items="BuildTimeline(d)" />
         }
     </ChildContent>
@@ -141,6 +168,9 @@
 
     private bool _detailOpen;
     private AdminPaymentModel? _detail;
+    private bool _submittingRefund, _reconciling;
+    private string _refundReason = string.Empty, _gatewayReference = string.Empty;
+    private byte _refundMethod = 1;
 
     private DotNetObjectReference<Payments>? _selfRef;
 
@@ -195,6 +225,50 @@
         _detailOpen = true;
         var r = await Api.GetAsync<AdminPaymentModel>($"admin/payments/{id}");
         if (r.IsSuccess && r.Data is not null) { _detail = r.Data; StateHasChanged(); }
+    }
+
+    private static bool CanRequestRefund(AdminPaymentModel payment) =>
+        payment.Status == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid &&
+        !payment.Refunds.Any(x => x.Status is 1 or 2);
+
+    private static string RefundStatus(byte status) => status switch { 1 => "Pending", 2 => "Completed", 3 => "Failed", 4 => "Cancelled", _ => "Unknown" };
+
+    private async Task RequestRefund()
+    {
+        if (_detail is null) return;
+        if (string.IsNullOrWhiteSpace(_refundReason)) { Toasts.Error("A refund reason is required."); return; }
+        _submittingRefund = true;
+        var result = await Api.PostAsync<PaymentRefundModel>($"admin/payments/{_detail.Id}/refund", new
+        {
+            Method = _refundMethod, Reason = _refundReason.Trim(), IdempotencyKey = Guid.NewGuid().ToString("N")
+        });
+        _submittingRefund = false;
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success("Refund request recorded.");
+        _refundReason = string.Empty;
+        await OpenDetails(_detail.Id);
+    }
+
+    private async Task CompleteRefund(Guid refundId)
+    {
+        if (string.IsNullOrWhiteSpace(_gatewayReference)) { Toasts.Error("Gateway refund reference is required."); return; }
+        _submittingRefund = true;
+        var result = await Api.PostAsync<PaymentRefundModel>($"admin/payments/refunds/{refundId}/complete", new { GatewayReference = _gatewayReference.Trim() });
+        _submittingRefund = false;
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success("Refund marked completed.");
+        _gatewayReference = string.Empty;
+        if (_detail is not null) await OpenDetails(_detail.Id);
+    }
+
+    private async Task ReconcilePending()
+    {
+        _reconciling = true;
+        var result = await Api.PostAsync<int>("payments/zarinpal/reconcile");
+        _reconciling = false;
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success($"Reconciled {AUI.Number(result.Data)} pending payments.");
+        await Load();
     }
 
     private RenderFragment CopyCell(string? value) => builder =>

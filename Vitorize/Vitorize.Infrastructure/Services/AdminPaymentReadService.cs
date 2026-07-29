@@ -93,6 +93,20 @@ namespace Vitorize.Infrastructure.Services
                 })
                 .FirstOrDefaultAsync();
 
+            if (item is not null)
+            {
+                item.Refunds = await _dbContext.PaymentRefunds.AsNoTracking()
+                    .Where(x => x.PaymentId == item.Id)
+                    .OrderByDescending(x => x.RequestedAt)
+                    .Select(x => new Vitorize.Application.DTOs.Payments.PaymentRefundDto
+                    {
+                        Id = x.Id, PaymentId = x.PaymentId, OrderId = x.OrderId, Amount = x.Amount,
+                        Method = x.Method, Status = x.Status, Reason = x.Reason,
+                        RequestedAt = x.RequestedAt, CompletedAt = x.CompletedAt
+                    })
+                    .ToListAsync();
+            }
+
             return item ?? throw new KeyNotFoundException("پرداخت پیدا نشد.");
         }
     }

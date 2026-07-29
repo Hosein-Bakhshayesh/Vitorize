@@ -13,6 +13,7 @@ using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Services;
 using Vitorize.IntegrationTests.Infrastructure;
 using Vitorize.Shared.Enums;
+using Vitorize.Shared.Exceptions;
 
 namespace Vitorize.IntegrationTests;
 
@@ -112,6 +113,36 @@ public sealed class PaymentDeliveryIntegrationTests
         (await verify.Payments.SingleAsync(x => x.Id == payment.Id)).Status.Should().Be((byte)PaymentStatus.Refunded);
         (await verify.FinancialAuditLogs.Where(x => x.CorrelationId == order.Id).ToListAsync())
             .Should().Contain(x => x.EventType == "PaymentRefundCompleted");
+    }
+
+    [Fact]
+    public async Task Pending_manual_refund_rejects_a_second_idempotency_key()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var order = NewOrder(user.Id);
+        order.Status = (byte)OrderStatus.Processing; order.PaymentStatus = (byte)PaymentStatus.Paid;
+        var payment = NewPayment(user.Id, order.Id, $"MANUAL-REFUND-{Guid.NewGuid():N}");
+        payment.Status = (byte)PaymentStatus.Paid; payment.VerifiedAt = DateTime.UtcNow;
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(payment); await seed.SaveChangesAsync();
+        }
+
+        await using var db = _fixture.CreateDbContext();
+        var service = NewPaymentService(db, new SuccessfulGateway(), new NullWallet());
+        var first = await service.RefundAsync(payment.Id, admin.Id, new PaymentRefundRequestDto
+        {
+            Method = (byte)PaymentRefundMethod.GatewayManual, Reason = "Manual gateway refund",
+            IdempotencyKey = $"refund-{Guid.NewGuid():N}"
+        });
+        first.Status.Should().Be((byte)PaymentRefundStatus.Pending);
+        Func<Task> duplicate = () => service.RefundAsync(payment.Id, admin.Id, new PaymentRefundRequestDto
+        {
+            Method = (byte)PaymentRefundMethod.GatewayManual, Reason = "Duplicate manual refund",
+            IdempotencyKey = $"refund-{Guid.NewGuid():N}"
+        });
+        await duplicate.Should().ThrowAsync<BusinessException>();
     }
 
     [Fact]
