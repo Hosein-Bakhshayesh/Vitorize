@@ -4,6 +4,7 @@ using Vitorize.Application.DTOs.Admin.Uploads;
 using Vitorize.Shared.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Api.Hosting;
 
 namespace Vitorize.Api.Controllers
 {
@@ -18,6 +19,7 @@ namespace Vitorize.Api.Controllers
     {
         private readonly IWebHostEnvironment _environment;
         private readonly ICurrentUserService _currentUser;
+        private readonly HostingStoragePaths _storagePaths;
 
         private static readonly string[] AllowedExtensions =
         {
@@ -33,10 +35,11 @@ namespace Vitorize.Api.Controllers
 
         private const long MaxFileSize = 5 * 1024 * 1024;
 
-        public UploadsController(IWebHostEnvironment environment, ICurrentUserService currentUser)
+        public UploadsController(IWebHostEnvironment environment, ICurrentUserService currentUser, HostingStoragePaths storagePaths)
         {
             _environment = environment;
             _currentUser = currentUser;
+            _storagePaths = storagePaths;
         }
 
         [HttpPost("verification-document")]
@@ -46,7 +49,7 @@ namespace Vitorize.Api.Controllers
         {
             var userId = _currentUser.UserId ?? throw new UnauthorizedException("کاربر احراز هویت نشده است.");
             var result = await Vitorize.Api.Controllers.Admin.UploadHelper.SavePrivateImageAsync(
-                _environment, file, userId.ToString("N"), MaxFileSize, AllowedExtensions, AllowedContentTypes);
+                _storagePaths.PrivateDocumentsRoot, file, userId.ToString("N"), MaxFileSize, AllowedExtensions, AllowedContentTypes);
 
             return Ok(ApiResult<UploadFileResultDto>.Success(
                 result,
@@ -56,7 +59,7 @@ namespace Vitorize.Api.Controllers
         private Task<UploadFileResultDto> SaveImageAsync(IFormFile file, string folderName)
         {
             return Vitorize.Api.Controllers.Admin.UploadHelper.SaveImageAsync(
-                _environment, file, folderName, MaxFileSize, AllowedExtensions, AllowedContentTypes);
+                _storagePaths.PublicMediaRoot, file, folderName, MaxFileSize, AllowedExtensions, AllowedContentTypes);
         }
     }
 }

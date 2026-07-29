@@ -1,4 +1,8 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using Vitorize.Web.Components;
 using Vitorize.Web.Endpoints;
 using Vitorize.Web.Services;
@@ -27,6 +31,35 @@ if (System.Diagnostics.Debugger.IsAttached &&
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog(SerilogHostConfiguration.Configure);
+var dataProtectionPath = builder.Configuration["Hosting:DataProtectionKeysPath"];
+var dataProtectionApplicationName = builder.Configuration["Hosting:DataProtectionApplicationName"];
+var trustedProxies = builder.Configuration.GetSection("Hosting:TrustedProxies").Get<string[]>() ?? [];
+var trustedProxyNetworks = builder.Configuration.GetSection("Hosting:TrustedProxyNetworks").Get<string[]>() ?? [];
+if (builder.Environment.IsProduction() && (string.IsNullOrWhiteSpace(dataProtectionPath) || string.IsNullOrWhiteSpace(dataProtectionApplicationName)))
+    throw new InvalidOperationException("Production requires Hosting:DataProtectionKeysPath and Hosting:DataProtectionApplicationName for cookie continuity.");
+if (builder.Environment.IsProduction() && trustedProxies.Length == 0 && trustedProxyNetworks.Length == 0)
+    throw new InvalidOperationException("Production requires Hosting:TrustedProxies or Hosting:TrustedProxyNetworks.");
+dataProtectionPath = string.IsNullOrWhiteSpace(dataProtectionPath)
+    ? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys")
+    : Path.GetFullPath(dataProtectionPath);
+Directory.CreateDirectory(dataProtectionPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+    .SetApplicationName(string.IsNullOrWhiteSpace(dataProtectionApplicationName) ? "Vitorize" : dataProtectionApplicationName.Trim());
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    foreach (var proxy in trustedProxies)
+    {
+        if (!IPAddress.TryParse(proxy, out var address)) throw new InvalidOperationException("Hosting:TrustedProxies contains an invalid IP address.");
+        options.KnownProxies.Add(address);
+    }
+    foreach (var network in trustedProxyNetworks)
+    {
+        if (!Microsoft.AspNetCore.HttpOverrides.IPNetwork.TryParse(network, out var parsed)) throw new InvalidOperationException("Hosting:TrustedProxyNetworks contains an invalid CIDR network.");
+        options.KnownNetworks.Add(parsed);
+    }
+});
 builder.Services.AddHsts(options =>
 {
     options.MaxAge = TimeSpan.FromDays(365);
@@ -166,6 +199,7 @@ var app = builder.Build();
 var webContentSecurityPolicy = SecurityHeaderPolicy.BuildWebContentSecurityPolicy(
     builder.Configuration["ApiSettings:MediaBaseUrl"]);
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseForwardedHeaders();
 app.UseResponseCompression();
 
 if (!app.Environment.IsDevelopment())

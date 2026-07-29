@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -13,6 +14,7 @@ using Vitorize.Api.BackgroundServices;
 using Vitorize.Api.Extensions;
 using Vitorize.Api.Filters;
 using Vitorize.Api.Logging;
+using Vitorize.Api.Hosting;
 using Vitorize.Api.Middlewares;
 using Vitorize.Application;
 using Vitorize.Application.Common;
@@ -54,6 +56,12 @@ namespace Vitorize.Api
                 options.IncludeSubDomains = true;
                 options.Preload = true;
             });
+            builder.Services.AddSingleton<HostingStoragePaths>();
+            var hostingPaths = new HostingStoragePaths(builder.Environment, builder.Configuration);
+            builder.Services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(hostingPaths.DataProtectionKeysPath))
+                .SetApplicationName((builder.Configuration["Hosting:DataProtectionApplicationName"] ?? "Vitorize").Trim());
+            builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options => hostingPaths.ConfigureForwardedHeaders(options));
 
             // Controllers + FluentValidation filter
             builder.Services.AddControllers(options =>
@@ -264,6 +272,7 @@ namespace Vitorize.Api
             builder.Services.AddHostedService<SeqConnectivityProbe>();
 
             var app = builder.Build();
+            app.Services.GetRequiredService<HostingStoragePaths>().ValidateAndPrepare();
 
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseVitorizeRequestLogging();
@@ -273,6 +282,7 @@ namespace Vitorize.Api
 
             // Global Exception Handler
             app.UseMiddleware<GlobalExceptionMiddleware>();
+            app.UseForwardedHeaders();
 
             app.Use(async (context, next) =>
             {
@@ -317,8 +327,7 @@ namespace Vitorize.Api
 
             // سرو مطمئن فایل‌های آپلودشده (تصاویر محصولات، دسته‌بندی‌ها، بنرها، مدارک)
             // مستقل از وجود پوشه wwwroot در زمان شروع برنامه.
-            var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
-            Directory.CreateDirectory(uploadsRoot);
+            var uploadsRoot = app.Services.GetRequiredService<HostingStoragePaths>().PublicMediaRoot;
             app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
             {
                 FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot),

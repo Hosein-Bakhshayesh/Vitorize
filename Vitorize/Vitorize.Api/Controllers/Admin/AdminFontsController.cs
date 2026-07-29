@@ -12,6 +12,7 @@ using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Api.Hosting;
 
 namespace Vitorize.Api.Controllers.Admin;
 
@@ -22,9 +23,10 @@ public sealed class AdminFontsController : ControllerBase
     private readonly VitorizeDbContext _db;
     private readonly IWebHostEnvironment _environment;
     private readonly ISettingService _settings;
+    private readonly HostingStoragePaths _storagePaths;
 
-    public AdminFontsController(VitorizeDbContext db, IWebHostEnvironment environment, ISettingService settings)
-        => (_db, _environment, _settings) = (db, environment, settings);
+    public AdminFontsController(VitorizeDbContext db, IWebHostEnvironment environment, ISettingService settings, HostingStoragePaths storagePaths)
+        => (_db, _environment, _settings, _storagePaths) = (db, environment, settings, storagePaths);
 
     [HttpGet]
     public async Task<ActionResult<ApiResult<List<FontAssetDto>>>> GetAll() => Ok(ApiResult<List<FontAssetDto>>.Success(
@@ -44,8 +46,7 @@ public sealed class AdminFontsController : ControllerBase
             if (await input.ReadAsync(header) < 4) throw new BusinessException("فایل فونت ناقص است.");
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var format = FontFileValidator.Validate(extension, file.ContentType, file.Length, header, maxBytes);
-        var root = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
-        var folder = Path.Combine(root, "uploads", "fonts");
+        var folder = Path.Combine(_storagePaths.PublicMediaRoot, "fonts");
         Directory.CreateDirectory(folder);
         var fileName = $"{Guid.NewGuid():N}{extension}";
         var fullPath = Path.Combine(folder, fileName);
@@ -90,9 +91,9 @@ public sealed class AdminFontsController : ControllerBase
         _db.FontAssets.Remove(asset); await _db.SaveChangesAsync();
         if (!string.IsNullOrWhiteSpace(asset.FilePath))
         {
-            var root = Path.GetFullPath(_environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot"));
-            var fontsRoot = Path.GetFullPath(Path.Combine(root, "uploads", "fonts")) + Path.DirectorySeparatorChar;
-            var file = Path.GetFullPath(Path.Combine(root, asset.FilePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar)));
+            var root = Path.GetFullPath(_storagePaths.PublicMediaRoot);
+            var fontsRoot = Path.GetFullPath(Path.Combine(root, "fonts")) + Path.DirectorySeparatorChar;
+            var file = Path.GetFullPath(Path.Combine(root, asset.FilePath.TrimStart('/', '\\').Replace("uploads/", string.Empty, StringComparison.OrdinalIgnoreCase).Replace('/', Path.DirectorySeparatorChar)));
             if (file.StartsWith(fontsRoot, StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(file)) System.IO.File.Delete(file);
         }
         return Ok(ApiResult.Success("فونت حذف شد."));

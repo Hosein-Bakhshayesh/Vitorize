@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Vitorize.Application.DTOs.Admin.Uploads;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Api.Hosting;
 
 namespace Vitorize.Api.Controllers.Admin
 {
@@ -16,6 +17,7 @@ namespace Vitorize.Api.Controllers.Admin
     public class AdminUploadsController : ControllerBase
     {
         private readonly IWebHostEnvironment _environment;
+        private readonly HostingStoragePaths _storagePaths;
 
         private static readonly string[] AllowedExtensions =
         {
@@ -51,9 +53,10 @@ namespace Vitorize.Api.Controllers.Admin
         private const long MaxFileSize = 2 * 1024 * 1024;
         private const long MaxAttachmentSize = 10 * 1024 * 1024;
 
-        public AdminUploadsController(IWebHostEnvironment environment)
+        public AdminUploadsController(IWebHostEnvironment environment, HostingStoragePaths storagePaths)
         {
             _environment = environment;
+            _storagePaths = storagePaths;
         }
 
         [HttpPost("product-image")]
@@ -90,7 +93,7 @@ namespace Vitorize.Api.Controllers.Admin
         public async Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadEditorFile(IFormFile file)
         {
             var result = await UploadHelper.SaveAttachmentAsync(
-                _environment, file, "attachments", MaxAttachmentSize, AttachmentExtensions, AttachmentContentTypes);
+                _storagePaths.PublicMediaRoot, file, "attachments", MaxAttachmentSize, AttachmentExtensions, AttachmentContentTypes);
 
             return Ok(ApiResult<UploadFileResultDto>.Success(result, "فایل با موفقیت آپلود شد."));
         }
@@ -103,7 +106,7 @@ namespace Vitorize.Api.Controllers.Admin
             string[]? contentTypes = null)
         {
             var result = await UploadHelper.SaveImageAsync(
-                _environment, file, folderName, MaxFileSize, extensions ?? AllowedExtensions, contentTypes ?? AllowedContentTypes);
+                _storagePaths.PublicMediaRoot, file, folderName, MaxFileSize, extensions ?? AllowedExtensions, contentTypes ?? AllowedContentTypes);
 
             return Ok(ApiResult<UploadFileResultDto>.Success(result, successMessage));
         }
@@ -115,7 +118,7 @@ namespace Vitorize.Api.Controllers.Admin
     internal static class UploadHelper
     {
         public static async Task<UploadFileResultDto> SaveImageAsync(
-            IWebHostEnvironment environment,
+            string publicMediaRoot,
             IFormFile file,
             string folderName,
             long maxFileSize,
@@ -137,10 +140,7 @@ namespace Vitorize.Api.Controllers.Admin
                 throw new BusinessException("نوع فایل معتبر نیست.");
 
             // WebRootPath وقتی wwwroot هنگام شروع برنامه وجود نداشته باشد null است.
-            var webRoot = environment.WebRootPath
-                ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-
-            var uploadRoot = Path.Combine(webRoot, "uploads", folderName);
+            var uploadRoot = Path.Combine(publicMediaRoot, folderName);
             Directory.CreateDirectory(uploadRoot);
 
             var fileName = $"{Guid.NewGuid():N}{extension}";
@@ -168,7 +168,7 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         public static async Task<UploadFileResultDto> SaveAttachmentAsync(
-            IWebHostEnvironment environment,
+            string publicMediaRoot,
             IFormFile file,
             string folderName,
             long maxFileSize,
@@ -189,10 +189,7 @@ namespace Vitorize.Api.Controllers.Admin
             if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
                 throw new BusinessException("نوع فایل پیوست معتبر نیست.");
 
-            var webRoot = environment.WebRootPath
-                ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-
-            var uploadRoot = Path.Combine(webRoot, "uploads", folderName);
+            var uploadRoot = Path.Combine(publicMediaRoot, folderName);
             Directory.CreateDirectory(uploadRoot);
 
             // نام تصادفی؛ نام اصلی هرگز روی سرور استفاده نمی‌شود تا از پیمایش مسیر جلوگیری شود.
@@ -220,7 +217,7 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         public static async Task<UploadFileResultDto> SavePrivateImageAsync(
-            IWebHostEnvironment environment,
+            string privateDocumentsRoot,
             IFormFile file,
             string ownerFolder,
             long maxFileSize,
@@ -236,7 +233,7 @@ namespace Vitorize.Api.Controllers.Admin
             if (ownerFolder.Any(c => !char.IsAsciiHexDigit(c)))
                 throw new BusinessException("مسیر مالک فایل معتبر نیست.");
 
-            var root = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "private", "verification-documents"));
+            var root = Path.GetFullPath(privateDocumentsRoot);
             var ownerRoot = Path.GetFullPath(Path.Combine(root, ownerFolder));
             if (!ownerRoot.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new BusinessException("مسیر فایل معتبر نیست.");

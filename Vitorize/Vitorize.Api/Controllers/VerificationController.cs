@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.StaticFiles;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Logging;
+using Vitorize.Api.Hosting;
 
 namespace Vitorize.Api.Controllers
 {
@@ -21,19 +22,22 @@ namespace Vitorize.Api.Controllers
         private readonly VitorizeDbContext _dbContext;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<VerificationController> _logger;
+        private readonly HostingStoragePaths _storagePaths;
 
         public VerificationController(
             IVerificationService verificationService,
             ICurrentUserService currentUserService,
             VitorizeDbContext dbContext,
             IWebHostEnvironment environment,
-            ILogger<VerificationController> logger)
+            ILogger<VerificationController> logger,
+            HostingStoragePaths storagePaths)
         {
             _verificationService = verificationService;
             _currentUserService = currentUserService;
             _dbContext = dbContext;
             _environment = environment;
             _logger = logger;
+            _storagePaths = storagePaths;
         }
 
         [HttpGet("me")]
@@ -116,12 +120,12 @@ namespace Vitorize.Api.Controllers
             var prefix = $"kyc-private:{ownerId:N}/";
             if (token.StartsWith(prefix, StringComparison.Ordinal))
             {
-                root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "private", "verification-documents", ownerId.ToString("N")));
+                root = Path.GetFullPath(Path.Combine(_storagePaths.PrivateDocumentsRoot, ownerId.ToString("N")));
                 relative = token[prefix.Length..];
             }
             else if (token.StartsWith("/uploads/verifications/", StringComparison.OrdinalIgnoreCase))
             {
-                root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "verifications"));
+                root = Path.GetFullPath(Path.Combine(_storagePaths.PublicMediaRoot, "verifications"));
                 relative = Path.GetFileName(token);
             }
             else throw new NotFoundException("فایل مدرک یافت نشد.");
