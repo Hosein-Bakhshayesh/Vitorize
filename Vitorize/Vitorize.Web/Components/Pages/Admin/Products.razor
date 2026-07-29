@@ -41,34 +41,34 @@ else
             <div class="vz-field">
                 <label class="vz-label">جستجو</label>
                 <div class="vz-input-group">
-                    <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، اسلاگ ..." @bind="_search" @bind:event="oninput" @bind:after="ResetPage" />
+                    <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، اسلاگ ..." @bind="_search" @bind:event="oninput" @bind:after="ReloadFilters" />
                     <span style="position:absolute;inset-inline-start:13px;color:var(--text-3)"><Icon Name="search" Size="16" /></span>
                 </div>
             </div>
             <div class="vz-field">
                 <label class="vz-label">نوع محصول</label>
-                <select class="vz-select" @bind="_typeFilter" @bind:after="ResetPage">
+                <select class="vz-select" @bind="_typeFilter" @bind:after="ReloadFilters">
                     <option value="all">همه نوع‌ها</option>
                     <option value="1">گیفت کارت</option>
                     <option value="2">اکانت بازی</option>
                     <option value="3">سرویس بازی</option>
                     <option value="4">اشتراک</option>
-                    <option value="5">سایر</option>
+                    <option value="99">سایر</option>
                 </select>
             </div>
             <div class="vz-field">
                 <label class="vz-label">دسته‌بندی</label>
-                <select class="vz-select" @bind="_categoryFilter" @bind:after="ResetPage">
+                <select class="vz-select" @bind="_categoryFilter" @bind:after="ReloadFilters">
                     <option value="all">همه دسته‌ها</option>
-                    @foreach (var cat in _items.Select(p => p.CategoryTitle).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct())
+                    @foreach (var cat in _categories)
                     {
-                        <option value="@cat">@cat</option>
+                        <option value="@cat.Id">@cat.Title</option>
                     }
                 </select>
             </div>
             <div class="vz-field">
                 <label class="vz-label">وضعیت</label>
-                <select class="vz-select" @bind="_statusFilter" @bind:after="ResetPage">
+                <select class="vz-select" @bind="_statusFilter" @bind:after="ReloadFilters">
                     <option value="all">همه وضعیت‌ها</option>
                     <option value="active">فعال</option>
                     <option value="inactive">غیرفعال</option>
@@ -92,7 +92,7 @@ else
 
     <div class="vz-card">
         <div class="vz-card__body flush">
-            @if (Filtered.Count == 0)
+            @if (_items.Count == 0)
             {
                 <EmptyState Title="محصولی یافت نشد" Text="با فیلترهای انتخابی محصولی پیدا نشد. فیلتر دیگری را امتحان کنید یا محصول جدیدی بسازید." Icon="box">
                     <Actions><a class="vz-btn vz-btn--primary vz-btn--sm" href="admin/products/create"><Icon Name="plus" Size="15" /> افزودن محصول</a></Actions>
@@ -169,7 +169,7 @@ else
                         </tbody>
                     </table>
                 </div>
-                <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => { _page = p; CloseMenu(); }" />
+                <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
             }
         </div>
     </div>
@@ -184,6 +184,8 @@ else
     private bool _loading = true;
     private string? _error;
     private List<AdminProductModel> _items = new();
+    private List<AdminCategoryModel> _categories = new();
+    private int _total;
 
     private string _search = string.Empty;
     private string _typeFilter = "all";
@@ -217,48 +219,34 @@ else
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
         if (q.TryGetValue("q", out var search)) _search = search.ToString();
+        var categories = await Api.GetAsync<List<AdminCategoryModel>>("admin/categories");
+        _categories = categories.Data ?? new();
         await Load();
     }
 
     private async Task Load()
     {
         _loading = true; _error = null;
-        var result = await Api.GetAsync<List<AdminProductModel>>("admin/products");
-        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        var query = $"admin/products/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (byte.TryParse(_typeFilter, out var productType)) query += $"&productType={productType}";
+        if (Guid.TryParse(_categoryFilter, out var categoryId)) query += $"&categoryId={categoryId}";
+        if (_statusFilter == "active") query += "&isActive=true";
+        else if (_statusFilter == "inactive") query += "&isActive=false";
+        else if (_statusFilter == "featured") query += "&isFeatured=true";
+        if (_stockFilter != "all") query += $"&stockState={_stockFilter}";
+        var result = await Api.GetAsync<PagedResult<AdminProductModel>>(query);
+        if (result.IsSuccess && result.Data is not null) { _items = result.Data.Items.ToList(); _total = result.Data.TotalCount; }
         else _error = result.Message;
         _selected.Clear();
         CloseMenu();
         _loading = false;
     }
 
-    private void ResetPage() => _page = 1;
-    private void SelectStock(string key) { _stockFilter = key; _page = 1; }
-
-    private List<AdminProductModel> Filtered => _items
-        .Where(p => string.IsNullOrWhiteSpace(_search)
-            || p.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || p.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(p => _typeFilter == "all" || p.ProductType.ToString() == _typeFilter)
-        .Where(p => _categoryFilter == "all" || p.CategoryTitle == _categoryFilter)
-        .Where(p => _statusFilter switch
-        {
-            "active" => p.IsActive,
-            "inactive" => !p.IsActive,
-            "featured" => p.IsFeatured,
-            _ => true
-        })
-        .Where(p => _stockFilter switch
-        {
-            "instock" => p.HasVariants || p.AvailableStock > 0,
-            "out" => !p.HasVariants && p.AvailableStock <= 0,
-            "variants" => p.HasVariants,
-            _ => true
-        })
-        .OrderByDescending(p => p.CreatedAt)
-        .ToList();
-
-    private List<AdminProductModel> Paged => Filtered
-        .Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private async Task ReloadFilters() { _page = 1; await Load(); }
+    private async Task SelectStock(string key) { _stockFilter = key; await ReloadFilters(); }
+    private async Task ChangePage(int page) { _page = page; CloseMenu(); await Load(); }
+    private List<AdminProductModel> Paged => _items;
 
     // ----- selection -----
     private bool AllPageSelected => Paged.Count > 0 && Paged.All(p => _selected.Contains(p.Id));

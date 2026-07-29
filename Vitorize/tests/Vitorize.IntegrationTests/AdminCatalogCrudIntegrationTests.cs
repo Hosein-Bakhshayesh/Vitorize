@@ -71,6 +71,12 @@ public sealed class AdminCatalogCrudIntegrationTests
         product.InputFields.Should().ContainSingle(x => x.Key == "account_email");
         product.TagIds.Should().Contain(tag.Id);
 
+        var pagedResponse = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductDto>>>(
+            $"/api/admin/products/paged?search={Uri.EscapeDataString(product.Title)}&page=1&pageSize=1");
+        pagedResponse!.IsSuccess.Should().BeTrue();
+        pagedResponse.Data!.TotalCount.Should().BeGreaterThanOrEqualTo(1);
+        pagedResponse.Data.Items.Should().ContainSingle(x => x.Id == product.Id);
+
         using (var publicClient = _fixture.CreateClient())
         {
             var publicResponse = await publicClient.GetAsync($"/api/products/slug/{product.Slug}");

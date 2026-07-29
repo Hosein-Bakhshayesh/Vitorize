@@ -87,6 +87,48 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<AdminProductDto>> GetPagedAsync(AdminProductFilterDto filter)
+        {
+            filter ??= new AdminProductFilterDto();
+            var page = Math.Max(1, filter.Page);
+            var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+            var query = _dbContext.Products.AsNoTracking().Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var search = filter.Search.Trim();
+                if (search.Length > 250) search = search[..250];
+                query = query.Where(x => x.Title.Contains(search) || x.Slug.Contains(search));
+            }
+            if (filter.ProductType.HasValue) query = query.Where(x => x.ProductType == filter.ProductType.Value);
+            if (filter.CategoryId.HasValue) query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
+            if (filter.IsActive.HasValue) query = query.Where(x => x.IsActive == filter.IsActive.Value);
+            if (filter.IsFeatured.HasValue) query = query.Where(x => x.IsFeatured == filter.IsFeatured.Value);
+            query = filter.StockState?.Trim().ToLowerInvariant() switch
+            {
+                "instock" => query.Where(x => x.ProductVariants.Any() || x.GiftCodes.Any(c => c.Status == (byte)GiftCodeStatus.Available)),
+                "out" => query.Where(x => !x.ProductVariants.Any() && !x.GiftCodes.Any(c => c.Status == (byte)GiftCodeStatus.Available)),
+                "variants" => query.Where(x => x.ProductVariants.Any()),
+                _ => query
+            };
+
+            var totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                .Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(x => new AdminProductDto
+                {
+                    Id = x.Id, CategoryId = x.CategoryId, BrandId = x.BrandId, Title = x.Title, Slug = x.Slug,
+                    ProductType = x.ProductType, DeliveryType = x.DeliveryType, BasePrice = x.BasePrice,
+                    DiscountPrice = x.DiscountPrice, CurrencyType = x.CurrencyType, IsActive = x.IsActive,
+                    IsFeatured = x.IsFeatured, ThumbnailImagePath = x.ThumbnailImagePath, CategoryTitle = x.Category.Title,
+                    BrandTitle = x.Brand == null ? null : x.Brand.Title, CreatedAt = x.CreatedAt,
+                    FinalPrice = x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice.Value : x.BasePrice,
+                    AvailableStock = x.GiftCodes.Count(c => c.Status == (byte)GiftCodeStatus.Available),
+                    HasVariants = x.ProductVariants.Any()
+                }).ToListAsync();
+            return new Vitorize.Shared.Common.PagedResult<AdminProductDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
         public async Task<AdminProductDto> GetByIdAsync(Guid id)
         {
             var product = await _dbContext.Products

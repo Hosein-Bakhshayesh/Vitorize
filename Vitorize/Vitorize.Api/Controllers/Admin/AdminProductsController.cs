@@ -28,6 +28,13 @@ namespace Vitorize.Api.Controllers.Admin
                 "لیست محصولات با موفقیت دریافت شد."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminProductDto>>>> GetPaged([FromQuery] AdminProductFilterDto filter)
+        {
+            var result = await _productService.GetPagedAsync(filter);
+            return Ok(ApiResult<PagedResult<AdminProductDto>>.Success(result, "فهرست صفحه‌بندی‌شده محصولات دریافت شد."));
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<ApiResult<AdminProductDto>>> GetById(Guid id)
         {
