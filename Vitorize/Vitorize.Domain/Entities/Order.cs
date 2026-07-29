@@ -21,6 +21,8 @@ public partial class Order
 
     public decimal FinalAmount { get; set; }
 
+    public byte CurrencyType { get; set; }
+
     public Guid? CouponId { get; set; }
 
     public string? Description { get; set; }

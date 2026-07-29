@@ -111,6 +111,39 @@ public sealed class CommerceIntegrationTests
     }
 
     [Fact]
+    public async Task Currency_is_snapshotted_through_cart_checkout_order_and_payment_and_mixed_cart_is_rejected()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var rial = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 100m,
+            currency: CurrencyType.Rial);
+        var toman = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 100m,
+            currency: CurrencyType.Toman);
+        using var client = _fixture.CreateClient(token);
+
+        var first = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = rial.Id, Quantity = 1 });
+        first.StatusCode.Should().Be(HttpStatusCode.OK);
+        var cart = (await first.Content.ReadFromJsonAsync<ApiResult<CartDto>>())!.Data!;
+        cart.CurrencyType.Should().Be((byte)CurrencyType.Rial);
+        cart.Items.Should().OnlyContain(x => x.CurrencyType == (byte)CurrencyType.Rial);
+
+        var mixed = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = toman.Id, Quantity = 1 });
+        mixed.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"currency-{Guid.NewGuid():N}");
+        var checkoutResponse = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        checkoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var checkout = (await checkoutResponse.Content.ReadFromJsonAsync<ApiResult<CheckoutResultDto>>())!.Data!;
+        checkout.CurrencyType.Should().Be((byte)CurrencyType.Rial);
+
+        await using var verify = _fixture.CreateDbContext();
+        var order = await verify.Orders.Include(x => x.OrderItems).Include(x => x.Payments)
+            .SingleAsync(x => x.Id == checkout.OrderId);
+        order.CurrencyType.Should().Be((byte)CurrencyType.Rial);
+        order.OrderItems.Should().OnlyContain(x => x.CurrencyType == (byte)CurrencyType.Rial);
+        order.Payments.Should().OnlyContain(x => x.CurrencyType == (byte)CurrencyType.Rial);
+    }
+
+    [Fact]
     public async Task Inactive_product_is_hidden_and_cannot_be_added_to_cart()
     {
         var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");
@@ -134,11 +167,13 @@ public sealed class CommerceIntegrationTests
             Quantity = 1,
             InputValues = new Dictionary<string, string?> { ["customer_reference"] = reference }
         });
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, body);
         return (await response.Content.ReadFromJsonAsync<ApiResult<CartDto>>())!.Data!;
     }
 
-    private async Task<Product> CreateProductAsync(bool active, bool withSensitiveRequiredField, decimal price = 100m)
+    private async Task<Product> CreateProductAsync(bool active, bool withSensitiveRequiredField, decimal price = 100m,
+        CurrencyType currency = CurrencyType.Toman)
     {
         await using var db = _fixture.CreateDbContext();
         var category = new Category
@@ -151,7 +186,7 @@ public sealed class CommerceIntegrationTests
             Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Integration product",
             Slug = $"product-{Guid.NewGuid():N}", ProductType = (byte)ProductType.Other,
             DeliveryType = (byte)DeliveryType.Manual, BasePrice = price,
-            CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1,
+            CurrencyType = (byte)currency, MinOrderQuantity = 1,
             IsActive = active, CreatedAt = DateTime.UtcNow
         };
         if (withSensitiveRequiredField)

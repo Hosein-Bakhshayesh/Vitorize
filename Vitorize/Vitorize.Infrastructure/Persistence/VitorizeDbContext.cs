@@ -229,6 +229,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Quantity).HasDefaultValue(1);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.InputFingerprint).HasMaxLength(64).HasDefaultValue("NONE");
 
             entity.HasOne(d => d.Cart).WithMany(p => p.CartItems)
@@ -521,6 +522,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.DiscountAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.FinalAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.OrderNumber).HasMaxLength(50);
             entity.Property(e => e.SubtotalAmount).HasColumnType("decimal(18, 2)");
 
@@ -546,6 +548,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Quantity).HasDefaultValue(1);
             entity.Property(e => e.TotalPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.VariantTitle).HasMaxLength(200);
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderItems)
@@ -734,6 +737,7 @@ public partial class VitorizeDbContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.Authority).HasMaxLength(300);
             entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
             entity.Property(e => e.Gateway).HasMaxLength(100);

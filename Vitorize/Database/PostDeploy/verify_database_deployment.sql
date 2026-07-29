@@ -56,6 +56,7 @@ BEGIN
         (N'V0003', N'V0003__seed_reference_roles.sql', '9cd5ff472bb5d776269b43f14565870c6c1de862b0a275a36e342138e635be35'),
         (N'V0004', N'V0004__financial_integrity_and_security_hardening.sql', '8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4'),
         (N'V0005', N'V0005__seo_content_and_legacy_redirects.sql', 'ed6b02b7453590d09fc2d1a085ea3e8f006ab66659c046c911196d7af8955b22'),
+        (N'V0006', N'V0006__preserve_currency_through_checkout.sql', '70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -154,6 +155,11 @@ AND NOT EXISTS (SELECT 1 FROM dbo.FontAssets WHERE FamilyName = N'Vazirmatn' AND
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Payments') AND name = N'UX_Payments_Gateway_Authority' AND is_unique = 1)
     INSERT @Issues VALUES ('ERROR', N'Payment authority', N'Unique gateway/authority index is missing.');
+IF COL_LENGTH(N'dbo.CartItems', N'CurrencyType') IS NULL OR
+   COL_LENGTH(N'dbo.Orders', N'CurrencyType') IS NULL OR
+   COL_LENGTH(N'dbo.OrderItems', N'CurrencyType') IS NULL OR
+   COL_LENGTH(N'dbo.Payments', N'CurrencyType') IS NULL
+    INSERT @Issues VALUES ('ERROR', N'Currency snapshots', N'CurrencyType is missing from a checkout aggregate.');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.WalletTransactions') AND name = N'UX_WalletTransactions_FinancialReference' AND is_unique = 1)
     INSERT @Issues VALUES ('ERROR', N'Wallet idempotency', N'Unique financial reference index is missing.');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PaymentCallbacks') AND name = N'UX_PaymentCallbacks_PaymentId_CallbackKey' AND is_unique = 1)

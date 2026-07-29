@@ -8,6 +8,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services;
 
@@ -46,6 +47,8 @@ public class CartService : ICartService
         var unitPrice = variant is null
             ? ResolveFinalPrice(product.BasePrice, product.DiscountPrice)
             : ResolveFinalPrice(variant.Price, variant.DiscountPrice);
+        if (!Enum.IsDefined(typeof(CurrencyType), product.CurrencyType))
+            throw new BusinessException("واحد پول محصول معتبر نیست.");
         var values = ValidateInputs(product.ProductInputFields, request.InputValues, includeAllStages: false);
         var fingerprint = ProductInputRules.Fingerprint(values);
 
@@ -64,6 +67,8 @@ public class CartService : ICartService
                 await SqlServerTransactionLock.AcquireAsync(_dbContext, $"cart:user:{userId:N}");
 
             var cart = await GetOrCreateCartAsync(userId);
+            if (cart.CartItems.Any(x => x.CurrencyType != product.CurrencyType))
+                throw new BusinessException("سبد خرید نمی‌تواند شامل کالاهایی با واحد پول متفاوت باشد.");
             var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
                 x.ProductVariantId == request.ProductVariantId && x.InputFingerprint == fingerprint);
 
@@ -71,6 +76,7 @@ public class CartService : ICartService
             {
                 existing.Quantity += request.Quantity;
                 existing.UnitPrice = unitPrice;
+                existing.CurrencyType = product.CurrencyType;
                 existing.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -79,7 +85,8 @@ public class CartService : ICartService
                 {
                     Id = Guid.NewGuid(), CartId = cart.Id, ProductId = request.ProductId,
                     ProductVariantId = request.ProductVariantId, InputFingerprint = fingerprint,
-                    Quantity = request.Quantity, UnitPrice = unitPrice, CreatedAt = DateTime.UtcNow
+                    Quantity = request.Quantity, UnitPrice = unitPrice, CurrencyType = product.CurrencyType,
+                    CreatedAt = DateTime.UtcNow
                 };
                 AddInputValues(item, product.ProductInputFields, values);
                 await _dbContext.CartItems.AddAsync(item);
@@ -190,7 +197,7 @@ public class CartService : ICartService
             Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,
             ProductTitle = x.Product.Title, VariantTitle = x.ProductVariant?.Title,
             ThumbnailImagePath = x.Product.ThumbnailImagePath, Quantity = x.Quantity,
-            UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity,
+            UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity, CurrencyType = x.CurrencyType,
             InputFields = x.Product.ProductInputFields.Where(f => f.IsActive).OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
                 .Select(ToDefinitionDto).ToList(),
             InputValues = x.InputValues.OrderBy(v => v.FieldKey).Select(v => new ProductInputValueDto
@@ -204,7 +211,8 @@ public class CartService : ICartService
         return new CartDto
         {
             Id = cart.Id, UserId = cart.UserId, Items = items,
-            TotalQuantity = items.Sum(x => x.Quantity), SubtotalAmount = items.Sum(x => x.TotalPrice)
+            TotalQuantity = items.Sum(x => x.Quantity), SubtotalAmount = items.Sum(x => x.TotalPrice),
+            CurrencyType = items.Select(x => (byte?)x.CurrencyType).Distinct().SingleOrDefault()
         };
     }
 

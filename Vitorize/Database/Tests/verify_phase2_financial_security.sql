@@ -7,6 +7,9 @@ IF COL_LENGTH(N'dbo.PaymentCallbacks', N'CallbackKey') IS NULL THROW 51402, 'Cal
 IF COL_LENGTH(N'dbo.UserVerificationProfiles', N'EncryptedPayload') IS NULL THROW 51403, 'KYC protection column is missing.', 1;
 IF COL_LENGTH(N'dbo.OrderItemDeliveries', N'EncryptionVersion') IS NULL THROW 51404, 'Delivery encryption marker is missing.', 1;
 IF COL_LENGTH(N'dbo.OutboxMessages', N'LockedAt') IS NULL THROW 51405, 'Outbox lease column is missing.', 1;
+IF COL_LENGTH(N'dbo.CartItems', N'CurrencyType') IS NULL OR COL_LENGTH(N'dbo.Orders', N'CurrencyType') IS NULL OR
+   COL_LENGTH(N'dbo.OrderItems', N'CurrencyType') IS NULL OR COL_LENGTH(N'dbo.Payments', N'CurrencyType') IS NULL
+    THROW 51408, 'Currency snapshots are missing from the checkout aggregate.', 1;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Payments') AND name = N'UX_Payments_Gateway_Authority' AND is_unique = 1)
     THROW 51406, 'Unique payment authority index is missing.', 1;

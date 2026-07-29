@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 using Vitorize.Infrastructure.Services.Testing;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -35,6 +36,7 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
             decimal amount,
+            CurrencyType currency,
             string description,
             string? mobile = null,
             string? email = null,
@@ -74,7 +76,12 @@ namespace Vitorize.Infrastructure.Services
                 {
                     merchant_id = merchantId,
                     amount = amount,
-                    currency = "IRT",
+                    currency = currency switch
+                    {
+                        CurrencyType.Toman => "IRT",
+                        CurrencyType.Rial => "IRR",
+                        _ => throw new InvalidOperationException("Unsupported payment currency.")
+                    },
                     description = description,
                     callback_url = callbackUrl,
                     metadata = new ZarinpalMetadataDto

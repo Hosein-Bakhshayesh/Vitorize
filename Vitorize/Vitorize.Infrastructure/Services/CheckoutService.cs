@@ -82,6 +82,8 @@ namespace Vitorize.Infrastructure.Services
                         throw new BusinessException($"محصول «{product.Title}» دیگر قابل خرید نیست.");
                     if (!Enum.IsDefined(typeof(DeliveryType), product.DeliveryType))
                         throw new BusinessException($"روش تحویل محصول «{product.Title}» معتبر نیست.");
+                    if (!Enum.IsDefined(typeof(CurrencyType), product.CurrencyType))
+                        throw new BusinessException($"واحد پول محصول «{product.Title}» معتبر نیست.");
                     if (item.Quantity < Math.Max(1, product.MinOrderQuantity) ||
                         (product.MaxOrderQuantity.HasValue && item.Quantity > product.MaxOrderQuantity.Value))
                         throw new BusinessException($"تعداد سفارش محصول «{product.Title}» خارج از محدوده مجاز است.");
@@ -111,7 +113,13 @@ namespace Vitorize.Infrastructure.Services
 
                     if (item.UnitPrice < 0)
                         throw new BusinessException($"قیمت محصول «{product.Title}» معتبر نیست.");
+                    item.CurrencyType = product.CurrencyType;
                 }
+
+                var currencies = cart.CartItems.Select(x => x.CurrencyType).Distinct().ToList();
+                if (currencies.Count != 1)
+                    throw new BusinessException("سبد خرید نمی‌تواند شامل کالاهایی با واحد پول متفاوت باشد.");
+                var currencyType = currencies[0];
 
                 var subtotalAmount = cart.CartItems.Sum(x =>
                     x.UnitPrice * x.Quantity);
@@ -155,6 +163,7 @@ namespace Vitorize.Infrastructure.Services
                     SubtotalAmount = subtotalAmount,
                     DiscountAmount = discountAmount,
                     FinalAmount = finalAmount,
+                    CurrencyType = currencyType,
                     CouponId = couponId,
                     Description = request.Description,
                     CreatedAt = now
@@ -188,6 +197,7 @@ namespace Vitorize.Infrastructure.Services
                         Quantity = cartItem.Quantity,
                         UnitPrice = cartItem.UnitPrice,
                         TotalPrice = cartItem.UnitPrice * cartItem.Quantity,
+                        CurrencyType = currencyType,
                         DeliveryType = cartItem.Product.DeliveryType,
                         DeliveryStatus = (byte)DeliveryStatus.Pending,
                         RequiresVerification = cartItem.Product.RequiresVerification,
@@ -279,6 +289,7 @@ namespace Vitorize.Infrastructure.Services
                     OrderId = order.Id,
                     UserId = userId,
                     Amount = finalAmount,
+                    CurrencyType = currencyType,
                     Gateway = "Mock",
                     Status = (byte)PaymentStatus.Pending,
                     CallbackVerified = false,
@@ -311,6 +322,7 @@ namespace Vitorize.Infrastructure.Services
                     SubtotalAmount = order.SubtotalAmount,
                     DiscountAmount = order.DiscountAmount,
                     FinalAmount = order.FinalAmount,
+                    CurrencyType = order.CurrencyType,
                     OrderStatus = order.Status,
                     PaymentStatus = order.PaymentStatus,
                     ReservationIds = reservationIds

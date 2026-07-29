@@ -23,6 +23,8 @@ public partial class OrderItem
 
     public decimal TotalPrice { get; set; }
 
+    public byte CurrencyType { get; set; }
+
     public byte DeliveryType { get; set; }
 
     public byte DeliveryStatus { get; set; }

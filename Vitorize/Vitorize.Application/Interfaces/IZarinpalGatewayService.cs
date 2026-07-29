@@ -4,6 +4,7 @@
     {
         Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
             decimal amount,
+            Vitorize.Shared.Enums.CurrencyType currency,
             string description,
             string? mobile = null,
             string? email = null,

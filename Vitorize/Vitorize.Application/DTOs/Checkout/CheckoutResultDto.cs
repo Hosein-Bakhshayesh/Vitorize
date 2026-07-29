@@ -12,6 +12,8 @@
 
         public decimal FinalAmount { get; set; }
 
+        public byte CurrencyType { get; set; }
+
         public byte OrderStatus { get; set; }
 
         public byte PaymentStatus { get; set; }

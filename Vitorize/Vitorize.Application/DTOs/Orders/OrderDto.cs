@@ -9,6 +9,7 @@
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+        public byte CurrencyType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }

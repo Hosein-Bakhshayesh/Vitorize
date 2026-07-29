@@ -10,6 +10,7 @@
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public byte CurrencyType { get; set; }
         public byte DeliveryType { get; set; }
         public byte DeliveryStatus { get; set; }
         public bool RequiresVerification { get; set; }

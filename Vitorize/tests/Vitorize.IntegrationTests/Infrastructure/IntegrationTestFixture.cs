@@ -310,7 +310,8 @@ public sealed class VitorizeApiFactory : WebApplicationFactory<Vitorize.Api.Prog
 internal sealed class FakeZarinpalGateway : IZarinpalGatewayService
 {
     public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
-        decimal amount, string description, string? mobile = null, string? email = null, string? orderId = null)
+        decimal amount, Vitorize.Shared.Enums.CurrencyType currency, string description,
+        string? mobile = null, string? email = null, string? orderId = null)
     {
         var authority = $"A{Guid.NewGuid():N}";
         return Task.FromResult((true, authority, $"https://payment.test/{authority}"));

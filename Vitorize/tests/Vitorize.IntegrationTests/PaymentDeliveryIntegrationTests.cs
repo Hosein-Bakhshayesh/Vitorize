@@ -385,7 +385,7 @@ public sealed class PaymentDeliveryIntegrationTests
     private sealed class SuccessfulGateway : IZarinpalGatewayService
     {
         public int VerifyCount { get; private set; }
-        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, string description, string? mobile = null, string? email = null, string? orderId = null) =>
+        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((true, $"A-{Guid.NewGuid():N}", "https://payment.test"));
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount)
         { VerifyCount++; return Task.FromResult((true, 12345L)); }
@@ -393,7 +393,7 @@ public sealed class PaymentDeliveryIntegrationTests
     }
     private sealed class FailingGateway : IZarinpalGatewayService
     {
-        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, string description, string? mobile = null, string? email = null, string? orderId = null) =>
+        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((false, string.Empty, string.Empty));
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
             Task.FromResult((false, 0L));

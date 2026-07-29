@@ -413,7 +413,7 @@ public sealed class SqlServerFinancialConcurrencyTests
     private sealed class SuccessfulGateway : IZarinpalGatewayService
     {
         public int VerifyCount { get; private set; }
-        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal a, string d, string? m = null, string? e = null, string? o = null) => throw new NotSupportedException();
+        public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal a, CurrencyType currency, string d, string? m = null, string? e = null, string? o = null) => throw new NotSupportedException();
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string a, decimal amount) { VerifyCount++; return Task.FromResult((true, 12345L)); }
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://example.invalid");
     }

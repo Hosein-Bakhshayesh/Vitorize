@@ -76,6 +76,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 58,
+      "version": "V0006",
+      "name": "V0006__preserve_currency_through_checkout.sql",
+      "path": "Versioned/V0006__preserve_currency_through_checkout.sql",
+      "sha256": "70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc",
+      "classification": "required",
+      "dependencies": ["V0005", "dbo.CartItems", "dbo.Orders", "dbo.OrderItems", "dbo.Payments", "dbo.Products"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

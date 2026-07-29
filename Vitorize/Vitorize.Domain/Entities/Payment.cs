@@ -13,6 +13,8 @@ public partial class Payment
 
     public decimal Amount { get; set; }
 
+    public byte CurrencyType { get; set; }
+
     public string Gateway { get; set; } = null!;
 
     public string? Authority { get; set; }

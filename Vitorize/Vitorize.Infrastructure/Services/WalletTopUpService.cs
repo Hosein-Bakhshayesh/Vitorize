@@ -75,6 +75,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 gatewayResult = await _zarinpalGatewayService.CreatePaymentAsync(
                     topUp.Amount,
+                    CurrencyType.Toman,
                     description,
                     user.Mobile,
                     user.Email,

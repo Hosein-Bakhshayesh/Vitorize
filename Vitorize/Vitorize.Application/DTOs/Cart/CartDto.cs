@@ -11,5 +11,7 @@
         public int TotalQuantity { get; set; }
 
         public decimal SubtotalAmount { get; set; }
+
+        public byte? CurrencyType { get; set; }
     }
 }

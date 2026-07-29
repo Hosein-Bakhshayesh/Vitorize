@@ -17,6 +17,8 @@ public partial class CartItem
 
     public decimal UnitPrice { get; set; }
 
+    public byte CurrencyType { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

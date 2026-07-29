@@ -87,6 +87,9 @@ namespace Vitorize.Infrastructure.Services
 
             if (payment.Amount != order.FinalAmount)
                 throw new BusinessException("مبلغ پرداخت با مبلغ سفارش همخوانی ندارد.");
+            if (payment.CurrencyType != order.CurrencyType ||
+                !Enum.IsDefined(typeof(CurrencyType), order.CurrencyType))
+                throw new BusinessException("واحد پول پرداخت با سفارش همخوانی ندارد.");
 
             if (payment.Gateway == ZarinpalGatewayName &&
                 !string.IsNullOrWhiteSpace(payment.Authority))
@@ -114,6 +117,7 @@ namespace Vitorize.Infrastructure.Services
 
             var gatewayResult = await _zarinpalGatewayService.CreatePaymentAsync(
                 payment.Amount,
+                (CurrencyType)payment.CurrencyType,
                 description,
                 order.User?.Mobile,
                 order.User?.Email,
@@ -238,6 +242,8 @@ namespace Vitorize.Infrastructure.Services
 
                 if (payment.Amount != order.FinalAmount)
                     throw new BusinessException("مبلغ پرداخت معتبر نیست.");
+                if (payment.CurrencyType != order.CurrencyType)
+                    throw new BusinessException("واحد پول پرداخت معتبر نیست.");
 
                 var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
                     authority,
@@ -522,6 +528,8 @@ namespace Vitorize.Infrastructure.Services
 
                 if (order.FinalAmount <= 0)
                     throw new BusinessException("مبلغ سفارش معتبر نیست.");
+                if (order.CurrencyType != (byte)CurrencyType.Toman)
+                    throw new BusinessException("پرداخت از کیف پول فقط برای سفارش‌های تومانی پشتیبانی می‌شود.");
 
                 var now = DateTime.UtcNow;
 
@@ -538,6 +546,7 @@ namespace Vitorize.Infrastructure.Services
                     OrderId = order.Id,
                     UserId = userId,
                     Amount = order.FinalAmount,
+                    CurrencyType = order.CurrencyType,
                     Gateway = "Wallet",
                     Authority = $"WALLET-{Guid.NewGuid():N}",
                     ReferenceNumber = $"WALLET-REF-{now:yyyyMMddHHmmss}",
