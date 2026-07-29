@@ -172,7 +172,9 @@ public sealed class SmsWorkerSeoIntegrationTests
         }
 
         using var client = _fixture.CreateClient();
-        var products = await client.GetAsync("/api/seo/sitemap/products?page=1&pageSize=10");
+        // The shared integration database accumulates products from the other test classes; use the
+        // endpoint's bounded sitemap default so this fixture is asserted independent of test order.
+        var products = await client.GetAsync("/api/seo/sitemap/products");
         products.StatusCode.Should().Be(HttpStatusCode.OK);
         (await products.Content.ReadAsStringAsync()).Should().Contain($"/product/{product.Slug}");
         var categories = await client.GetAsync("/api/seo/sitemap/categories");
