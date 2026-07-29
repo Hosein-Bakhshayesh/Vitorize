@@ -116,7 +116,7 @@ namespace Vitorize.Infrastructure.Services
             UpdatedAt = x.UpdatedAt, ErrorMessage = x.ErrorMessage
         };
 
-        public async Task<AdminPaymentDto> GetByIdAsync(Guid id)
+        public async Task<AdminPaymentDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var item = await _dbContext.Payments
                 .AsNoTracking()
@@ -143,34 +143,57 @@ namespace Vitorize.Infrastructure.Services
                     UpdatedAt = x.UpdatedAt,
                     ErrorMessage = x.ErrorMessage
                 })
-                .FirstOrDefaultAsync();
-
-            if (item is not null)
-            {
-                item.Refunds = await _dbContext.PaymentRefunds.AsNoTracking()
-                    .Where(x => x.PaymentId == item.Id)
-                    .OrderByDescending(x => x.RequestedAt)
-                    .Select(x => new Vitorize.Application.DTOs.Payments.PaymentRefundDto
-                    {
-                        Id = x.Id, PaymentId = x.PaymentId, OrderId = x.OrderId, Amount = x.Amount,
-                        Method = x.Method, Status = x.Status, Reason = x.Reason,
-                        RequestedAt = x.RequestedAt, CompletedAt = x.CompletedAt
-                    })
-                    .ToListAsync();
-                var refundIds = item.Refunds.Select(x => x.Id).ToList();
-                item.AuditHistory = await _dbContext.FinancialAuditLogs.AsNoTracking()
-                    .Where(x => x.CorrelationId == item.OrderId || x.EntityId == item.Id || refundIds.Contains(x.EntityId))
-                    .OrderByDescending(x => x.CreatedAt)
-                    .Take(50)
-                    .Select(x => new FinancialAuditEntryDto
-                    {
-                        EventType = x.EventType, EntityId = x.EntityId, Amount = x.Amount,
-                        Detail = x.Detail, CreatedAt = x.CreatedAt
-                    })
-                    .ToListAsync();
-            }
+                .FirstOrDefaultAsync(cancellationToken);
 
             return item ?? throw new KeyNotFoundException("پرداخت پیدا نشد.");
+        }
+
+        public async Task<PagedResult<Vitorize.Application.DTOs.Payments.PaymentRefundDto>> GetRefundsPagedAsync(
+            Guid paymentId, PaymentDetailHistoryFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new PaymentDetailHistoryFilterDto();
+            if (!await _dbContext.Payments.AsNoTracking().AnyAsync(x => x.Id == paymentId, cancellationToken))
+                throw new KeyNotFoundException("پرداخت پیدا نشد.");
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.PaymentRefunds.AsNoTracking().Where(x => x.PaymentId == paymentId);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "asc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderBy(x => x.RequestedAt).ThenBy(x => x.Id)
+                : query.OrderByDescending(x => x.RequestedAt).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(x => new Vitorize.Application.DTOs.Payments.PaymentRefundDto
+                {
+                    Id = x.Id, PaymentId = x.PaymentId, OrderId = x.OrderId, Amount = x.Amount,
+                    Method = x.Method, Status = x.Status, Reason = x.Reason,
+                    RequestedAt = x.RequestedAt, CompletedAt = x.CompletedAt
+                }).ToListAsync(cancellationToken);
+            return new PagedResult<Vitorize.Application.DTOs.Payments.PaymentRefundDto>
+                { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
+        public async Task<PagedResult<FinancialAuditEntryDto>> GetAuditHistoryPagedAsync(
+            Guid paymentId, PaymentDetailHistoryFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new PaymentDetailHistoryFilterDto();
+            var orderId = await _dbContext.Payments.AsNoTracking().Where(x => x.Id == paymentId)
+                .Select(x => (Guid?)x.OrderId).FirstOrDefaultAsync(cancellationToken)
+                ?? throw new KeyNotFoundException("پرداخت پیدا نشد.");
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.FinancialAuditLogs.AsNoTracking().Where(x =>
+                x.CorrelationId == orderId || x.EntityId == paymentId ||
+                _dbContext.PaymentRefunds.Any(refund => refund.PaymentId == paymentId && refund.Id == x.EntityId));
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "asc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                : query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new FinancialAuditEntryDto
+            {
+                EventType = x.EventType, EntityId = x.EntityId, Amount = x.Amount,
+                Detail = x.Detail, CreatedAt = x.CreatedAt
+            }).ToListAsync(cancellationToken);
+            return new PagedResult<FinancialAuditEntryDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
     }
 }

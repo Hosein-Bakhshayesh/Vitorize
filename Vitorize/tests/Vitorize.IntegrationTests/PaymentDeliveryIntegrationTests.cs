@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Vitorize.Application.DTOs.Admin.Orders;
+using Vitorize.Application.DTOs.Admin.Payments;
 using Vitorize.Application.DTOs.Coupons;
 using Vitorize.Application.DTOs.Notifications;
 using Vitorize.Application.DTOs.Payments;
@@ -143,6 +144,54 @@ public sealed class PaymentDeliveryIntegrationTests
             IdempotencyKey = $"refund-{Guid.NewGuid():N}"
         });
         await duplicate.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task Payment_refund_and_financial_audit_histories_are_paged_in_sql()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var order = NewOrder(user.Id);
+        var payment = NewPayment(user.Id, order.Id, $"PAGED-DETAIL-{Guid.NewGuid():N}");
+        var requestedAt = DateTime.UtcNow.AddMinutes(-55);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order);
+            seed.Payments.Add(payment);
+            seed.PaymentRefunds.AddRange(Enumerable.Range(1, 55).Select(index => new PaymentRefund
+            {
+                Id = Guid.NewGuid(), PaymentId = payment.Id, OrderId = order.Id, UserId = user.Id,
+                RequestedByUserId = admin.Id, Amount = 1m, Method = (byte)PaymentRefundMethod.GatewayManual,
+                Status = (byte)PaymentRefundStatus.Pending, Reason = $"Paged refund {index:000}",
+                IdempotencyKey = $"paged-refund-{Guid.NewGuid():N}", RequestedAt = requestedAt.AddMinutes(index)
+            }));
+            seed.FinancialAuditLogs.AddRange(Enumerable.Range(1, 55).Select(index => new FinancialAuditLog
+            {
+                EventType = "PagedAudit", EntityType = "Payment", EntityId = payment.Id,
+                CorrelationId = order.Id, Amount = index, Detail = $"Paged audit {index:000}",
+                CreatedAt = requestedAt.AddMinutes(index)
+            }));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = _fixture.CreateDbContext();
+        var service = new AdminPaymentReadService(db);
+        var header = await service.GetByIdAsync(payment.Id);
+        var refunds = await service.GetRefundsPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 1, PageSize = 20, SortDirection = "asc" });
+        var refundLast = await service.GetRefundsPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 3, PageSize = 20 });
+        var refundsBeyondLast = await service.GetRefundsPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 4, PageSize = 20 });
+        var refundsCapped = await service.GetRefundsPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 1, PageSize = 500 });
+        var audit = await service.GetAuditHistoryPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 1, PageSize = 20, SortDirection = "asc" });
+        var auditLast = await service.GetAuditHistoryPagedAsync(payment.Id, new PaymentDetailHistoryFilterDto { Page = 3, PageSize = 20 });
+
+        header.Refunds.Should().BeEmpty();
+        header.AuditHistory.Should().BeEmpty();
+        refunds.TotalCount.Should().Be(55); refunds.PageSize.Should().Be(20); refunds.Items.Should().HaveCount(20);
+        refundLast.Items.Should().HaveCount(15); refundsBeyondLast.Items.Should().BeEmpty();
+        refundsCapped.PageSize.Should().Be(100); refundsCapped.Items.Should().HaveCount(55);
+        refunds.Items.Select(x => x.RequestedAt).Should().BeInAscendingOrder();
+        audit.TotalCount.Should().Be(55); audit.Items.Should().HaveCount(20); auditLast.Items.Should().HaveCount(15);
+        audit.Items.Select(x => x.CreatedAt).Should().BeInAscendingOrder();
     }
 
     [Fact]

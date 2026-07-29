@@ -12,7 +12,7 @@
         <button class="vz-btn vz-btn--outline" disabled="@_reconciling" @onclick="ReconcilePending">
             <Icon Name="rotate-cw" Size="17" /> @(_reconciling ? "Reconciling..." : "Reconcile pending")
         </button>
-        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV صفحه جاری" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="() => Load()"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
@@ -124,9 +124,17 @@
             <div class="vz-divider"></div>
             <div class="vz-card__title" style="margin-bottom:12px">سیر تراکنش</div>
             <div class="vz-card__title" style="margin:16px 0 12px">Refund management</div>
-            @if (d.Refunds.Count > 0)
+            @if (_loadingRefunds)
             {
-                @foreach (var refund in d.Refunds)
+                <LoadingState />
+            }
+            else if (_refundsError is not null)
+            {
+                <ErrorState Message="@_refundsError" OnRetry="LoadDetailHistories" />
+            }
+            else if (_refunds.Count > 0)
+            {
+                @foreach (var refund in _refunds)
                 {
                     <div class="vz-card" style="margin-bottom:10px"><div class="vz-card__body">
                         <div class="vz-spread"><strong>@(refund.Method == 1 ? "Wallet" : "Gateway manual")</strong><span class="vz-chip">@RefundStatus(refund.Status)</span></div>
@@ -139,22 +147,32 @@
                     </div></div>
                 }
             }
+            <Pagination Page="_refundPage" PageSize="_detailHistoryPageSize" TotalCount="_refundTotal" OnPageChanged="ChangeRefundPage" />
             @if (CanRequestRefund(d))
             {
                 <div class="vz-card" style="background:var(--admin-primary-soft);border:none"><div class="vz-card__body">
                     <div class="vz-field"><label class="vz-label">Refund reason</label><textarea class="vz-input" rows="3" maxlength="1000" @bind="_refundReason"></textarea></div>
                     <div class="vz-field"><label class="vz-label">Method</label><select class="vz-input" @bind="_refundMethod"><option value="1">Wallet</option><option value="2">Gateway manual</option></select></div>
-                    <button class="vz-btn vz-btn--danger" disabled="@_submittingRefund" @onclick="RequestRefund">@(_submittingRefund ? "Submitting..." : "Request refund")</button>
+                    <button class="vz-btn vz-btn--danger" disabled="@(_submittingRefund || _loadingRefunds)" @onclick="RequestRefund">@(_submittingRefund ? "Submitting..." : "Request refund")</button>
                 </div></div>
             }
-            @if (d.AuditHistory.Count > 0)
+            @if (_loadingAudit)
+            {
+                <LoadingState />
+            }
+            else if (_auditError is not null)
+            {
+                <ErrorState Message="@_auditError" OnRetry="LoadDetailHistories" />
+            }
+            else if (_auditHistory.Count > 0)
             {
                 <div class="vz-card__title" style="margin:16px 0 12px">Financial audit history</div>
-                @foreach (var audit in d.AuditHistory)
+                @foreach (var audit in _auditHistory)
                 {
                     <div class="vz-muted" style="margin:8px 0"><strong>@audit.EventType</strong> · @PersianDateHelper.ToDateTime(audit.CreatedAt) · @(audit.Amount is null ? "" : AUI.MoneyFa(audit.Amount.Value))<br />@audit.Detail</div>
                 }
             }
+            <Pagination Page="_auditPage" PageSize="_detailHistoryPageSize" TotalCount="_auditTotal" OnPageChanged="ChangeAuditPage" />
             <Timeline Items="BuildTimeline(d)" />
         }
     </ChildContent>
@@ -177,6 +195,13 @@
 
     private bool _detailOpen;
     private AdminPaymentModel? _detail;
+    private List<PaymentRefundModel> _refunds = new();
+    private List<FinancialAuditEntryModel> _auditHistory = new();
+    private int _refundPage = 1, _refundTotal, _auditPage = 1, _auditTotal;
+    private const int _detailHistoryPageSize = 25;
+    private bool _loadingRefunds, _loadingAudit;
+    private string? _refundsError, _auditError;
+    private CancellationTokenSource? _detailLoadCts;
     private bool _submittingRefund, _reconciling;
     private string _refundReason = string.Empty, _gatewayReference = string.Empty;
     private byte _refundMethod = 1;
@@ -224,15 +249,75 @@
 
     private async Task OpenDetails(Guid id)
     {
+        _detailLoadCts?.Cancel();
+        _detailLoadCts?.Dispose();
+        _detailLoadCts = new CancellationTokenSource();
+        var cancellationToken = _detailLoadCts.Token;
         _detail = _items.FirstOrDefault(p => p.Id == id);
+        _refunds = new(); _auditHistory = new(); _refundPage = 1; _auditPage = 1;
+        _refundTotal = 0; _auditTotal = 0; _refundsError = null; _auditError = null;
         _detailOpen = true;
-        var r = await Api.GetAsync<AdminPaymentModel>($"admin/payments/{id}");
-        if (r.IsSuccess && r.Data is not null) { _detail = r.Data; StateHasChanged(); }
+        var r = await Api.GetAsync<AdminPaymentModel>($"admin/payments/{id}", cancellationToken);
+        if (cancellationToken.IsCancellationRequested) return;
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _detail = r.Data;
+            await LoadDetailHistories();
+        }
+        else Toasts.Error(r.Message);
     }
 
-    private static bool CanRequestRefund(AdminPaymentModel payment) =>
+    private bool CanRequestRefund(AdminPaymentModel payment) =>
         payment.Status == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid &&
-        !payment.Refunds.Any(x => x.Status is 1 or 2);
+        !_refunds.Any(x => x.Status is 1 or 2);
+
+    private async Task ChangeRefundPage(int page)
+    {
+        _refundPage = page;
+        await LoadDetailHistories();
+    }
+
+    private async Task ChangeAuditPage(int page)
+    {
+        _auditPage = page;
+        await LoadDetailHistories();
+    }
+
+    private async Task LoadDetailHistories()
+    {
+        if (_detail is null) return;
+        _detailLoadCts?.Cancel();
+        _detailLoadCts?.Dispose();
+        _detailLoadCts = new CancellationTokenSource();
+        var cancellationToken = _detailLoadCts.Token;
+        var paymentId = _detail.Id;
+        _loadingRefunds = _loadingAudit = true;
+        _refundsError = _auditError = null;
+        try
+        {
+            var refundsTask = Api.GetAsync<PagedResult<PaymentRefundModel>>(
+                $"admin/payments/{paymentId}/refunds?page={_refundPage}&pageSize={_detailHistoryPageSize}", cancellationToken);
+            var auditTask = Api.GetAsync<PagedResult<FinancialAuditEntryModel>>(
+                $"admin/payments/{paymentId}/audit-history?page={_auditPage}&pageSize={_detailHistoryPageSize}", cancellationToken);
+            await Task.WhenAll(refundsTask, auditTask);
+            if (cancellationToken.IsCancellationRequested || _detail?.Id != paymentId) return;
+            var refunds = await refundsTask;
+            var audit = await auditTask;
+            if (refunds.IsSuccess && refunds.Data is not null) { _refunds = refunds.Data.Items.ToList(); _refundTotal = refunds.Data.TotalCount; }
+            else _refundsError = refunds.Message;
+            if (audit.IsSuccess && audit.Data is not null) { _auditHistory = audit.Data.Items.ToList(); _auditTotal = audit.Data.TotalCount; }
+            else _auditError = audit.Message;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A newer detail or history page request superseded this one.
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested && _detail?.Id == paymentId)
+                _loadingRefunds = _loadingAudit = false;
+        }
+    }
 
     private static string RefundStatus(byte status) => status switch { 1 => "Pending", 2 => "Completed", 3 => "Failed", 4 => "Cancelled", _ => "Unknown" };
 
@@ -337,6 +422,8 @@
     public async ValueTask DisposeAsync()
     {
         try { await JS.InvokeVoidAsync("vzAdmin.unregisterShortcuts"); } catch { }
+        _detailLoadCts?.Cancel();
+        _detailLoadCts?.Dispose();
         _selfRef?.Dispose();
     }
 }

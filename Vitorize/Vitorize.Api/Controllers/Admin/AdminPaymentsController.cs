@@ -35,10 +35,26 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<PagedResult<AdminPaymentDto>>.Success(result, "فهرست صفحه‌بندی‌شده پرداخت‌ها دریافت شد."));
         }
         [HttpGet("{id:guid}")]
-        public async Task<ActionResult<ApiResult<AdminPaymentDto>>> GetById(Guid id)
+        public async Task<ActionResult<ApiResult<AdminPaymentDto>>> GetById(Guid id, CancellationToken cancellationToken)
         {
-            var result = await _service.GetByIdAsync(id);
+            var result = await _service.GetByIdAsync(id, cancellationToken);
             return Ok(ApiResult<AdminPaymentDto>.Success(result, "جزئیات پرداخت با موفقیت دریافت شد."));
+        }
+
+        [HttpGet("{id:guid}/refunds")]
+        public async Task<ActionResult<ApiResult<PagedResult<PaymentRefundDto>>>> GetRefunds(
+            Guid id, [FromQuery] PaymentDetailHistoryFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _service.GetRefundsPagedAsync(id, filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<PaymentRefundDto>>.Success(result, "سوابق صفحه‌بندی‌شده بازپرداخت دریافت شد."));
+        }
+
+        [HttpGet("{id:guid}/audit-history")]
+        public async Task<ActionResult<ApiResult<PagedResult<FinancialAuditEntryDto>>>> GetAuditHistory(
+            Guid id, [FromQuery] PaymentDetailHistoryFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _service.GetAuditHistoryPagedAsync(id, filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<FinancialAuditEntryDto>>.Success(result, "سوابق مالی صفحه‌بندی‌شده دریافت شد."));
         }
 
         [HttpPost("{id:guid}/refund")]
