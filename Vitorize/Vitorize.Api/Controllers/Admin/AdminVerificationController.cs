@@ -33,6 +33,13 @@ namespace Vitorize.Api.Controllers.Admin
                 "لیست درخواست‌های احراز هویت دریافت شد."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<VerificationProfileDto>>>> GetPaged([FromQuery] AdminVerificationFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _verificationService.GetPagedAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<VerificationProfileDto>>.Success(result, "فهرست صفحه‌بندی‌شده احراز هویت دریافت شد."));
+        }
+
         [HttpGet("{profileId:guid}")]
         public async Task<ActionResult<ApiResult<VerificationProfileDto>>> GetById(
             Guid profileId)

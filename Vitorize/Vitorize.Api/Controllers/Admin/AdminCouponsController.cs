@@ -29,6 +29,13 @@ namespace Vitorize.Api.Controllers.Admin
                 "لیست کدهای تخفیف با موفقیت دریافت شد."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<CouponDto>>>> GetPaged([FromQuery] AdminCouponFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _adminCouponService.GetPagedAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<CouponDto>>.Success(result, "فهرست صفحه‌بندی‌شده کدهای تخفیف دریافت شد."));
+        }
+
         [HttpGet("{couponId:guid}")]
         public async Task<ActionResult<ApiResult<CouponDto>>> GetById(Guid couponId)
         {

@@ -6,6 +6,7 @@ namespace Vitorize.Application.Interfaces
     public interface IAdminCouponService
     {
         Task<List<CouponDto>> GetAllAsync();
+        Task<Vitorize.Shared.Common.PagedResult<CouponDto>> GetPagedAsync(AdminCouponFilterDto filter, CancellationToken cancellationToken = default);
 
         Task<CouponDto> GetByIdAsync(Guid couponId);
 

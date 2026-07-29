@@ -30,6 +30,13 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<List<TicketDto>>.Success(result, "لیست تیکت‌ها با موفقیت دریافت شد."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<TicketDto>>>> GetPaged([FromQuery] AdminTicketFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _ticketService.GetPagedAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<TicketDto>>.Success(result, "فهرست صفحه‌بندی‌شده تیکت‌ها دریافت شد."));
+        }
+
         [HttpGet("{ticketId:guid}")]
         public async Task<ActionResult<ApiResult<TicketDto>>> GetById(Guid ticketId)
         {

@@ -6,6 +6,7 @@ namespace Vitorize.Application.Interfaces
     public interface IAdminNotificationReadService
     {
         Task<List<AdminNotificationDto>> GetAllAsync(AdminQueryFilterDto filter);
+        Task<Vitorize.Shared.Common.PagedResult<AdminNotificationDto>> GetPagedAsync(AdminQueryFilterDto filter, CancellationToken cancellationToken = default);
         Task<AdminNotificationDto> GetByIdAsync(Guid id);
         Task MarkAsReadAsync(Guid id);
     }

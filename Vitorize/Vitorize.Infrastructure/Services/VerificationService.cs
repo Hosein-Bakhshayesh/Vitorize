@@ -210,6 +210,35 @@ namespace Vitorize.Infrastructure.Services
             return profiles.Select(MapProfile).ToList();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<VerificationProfileDto>> GetPagedAsync(AdminVerificationFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new AdminVerificationFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.UserVerificationProfiles.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var search = filter.Search.Trim();
+                if (search.Length > 250) search = search[..250];
+                query = query.Where(x => x.NationalCode.Contains(search) || x.User.FullName.Contains(search) || x.User.Mobile.Contains(search));
+            }
+            if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("status", "asc") => query.OrderBy(x => x.Status).ThenBy(x => x.Id),
+                ("status", "desc") => query.OrderByDescending(x => x.Status).ThenBy(x => x.Id),
+                ("submittedat", "asc") => query.OrderBy(x => x.SubmittedAt ?? x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt).ThenBy(x => x.Id)
+            };
+            var profiles = await query.Skip((page - 1) * pageSize).Take(pageSize)
+                .Include(x => x.VerificationDocuments).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<VerificationProfileDto>
+            {
+                Items = profiles.Select(MapProfile).ToList(), Page = page, PageSize = pageSize, TotalCount = totalCount
+            };
+        }
+
         public async Task<VerificationProfileDto> GetByIdAsync(Guid profileId)
         {
             var profile = await _dbContext.UserVerificationProfiles

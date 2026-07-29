@@ -75,6 +75,7 @@
                     </tbody>
                 </table>
             </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -155,6 +156,9 @@
     private bool _loading = true;
     private string? _error;
     private List<VerificationProfileModel> _items = new();
+    private int _total;
+    private int _page = 1;
+    private const int _pageSize = 25;
 
     private string _search = string.Empty, _status = "all";
 
@@ -181,20 +185,17 @@
     private async Task Load()
     {
         _loading = true; _error = null;
-        var r = await Api.GetAsync<List<VerificationProfileModel>>("admin/verifications");
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var query = $"admin/verifications/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (_status != "all") query += $"&status={_status}";
+        var r = await Api.GetAsync<PagedResult<VerificationProfileModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
 
-    private List<VerificationProfileModel> Filtered => _items
-        .Where(v => string.IsNullOrWhiteSpace(_search)
-            || (v.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (v.UserMobile ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (v.NationalCode ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(v => _status == "all" || v.Status.ToString() == _status)
-        .OrderByDescending(v => v.SubmittedAt)
-        .ToList();
+    private List<VerificationProfileModel> Filtered => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<VerificationDocumentModel> Docs(VerificationProfileModel v) =>
         v.Documents.Count > 0 ? v.Documents : v.VerificationDocuments;

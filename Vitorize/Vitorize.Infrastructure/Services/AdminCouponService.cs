@@ -26,6 +26,32 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<CouponDto>> GetPagedAsync(AdminCouponFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new AdminCouponFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.Coupons.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var search = filter.Search.Trim(); if (search.Length > 250) search = search[..250];
+                query = query.Where(x => x.Code.Contains(search) || x.Title.Contains(search));
+            }
+            if (filter.IsActive.HasValue) query = query.Where(x => x.IsActive == filter.IsActive.Value);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("code", "asc") => query.OrderBy(x => x.Code).ThenBy(x => x.Id),
+                ("code", "desc") => query.OrderByDescending(x => x.Code).ThenBy(x => x.Id),
+                ("usage", "asc") => query.OrderBy(x => x.UsedCount).ThenBy(x => x.Id),
+                ("usage", "desc") => query.OrderByDescending(x => x.UsedCount).ThenBy(x => x.Id),
+                ("createdat", "asc") => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+            };
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => MapCoupon(x)).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<CouponDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
         public async Task<CouponDto> GetByIdAsync(Guid couponId)
         {
             var coupon = await _dbContext.Coupons

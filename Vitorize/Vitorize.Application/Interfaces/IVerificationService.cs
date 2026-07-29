@@ -21,6 +21,7 @@ namespace Vitorize.Application.Interfaces
         Task DeleteDocumentAsync(Guid userId, Guid documentId);
 
         Task<List<VerificationProfileDto>> GetAllAsync();
+        Task<Vitorize.Shared.Common.PagedResult<VerificationProfileDto>> GetPagedAsync(AdminVerificationFilterDto filter, CancellationToken cancellationToken = default);
 
         Task<VerificationProfileDto> GetByIdAsync(Guid profileId);
 

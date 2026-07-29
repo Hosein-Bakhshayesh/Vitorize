@@ -24,7 +24,7 @@ else
     <div class="vz-pills" style="margin-bottom:16px">
         @foreach (var f in StatusChips)
         {
-            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => SetStatus(f.Key)">
                 @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
             </button>
         }
@@ -55,6 +55,7 @@ else
                     }
                 }
             </div>
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         </div>
 
         <div class="vz-card">
@@ -136,6 +137,9 @@ else
     private bool _loading = true;
     private string? _error;
     private List<TicketModel> _items = new();
+    private int _total;
+    private int _page = 1;
+    private const int _pageSize = 25;
 
     private string _status = "all";
 
@@ -155,16 +159,17 @@ else
     private async Task LoadList()
     {
         _loading = true; _error = null;
-        var r = await Api.GetAsync<List<TicketModel>>("admin/tickets");
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var query = $"admin/tickets/paged?page={_page}&pageSize={_pageSize}";
+        if (_status != "all") query += $"&status={_status}";
+        var r = await Api.GetAsync<PagedResult<TicketModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
 
-    private List<TicketModel> Filtered => _items
-        .Where(t => _status == "all" || t.Status.ToString() == _status)
-        .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
-        .ToList();
+    private List<TicketModel> Filtered => _items;
+    private async Task ChangePage(int page) { _page = page; await LoadList(); }
+    private async Task SetStatus(string status) { _status = status; _page = 1; await LoadList(); }
 
     private static List<TicketMessageModel> Messages(TicketModel t) =>
         (t.Messages.Count > 0 ? t.Messages : t.TicketMessages).OrderBy(m => m.CreatedAt).ToList();

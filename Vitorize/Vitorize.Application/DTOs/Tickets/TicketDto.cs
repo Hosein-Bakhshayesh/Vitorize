@@ -5,6 +5,8 @@
         public Guid Id { get; set; }
 
         public Guid UserId { get; set; }
+        public string UserFullName { get; set; } = string.Empty;
+        public string UserMobile { get; set; } = string.Empty;
 
         public Guid? OrderId { get; set; }
 

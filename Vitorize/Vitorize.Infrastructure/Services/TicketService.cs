@@ -191,6 +191,7 @@ namespace Vitorize.Infrastructure.Services
         public async Task<List<TicketDto>> GetAllAsync()
         {
             return await _dbContext.Tickets
+                .Include(x => x.User)
                 .Include(x => x.TicketMessages)
                 .Include(x => x.OrderItems)
                 .AsNoTracking()
@@ -199,9 +200,42 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<TicketDto>> GetPagedAsync(AdminTicketFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new AdminTicketFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.Tickets.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var search = filter.Search.Trim();
+                if (search.Length > 250) search = search[..250];
+                query = query.Where(x => x.Subject.Contains(search) || x.User.FullName.Contains(search) || x.User.Mobile.Contains(search));
+            }
+            if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
+            if (filter.Department.HasValue) query = query.Where(x => x.Department == filter.Department.Value);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("subject", "asc") => query.OrderBy(x => x.Subject).ThenBy(x => x.Id),
+                ("subject", "desc") => query.OrderByDescending(x => x.Subject).ThenBy(x => x.Id),
+                ("updatedat", "asc") => query.OrderBy(x => x.UpdatedAt ?? x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).ThenBy(x => x.Id)
+            };
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new TicketDto
+            {
+                Id = x.Id, UserId = x.UserId, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
+                OrderId = x.OrderId, Subject = x.Subject, Department = x.Department, Priority = x.Priority,
+                Status = x.Status, IsFulfillmentTicket = x.IsFulfillmentTicket, CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt, ClosedAt = x.ClosedAt
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<TicketDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
         public async Task<TicketDto> GetByIdAsync(Guid ticketId)
         {
             var ticket = await _dbContext.Tickets
+                .Include(x => x.User)
                 .Include(x => x.TicketMessages)
                 .Include(x => x.OrderItems)
                 .AsNoTracking()
@@ -364,6 +398,8 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = ticket.Id,
                 UserId = ticket.UserId,
+                UserFullName = ticket.User?.FullName ?? string.Empty,
+                UserMobile = ticket.User?.Mobile ?? string.Empty,
                 OrderId = ticket.OrderId,
                 Subject = ticket.Subject,
                 Department = ticket.Department,

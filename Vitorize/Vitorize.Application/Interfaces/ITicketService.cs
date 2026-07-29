@@ -16,6 +16,7 @@ namespace Vitorize.Application.Interfaces
             AddTicketMessageRequestDto request);
 
         Task<List<TicketDto>> GetAllAsync();
+        Task<Vitorize.Shared.Common.PagedResult<TicketDto>> GetPagedAsync(AdminTicketFilterDto filter, CancellationToken cancellationToken = default);
 
         Task<TicketDto> GetByIdAsync(Guid ticketId);
 
