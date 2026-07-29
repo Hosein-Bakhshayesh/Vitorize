@@ -344,8 +344,103 @@ public sealed class PaymentDeliveryIntegrationTests
                 .VerifyZarinpalPaymentAsync(authority, "OK");
 
         await using var verify = _fixture.CreateDbContext();
-        (await verify.Tickets.CountAsync(x => x.OrderId == order.Id)).Should().Be(1, "the ticket must be idempotent across retries");
+        (await verify.Tickets.CountAsync(x => x.OrderId == order.Id && x.IsFulfillmentTicket)).Should().Be(1, "the fulfilment ticket must be idempotent across retries");
         (await verify.TicketMessages.CountAsync(x => x.Ticket.OrderId == order.Id)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Multi_item_optin_order_creates_one_fulfillment_ticket_without_changing_customer_ticket_or_manual_item()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var category = NewCategory();
+        var firstSupportProduct = NewProduct(category.Id, DeliveryType.SupportRequired);
+        var secondSupportProduct = NewProduct(category.Id, DeliveryType.SupportRequired);
+        var manualProduct = NewProduct(category.Id, DeliveryType.Manual);
+        firstSupportProduct.RequiresSupportMessage = true;
+        secondSupportProduct.RequiresSupportMessage = true;
+        manualProduct.RequiresSupportMessage = true;
+        var order = NewOrder(user.Id);
+        var firstSupportItem = NewOrderItem(order.Id, firstSupportProduct, DeliveryType.SupportRequired);
+        var secondSupportItem = NewOrderItem(order.Id, secondSupportProduct, DeliveryType.SupportRequired);
+        var manualItem = NewOrderItem(order.Id, manualProduct, DeliveryType.Manual);
+        var customerTicket = new Ticket
+        {
+            Id = Guid.NewGuid(), UserId = user.Id, OrderId = order.Id,
+            Subject = "Customer question remains separate", Department = (byte)TicketDepartment.Orders,
+            Priority = (byte)TicketPriority.Normal, Status = (byte)TicketStatus.WaitingForAdmin,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        var authority = $"SUP-MULTI-{Guid.NewGuid():N}";
+        var payment = NewPayment(user.Id, order.Id, authority);
+
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Categories.Add(category);
+            seed.Products.AddRange(firstSupportProduct, secondSupportProduct, manualProduct);
+            seed.Orders.Add(order);
+            seed.OrderItems.AddRange(firstSupportItem, secondSupportItem, manualItem);
+            seed.Tickets.Add(customerTicket);
+            seed.Payments.Add(payment);
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+            await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(authority, "OK");
+
+        await using var verify = _fixture.CreateDbContext();
+        var tickets = await verify.Tickets.Where(x => x.OrderId == order.Id).ToListAsync();
+        tickets.Should().HaveCount(2, "a customer ticket never suppresses the automatic fulfilment ticket");
+        var fulfillment = tickets.Single(x => x.IsFulfillmentTicket);
+        fulfillment.Subject.Should().Contain(order.OrderNumber);
+        var unchangedCustomerTicket = tickets.Single(x => x.Id == customerTicket.Id);
+        unchangedCustomerTicket.IsFulfillmentTicket.Should().BeFalse();
+        unchangedCustomerTicket.Subject.Should().Be(customerTicket.Subject);
+        unchangedCustomerTicket.Status.Should().Be(customerTicket.Status);
+
+        var items = await verify.OrderItems.Where(x => x.OrderId == order.Id).ToListAsync();
+        items.Single(x => x.Id == firstSupportItem.Id).SupportTicketId.Should().Be(fulfillment.Id);
+        items.Single(x => x.Id == secondSupportItem.Id).SupportTicketId.Should().Be(fulfillment.Id);
+        items.Single(x => x.Id == manualItem.Id).SupportTicketId.Should().BeNull("manual delivery retains its manual workflow");
+        var firstMessage = await verify.TicketMessages.SingleAsync(x => x.TicketId == fulfillment.Id);
+        firstMessage.Message.Should().Contain(firstSupportItem.ProductTitle).And.Contain(secondSupportItem.ProductTitle);
+    }
+
+    [Fact]
+    public async Task Filtered_unique_index_allows_customer_tickets_but_rejects_a_second_fulfillment_ticket_for_the_same_order()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var customerTicket = new Ticket
+        {
+            Id = Guid.NewGuid(), UserId = user.Id, OrderId = order.Id, Subject = "Customer ticket",
+            Department = (byte)TicketDepartment.Orders, Priority = (byte)TicketPriority.Normal,
+            Status = (byte)TicketStatus.WaitingForAdmin, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        var fulfillmentTicket = new Ticket
+        {
+            Id = Guid.NewGuid(), UserId = user.Id, OrderId = order.Id, Subject = "Fulfillment ticket",
+            Department = (byte)TicketDepartment.Orders, Priority = (byte)TicketPriority.Normal,
+            Status = (byte)TicketStatus.WaitingForAdmin, IsFulfillmentTicket = true,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        };
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order);
+            seed.Tickets.AddRange(customerTicket, fulfillmentTicket);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var duplicate = _fixture.CreateDbContext();
+        duplicate.Tickets.Add(new Ticket
+        {
+            Id = Guid.NewGuid(), UserId = user.Id, OrderId = order.Id, Subject = "Duplicate fulfilment",
+            Department = (byte)TicketDepartment.Orders, Priority = (byte)TicketPriority.Normal,
+            Status = (byte)TicketStatus.WaitingForAdmin, IsFulfillmentTicket = true,
+            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        });
+        Func<Task> saveDuplicate = () => duplicate.SaveChangesAsync();
+        await saveDuplicate.Should().ThrowAsync<DbUpdateException>();
     }
 
     [Fact]

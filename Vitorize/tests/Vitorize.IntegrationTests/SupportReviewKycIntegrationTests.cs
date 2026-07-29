@@ -56,6 +56,45 @@ public sealed class SupportReviewKycIntegrationTests
     }
 
     [Fact]
+    public async Task Customer_order_ticket_does_not_consume_the_automatic_fulfillment_item_link()
+    {
+        var (owner, ownerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (_, product) = await SeedProductAsync();
+        var order = new Order
+        {
+            Id = Guid.NewGuid(), UserId = owner.Id, OrderNumber = $"VT-TICKET-{Guid.NewGuid():N}",
+            Status = (byte)OrderStatus.Processing, PaymentStatus = (byte)PaymentStatus.Paid,
+            SubtotalAmount = 10m, FinalAmount = 10m, CreatedAt = DateTime.UtcNow
+        };
+        var orderItem = new OrderItem
+        {
+            Id = Guid.NewGuid(), OrderId = order.Id, ProductId = product.Id, ProductTitle = product.Title,
+            Quantity = 1, UnitPrice = 10m, TotalPrice = 10m, DeliveryType = (byte)DeliveryType.SupportRequired,
+            DeliveryStatus = (byte)DeliveryStatus.Pending, CreatedAt = DateTime.UtcNow
+        };
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order);
+            seed.OrderItems.Add(orderItem);
+            await seed.SaveChangesAsync();
+        }
+
+        using var ownerClient = _fixture.CreateClient(ownerToken);
+        var ticket = await PostDataAsync<TicketDto>(ownerClient, "/api/tickets", new CreateTicketRequestDto
+        {
+            OrderId = order.Id, OrderItemId = orderItem.Id, Subject = "Customer order question",
+            Department = (byte)TicketDepartment.Orders, Priority = (byte)TicketPriority.Normal,
+            Message = "Please help with this order."
+        });
+
+        ticket.IsFulfillmentTicket.Should().BeFalse();
+        ticket.FulfillmentItems.Should().BeEmpty();
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.OrderItems.SingleAsync(x => x.Id == orderItem.Id)).SupportTicketId.Should().BeNull();
+        (await verify.Tickets.SingleAsync(x => x.Id == ticket.Id)).OrderId.Should().Be(order.Id);
+    }
+
+    [Fact]
     public async Task Review_CRUD_moderation_voting_and_duplicate_protection_work()
     {
         var (author, authorToken) = await _fixture.CreateUserAndTokenAsync("Customer");

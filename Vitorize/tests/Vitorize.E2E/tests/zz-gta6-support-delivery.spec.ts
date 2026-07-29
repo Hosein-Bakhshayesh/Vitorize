@@ -1,6 +1,6 @@
 import {
   test, expect, TAG, USERS,
-  loginSeededCustomerWithEmptyCart, registerCustomer
+  loginSeededCustomerWithEmptyCart, registerCustomer, AdminLoginPage, AdminTicketsPage
 } from '../framework/fixtures';
 import { apiBaseUrl } from './support/app';
 import { seedGta6Product, GTA6, GTA6_SLUG, type Gta6Seeded } from '../framework/gta6Seed';
@@ -88,61 +88,103 @@ test.describe.serial('GTA VI support-delivery scenario', () => {
     consoleGuard.assertClean();
   });
 
-  test('Standard purchase auto-creates one linked ticket; admin credential reply is visible only to the buyer; retries do not duplicate', {
+  test('multi-item purchase creates one fulfilment ticket whose linked items and visible replies stay isolated', {
     tag: [TAG.supportDelivery, TAG.business, TAG.customer, TAG.admin, TAG.ticket, TAG.regression, TAG.release]
   }, async ({ page, browser, request, storefront, storefrontProduct, customerTickets }) => {
     // --- Buyer completes a Standard purchase through the storefront + mock gateway ---
     await loginSeededCustomerWithEmptyCart(page);
-    // GTA VI has no dynamic input fields, so add-to-cart is direct (no dialog);
-    // the default (Standard) variant is pre-selected.
+    // GTA VI has no dynamic input fields, so add-to-cart is direct (no dialog).
+    // Add both variants so the automatic ticket must represent two OrderItems.
     await storefrontProduct.open(GTA6_SLUG);
+    await storefrontProduct.addToCart({});
+    await storefrontProduct.selectVariant(GTA6.ultimateTitle);
     await storefrontProduct.addToCart({});
     const orderId = await storefront.checkoutAndPay();
 
     const state = async () => (await request.get(`${apiBaseUrl}/testing/support-state?orderId=${orderId}`)).json();
     const s1 = await state();
     expect(s1.paid).toBe(true);
-    expect(s1.supportItems).toBe(1);
+    expect(s1.supportItems).toBe(2);
     expect(s1.giftCodesAssigned).toBe(0);
     expect(s1.instantDeliveries).toBe(0);
     expect(s1.tickets).toBe(1);
+    expect(s1.fulfillmentTickets).toBe(1);
+    expect(s1.fulfillmentItemLinks).toBe(2);
     expect(s1.ticketUserId).toBe(s1.orderUserId);
 
     // Buyer context (API): order references Standard at the correct price; the auto-ticket names the edition.
     const buyerToken = await apiToken(request, USERS.Customer.mobile, USERS.Customer.password);
     const order = (await (await request.get(`${apiBaseUrl}/orders/${orderId}`, bearer(buyerToken))).json()).data;
-    expect(order.finalAmount).toBe(GTA6.standardPrice);
-    expect(order.items[0].variantTitle).toBe(GTA6.standardTitle);
+    expect(order.finalAmount).toBe(GTA6.standardPrice + GTA6.ultimatePrice);
+    expect(order.items.map((item: any) => item.variantTitle)).toEqual(expect.arrayContaining([GTA6.standardTitle, GTA6.ultimateTitle]));
 
     const myTickets = (await (await request.get(`${apiBaseUrl}/tickets`, bearer(buyerToken))).json()).data as any[];
     const ticketSummary = myTickets.find(t => t.orderId === orderId);
     expect(ticketSummary, 'auto-created ticket for the order').toBeTruthy();
     const ticketId: string = ticketSummary.id;
-    expect(ticketSummary.subject).toContain('تحویل اکانت GTA VI');
+    expect(ticketSummary.isFulfillmentTicket).toBe(true);
+    expect(ticketSummary.fulfillmentItems).toHaveLength(2);
 
     const ticketBefore = (await (await request.get(`${apiBaseUrl}/tickets/${ticketId}`, bearer(buyerToken))).json()).data;
-    expect(ticketBefore.messages[0].message).toContain(GTA6.standardTitle); // edition in the initial message
+    expect(ticketBefore.fulfillmentItems).toHaveLength(2);
+    expect(ticketBefore.messages[0].message).toContain(GTA6.standardTitle);
+    expect(ticketBefore.messages[0].message).toContain(GTA6.ultimateTitle);
     expect(JSON.stringify(ticketBefore)).not.toContain(CREDENTIALS.password); // no creds yet
 
-    // Idempotency: refreshing the order and re-querying state creates no second ticket.
+    // A customer-created order ticket remains separate and cannot consume a fulfilment item link.
+    const unrelated = await request.post(`${apiBaseUrl}/tickets`, { ...bearer(buyerToken), data: {
+      orderId, subject: `Customer question ${Date.now()}`, department: 1, priority: 1, message: 'Separate customer question.'
+    }});
+    expect(unrelated.ok(), `customer ticket ${unrelated.status()}`).toBeTruthy();
+    const afterCustomerTicket = await state();
+    expect(afterCustomerTicket.tickets).toBe(2);
+    expect(afterCustomerTicket.fulfillmentTickets).toBe(1);
+    expect(afterCustomerTicket.fulfillmentItemLinks).toBe(2);
+
+    // Idempotency: an explicit second mock verification and order refresh create no second ticket.
+    expect(afterCustomerTicket.paymentId).toBeTruthy();
+    const replay = await request.post(`${apiBaseUrl}/payments/mock/verify/${afterCustomerTicket.paymentId}`, bearer(buyerToken));
+    expect(replay.ok(), `payment replay ${replay.status()}`).toBeTruthy();
     await storefront.openOrder(orderId);
-    expect((await state()).tickets).toBe(1);
+    expect((await state()).fulfillmentTickets).toBe(1);
 
     // --- Admin sends the customer-visible credential reply through the real support workflow ---
     const adminToken = await apiToken(request, USERS.SuperAdmin.mobile, USERS.SuperAdmin.password);
     const reply = await request.post(`${apiBaseUrl}/admin/tickets/${ticketId}/messages`,
       { ...bearer(adminToken), data: { message: SUPPORT_REPLY, isInternalNote: false } });
     expect(reply.ok(), `admin reply ${reply.status()}`).toBeTruthy();
+    const internalNote = `Internal operational note ${Date.now()}`;
+    const note = await request.post(`${apiBaseUrl}/admin/tickets/${ticketId}/messages`,
+      { ...bearer(adminToken), data: { message: internalNote, isInternalNote: true } });
+    expect(note.ok(), `admin internal note ${note.status()}`).toBeTruthy();
 
     // Buyer can read the credentials in the ticket thread (API + real UI).
     const ticketAfter = (await (await request.get(`${apiBaseUrl}/tickets/${ticketId}`, bearer(buyerToken))).json()).data;
     const thread = JSON.stringify(ticketAfter);
     expect(thread).toContain(CREDENTIALS.email);
     expect(thread).toContain(CREDENTIALS.password);
+    expect(thread).not.toContain(internalNote);
     expect(ticketAfter.messages.some((m: any) => m.isInternalNote)).toBe(false);
 
     await customerTickets.open(ticketId);
     await customerTickets.expectMessage(CREDENTIALS.email);
+    await expect(page.getByTestId('fulfillment-items')).toContainText(GTA6.standardTitle);
+    await expect(page.getByTestId('fulfillment-items')).toContainText(GTA6.ultimateTitle);
+
+    // A separately authenticated admin sees the same linked items, including the internal note.
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    try {
+      await new AdminLoginPage(adminPage).signIn(USERS.SuperAdmin);
+      const adminTickets = new AdminTicketsPage(adminPage);
+      await adminTickets.open();
+      await adminTickets.openBySubject(ticketSummary.subject);
+      await expect(adminPage.getByTestId('fulfillment-items')).toContainText(GTA6.standardTitle);
+      await expect(adminPage.getByTestId('fulfillment-items')).toContainText(GTA6.ultimateTitle);
+      await adminTickets.expectMessage(internalNote);
+    } finally {
+      await adminContext.close();
+    }
 
     // Security: credentials are not copied into the buyer's notifications.
     const notifications = await request.get(`${apiBaseUrl}/notifications`, bearer(buyerToken));
