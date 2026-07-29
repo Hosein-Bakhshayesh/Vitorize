@@ -129,10 +129,22 @@ namespace Vitorize.Web.Models.Customer
         public byte Department { get; set; }
         public byte Priority { get; set; }
         public byte Status { get; set; }
+        public bool IsFulfillmentTicket { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? ClosedAt { get; set; }
         public List<CustomerTicketMessageModel> Messages { get; set; } = new();
+        public List<CustomerTicketFulfillmentItemModel> FulfillmentItems { get; set; } = new();
+    }
+
+    public class CustomerTicketFulfillmentItemModel
+    {
+        public Guid Id { get; set; }
+        public string ProductTitle { get; set; } = string.Empty;
+        public string? VariantTitle { get; set; }
+        public int Quantity { get; set; }
+        public byte DeliveryType { get; set; }
+        public byte DeliveryStatus { get; set; }
     }
 
     public class CustomerTicketMessageModel

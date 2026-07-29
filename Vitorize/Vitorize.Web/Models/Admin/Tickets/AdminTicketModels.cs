@@ -14,11 +14,23 @@ namespace Vitorize.Web.Models.Admin.Tickets
         public byte Department { get; set; }
         public byte Priority { get; set; }
         public byte Status { get; set; }
+        public bool IsFulfillmentTicket { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? ClosedAt { get; set; }
         public List<TicketMessageModel> Messages { get; set; } = new();
         public List<TicketMessageModel> TicketMessages { get; set; } = new();
+        public List<TicketFulfillmentItemModel> FulfillmentItems { get; set; } = new();
+    }
+
+    public class TicketFulfillmentItemModel
+    {
+        public Guid Id { get; set; }
+        public string ProductTitle { get; set; } = string.Empty;
+        public string? VariantTitle { get; set; }
+        public int Quantity { get; set; }
+        public byte DeliveryType { get; set; }
+        public byte DeliveryStatus { get; set; }
     }
 
     public class TicketMessageModel

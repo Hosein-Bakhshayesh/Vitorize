@@ -28,6 +28,7 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.Tickets
                 .Include(x => x.TicketMessages)
+                .Include(x => x.OrderItems)
                 .AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.CreatedAt)
@@ -41,6 +42,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var ticket = await _dbContext.Tickets
                 .Include(x => x.TicketMessages)
+                .Include(x => x.OrderItems)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
                     x.Id == ticketId &&
@@ -120,8 +122,12 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.Tickets.AddAsync(ticket);
 
-            if (orderItem != null)
-                orderItem.SupportTicketId = ticket.Id;
+            // SupportTicketId is reserved for the single automatic fulfilment
+            // ticket associated with a paid SupportRequired order item. A
+            // customer-created ticket is associated with the order through
+            // Ticket.OrderId, so it must not consume that fulfilment link.
+            // This keeps customer conversations separate from fulfilment and
+            // prevents them from suppressing or fragmenting automatic delivery.
 
             await _notificationService.CreateAsync(
                 userId,
@@ -186,6 +192,7 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.Tickets
                 .Include(x => x.TicketMessages)
+                .Include(x => x.OrderItems)
                 .AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => MapTicket(x, true))
@@ -196,6 +203,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var ticket = await _dbContext.Tickets
                 .Include(x => x.TicketMessages)
+                .Include(x => x.OrderItems)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId);
 
@@ -361,6 +369,7 @@ namespace Vitorize.Infrastructure.Services
                 Department = ticket.Department,
                 Priority = ticket.Priority,
                 Status = ticket.Status,
+                IsFulfillmentTicket = ticket.IsFulfillmentTicket,
                 CreatedAt = ticket.CreatedAt,
                 UpdatedAt = ticket.UpdatedAt,
                 ClosedAt = ticket.ClosedAt,
@@ -368,6 +377,14 @@ namespace Vitorize.Infrastructure.Services
                     .Where(x => includeInternalNotes || !x.IsInternalNote)
                     .OrderBy(x => x.CreatedAt)
                     .Select(MapMessage)
+                    .ToList(),
+                FulfillmentItems = ticket.OrderItems
+                    .Where(x => x.SupportTicketId == ticket.Id)
+                    .Select(x => new TicketOrderItemDto
+                    {
+                        Id = x.Id, ProductTitle = x.ProductTitle, VariantTitle = x.VariantTitle,
+                        Quantity = x.Quantity, DeliveryType = x.DeliveryType, DeliveryStatus = x.DeliveryStatus
+                    })
                     .ToList()
             };
         }

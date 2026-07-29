@@ -80,6 +80,16 @@ else
                     </div>
                 </div>
                 <div class="vz-card__body" style="max-height:480px;overflow-y:auto;background:var(--surface-2)">
+                    @if (t.IsFulfillmentTicket)
+                    {
+                        <div class="vz-msg__fulfillment" data-testid="fulfillment-items">
+                            <strong>آیتم‌های تحویل پشتیبانی</strong>
+                            @foreach (var item in t.FulfillmentItems)
+                            {
+                                <div>@item.ProductTitle @if (!string.IsNullOrWhiteSpace(item.VariantTitle)) { <span>— @item.VariantTitle</span> } <span>× @item.Quantity</span></div>
+                            }
+                        </div>
+                    }
                     @foreach (var m in Messages(t))
                     {
                         var mine = m.SenderUserId != t.UserId;
@@ -119,6 +129,7 @@ else
     .vz-msg.mine .vz-msg__bubble { background:var(--admin-primary-soft); border-color:transparent; }
     .vz-msg__bubble.note { background:var(--warning-soft); border-color:transparent; }
     .vz-msg__meta { font-size:11px; color:var(--text-3); margin-top:5px; }
+    .vz-msg__fulfillment { margin:0 0 16px; padding:12px 15px; border:1px solid var(--border); border-radius:14px; background:var(--surface-solid); font-size:13px; line-height:1.9; }
 </style>
 
 @code {

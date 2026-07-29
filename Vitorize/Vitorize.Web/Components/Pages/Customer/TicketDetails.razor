@@ -26,6 +26,16 @@ else
     </div>
 
     <div class="st-card">
+        @if (_ticket.IsFulfillmentTicket)
+        {
+            <div class="st-fulfillment" data-testid="fulfillment-items">
+                <strong>آیتم‌های در حال تحویل پشتیبانی</strong>
+                @foreach (var item in _ticket.FulfillmentItems)
+                {
+                    <div>@item.ProductTitle @if (!string.IsNullOrWhiteSpace(item.VariantTitle)) { <span>— @item.VariantTitle</span> } <span>× @item.Quantity</span></div>
+                }
+            </div>
+        }
         <div class="st-chat">
             @foreach (var m in _ticket.Messages.Where(x => !x.IsInternalNote).OrderBy(x => x.CreatedAt))
             {
@@ -54,6 +64,10 @@ else
         }
     </div>
 }
+
+<style>
+    .st-fulfillment { margin:16px 16px 0; padding:12px 14px; border:1px solid var(--st-border); border-radius:12px; background:var(--st-surface-2); font-size:13px; line-height:1.9; }
+</style>
 
 @code {
     [Parameter] public Guid Id { get; set; }

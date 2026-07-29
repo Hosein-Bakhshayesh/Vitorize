@@ -403,6 +403,12 @@ namespace Vitorize.Api
                             (x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Manual ||
                              x.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.SupportRequired), cancellationToken),
                         tickets = await db.Tickets.CountAsync(x => x.OrderId == orderId, cancellationToken),
+                        fulfillmentTickets = await db.Tickets.CountAsync(x =>
+                            x.OrderId == orderId && x.IsFulfillmentTicket, cancellationToken),
+                        fulfillmentItemLinks = await db.OrderItems.CountAsync(x =>
+                            x.OrderId == orderId && x.SupportTicketId != null, cancellationToken),
+                        paymentId = await db.Payments.Where(x => x.OrderId == orderId)
+                            .Select(x => (Guid?)x.Id).FirstOrDefaultAsync(cancellationToken),
                         ticketUserId = await db.Tickets.Where(x => x.OrderId == orderId)
                             .Select(x => (Guid?)x.UserId).FirstOrDefaultAsync(cancellationToken)
                     });
