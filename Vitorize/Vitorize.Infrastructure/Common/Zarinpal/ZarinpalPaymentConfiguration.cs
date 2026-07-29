@@ -51,19 +51,22 @@ public sealed class ZarinpalPaymentConfigurationProvider : IZarinpalPaymentConfi
 
     public async Task<ZarinpalPaymentConfiguration> GetAsync(CancellationToken cancellationToken = default)
     {
-        var values = await Task.WhenAll(
-            _settings.GetValueAsync(MerchantIdKey),
-            _settings.GetValueAsync(SandboxKey),
-            _settings.GetValueAsync(BaseUrlKey),
-            _settings.GetValueAsync(StartPayUrlKey),
-            _settings.GetValueAsync(CallbackUrlKey));
+        // ISettingService is backed by the scoped application DbContext.  Starting the
+        // independent queries concurrently causes EF Core to reject the second query
+        // under real checkout load.  Keep these reads ordered so a payment initiation
+        // is reliable even when the settings service is database-backed.
+        var merchantId = await _settings.GetValueAsync(MerchantIdKey);
+        var sandboxValue = await _settings.GetValueAsync(SandboxKey);
+        var baseUrl = await _settings.GetValueAsync(BaseUrlKey);
+        var startPayUrl = await _settings.GetValueAsync(StartPayUrlKey);
+        var callbackUrl = await _settings.GetValueAsync(CallbackUrlKey);
 
         return new ZarinpalPaymentConfiguration(
-            values[0]?.Trim() ?? string.Empty,
-            bool.TryParse(values[1], out var sandbox) ? sandbox : null,
-            ParseAbsoluteHttpsUri(values[2]),
-            ParseAbsoluteHttpsUri(values[3]),
-            ParseAbsoluteHttpsUri(values[4]),
+            merchantId?.Trim() ?? string.Empty,
+            bool.TryParse(sandboxValue, out var sandbox) ? sandbox : null,
+            ParseAbsoluteHttpsUri(baseUrl),
+            ParseAbsoluteHttpsUri(startPayUrl),
+            ParseAbsoluteHttpsUri(callbackUrl),
             ParseAbsoluteHttpsUri(_configuration["Hosting:PublicOrigin"]));
     }
 
