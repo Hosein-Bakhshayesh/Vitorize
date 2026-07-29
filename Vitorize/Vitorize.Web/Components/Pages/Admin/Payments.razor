@@ -29,7 +29,7 @@
     <div class="vz-pills" style="margin-bottom:16px">
         @foreach (var f in StatusChips)
         {
-            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+            <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => SetStatus(f.Key)">
                 @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
             </button>
         }
@@ -82,7 +82,7 @@
                     </tbody>
                 </table>
             </div>
-            <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -167,6 +167,7 @@
     private bool _loading = true;
     private string? _error;
     private List<AdminPaymentModel> _items = new();
+    private int _total;
 
     private string _search = string.Empty, _status = string.Empty;
     private DateTime? _from, _to;
@@ -200,15 +201,15 @@
 
     private async Task Load()
     {
-        _loading = true; _error = null; _page = 1;
-        // Load the full window (optionally by date) and do status/search filtering client-side
-        // so the smart-filter chips can show live counts.
-        var query = "admin/payments?page=1&pageSize=500";
+        _loading = true; _error = null;
+        var query = $"admin/payments/paged?page={_page}&pageSize={_pageSize}";
         if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
         if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (byte.TryParse(_status, out var status)) query += $"&status={status}";
 
-        var r = await Api.GetAsync<List<AdminPaymentModel>>(query);
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var r = await Api.GetAsync<PagedResult<AdminPaymentModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
@@ -216,16 +217,10 @@
     private int CountStatus(byte s) => _items.Count(p => p.Status == s);
     private decimal PaidSum => _items.Where(p => p.Status == (byte)Vitorize.Shared.Enums.PaymentStatus.Paid).Sum(p => p.Amount);
 
-    private List<AdminPaymentModel> Filtered => _items
-        .Where(p => string.IsNullOrEmpty(_status) || p.Status.ToString() == _status)
-        .Where(p => string.IsNullOrWhiteSpace(_search)
-            || p.OrderNumber.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (p.UserFullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (p.UserMobile ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || (p.GatewayTrackingCode ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .ToList();
-
-    private List<AdminPaymentModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private List<AdminPaymentModel> Filtered => _items;
+    private List<AdminPaymentModel> Paged => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SetStatus(string status) { _status = status; _page = 1; await Load(); }
 
     private async Task OpenDetails(Guid id)
     {

@@ -6,7 +6,7 @@ namespace Vitorize.Application.Interfaces
     {
         Task<List<AdminProductDto>> GetAllAsync();
 
-        Task<Vitorize.Shared.Common.PagedResult<AdminProductDto>> GetPagedAsync(AdminProductFilterDto filter);
+        Task<Vitorize.Shared.Common.PagedResult<AdminProductDto>> GetPagedAsync(AdminProductFilterDto filter, CancellationToken cancellationToken = default);
 
         Task<AdminProductDto> GetByIdAsync(Guid id);
 

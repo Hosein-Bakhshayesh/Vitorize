@@ -35,6 +35,14 @@ namespace Vitorize.Api.Controllers.Admin
                 "کیف پول‌ها با موفقیت دریافت شدند."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminWalletListDto>>>> GetPaged(
+            [FromQuery] AdminQueryFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _walletReadService.GetPagedAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<AdminWalletListDto>>.Success(result, "فهرست صفحه‌بندی‌شده کیف پول‌ها دریافت شد."));
+        }
+
         [HttpGet("{userId:guid}")]
         public async Task<ActionResult<ApiResult<WalletDto>>> GetUserWallet(Guid userId)
         {

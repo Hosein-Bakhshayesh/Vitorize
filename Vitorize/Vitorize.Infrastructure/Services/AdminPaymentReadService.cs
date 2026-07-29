@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Vitorize.Application.DTOs.Admin.Payments;
 using Vitorize.Application.DTOs.Admin.System;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Common;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -63,6 +65,56 @@ namespace Vitorize.Infrastructure.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task<PagedResult<AdminPaymentDto>> GetPagedAsync(AdminQueryFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new AdminQueryFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 50 : Math.Min(filter.PageSize, 100);
+            var query = ApplyFilter(_dbContext.Payments.AsNoTracking(), filter);
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("amount", "asc") => query.OrderBy(x => x.Amount).ThenBy(x => x.Id),
+                ("amount", "desc") => query.OrderByDescending(x => x.Amount).ThenBy(x => x.Id),
+                ("status", "asc") => query.OrderBy(x => x.Status).ThenBy(x => x.Id),
+                ("status", "desc") => query.OrderByDescending(x => x.Status).ThenBy(x => x.Id),
+                ("requestedat", "asc") => query.OrderBy(x => x.RequestedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.RequestedAt).ThenBy(x => x.Id)
+            };
+
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(MapListItem()).ToListAsync(cancellationToken);
+            return new PagedResult<AdminPaymentDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
+        private static IQueryable<Domain.Entities.Payment> ApplyFilter(IQueryable<Domain.Entities.Payment> query, AdminQueryFilterDto filter)
+        {
+            if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
+            if (filter.DateFrom.HasValue) query = query.Where(x => x.RequestedAt >= filter.DateFrom.Value);
+            if (filter.DateTo.HasValue) query = query.Where(x => x.RequestedAt < filter.DateTo.Value.AddDays(1));
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var s = filter.Search.Trim();
+                if (s.Length > 250) s = s[..250];
+                query = query.Where(x => x.Gateway.Contains(s) ||
+                    (x.TransactionId != null && x.TransactionId.Contains(s)) ||
+                    (x.ReferenceNumber != null && x.ReferenceNumber.Contains(s)) ||
+                    x.Order.OrderNumber.Contains(s) || x.User.FullName.Contains(s) || x.User.Mobile.Contains(s));
+            }
+            return query;
+        }
+
+        private static Expression<Func<Domain.Entities.Payment, AdminPaymentDto>> MapListItem() => x => new AdminPaymentDto
+        {
+            Id = x.Id, OrderId = x.OrderId, OrderNumber = x.Order.OrderNumber, UserId = x.UserId,
+            UserFullName = x.User.FullName, UserMobile = x.User.Mobile, Amount = x.Amount, Gateway = x.Gateway,
+            Authority = x.Authority, GatewayTrackingCode = x.GatewayTrackingCode, TransactionId = x.TransactionId,
+            ReferenceNumber = x.ReferenceNumber, Status = x.Status, ProviderStatusCode = x.ProviderStatusCode,
+            CallbackVerified = x.CallbackVerified, RequestedAt = x.RequestedAt, VerifiedAt = x.VerifiedAt,
+            UpdatedAt = x.UpdatedAt, ErrorMessage = x.ErrorMessage
+        };
 
         public async Task<AdminPaymentDto> GetByIdAsync(Guid id)
         {

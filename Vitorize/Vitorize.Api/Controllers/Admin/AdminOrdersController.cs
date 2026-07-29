@@ -56,6 +56,14 @@ namespace Vitorize.Api.Controllers.Admin
                 "جستجوی سفارش‌ها با موفقیت انجام شد."));
         }
 
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<OrderDto>>>> GetPagedOrders(
+            [FromQuery] AdminOrderFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _orderService.GetPagedAdminOrdersAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<OrderDto>>.Success(result, "فهرست صفحه‌بندی‌شده سفارش‌ها دریافت شد."));
+        }
+
         [HttpGet("{orderId:guid}")]
         public async Task<ActionResult<ApiResult<OrderDto>>> GetOrderDetails(
             Guid orderId)

@@ -87,11 +87,11 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<Vitorize.Shared.Common.PagedResult<AdminProductDto>> GetPagedAsync(AdminProductFilterDto filter)
+        public async Task<Vitorize.Shared.Common.PagedResult<AdminProductDto>> GetPagedAsync(AdminProductFilterDto filter, CancellationToken cancellationToken = default)
         {
             filter ??= new AdminProductFilterDto();
-            var page = Math.Max(1, filter.Page);
-            var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 20 : Math.Min(filter.PageSize, 100);
             var query = _dbContext.Products.AsNoTracking().Where(x => !x.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -112,8 +112,17 @@ namespace Vitorize.Infrastructure.Services
                 _ => query
             };
 
-            var totalCount = await query.CountAsync();
-            var items = await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("title", "asc") => query.OrderBy(x => x.Title).ThenBy(x => x.Id),
+                ("title", "desc") => query.OrderByDescending(x => x.Title).ThenBy(x => x.Id),
+                ("price", "asc") => query.OrderBy(x => x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice : x.BasePrice).ThenBy(x => x.Id),
+                ("price", "desc") => query.OrderByDescending(x => x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice : x.BasePrice).ThenBy(x => x.Id),
+                ("createdat", "asc") => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+            };
+            var items = await query
                 .Skip((page - 1) * pageSize).Take(pageSize)
                 .Select(x => new AdminProductDto
                 {
@@ -125,7 +134,7 @@ namespace Vitorize.Infrastructure.Services
                     FinalPrice = x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice.Value : x.BasePrice,
                     AvailableStock = x.GiftCodes.Count(c => c.Status == (byte)GiftCodeStatus.Available),
                     HasVariants = x.ProductVariants.Any()
-                }).ToListAsync();
+                }).ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<AdminProductDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 

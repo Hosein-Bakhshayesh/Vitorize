@@ -29,9 +29,9 @@ namespace Vitorize.Api.Controllers.Admin
         }
 
         [HttpGet("paged")]
-        public async Task<ActionResult<ApiResult<PagedResult<AdminProductDto>>>> GetPaged([FromQuery] AdminProductFilterDto filter)
+        public async Task<ActionResult<ApiResult<PagedResult<AdminProductDto>>>> GetPaged([FromQuery] AdminProductFilterDto filter, CancellationToken cancellationToken)
         {
-            var result = await _productService.GetPagedAsync(filter);
+            var result = await _productService.GetPagedAsync(filter, cancellationToken);
             return Ok(ApiResult<PagedResult<AdminProductDto>>.Success(result, "فهرست صفحه‌بندی‌شده محصولات دریافت شد."));
         }
 

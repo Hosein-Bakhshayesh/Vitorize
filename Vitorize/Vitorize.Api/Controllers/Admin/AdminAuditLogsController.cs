@@ -19,6 +19,12 @@ namespace Vitorize.Api.Controllers.Admin
             var result = await _service.GetAuditLogsAsync(filter);
             return Ok(ApiResult<List<AdminAuditLogDto>>.Success(result, "اطلاعات با موفقیت دریافت شد."));
         }
+        [HttpGet("paged")]
+        public async Task<ActionResult<ApiResult<PagedResult<AdminAuditLogDto>>>> GetPaged([FromQuery] AdminQueryFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _service.GetPagedAuditLogsAsync(filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<AdminAuditLogDto>>.Success(result, "فهرست صفحه‌بندی‌شده فعالیت‌ها دریافت شد."));
+        }
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<ApiResult<AdminAuditLogDto>>> GetById(Guid id)
         {

@@ -67,7 +67,7 @@
                     </tbody>
                 </table>
             </div>
-            <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -124,6 +124,7 @@
     private bool _loading = true;
     private string? _error;
     private List<WalletModel> _items = new();
+    private int _total;
 
     private string _search = string.Empty;
     private int _page = 1;
@@ -153,20 +154,17 @@
     private async Task Load()
     {
         _loading = true; _error = null;
-        var r = await Api.GetAsync<List<WalletModel>>("admin/wallets?page=1&pageSize=500");
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var query = $"admin/wallets/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        var r = await Api.GetAsync<PagedResult<WalletModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
 
-    private List<WalletModel> Filtered => _items
-        .Where(w => string.IsNullOrWhiteSpace(_search)
-            || w.UserFullName.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || w.UserMobile.Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .OrderByDescending(w => w.Balance)
-        .ToList();
-
-    private List<WalletModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private List<WalletModel> Filtered => _items;
+    private List<WalletModel> Paged => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static string Initial(string n) => string.IsNullOrWhiteSpace(n) ? "؟" : n.Trim()[..1];
 

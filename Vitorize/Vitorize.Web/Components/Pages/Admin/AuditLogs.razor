@@ -53,7 +53,7 @@
                     </tbody>
                 </table>
             </div>
-            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_items.Count" OnPageChanged="p => _page = p" />
+            <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
         }
     </div>
 </div>
@@ -86,6 +86,7 @@
     private bool _loading = true;
     private string? _error;
     private List<AdminAuditLogModel> _items = new();
+    private int _total;
     private string _search = string.Empty;
     private DateTime? _from, _to;
     private int _page = 1;
@@ -96,26 +97,31 @@
 
     protected override Task OnInitializedAsync() => Load();
 
-    private async Task Load()
+    private Task Load() => LoadPage(true);
+
+    private async Task LoadPage(bool resetPage)
     {
-        _loading = true; _error = null; _page = 1;
-        var query = "admin/audit-logs?page=1&pageSize=500";
+        _loading = true; _error = null;
+        if (resetPage) _page = 1;
+        var query = $"admin/audit-logs/paged?page={_page}&pageSize={_pageSize}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
         if (_from is not null) query += $"&dateFrom={_from:yyyy-MM-dd}";
         if (_to is not null) query += $"&dateTo={_to:yyyy-MM-dd}";
 
-        var r = await Api.GetAsync<List<AdminAuditLogModel>>(query);
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var r = await Api.GetAsync<PagedResult<AdminAuditLogModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
     }
 
-    private List<AdminAuditLogModel> Paged => _items.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private List<AdminAuditLogModel> Paged => _items;
+    private Task ChangePage(int page) { _page = page; return LoadPage(false); }
 
     private void Open(AdminAuditLogModel l) { _current = l; _open = true; }
 
     private async Task Export()
     {
+        // The export is deliberately the visible server-provided page, never a hidden capped collection.
         var rows = _items.Select(l => new[]
         {
             AdminCsv.Field(l.ActionType), AdminCsv.Field(l.EntityName), AdminCsv.Field(l.EntityId),

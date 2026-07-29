@@ -9,7 +9,11 @@
         public bool? IsRead { get; set; }
         public byte? Status { get; set; }
         public int Page { get; set; } = 1;
+        // PageNumber is the explicit public contract. Page is retained for older Admin clients.
+        public int? PageNumber { get; set; }
         public int PageSize { get; set; } = 100;
+        public string? SortBy { get; set; }
+        public string? SortDirection { get; set; }
     }
 
     public class AdminErrorLogDto

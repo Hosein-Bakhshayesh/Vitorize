@@ -185,6 +185,44 @@ namespace Vitorize.Infrastructure.Services
             return orders.Select(MapOrderSummary).ToList();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<OrderDto>> GetPagedAdminOrdersAsync(AdminOrderFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new AdminOrderFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.Orders.AsNoTracking().AsQueryable();
+            var search = string.IsNullOrWhiteSpace(filter.Search) ? filter.OrderNumber : filter.Search;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                search = search.Trim();
+                if (search.Length > 250) search = search[..250];
+                query = query.Where(x => x.OrderNumber.Contains(search) || x.User.FullName.Contains(search) || x.User.Mobile.Contains(search));
+            }
+            if (filter.UserId.HasValue) query = query.Where(x => x.UserId == filter.UserId.Value);
+            if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
+            if (filter.PaymentStatus.HasValue) query = query.Where(x => x.PaymentStatus == filter.PaymentStatus.Value);
+            if (filter.FromDate.HasValue) query = query.Where(x => x.CreatedAt >= filter.FromDate.Value);
+            if (filter.ToDate.HasValue) query = query.Where(x => x.CreatedAt < filter.ToDate.Value.AddDays(1));
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
+            {
+                ("amount", "asc") => query.OrderBy(x => x.FinalAmount).ThenBy(x => x.Id),
+                ("amount", "desc") => query.OrderByDescending(x => x.FinalAmount).ThenBy(x => x.Id),
+                ("status", "asc") => query.OrderBy(x => x.Status).ThenBy(x => x.Id),
+                ("status", "desc") => query.OrderByDescending(x => x.Status).ThenBy(x => x.Id),
+                ("createdat", "asc") => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
+                _ => query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+            };
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new OrderDto
+            {
+                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
+                Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
+                DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
+                CreatedAt = x.CreatedAt, PaidAt = x.PaidAt, CompletedAt = x.CompletedAt
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<OrderDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
         public async Task CancelOrderAsync(
             Guid orderId,
             Guid adminUserId,

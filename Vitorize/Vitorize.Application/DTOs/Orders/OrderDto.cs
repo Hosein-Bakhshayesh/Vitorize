@@ -4,6 +4,8 @@
     {
         public Guid Id { get; set; }
         public string OrderNumber { get; set; } = string.Empty;
+        public string UserFullName { get; set; } = string.Empty;
+        public string UserMobile { get; set; } = string.Empty;
         public byte Status { get; set; }
         public byte PaymentStatus { get; set; }
         public decimal SubtotalAmount { get; set; }

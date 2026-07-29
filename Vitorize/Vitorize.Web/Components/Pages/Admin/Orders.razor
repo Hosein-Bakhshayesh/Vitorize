@@ -53,7 +53,7 @@ else
             </div>
             <div class="vz-field">
                 <label class="vz-label">بازه تاریخ</label>
-                <PersianDateRangePicker From="_from" FromChanged="v => { _from = v; ResetPage(); }" To="_to" ToChanged="v => { _to = v; ResetPage(); }" />
+                <PersianDateRangePicker From="_from" FromChanged="async v => { _from = v; await ResetPage(); }" To="_to" ToChanged="async v => { _to = v; await ResetPage(); }" />
             </div>
         </div>
     </div>
@@ -134,7 +134,7 @@ else
                         </tbody>
                     </table>
                 </div>
-                <Pagination Page="_page" PageSize="_pageSize" TotalCount="Filtered.Count" OnPageChanged="p => _page = p" />
+                <Pagination Page="_page" PageSize="_pageSize" TotalCount="_total" OnPageChanged="ChangePage" />
             }
         </div>
     </div>
@@ -282,6 +282,7 @@ else
     private bool _loading = true;
     private string? _error;
     private List<AdminOrderModel> _items = new();
+    private int _total;
 
     private string _search = string.Empty;
     private string _statusFilter = "all", _payFilter = "all";
@@ -327,8 +328,14 @@ else
     private async Task Load()
     {
         _loading = true; _error = null;
-        var r = await Api.GetAsync<List<AdminOrderModel>>("admin/orders");
-        if (r.IsSuccess && r.Data is not null) _items = r.Data;
+        var query = $"admin/orders/paged?page={_page}&pageSize={_pageSize}";
+        if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
+        if (_statusFilter != "all") query += $"&status={_statusFilter}";
+        if (_payFilter != "all") query += $"&paymentStatus={_payFilter}";
+        if (_from is not null) query += $"&fromDate={_from:yyyy-MM-dd}";
+        if (_to is not null) query += $"&toDate={_to:yyyy-MM-dd}";
+        var r = await Api.GetAsync<PagedResult<AdminOrderModel>>(query);
+        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _selected.Clear();
         _loading = false;
@@ -337,22 +344,12 @@ else
     private int CountStatus(byte status) => _items.Count(o => o.Status == status);
     private static bool CanAct(byte status) => status != (byte)OrderStatus.Completed && status != (byte)OrderStatus.Cancelled;
 
-    private void ResetPage() { _page = 1; }
-    private void SetStatusChip(string key) { _statusFilter = key; ResetPage(); }
+    private async Task ResetPage() { _page = 1; await Load(); }
+    private async Task SetStatusChip(string key) { _statusFilter = key; await ResetPage(); }
 
-    private List<AdminOrderModel> Filtered => _items
-        .Where(o => string.IsNullOrWhiteSpace(_search)
-            || o.OrderNumber.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || o.UserFullName.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || o.UserMobile.Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(o => _statusFilter == "all" || o.Status.ToString() == _statusFilter)
-        .Where(o => _payFilter == "all" || o.PaymentStatus.ToString() == _payFilter)
-        .Where(o => _from is null || o.CreatedAt.Date >= _from.Value.Date)
-        .Where(o => _to is null || o.CreatedAt.Date <= _to.Value.Date)
-        .OrderByDescending(o => o.CreatedAt)
-        .ToList();
-
-    private List<AdminOrderModel> Paged => Filtered.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
+    private List<AdminOrderModel> Filtered => _items;
+    private List<AdminOrderModel> Paged => _items;
+    private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
 

@@ -16,6 +16,7 @@ namespace Vitorize.Application.Interfaces
         Task<OrderDto> GetAdminOrderDetailsAsync(Guid orderId);
 
         Task<List<OrderDto>> SearchAdminOrdersAsync(AdminOrderFilterDto filter);
+        Task<Vitorize.Shared.Common.PagedResult<OrderDto>> GetPagedAdminOrdersAsync(AdminOrderFilterDto filter, CancellationToken cancellationToken = default);
 
         Task CancelOrderAsync(Guid orderId, Guid adminUserId, string? reason);
 
