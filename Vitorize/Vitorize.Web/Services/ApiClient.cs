@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Logging;
@@ -18,6 +19,7 @@ namespace Vitorize.Web.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAccessTokenProvider _tokenProvider;
+        private readonly SessionTokenRefreshCoordinator _refreshCoordinator;
         private readonly IServiceProvider _serviceProvider;
         private readonly PrerenderApiState _prerenderState;
         private readonly ILogger<ApiClient> _logger;
@@ -30,12 +32,14 @@ namespace Vitorize.Web.Services
         public ApiClient(
             HttpClient httpClient,
             IAccessTokenProvider tokenProvider,
+            SessionTokenRefreshCoordinator refreshCoordinator,
             IServiceProvider serviceProvider,
             PrerenderApiState prerenderState,
             ILogger<ApiClient> logger)
         {
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
+            _refreshCoordinator = refreshCoordinator;
             _serviceProvider = serviceProvider;
             _prerenderState = prerenderState;
             _logger = logger;
@@ -72,6 +76,16 @@ namespace Vitorize.Web.Services
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
                 using var response = await _httpClient.SendAsync(request);
+                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(HttpMethod.Get, url, null))
+                {
+                    using var retry = BuildRequest(HttpMethod.Get, url, null);
+                    await ApplyAuthAsync(retry);
+                    ApplyCorrelation(retry);
+                    using var retriedResponse = await _httpClient.SendAsync(retry);
+                    HandleAuthFailure(url, retriedResponse.StatusCode);
+                    var retriedContent = await retriedResponse.Content.ReadAsStringAsync();
+                    return retriedResponse.IsSuccessStatusCode ? ApiResult<string>.Success(retriedContent) : ApiResult<string>.Failure("دریافت فایل خروجی ناموفق بود.");
+                }
                 HandleAuthFailure(url, response.StatusCode);
                 var content = await response.Content.ReadAsStringAsync();
                 return response.IsSuccessStatusCode
@@ -163,6 +177,15 @@ namespace Vitorize.Web.Services
                 }
 
                 using var response = await _httpClient.SendAsync(request);
+                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(method, url, data))
+                {
+                    using var retry = BuildRequest(method, url, data);
+                    await ApplyAuthAsync(retry);
+                    ApplyCorrelation(retry);
+                    using var retriedResponse = await _httpClient.SendAsync(retry);
+                    HandleAuthFailure(url, retriedResponse.StatusCode);
+                    return Deserialize<ApiResult<T>>(await retriedResponse.Content.ReadAsStringAsync(), retriedResponse);
+                }
                 HandleAuthFailure(url, response.StatusCode);
                 var json = await response.Content.ReadAsStringAsync();
 
@@ -223,6 +246,46 @@ namespace Vitorize.Web.Services
             {
                 request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
+        private async Task<bool> TryRefreshAsync(HttpMethod method, string url, object? data)
+        {
+            // GET/HEAD are replay-safe. Never automatically repeat a mutation: a 401 may have
+            // arrived after an upstream side effect, and duplicate commerce POSTs are unacceptable.
+            if (method != HttpMethod.Get && method != HttpMethod.Head) return false;
+            var path = url.TrimStart('/');
+            if (path.StartsWith("auth/", StringComparison.OrdinalIgnoreCase)) return false;
+            var scheme = await _tokenProvider.GetSchemeAsync();
+            var refresh = await _tokenProvider.GetRefreshTokenAsync();
+            if (string.IsNullOrWhiteSpace(scheme) || string.IsNullOrWhiteSpace(refresh))
+            {
+                await EndLocalSessionAsync();
+                return false;
+            }
+            var result = await _refreshCoordinator.RefreshAsync(scheme, refresh, CancellationToken.None);
+            if (!result.Success || result.AccessToken is null || result.RefreshToken is null)
+            {
+                await EndLocalSessionAsync();
+                return false;
+            }
+            _tokenProvider.SetTokens(scheme, result.AccessToken, result.RefreshToken);
+            return true;
+        }
+
+        private async Task EndLocalSessionAsync()
+        {
+            _tokenProvider.ClearTokens();
+            var context = _serviceProvider.GetService<IHttpContextAccessor>()?.HttpContext;
+            if (context is not null)
+            {
+                var scheme = context.User.Identity?.AuthenticationType;
+                if (scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme)
+                    await context.SignOutAsync(scheme);
+                context.Response.Cookies.Delete(VitorizeAuthSchemes.AdminAccessTokenCookie);
+                context.Response.Cookies.Delete(VitorizeAuthSchemes.AdminRefreshTokenCookie);
+                context.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerAccessTokenCookie);
+                context.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerRefreshTokenCookie);
             }
         }
 

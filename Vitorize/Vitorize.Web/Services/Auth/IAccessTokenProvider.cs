@@ -7,5 +7,9 @@ namespace Vitorize.Web.Services.Auth
     public interface IAccessTokenProvider
     {
         Task<string?> GetAccessTokenAsync();
+        Task<string?> GetRefreshTokenAsync();
+        Task<string?> GetSchemeAsync();
+        void SetTokens(string scheme, string accessToken, string refreshToken);
+        void ClearTokens();
     }
 }

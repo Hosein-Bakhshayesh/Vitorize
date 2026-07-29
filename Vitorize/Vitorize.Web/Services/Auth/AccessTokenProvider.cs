@@ -6,6 +6,9 @@ namespace Vitorize.Web.Services.Auth
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private string? _accessToken;
+        private string? _refreshToken;
+        private string? _scheme;
 
         public AccessTokenProvider(
             IServiceProvider serviceProvider,
@@ -17,6 +20,7 @@ namespace Vitorize.Web.Services.Auth
 
         public async Task<string?> GetAccessTokenAsync()
         {
+            if (!string.IsNullOrWhiteSpace(_accessToken)) return _accessToken;
             // در رندر استاتیک/endpointها HttpContext در دسترس است؛
             // در این حالت توکن از کوکی یا claim خوانده می‌شود و هرگز سراغ
             // AuthenticationStateProvider نمی‌رویم (که خارج از مدار تعاملی ممکن است متوقف بماند).
@@ -35,6 +39,7 @@ namespace Vitorize.Web.Services.Auth
                         VitorizeAuthSchemes.AdminScheme, StringComparison.Ordinal) ||
                     httpContext.Request.Path.StartsWithSegments("/admin");
 
+                _scheme = isAdminArea ? VitorizeAuthSchemes.AdminScheme : VitorizeAuthSchemes.CustomerScheme;
                 var areaCookie = isAdminArea
                     ? VitorizeAuthSchemes.AdminAccessTokenCookie
                     : VitorizeAuthSchemes.CustomerAccessTokenCookie;
@@ -46,7 +51,11 @@ namespace Vitorize.Web.Services.Auth
                     httpContext.Request.Cookies[areaCookie] ??
                     httpContext.User.FindFirst("access_token")?.Value;
 
-                return string.IsNullOrWhiteSpace(token) ? null : token;
+                _accessToken = string.IsNullOrWhiteSpace(token) ? null : token;
+                _refreshToken = httpContext.Request.Cookies[isAdminArea
+                    ? VitorizeAuthSchemes.AdminRefreshTokenCookie
+                    : VitorizeAuthSchemes.CustomerRefreshTokenCookie] ?? httpContext.User.FindFirst("refresh_token")?.Value;
+                return _accessToken;
             }
 
             // در مدار تعاملی (SignalR) HttpContext وجود ندارد؛ توکن از claimهای کاربر مدار خوانده می‌شود.
@@ -57,7 +66,10 @@ namespace Vitorize.Web.Services.Auth
                 try
                 {
                     var state = await authStateProvider.GetAuthenticationStateAsync();
-                    return state.User.FindFirst("access_token")?.Value;
+                    _accessToken = state.User.FindFirst("access_token")?.Value;
+                    _refreshToken = state.User.FindFirst("refresh_token")?.Value;
+                    _scheme ??= state.User.Identity?.AuthenticationType;
+                    return _accessToken;
                 }
                 catch
                 {
@@ -67,5 +79,28 @@ namespace Vitorize.Web.Services.Auth
 
             return null;
         }
+
+        public async Task<string?> GetRefreshTokenAsync()
+        {
+            if (_refreshToken is not null) return _refreshToken;
+            await GetAccessTokenAsync();
+            return _refreshToken;
+        }
+
+        public async Task<string?> GetSchemeAsync()
+        {
+            if (_scheme is not null) return _scheme;
+            await GetAccessTokenAsync();
+            return _scheme;
+        }
+
+        public void SetTokens(string scheme, string accessToken, string refreshToken)
+        {
+            _scheme = scheme;
+            _accessToken = accessToken;
+            _refreshToken = refreshToken;
+        }
+
+        public void ClearTokens() => (_accessToken, _refreshToken, _scheme) = (null, null, null);
     }
 }

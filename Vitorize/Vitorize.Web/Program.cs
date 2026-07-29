@@ -155,6 +155,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
+builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
+{
+    var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? throw new InvalidOperationException("ApiSettings:BaseUrl is required.");
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<StoreBrandingService>();
