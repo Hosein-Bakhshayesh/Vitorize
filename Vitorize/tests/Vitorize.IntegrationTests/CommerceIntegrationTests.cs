@@ -144,6 +144,25 @@ public sealed class CommerceIntegrationTests
     }
 
     [Fact]
+    public async Task Free_checkout_is_rejected_before_an_order_or_inventory_reservation_is_created()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var product = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 0m);
+        using var client = _fixture.CreateClient(token);
+
+        (await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 1 }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"free-{Guid.NewGuid():N}");
+
+        var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+        (await verify.GiftCodeReservations.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Inactive_product_is_hidden_and_cannot_be_added_to_cart()
     {
         var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");
