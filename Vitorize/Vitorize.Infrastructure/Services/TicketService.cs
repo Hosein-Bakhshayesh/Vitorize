@@ -247,6 +247,38 @@ namespace Vitorize.Infrastructure.Services
             return MapTicket(ticket, true);
         }
 
+        public async Task<TicketDto> GetAdminHeaderAsync(Guid ticketId, CancellationToken cancellationToken = default)
+        {
+            var ticket = await _dbContext.Tickets
+                .Include(x => x.User)
+                .Include(x => x.OrderItems)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == ticketId, cancellationToken)
+                ?? throw new NotFoundException("تیکت یافت نشد.");
+            return MapTicket(ticket, true);
+        }
+
+        public async Task<Vitorize.Shared.Common.PagedResult<TicketMessageDto>> GetMessagesPagedAsync(Guid ticketId, TicketMessageFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            filter ??= new TicketMessageFilterDto();
+            if (!await _dbContext.Tickets.AsNoTracking().AnyAsync(x => x.Id == ticketId, cancellationToken))
+                throw new NotFoundException("تیکت یافت نشد.");
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
+            var query = _dbContext.TicketMessages.AsNoTracking().Where(x => x.TicketId == ticketId);
+            if (filter.IncludeInternalNotes == false) query = query.Where(x => !x.IsInternalNote);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "desc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
+                : query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new TicketMessageDto
+            {
+                Id = x.Id, TicketId = x.TicketId, SenderUserId = x.SenderUserId, Message = x.Message,
+                AttachmentPath = x.AttachmentPath, IsInternalNote = x.IsInternalNote, CreatedAt = x.CreatedAt
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<TicketMessageDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        }
+
         public async Task<TicketDto> AdminAddMessageAsync(
             Guid adminUserId,
             Guid ticketId,
@@ -320,7 +352,7 @@ namespace Vitorize.Infrastructure.Services
                     .ExecuteUpdateAsync(s => s.SetProperty(t => t.UpdatedAt, now));
             }
 
-            return await GetByIdAsync(ticketId);
+            return await GetAdminHeaderAsync(ticketId);
         }
 
         public async Task<TicketDto> CloseAsync(Guid ticketId)
@@ -347,7 +379,7 @@ namespace Vitorize.Infrastructure.Services
                     .SetProperty(t => t.ClosedAt, now)
                     .SetProperty(t => t.UpdatedAt, now));
 
-            return await GetByIdAsync(ticketId);
+            return await GetAdminHeaderAsync(ticketId);
         }
 
         public async Task<TicketDto> ReopenAsync(Guid ticketId)
@@ -374,7 +406,7 @@ namespace Vitorize.Infrastructure.Services
                     .SetProperty(t => t.ClosedAt, (DateTime?)null)
                     .SetProperty(t => t.UpdatedAt, now));
 
-            return await GetByIdAsync(ticketId);
+            return await GetAdminHeaderAsync(ticketId);
         }
 
         private static void ValidateCreateRequest(CreateTicketRequestDto request)

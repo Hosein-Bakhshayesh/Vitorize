@@ -1,4 +1,5 @@
 @page "/admin/tickets"
+@implements IDisposable
 @inject ApiClient Api
 @inject ToastService Toasts
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
@@ -91,18 +92,34 @@ else
                             }
                         </div>
                     }
-                    @foreach (var m in Messages(t))
+                    @if (_loadingMessages)
                     {
-                        var mine = m.SenderUserId != t.UserId;
-                        <div class="vz-msg @(mine ? "mine" : "")">
-                            <div class="vz-msg__bubble @(m.IsInternalNote ? "note" : "")">
-                                @if (m.IsInternalNote) { <div class="vz-chip" style="margin-bottom:6px">یادداشت داخلی</div> }
-                                <div>@m.Message</div>
+                        <LoadingState />
+                    }
+                    else if (_messagesError is not null)
+                    {
+                        <ErrorState Message="@_messagesError" OnRetry="LoadMessages" />
+                    }
+                    else if (_messages.Count == 0)
+                    {
+                        <EmptyState Title="پیامی برای این تیکت ثبت نشده است" Icon="message" />
+                    }
+                    else
+                    {
+                        @foreach (var m in _messages)
+                        {
+                            var mine = m.SenderUserId != t.UserId;
+                            <div class="vz-msg @(mine ? "mine" : "")">
+                                <div class="vz-msg__bubble @(m.IsInternalNote ? "note" : "")">
+                                    @if (m.IsInternalNote) { <div class="vz-chip" style="margin-bottom:6px">یادداشت داخلی</div> }
+                                    <div>@m.Message</div>
+                                </div>
+                                <div class="vz-msg__meta"><PersianDateDisplay Value="m.CreatedAt" WithTime="true" /></div>
                             </div>
-                            <div class="vz-msg__meta">@m.SenderName · <PersianDateDisplay Value="m.CreatedAt" WithTime="true" /></div>
-                        </div>
+                        }
                     }
                 </div>
+                <Pagination Page="_messagePage" PageSize="_messagePageSize" TotalCount="_messageTotal" OnPageChanged="ChangeMessagePage" />
                 @if (t.Status != (byte)TicketStatus.Closed)
                 {
                     <div style="padding:16px;border-top:1px solid var(--border)">
@@ -153,6 +170,14 @@ else
     private TicketModel? _selected;
     private string _reply = string.Empty;
     private bool _internalNote;
+    private List<TicketMessageModel> _messages = new();
+    private int _messagePage = 1;
+    private int _messageTotal;
+    private const int _messagePageSize = 25;
+    private bool _loadingMessages;
+    private string? _messagesError;
+    private CancellationTokenSource? _messageLoadCts;
+    private CancellationTokenSource? _detailLoadCts;
 
     protected override Task OnInitializedAsync() => LoadList();
 
@@ -171,9 +196,6 @@ else
     private async Task ChangePage(int page) { _page = page; await LoadList(); }
     private async Task SetStatus(string status) { _status = status; _page = 1; await LoadList(); }
 
-    private static List<TicketMessageModel> Messages(TicketModel t) =>
-        (t.Messages.Count > 0 ? t.Messages : t.TicketMessages).OrderBy(m => m.CreatedAt).ToList();
-
     private static string TicketIntent(byte status) => status switch
     {
         (byte)TicketStatus.Open => "info",
@@ -184,11 +206,73 @@ else
 
     private async Task Select(Guid id)
     {
+        _detailLoadCts?.Cancel();
+        _detailLoadCts?.Dispose();
+        _detailLoadCts = new CancellationTokenSource();
+        var cancellationToken = _detailLoadCts.Token;
+        _messageLoadCts?.Cancel();
         _loadingDetail = true; _selected = null; _reply = string.Empty; _internalNote = false;
-        var r = await Api.GetAsync<TicketModel>($"admin/tickets/{id}");
-        if (r.IsSuccess && r.Data is not null) _selected = r.Data;
-        else Toasts.Error(r.Message);
-        _loadingDetail = false;
+        _messages = new(); _messagePage = 1; _messageTotal = 0; _messagesError = null;
+        try
+        {
+            var r = await Api.GetAsync<TicketModel>($"admin/tickets/{id}", cancellationToken);
+            if (cancellationToken.IsCancellationRequested) return;
+            if (r.IsSuccess && r.Data is not null)
+            {
+                _selected = r.Data;
+                await LoadMessages();
+            }
+            else Toasts.Error(r.Message);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A newer ticket selection superseded this request.
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested)
+                _loadingDetail = false;
+        }
+    }
+
+    private async Task ChangeMessagePage(int page)
+    {
+        _messagePage = page;
+        await LoadMessages();
+    }
+
+    private async Task LoadMessages()
+    {
+        if (_selected is null) return;
+        _messageLoadCts?.Cancel();
+        _messageLoadCts?.Dispose();
+        _messageLoadCts = new CancellationTokenSource();
+        var cancellationToken = _messageLoadCts.Token;
+        var ticketId = _selected.Id;
+        _loadingMessages = true;
+        _messagesError = null;
+        try
+        {
+            var r = await Api.GetAsync<PagedResult<TicketMessageModel>>(
+                $"admin/tickets/{ticketId}/messages?page={_messagePage}&pageSize={_messagePageSize}&sortDirection=asc",
+                cancellationToken);
+            if (cancellationToken.IsCancellationRequested || _selected?.Id != ticketId) return;
+            if (r.IsSuccess && r.Data is not null)
+            {
+                _messages = r.Data.Items.ToList();
+                _messageTotal = r.Data.TotalCount;
+            }
+            else _messagesError = r.Message;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A newer ticket or page superseded this request.
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested && _selected?.Id == ticketId)
+                _loadingMessages = false;
+        }
     }
 
     private async Task SendReply()
@@ -201,7 +285,15 @@ else
             new { Message = _reply, AttachmentPath = (string?)null, IsInternalNote = _internalNote });
         _acting = false;
 
-        if (r.IsSuccess && r.Data is not null) { _selected = r.Data; _reply = string.Empty; _internalNote = false; Toasts.Success("پاسخ ثبت شد."); }
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _selected = r.Data;
+            _reply = string.Empty;
+            _internalNote = false;
+            _messagePage = Math.Max(1, (int)Math.Ceiling((_messageTotal + 1d) / _messagePageSize));
+            await LoadMessages();
+            Toasts.Success("پاسخ ثبت شد.");
+        }
         else Toasts.Error(r.Message);
     }
 
@@ -223,5 +315,13 @@ else
         _acting = false;
         if (r.IsSuccess && r.Data is not null) { _selected = r.Data; Toasts.Success("تیکت بازگشایی شد."); await LoadList(); }
         else Toasts.Error(r.Message);
+    }
+
+    public void Dispose()
+    {
+        _detailLoadCts?.Cancel();
+        _detailLoadCts?.Dispose();
+        _messageLoadCts?.Cancel();
+        _messageLoadCts?.Dispose();
     }
 }

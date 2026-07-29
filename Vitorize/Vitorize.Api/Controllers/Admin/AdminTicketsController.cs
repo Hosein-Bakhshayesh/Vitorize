@@ -40,8 +40,16 @@ namespace Vitorize.Api.Controllers.Admin
         [HttpGet("{ticketId:guid}")]
         public async Task<ActionResult<ApiResult<TicketDto>>> GetById(Guid ticketId)
         {
-            var result = await _ticketService.GetByIdAsync(ticketId);
+            var result = await _ticketService.GetAdminHeaderAsync(ticketId, HttpContext.RequestAborted);
             return Ok(ApiResult<TicketDto>.Success(result, "جزئیات تیکت با موفقیت دریافت شد."));
+        }
+
+        [HttpGet("{ticketId:guid}/messages")]
+        public async Task<ActionResult<ApiResult<PagedResult<TicketMessageDto>>>> GetMessages(
+            Guid ticketId, [FromQuery] TicketMessageFilterDto filter, CancellationToken cancellationToken)
+        {
+            var result = await _ticketService.GetMessagesPagedAsync(ticketId, filter, cancellationToken);
+            return Ok(ApiResult<PagedResult<TicketMessageDto>>.Success(result, "پیام‌های صفحه‌بندی‌شده تیکت دریافت شد."));
         }
 
         [HttpPost("{ticketId:guid}/messages")]

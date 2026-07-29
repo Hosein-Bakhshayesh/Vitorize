@@ -56,6 +56,57 @@ public sealed class SupportReviewKycIntegrationTests
     }
 
     [Fact]
+    public async Task Admin_ticket_message_history_is_paged_stable_and_not_loaded_with_the_header()
+    {
+        var (owner, ownerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var ownerClient = _fixture.CreateClient(ownerToken);
+        using var admin = _fixture.CreateClient(adminToken);
+        var ticket = await PostDataAsync<TicketDto>(ownerClient, "/api/tickets", new CreateTicketRequestDto
+        {
+            Subject = "Paged message history", Department = (byte)TicketDepartment.Technical,
+            Priority = (byte)TicketPriority.Normal, Message = "Initial message"
+        });
+
+        var createdAt = DateTime.UtcNow.AddMinutes(-54);
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.TicketMessages.AddRange(Enumerable.Range(1, 54).Select(index => new TicketMessage
+            {
+                Id = Guid.NewGuid(), TicketId = ticket.Id, SenderUserId = owner.Id,
+                Message = $"Paged message {index:000}", IsInternalNote = index % 3 == 0,
+                CreatedAt = createdAt.AddMinutes(index)
+            }));
+            await db.SaveChangesAsync();
+        }
+
+        var header = await admin.GetFromJsonAsync<ApiResult<TicketDto>>($"/api/admin/tickets/{ticket.Id}");
+        header!.IsSuccess.Should().BeTrue();
+        header.Data!.Messages.Should().BeEmpty();
+        (await ownerClient.GetAsync($"/api/admin/tickets/{ticket.Id}/messages")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var first = await GetTicketMessagesAsync(admin, ticket.Id, "page=1&pageSize=20&sortDirection=asc");
+        var middle = await GetTicketMessagesAsync(admin, ticket.Id, "page=2&pageSize=20&sortDirection=asc");
+        var last = await GetTicketMessagesAsync(admin, ticket.Id, "page=3&pageSize=20&sortDirection=asc");
+        var beyondLast = await GetTicketMessagesAsync(admin, ticket.Id, "page=4&pageSize=20&sortDirection=asc");
+        var defaultSize = await GetTicketMessagesAsync(admin, ticket.Id, "page=1&pageSize=0");
+        var cappedSize = await GetTicketMessagesAsync(admin, ticket.Id, "page=1&pageSize=500");
+        var externalOnly = await GetTicketMessagesAsync(admin, ticket.Id, "page=1&pageSize=100&includeInternalNotes=false");
+        var descending = await GetTicketMessagesAsync(admin, ticket.Id, "page=1&pageSize=20&sortDirection=desc");
+
+        first.TotalCount.Should().Be(55); first.PageSize.Should().Be(20); first.Items.Should().HaveCount(20);
+        middle.TotalCount.Should().Be(55); middle.Items.Should().HaveCount(20);
+        last.TotalCount.Should().Be(55); last.Items.Should().HaveCount(15);
+        beyondLast.TotalCount.Should().Be(55); beyondLast.Items.Should().BeEmpty();
+        defaultSize.PageSize.Should().Be(25); defaultSize.Items.Should().HaveCount(25);
+        cappedSize.PageSize.Should().Be(100); cappedSize.Items.Should().HaveCount(55);
+        externalOnly.Items.Should().OnlyContain(x => !x.IsInternalNote);
+        first.Items.Select(x => x.Id).Intersect(middle.Items.Select(x => x.Id)).Should().BeEmpty();
+        first.Items.Select(x => x.CreatedAt).Should().BeInAscendingOrder();
+        descending.Items.Select(x => x.CreatedAt).Should().BeInDescendingOrder();
+    }
+
+    [Fact]
     public async Task Customer_order_ticket_does_not_consume_the_automatic_fulfillment_item_link()
     {
         var (owner, ownerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
@@ -194,5 +245,13 @@ public sealed class SupportReviewKycIntegrationTests
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
         var result = await response.Content.ReadFromJsonAsync<ApiResult<T>>();
         return result!.Data!;
+    }
+
+    private static async Task<PagedResult<TicketMessageDto>> GetTicketMessagesAsync(HttpClient client, Guid ticketId, string query)
+    {
+        var response = await client.GetFromJsonAsync<ApiResult<PagedResult<TicketMessageDto>>>(
+            $"/api/admin/tickets/{ticketId}/messages?{query}");
+        response!.IsSuccess.Should().BeTrue();
+        return response.Data!;
     }
 }
