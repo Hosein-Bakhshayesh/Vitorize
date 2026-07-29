@@ -112,7 +112,11 @@
             <div class="vz-card__title" style="margin-bottom:12px">تراکنش‌های اخیر</div>
             @if (_loadingTx) { <LoadingState Text="در حال دریافت تراکنش‌ها ..." /> }
             else if (_transactions.Count == 0) { <EmptyState Title="تراکنشی ثبت نشده" Icon="activity" /> }
-            else { <Timeline Items="TxTimeline()" /> }
+            else
+            {
+                <Timeline Items="TxTimeline()" />
+                <Pagination Page="_transactionPage" PageSize="_transactionPageSize" TotalCount="_transactionTotal" OnPageChanged="ChangeTransactionPage" />
+            }
         }
     </ChildContent>
     <Footer>
@@ -133,6 +137,8 @@
     private bool _open, _acting, _loadingTx;
     private WalletModel? _current;
     private List<WalletTransactionModel> _transactions = new();
+    private int _transactionPage = 1, _transactionTotal;
+    private const int _transactionPageSize = 20;
     private decimal _amount;
     private string _desc = string.Empty;
 
@@ -171,6 +177,7 @@
     private async Task Open(WalletModel w)
     {
         _current = w; _amount = 0; _desc = string.Empty; _open = true;
+        _transactionPage = 1;
         await LoadTransactions();
     }
 
@@ -178,9 +185,16 @@
     {
         if (_current is null) return;
         _loadingTx = true;
-        var r = await Api.GetAsync<List<WalletTransactionModel>>($"admin/wallets/{_current.UserId}/transactions");
-        _transactions = r.Data ?? new();
+        var r = await Api.GetAsync<PagedResult<WalletTransactionModel>>($"admin/wallets/{_current.UserId}/transactions/paged?page={_transactionPage}&pageSize={_transactionPageSize}");
+        _transactions = r.Data?.Items.ToList() ?? new();
+        _transactionTotal = r.Data?.TotalCount ?? 0;
         _loadingTx = false;
+    }
+
+    private async Task ChangeTransactionPage(int page)
+    {
+        _transactionPage = page;
+        await LoadTransactions();
     }
 
     private List<Timeline.Entry> TxTimeline() => _transactions

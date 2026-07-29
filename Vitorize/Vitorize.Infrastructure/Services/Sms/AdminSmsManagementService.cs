@@ -445,6 +445,12 @@ namespace Vitorize.Infrastructure.Services.Sms
             SmsSendType.CustomText => "متن سفارشی", _ => "نامشخص"
         };
 
-        private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+        private static string Csv(string? value)
+        {
+            var safe = value ?? string.Empty;
+            if (safe.Length > 0 && safe[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+                safe = "'" + safe;
+            return $"\"{safe.Replace("\"", "\"\"")}\"";
+        }
     }
 }

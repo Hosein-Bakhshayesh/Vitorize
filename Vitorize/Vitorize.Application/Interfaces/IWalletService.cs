@@ -11,6 +11,8 @@ namespace Vitorize.Application.Interfaces
         Task<WalletDto> GetUserWalletAsync(Guid userId);
 
         Task<List<WalletTransactionDto>> GetUserTransactionsAsync(Guid userId);
+        Task<Vitorize.Shared.Common.PagedResult<WalletTransactionDto>> GetUserTransactionsPagedAsync(Guid userId, WalletTransactionFilterDto filter, CancellationToken cancellationToken = default)
+            => Task.FromResult(new Vitorize.Shared.Common.PagedResult<WalletTransactionDto>());
 
         Task<WalletDto> CreditAsync(
             Guid userId,

@@ -75,6 +75,32 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
         }
 
+        public async Task<Vitorize.Shared.Common.PagedResult<WalletTransactionDto>> GetUserTransactionsPagedAsync(Guid userId, WalletTransactionFilterDto filter, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            filter ??= new WalletTransactionFilterDto();
+            var page = Math.Max(1, filter.PageNumber ?? filter.Page);
+            var pageSize = filter.PageSize <= 0 ? 20 : Math.Min(filter.PageSize, 100);
+            var wallet = await GetOrCreateWalletAsync(userId);
+            var query = _dbContext.WalletTransactions.AsNoTracking().Where(x => x.WalletId == wallet.Id && x.UserId == userId);
+            if (filter.Type.HasValue) query = query.Where(x => x.Type == filter.Type.Value);
+            var totalCount = await query.CountAsync(cancellationToken);
+            query = string.Equals(filter.SortDirection, "asc", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                : query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new WalletTransactionDto
+            {
+                Id = x.Id, WalletId = x.WalletId, UserId = x.UserId, Type = x.Type, Amount = x.Amount,
+                BalanceAfter = x.BalanceAfter, ReferenceType = x.ReferenceType, ReferenceId = x.ReferenceId,
+                Description = x.Description, CreatedAt = x.CreatedAt
+            }).ToListAsync(cancellationToken);
+            return new Vitorize.Shared.Common.PagedResult<WalletTransactionDto>
+            {
+                Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount
+            };
+        }
+
         public async Task<WalletDto> AdminChargeAsync(WalletChargeRequestDto request)
         {
             if (request.UserId == Guid.Empty)

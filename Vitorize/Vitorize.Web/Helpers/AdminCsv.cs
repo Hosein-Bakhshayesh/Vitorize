@@ -13,6 +13,11 @@ namespace Vitorize.Web.Helpers
         public static string Field(string? value)
         {
             if (string.IsNullOrEmpty(value)) return "";
+            // Spreadsheet applications interpret a leading formula marker even
+            // when a value arrived from a trusted admin list. Prefixing an
+            // apostrophe preserves the visible value while forcing text mode.
+            if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+                value = "'" + value;
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             return value;
