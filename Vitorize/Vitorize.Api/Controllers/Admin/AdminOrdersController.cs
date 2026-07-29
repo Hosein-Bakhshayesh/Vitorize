@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Application.DTOs.Admin.Orders;
+using Vitorize.Application.DTOs.Admin;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
 using Vitorize.Shared.Common;
@@ -62,6 +63,13 @@ namespace Vitorize.Api.Controllers.Admin
         {
             var result = await _orderService.GetPagedAdminOrdersAsync(filter, cancellationToken);
             return Ok(ApiResult<PagedResult<OrderDto>>.Success(result, "فهرست صفحه‌بندی‌شده سفارش‌ها دریافت شد."));
+        }
+
+        [HttpPost("export-selection")]
+        public async Task<ActionResult<ApiResult<List<OrderDto>>>> ExportSelection(SelectedRowsRequestDto request, CancellationToken cancellationToken)
+        {
+            var result = await _orderService.GetSelectedAdminOrdersForExportAsync(request.Ids, cancellationToken);
+            return Ok(ApiResult<List<OrderDto>>.Success(result, "سفارش‌های انتخاب‌شده برای خروجی تأیید شدند."));
         }
 
         [HttpGet("{orderId:guid}")]

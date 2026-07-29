@@ -223,6 +223,22 @@ namespace Vitorize.Infrastructure.Services
             return new Vitorize.Shared.Common.PagedResult<OrderDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
         }
 
+        public async Task<List<OrderDto>> GetSelectedAdminOrdersForExportAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+        {
+            var selected = ids.Where(x => x != Guid.Empty).Distinct().ToArray();
+            if (selected.Length == 0) throw new BusinessException("حداقل یک سفارش باید انتخاب شود.");
+            if (selected.Length > 200) throw new BusinessException("حداکثر ۲۰۰ سفارش را می‌توان هم‌زمان خروجی گرفت.");
+            if (selected.Length != ids.Count) throw new BusinessException("شناسه‌های انتخاب‌شده معتبر نیستند.");
+            var query = _dbContext.Orders.AsNoTracking().Where(x => selected.Contains(x.Id));
+            if (await query.CountAsync(cancellationToken) != selected.Length)
+                throw new BusinessException("یکی از سفارش‌های انتخاب‌شده معتبر نیست.");
+            return await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new OrderDto
+            {
+                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
+                Status = x.Status, PaymentStatus = x.PaymentStatus, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType, CreatedAt = x.CreatedAt
+            }).ToListAsync(cancellationToken);
+        }
+
         public async Task CancelOrderAsync(
             Guid orderId,
             Guid adminUserId,

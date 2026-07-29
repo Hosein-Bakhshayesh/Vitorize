@@ -65,7 +65,7 @@ else
             <div style="flex:1"></div>
             <button class="vz-btn vz-btn--success vz-btn--sm" @onclick="BulkComplete" disabled="@_bulkBusy"><Icon Name="check" Size="14" /> تکمیل</button>
             <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="OpenBulkCancel" disabled="@_bulkBusy"><Icon Name="x-circle" Size="14" /> لغو</button>
-            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Export(SelectedItems)"><Icon Name="download" Size="14" /> خروجی انتخاب‌شده از صفحه جاری</button>
+            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="ExportSelected"><Icon Name="download" Size="14" /> خروجی انتخاب‌شده از صفحه جاری</button>
             <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن</button>
         </div>
     }
@@ -606,6 +606,13 @@ else
             new[] { "OrderNumber", "Customer", "Mobile", "Final", "Payment", "Status", "Date" }, rows);
         await JS.InvokeVoidAsync("vzAdmin.downloadText", $"orders-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
         Toasts.Success($"{AUI.Number(source.Count)} سفارش در فایل CSV ذخیره شد.");
+    }
+
+    private async Task ExportSelected()
+    {
+        var validated = await Api.PostAsync<List<AdminOrderModel>>("admin/orders/export-selection", new { Ids = _selected.ToList() });
+        if (!validated.IsSuccess || validated.Data is null) { Toasts.Error(validated.Message); return; }
+        await Export(validated.Data);
     }
 
     // ----- keyboard shortcuts -----
