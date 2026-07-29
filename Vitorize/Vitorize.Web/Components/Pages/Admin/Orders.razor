@@ -9,7 +9,7 @@
 <PageHeader Title="مدیریت سفارش‌ها" Subtitle="سفارش‌های مشتریان را پیگیری و مدیریت کنید"
             Icon="cart" Breadcrumbs="@(new(){ ("سفارش‌ها", null) })">
     <Actions>
-        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="() => Export(Filtered)"><Icon Name="download" Size="17" /></button>
+        <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV صفحه جاری" @onclick="() => Export(Filtered)"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
     </Actions>
 </PageHeader>
@@ -65,7 +65,7 @@ else
             <div style="flex:1"></div>
             <button class="vz-btn vz-btn--success vz-btn--sm" @onclick="BulkComplete" disabled="@_bulkBusy"><Icon Name="check" Size="14" /> تکمیل</button>
             <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="OpenBulkCancel" disabled="@_bulkBusy"><Icon Name="x-circle" Size="14" /> لغو</button>
-            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Export(SelectedItems)"><Icon Name="download" Size="14" /> خروجی CSV</button>
+            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Export(SelectedItems)"><Icon Name="download" Size="14" /> خروجی انتخاب‌شده از صفحه جاری</button>
             <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن</button>
         </div>
     }
