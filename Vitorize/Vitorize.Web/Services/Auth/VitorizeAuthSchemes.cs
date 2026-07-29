@@ -15,5 +15,12 @@ namespace Vitorize.Web.Services.Auth
 
         public const string CustomerAccessTokenCookie = "Vitorize.Customer.AccessToken";
         public const string CustomerRefreshTokenCookie = "Vitorize.Customer.RefreshToken";
+
+        public static IEnumerable<string> TokenCookiesFor(string? scheme) => scheme switch
+        {
+            AdminScheme => [AdminAuthCookie, AdminAccessTokenCookie, AdminRefreshTokenCookie],
+            CustomerScheme => [CustomerAuthCookie, CustomerAccessTokenCookie, CustomerRefreshTokenCookie],
+            _ => []
+        };
     }
 }

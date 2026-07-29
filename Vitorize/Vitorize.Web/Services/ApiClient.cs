@@ -21,8 +21,9 @@ namespace Vitorize.Web.Services
         private readonly IAccessTokenProvider _tokenProvider;
         private readonly SessionTokenRefreshCoordinator _refreshCoordinator;
         private readonly IServiceProvider _serviceProvider;
-        private readonly PrerenderApiState _prerenderState;
+        private readonly PrerenderApiState? _prerenderState;
         private readonly ILogger<ApiClient> _logger;
+        private string? _expiredSessionScheme;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -34,7 +35,7 @@ namespace Vitorize.Web.Services
             IAccessTokenProvider tokenProvider,
             SessionTokenRefreshCoordinator refreshCoordinator,
             IServiceProvider serviceProvider,
-            PrerenderApiState prerenderState,
+            PrerenderApiState? prerenderState,
             ILogger<ApiClient> logger)
         {
             _httpClient = httpClient;
@@ -45,13 +46,13 @@ namespace Vitorize.Web.Services
             _logger = logger;
         }
 
-        public async Task<ApiResult<T>> GetAsync<T>(string url)
+        public async Task<ApiResult<T>> GetAsync<T>(string url, CancellationToken cancellationToken = default)
         {
-            if (IsPublicPrerenderEndpoint(url) && _prerenderState.TryTake<T>(url, out var persisted) && persisted is not null)
+            if (IsPublicPrerenderEndpoint(url) && _prerenderState?.TryTake<T>(url, out var persisted) == true && persisted is not null)
                 return persisted;
 
-            var result = await SendAsync<T>(HttpMethod.Get, url, null);
-            if (IsPublicPrerenderEndpoint(url)) _prerenderState.Remember(url, result);
+            var result = await SendAsync<T>(HttpMethod.Get, url, null, cancellationToken: cancellationToken);
+            if (IsPublicPrerenderEndpoint(url)) _prerenderState?.Remember(url, result);
             return result;
         }
 
@@ -68,26 +69,26 @@ namespace Vitorize.Web.Services
                    path.StartsWith("seo/", StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<ApiResult<string>> GetRawTextAsync(string url)
+        public async Task<ApiResult<string>> GetRawTextAsync(string url, CancellationToken cancellationToken = default)
         {
             try
             {
                 using var request = BuildRequest(HttpMethod.Get, url, null);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
-                using var response = await _httpClient.SendAsync(request);
-                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(HttpMethod.Get, url, null))
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(HttpMethod.Get, url, cancellationToken))
                 {
                     using var retry = BuildRequest(HttpMethod.Get, url, null);
                     await ApplyAuthAsync(retry);
                     ApplyCorrelation(retry);
-                    using var retriedResponse = await _httpClient.SendAsync(retry);
+                    using var retriedResponse = await _httpClient.SendAsync(retry, cancellationToken);
                     HandleAuthFailure(url, retriedResponse.StatusCode);
-                    var retriedContent = await retriedResponse.Content.ReadAsStringAsync();
+                    var retriedContent = await retriedResponse.Content.ReadAsStringAsync(cancellationToken);
                     return retriedResponse.IsSuccessStatusCode ? ApiResult<string>.Success(retriedContent) : ApiResult<string>.Failure("دریافت فایل خروجی ناموفق بود.");
                 }
                 HandleAuthFailure(url, response.StatusCode);
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 return response.IsSuccessStatusCode
                     ? ApiResult<string>.Success(content)
                     : ApiResult<string>.Failure("دریافت فایل خروجی ناموفق بود.");
@@ -99,26 +100,27 @@ namespace Vitorize.Web.Services
             }
         }
 
-        public Task<ApiResult<T>> PostAsync<T>(string url, object? data = null) =>
-            SendAsync<T>(HttpMethod.Post, url, data);
+        public Task<ApiResult<T>> PostAsync<T>(string url, object? data = null, CancellationToken cancellationToken = default) =>
+            SendAsync<T>(HttpMethod.Post, url, data, cancellationToken: cancellationToken);
 
         public Task<ApiResult<T>> PostAsync<T>(
             string url,
             object? data,
-            IReadOnlyDictionary<string, string> headers) =>
-            SendAsync<T>(HttpMethod.Post, url, data, headers);
+            IReadOnlyDictionary<string, string> headers,
+            CancellationToken cancellationToken = default) =>
+            SendAsync<T>(HttpMethod.Post, url, data, headers, cancellationToken);
 
-        public Task<ApiResult<T>> PutAsync<T>(string url, object? data = null) =>
-            SendAsync<T>(HttpMethod.Put, url, data);
+        public Task<ApiResult<T>> PutAsync<T>(string url, object? data = null, CancellationToken cancellationToken = default) =>
+            SendAsync<T>(HttpMethod.Put, url, data, cancellationToken: cancellationToken);
 
-        public Task<ApiResult> PostAsync(string url, object? data = null) =>
-            SendAsync(HttpMethod.Post, url, data);
+        public Task<ApiResult> PostAsync(string url, object? data = null, CancellationToken cancellationToken = default) =>
+            SendAsync(HttpMethod.Post, url, data, cancellationToken);
 
-        public Task<ApiResult> PutAsync(string url, object? data = null) =>
-            SendAsync(HttpMethod.Put, url, data);
+        public Task<ApiResult> PutAsync(string url, object? data = null, CancellationToken cancellationToken = default) =>
+            SendAsync(HttpMethod.Put, url, data, cancellationToken);
 
-        public Task<ApiResult> DeleteAsync(string url) =>
-            SendAsync(HttpMethod.Delete, url, null);
+        public Task<ApiResult> DeleteAsync(string url, CancellationToken cancellationToken = default) =>
+            SendAsync(HttpMethod.Delete, url, null, cancellationToken);
 
         public async Task<ApiResult<T>> UploadAsync<T>(
             string url,
@@ -126,7 +128,8 @@ namespace Vitorize.Web.Services
             string fileName,
             string contentType,
             string fieldName = "file",
-            IReadOnlyDictionary<string, string>? fields = null)
+            IReadOnlyDictionary<string, string>? fields = null,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -145,9 +148,9 @@ namespace Vitorize.Web.Services
                     foreach (var field in fields) content.Add(new StringContent(field.Value ?? string.Empty), field.Key);
                 request.Content = content;
 
-                using var response = await _httpClient.SendAsync(request);
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
                 HandleAuthFailure(url, response.StatusCode);
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 return Deserialize<ApiResult<T>>(json, response);
             }
@@ -162,7 +165,8 @@ namespace Vitorize.Web.Services
             HttpMethod method,
             string url,
             object? data,
-            IReadOnlyDictionary<string, string>? headers = null)
+            IReadOnlyDictionary<string, string>? headers = null,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -170,24 +174,21 @@ namespace Vitorize.Web.Services
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
 
-                if (headers is not null)
-                {
-                    foreach (var header in headers)
-                        request.Headers.TryAddWithoutValidation(header.Key, header.Value);
-                }
+                ApplyHeaders(request, headers);
 
-                using var response = await _httpClient.SendAsync(request);
-                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(method, url, data))
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (response.StatusCode == HttpStatusCode.Unauthorized && await TryRefreshAsync(method, url, cancellationToken))
                 {
                     using var retry = BuildRequest(method, url, data);
                     await ApplyAuthAsync(retry);
                     ApplyCorrelation(retry);
-                    using var retriedResponse = await _httpClient.SendAsync(retry);
+                    ApplyHeaders(retry, headers);
+                    using var retriedResponse = await _httpClient.SendAsync(retry, cancellationToken);
                     HandleAuthFailure(url, retriedResponse.StatusCode);
-                    return Deserialize<ApiResult<T>>(await retriedResponse.Content.ReadAsStringAsync(), retriedResponse);
+                    return Deserialize<ApiResult<T>>(await retriedResponse.Content.ReadAsStringAsync(cancellationToken), retriedResponse);
                 }
                 HandleAuthFailure(url, response.StatusCode);
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 return Deserialize<ApiResult<T>>(json, response);
             }
@@ -201,7 +202,8 @@ namespace Vitorize.Web.Services
         private async Task<ApiResult> SendAsync(
             HttpMethod method,
             string url,
-            object? data)
+            object? data,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -209,9 +211,9 @@ namespace Vitorize.Web.Services
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
 
-                using var response = await _httpClient.SendAsync(request);
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
                 HandleAuthFailure(url, response.StatusCode);
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 return Deserialize<ApiResult>(json, response);
             }
@@ -249,7 +251,7 @@ namespace Vitorize.Web.Services
             }
         }
 
-        private async Task<bool> TryRefreshAsync(HttpMethod method, string url, object? data)
+        private async Task<bool> TryRefreshAsync(HttpMethod method, string url, CancellationToken cancellationToken)
         {
             // GET/HEAD are replay-safe. Never automatically repeat a mutation: a 401 may have
             // arrived after an upstream side effect, and duplicate commerce POSTs are unacceptable.
@@ -260,33 +262,40 @@ namespace Vitorize.Web.Services
             var refresh = await _tokenProvider.GetRefreshTokenAsync();
             if (string.IsNullOrWhiteSpace(scheme) || string.IsNullOrWhiteSpace(refresh))
             {
-                await EndLocalSessionAsync();
+                await EndLocalSessionAsync(scheme);
                 return false;
             }
-            var result = await _refreshCoordinator.RefreshAsync(scheme, refresh, CancellationToken.None);
+            var result = await _refreshCoordinator.RefreshAsync(scheme, refresh, cancellationToken);
             if (!result.Success || result.AccessToken is null || result.RefreshToken is null)
             {
-                await EndLocalSessionAsync();
+                await EndLocalSessionAsync(scheme);
                 return false;
             }
             _tokenProvider.SetTokens(scheme, result.AccessToken, result.RefreshToken);
             return true;
         }
 
-        private async Task EndLocalSessionAsync()
+        private async Task EndLocalSessionAsync(string? scheme)
         {
             _tokenProvider.ClearTokens();
+            _expiredSessionScheme = scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme
+                ? scheme
+                : null;
             var context = _serviceProvider.GetService<IHttpContextAccessor>()?.HttpContext;
             if (context is not null)
             {
-                var scheme = context.User.Identity?.AuthenticationType;
                 if (scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme)
                     await context.SignOutAsync(scheme);
-                context.Response.Cookies.Delete(VitorizeAuthSchemes.AdminAccessTokenCookie);
-                context.Response.Cookies.Delete(VitorizeAuthSchemes.AdminRefreshTokenCookie);
-                context.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerAccessTokenCookie);
-                context.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerRefreshTokenCookie);
+                foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(scheme))
+                    context.Response.Cookies.Delete(cookie);
             }
+        }
+
+        private static void ApplyHeaders(HttpRequestMessage request, IReadOnlyDictionary<string, string>? headers)
+        {
+            if (headers is null) return;
+            foreach (var header in headers)
+                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
         private static void ApplyCorrelation(HttpRequestMessage request)
@@ -326,6 +335,18 @@ namespace Vitorize.Web.Services
             {
                 var currentPath = "/" + navigation.ToBaseRelativePath(navigation.Uri);
                 var lower = currentPath.ToLowerInvariant();
+
+                if (statusCode == HttpStatusCode.Unauthorized &&
+                    _expiredSessionScheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme)
+                {
+                    var area = _expiredSessionScheme == VitorizeAuthSchemes.AdminScheme ? "admin" : "customer";
+                    _expiredSessionScheme = null;
+                    navigation.NavigateTo(
+                        $"auth/session-expired?area={area}&returnUrl={Uri.EscapeDataString(currentPath)}",
+                        forceLoad: true,
+                        replace: true);
+                    return;
+                }
 
                 var isAdminArea = lower.StartsWith("/admin");
 
