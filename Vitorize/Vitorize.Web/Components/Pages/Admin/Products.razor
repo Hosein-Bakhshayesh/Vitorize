@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
+@implements IDisposable
 
 <PageHeader Title="مدیریت محصولات" Subtitle="لیست محصولات فروشگاه خود را مدیریت و ویرایش کنید"
             Icon="box" Breadcrumbs="@(new(){ ("محصولات", null) })">
@@ -186,6 +187,8 @@ else
     private List<AdminProductModel> _items = new();
     private List<AdminCategoryModel> _categories = new();
     private int _total;
+    private CancellationTokenSource? _loadCancellation;
+    private int _loadGeneration;
 
     private string _search = string.Empty;
     private string _typeFilter = "all";
@@ -226,6 +229,11 @@ else
 
     private async Task Load()
     {
+        var previous = Interlocked.Exchange(ref _loadCancellation, new CancellationTokenSource());
+        previous?.Cancel();
+        previous?.Dispose();
+        var cancellationToken = _loadCancellation!.Token;
+        var generation = Interlocked.Increment(ref _loadGeneration);
         _loading = true; _error = null;
         var query = $"admin/products/paged?page={_page}&pageSize={_pageSize}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search.Trim())}";
@@ -235,12 +243,23 @@ else
         else if (_statusFilter == "inactive") query += "&isActive=false";
         else if (_statusFilter == "featured") query += "&isFeatured=true";
         if (_stockFilter != "all") query += $"&stockState={_stockFilter}";
-        var result = await Api.GetAsync<PagedResult<AdminProductModel>>(query);
-        if (result.IsSuccess && result.Data is not null) { _items = result.Data.Items.ToList(); _total = result.Data.TotalCount; }
-        else _error = result.Message;
-        _selected.Clear();
-        CloseMenu();
-        _loading = false;
+        try
+        {
+            var result = await Api.GetAsync<PagedResult<AdminProductModel>>(query, cancellationToken);
+            if (generation != Volatile.Read(ref _loadGeneration)) return;
+            if (result.IsSuccess && result.Data is not null) { _items = result.Data.Items.ToList(); _total = result.Data.TotalCount; }
+            else _error = result.Message;
+            _selected.Clear();
+            CloseMenu();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A newer request owns the screen state.
+        }
+        finally
+        {
+            if (generation == Volatile.Read(ref _loadGeneration)) _loading = false;
+        }
     }
 
     private async Task ReloadFilters() { _page = 1; await Load(); }
@@ -321,6 +340,13 @@ else
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
             return "\"" + value.Replace("\"", "\"\"") + "\"";
         return value;
+    }
+
+    public void Dispose()
+    {
+        var cancellation = Interlocked.Exchange(ref _loadCancellation, null);
+        cancellation?.Cancel();
+        cancellation?.Dispose();
     }
 
     // ----- delete (single + bulk) -----
