@@ -22,11 +22,12 @@ Unit tests: 423 passed.
 SQL-backed integration tests: 124 passed.  
 Focused payment/configuration tests: 13 passed.  
 Published-stack Playwright SuperAdmin lifecycle: 1 passed.  
+Managed-stack visual regression: 6 passed (desktop light, desktop dark, mobile dark).  
 NuGet direct/transitive vulnerability scan: no vulnerable packages reported.  
 `npm audit` was not executable because the E2E package has no lockfile; no lockfile was generated during certification.
 
 ## Scope and recommendation
 
-**Repository and runtime certified** for the executed database, API, Web, bootstrap, payment-sentinel and restart gates. The browser-controller host was unavailable locally; browser coverage was instead provided by the repository's existing Playwright scenario. The broader Playwright authentication suite is designed for the managed Testing database and exceeded the local execution timeout when aimed at the intentionally empty Production certification database; it is not represented as a pass.
+**Repository and runtime certified** for the executed database, API, Web, bootstrap, payment-sentinel and restart gates. The browser-controller host was unavailable locally; browser coverage was instead provided by the repository's existing Playwright scenarios. The broader Playwright authentication suite is designed for the managed Testing database and exceeded the local execution timeout when aimed at the intentionally empty Production certification database; it is not represented as a pass.
 
 **Ready for controlled UAT deployment.** It is not a declaration of live commercial-payment readiness. External owners must complete hosted CI execution, production secret provisioning, DNS/HTTPS and reverse-proxy approval, live Zarinpal certification, a backup/restore drill, production-host rehearsal, and customer acceptance. These do not block a controlled UAT installation with the payment sentinel retained; they do block live payment and final production sign-off.
