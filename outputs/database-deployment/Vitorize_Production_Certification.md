@@ -23,6 +23,7 @@ SQL-backed integration tests: 124 passed.
 Focused payment/configuration tests: 13 passed.  
 Published-stack Playwright SuperAdmin lifecycle: 1 passed.  
 Managed-stack visual regression: 6 passed (desktop light, desktop dark, mobile dark).  
+Managed-stack safe write-path product workflow: 48 passed (create/read/update/archive and validation across desktop light, desktop dark and mobile dark).  
 NuGet direct/transitive vulnerability scan: no vulnerable packages reported.  
 `npm audit` was not executable because the E2E package has no lockfile; no lockfile was generated during certification.
 
