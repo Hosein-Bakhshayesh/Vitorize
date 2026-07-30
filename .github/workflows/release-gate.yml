@@ -1,0 +1,169 @@
+name: Release gate
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-unit:
+    name: Build and unit tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: Vitorize/**/*.csproj
+      - name: Restore
+        run: dotnet restore Vitorize/Vitorize.sln
+      - name: Release build
+        run: dotnet build Vitorize/Vitorize.sln -c Release --no-restore --warnaserror
+      - name: Unit tests
+        run: >-
+          dotnet test Vitorize/Vitorize.Tests/Vitorize.Tests.csproj -c Release --no-restore
+          --logger "trx;LogFileName=unit.trx" --results-directory TestResults/unit
+      - name: Publish API
+        run: dotnet publish Vitorize/Vitorize.Api/Vitorize.Api.csproj -c Release --no-restore --output publish/api
+      - name: Publish Web
+        run: dotnet publish Vitorize/Vitorize.Web/Vitorize.Web.csproj -c Release --no-restore --output publish/web
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: TestResults/unit
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitorize-release-${{ github.sha }}
+          path: publish
+          if-no-files-found: error
+          retention-days: 14
+
+  sql-integration:
+    name: SQL-backed integration tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Vitorize-Ci-Sql-2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Vitorize-Ci-Sql-2026!' -Q 'SELECT 1'"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+    env:
+      VITORIZE_INTEGRATION_SQL_CONNECTION: Server=127.0.0.1,1433;Initial Catalog=master;User ID=sa;Password=Vitorize-Ci-Sql-2026!;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+      VITORIZE_DATABASE_DEPLOYMENT_CONNECTION: Server=127.0.0.1,1433;Initial Catalog=master;User ID=sa;Password=Vitorize-Ci-Sql-2026!;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: Vitorize/**/*.csproj
+      - name: Install SQL deployment clients
+        shell: bash
+        run: |
+          curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -o packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          dotnet tool install --tool-path "$GITHUB_WORKSPACE/.tools" microsoft.sqlpackage
+          echo "/opt/mssql-tools18/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/.tools" >> "$GITHUB_PATH"
+      - name: Restore and run integration tests
+        run: |
+          dotnet restore Vitorize/tests/Vitorize.IntegrationTests/Vitorize.IntegrationTests.csproj
+          dotnet test Vitorize/tests/Vitorize.IntegrationTests/Vitorize.IntegrationTests.csproj -c Release --no-restore --logger "trx;LogFileName=integration.trx" --results-directory TestResults/integration
+      - name: Upload integration results and database deployment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sql-integration-results
+          path: |
+            TestResults/integration
+            .runtime-verification/integration-db-logs
+          if-no-files-found: warn
+          retention-days: 14
+
+  browser-smoke:
+    name: Browser smoke test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Vitorize-Ci-Sql-2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Vitorize-Ci-Sql-2026!' -Q 'SELECT 1'"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+    env:
+      E2E_SQL_CONNECTION: Server=127.0.0.1,1433;Initial Catalog=Vitorize_Phase3_Verification;User ID=sa;Password=Vitorize-Ci-Sql-2026!;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+      VITORIZE_DATABASE_DEPLOYMENT_CONNECTION: Server=127.0.0.1,1433;Initial Catalog=Vitorize_Phase3_Verification;User ID=sa;Password=Vitorize-Ci-Sql-2026!;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: Vitorize/**/*.csproj
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: Vitorize/tests/Vitorize.E2E/package-lock.json
+      - name: Install SQL deployment clients
+        shell: bash
+        run: |
+          curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -o packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          dotnet tool install --tool-path "$GITHUB_WORKSPACE/.tools" microsoft.sqlpackage
+          echo "/opt/mssql-tools18/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/.tools" >> "$GITHUB_PATH"
+      - name: Install browser test dependencies
+        working-directory: Vitorize/tests/Vitorize.E2E
+        run: |
+          npm ci
+          npx playwright install --with-deps chrome
+      - name: Run isolated browser smoke gate
+        working-directory: Vitorize/tests/Vitorize.E2E
+        shell: pwsh
+        run: ./scripts/Invoke-Qa.ps1 -Suite smoke -Project desktop-light -Reset
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-results
+          path: |
+            Vitorize/tests/Vitorize.E2E/artifacts
+          if-no-files-found: warn
+          retention-days: 14

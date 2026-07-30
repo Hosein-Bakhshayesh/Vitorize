@@ -18,7 +18,11 @@ param(
 
     [string[]] $AdditionalScriptVersion = @(),
 
-    [string] $LogDirectory
+    [string] $LogDirectory,
+
+    # CI can opt into SQL authentication through this process-local environment
+    # variable. Production deployment remains integrated-authentication by default.
+    [string] $SqlConnectionString = $env:VITORIZE_DATABASE_DEPLOYMENT_CONNECTION
 )
 
 Set-StrictMode -Version Latest
@@ -62,6 +66,36 @@ if (-not $DryRun -and $ConfirmDatabaseName -cne $Database) {
     throw 'Execution requires -ConfirmDatabaseName with an exact, case-sensitive match. Use -DryRun for inspection.'
 }
 
+function Get-ConnectionValue([string] $ConnectionString, [string[]] $Keys) {
+    foreach ($key in $Keys) {
+        $pattern = '(?i)(?:^|;)\s*' + [regex]::Escape($key) + '\s*=\s*([^;]*)'
+        $match = [regex]::Match($ConnectionString, $pattern)
+        if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    }
+    return ''
+}
+
+$sqlAuthenticationArguments = @('-E')
+$authenticationDescription = 'Integrated authentication'
+if (-not [string]::IsNullOrWhiteSpace($SqlConnectionString)) {
+    $connectionServer = Get-ConnectionValue $SqlConnectionString @('Data Source', 'Server', 'Address', 'Network Address')
+    if ([string]::IsNullOrWhiteSpace($connectionServer)) { throw 'SqlConnectionString must include Data Source or Server.' }
+    if (-not [string]::Equals($connectionServer, $ServerInstance, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'SqlConnectionString server must exactly match ServerInstance.'
+    }
+    $integratedValue = Get-ConnectionValue $SqlConnectionString @('Integrated Security', 'Trusted_Connection')
+    if ($integratedValue -notmatch '^(?i:true|yes|sspi)$') {
+        $userId = Get-ConnectionValue $SqlConnectionString @('User ID', 'UID')
+        $password = Get-ConnectionValue $SqlConnectionString @('Password', 'PWD')
+        if ([string]::IsNullOrWhiteSpace($userId) -or [string]::IsNullOrWhiteSpace($password)) {
+            throw 'SQL authentication requires both User ID and Password.'
+        }
+        # sqlcmd receives the credential only as a process argument; it is never logged.
+        $sqlAuthenticationArguments = @('-U', $userId, '-P', $password, '-C')
+        $authenticationDescription = 'SQL authentication (credential redacted)'
+    }
+}
+
 $manifestPath = Join-Path $PSScriptRoot 'deployment-manifest.json'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding utf8 | ConvertFrom-Json
 $allScripts = @($manifest.scripts | Sort-Object order)
@@ -102,7 +136,7 @@ function Write-DeploymentLog([string] $Message) {
 }
 
 function Invoke-SqlQuery([string] $Query, [switch] $Capture) {
-    $arguments = @('-S', $ServerInstance, '-d', $Database, '-E', '-b', '-I', '-f', '65001', '-W', '-h', '-1', '-Q', $Query)
+    $arguments = @('-S', $ServerInstance, '-d', $Database) + $sqlAuthenticationArguments + @('-b', '-I', '-f', '65001', '-W', '-h', '-1', '-Q', $Query)
     if ($Capture) {
         $oldPreference = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
@@ -119,7 +153,7 @@ function Invoke-SqlQuery([string] $Query, [switch] $Capture) {
 }
 
 function Invoke-SqlFile([string] $Path) {
-    $arguments = @('-S', $ServerInstance, '-d', $Database, '-E', '-b', '-I', '-f', '65001', '-i', $Path)
+    $arguments = @('-S', $ServerInstance, '-d', $Database) + $sqlAuthenticationArguments + @('-b', '-I', '-f', '65001', '-i', $Path)
     $oldPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try { & $sqlcmd @arguments 2>&1 | Tee-Object -FilePath $logPath -Append; $exitCode = $LASTEXITCODE }
@@ -130,7 +164,7 @@ function Invoke-SqlFile([string] $Path) {
 $databaseExists = Invoke-SqlQuery -Capture -Query "SET NOCOUNT ON; SELECT CASE WHEN DB_ID($(ConvertTo-SqlLiteral $Database)) IS NULL THEN '0' ELSE '1' END;"
 if (($databaseExists | Select-Object -Last 1) -ne '1') { throw "Database '$Database' does not exist on '$ServerInstance'." }
 
-Write-DeploymentLog "Target server=$ServerInstance database=$Database environment=$Environment dryRun=$($DryRun.IsPresent). Integrated authentication only."
+Write-DeploymentLog "Target server=$ServerInstance database=$Database environment=$Environment dryRun=$($DryRun.IsPresent). $authenticationDescription."
 Write-DeploymentLog "Manifest=$manifestPath selectedScripts=$($selected.Count)."
 
 $preflightPath = Join-Path $PSScriptRoot $manifest.preflight

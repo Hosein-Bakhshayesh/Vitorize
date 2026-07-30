@@ -58,6 +58,7 @@ $adminPassword = 'E2E-Admin-Only-aA1!'
 $jwtKey = 'e2eStackSecretKey0123456789abcdefghij'
 $encKey = 'e2eStackEncryptionKey01234567890'
 $connection = if ($env:E2E_SQL_CONNECTION) { $env:E2E_SQL_CONNECTION } else { 'Server=.;Database=Vitorize_Phase3_Verification;Trusted_Connection=True;TrustServerCertificate=True' }
+$env:E2E_SQL_CONNECTION = $connection
 
 function Stop-Stack {
     Get-CimInstance Win32_Process -Filter "Name='dotnet.exe'" -ErrorAction SilentlyContinue |

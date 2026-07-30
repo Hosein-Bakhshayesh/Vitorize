@@ -34,6 +34,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     private const string JwtSecret = "integration-tests-jwt-secret-key-000000000000";
     private const string EncryptionKey = "integration-tests-key-32-bytes!!";
     private readonly string _server = Environment.GetEnvironmentVariable("VITORIZE_INTEGRATION_SQL_SERVER") ?? ".";
+    private readonly string? _configuredConnection = Environment.GetEnvironmentVariable("VITORIZE_INTEGRATION_SQL_CONNECTION");
     private readonly string _databaseName = $"VitorizeIntegration_{Environment.ProcessId}_{Guid.NewGuid():N}";
     private readonly Dictionary<string, string?> _previousEnvironment = new(StringComparer.Ordinal);
 
@@ -44,15 +45,14 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        ConnectionString = new SqlConnectionStringBuilder
-        {
-            DataSource = _server,
-            InitialCatalog = _databaseName,
-            IntegratedSecurity = true,
-            Encrypt = true,
-            TrustServerCertificate = true,
-            MultipleActiveResultSets = true
-        }.ConnectionString;
+        var builder = string.IsNullOrWhiteSpace(_configuredConnection)
+            ? new SqlConnectionStringBuilder { DataSource = _server, IntegratedSecurity = true }
+            : new SqlConnectionStringBuilder(_configuredConnection);
+        builder.InitialCatalog = _databaseName;
+        builder.Encrypt = true;
+        builder.TrustServerCertificate = true;
+        builder.MultipleActiveResultSets = true;
+        ConnectionString = builder.ConnectionString;
 
         await AssertSqlServer2022OrLaterAsync();
         await RunAsync("sqlpackage", new[]
@@ -65,11 +65,15 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             "/Quiet:True"
         });
 
+        // Preserve the established Windows integrated-authentication deployment path locally.
+        // CI provides an explicit SQL-auth connection string for its isolated container.
+        if (!string.IsNullOrWhiteSpace(_configuredConnection))
+            SetEnvironmentVariable("VITORIZE_DATABASE_DEPLOYMENT_CONNECTION", ConnectionString);
         await RunAsync("powershell", new[]
         {
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
             Path.Combine(RepositoryRoot, "Database", "Deploy-Database.ps1"),
-            "-ServerInstance", _server,
+            "-ServerInstance", new SqlConnectionStringBuilder(ConnectionString).DataSource,
             "-Database", _databaseName,
             "-Environment", "Development",
             "-ConfirmDatabaseName", _databaseName,
@@ -106,11 +110,19 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         return new VitorizeDbContext(options);
     }
 
-    public Task RunSqlFileAsync(string repositoryRelativePath) => RunAsync("sqlcmd", new[]
+    public Task RunSqlFileAsync(string repositoryRelativePath)
     {
-        "-S", _server, "-d", _databaseName, "-E", "-b", "-I", "-f", "65001",
-        "-i", Path.Combine(RepositoryRoot, repositoryRelativePath)
-    });
+        var builder = new SqlConnectionStringBuilder(ConnectionString);
+        var arguments = new List<string> { "-S", builder.DataSource, "-d", _databaseName };
+        if (builder.IntegratedSecurity)
+            arguments.Add("-E");
+        else
+        {
+            arguments.AddRange(["-U", builder.UserID, "-P", builder.Password, "-C"]);
+        }
+        arguments.AddRange(["-b", "-I", "-f", "65001", "-i", Path.Combine(RepositoryRoot, repositoryRelativePath)]);
+        return RunAsync("sqlcmd", arguments);
+    }
 
     public HttpClient CreateClient(string? accessToken = null)
     {
@@ -256,10 +268,14 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             ["Seq__Enabled"] = "false"
         };
         foreach (var pair in values)
-        {
-            _previousEnvironment[pair.Key] = Environment.GetEnvironmentVariable(pair.Key);
-            Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-        }
+            SetEnvironmentVariable(pair.Key, pair.Value);
+    }
+
+    private void SetEnvironmentVariable(string key, string? value)
+    {
+        if (!_previousEnvironment.ContainsKey(key))
+            _previousEnvironment[key] = Environment.GetEnvironmentVariable(key);
+        Environment.SetEnvironmentVariable(key, value);
     }
 
     private void RestoreHostEnvironment()

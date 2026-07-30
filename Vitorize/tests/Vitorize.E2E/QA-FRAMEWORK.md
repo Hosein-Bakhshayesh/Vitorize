@@ -136,13 +136,15 @@ Stability gate: `-Repeat N`. Keep the stack up for debugging: `-KeepStack`.
 
 ## CI/CD
 
-```yaml
-# example step
-- run: npm ci && npx playwright install --with-deps chromium
-  working-directory: Vitorize/tests/Vitorize.E2E
-- run: pwsh ./scripts/Invoke-Qa.ps1 -Suite smoke        # gate on PRs
-- run: pwsh ./scripts/Invoke-Qa.ps1 -Suite regression -Project all   # nightly
-```
+`.github/workflows/release-gate.yml` is the checked-in GitHub Actions gate. Every pull request and
+branch push runs a zero-warning Release build, the complete unit suite, the complete SQL-backed
+integration suite against an isolated SQL Server 2022 service, and the desktop browser smoke suite.
+It publishes API/Web artifacts and uploads TRX/Playwright/stack diagnostics even when a check fails.
+
+The CI SQL connection is an ephemeral container credential. `Deploy-Database.ps1`, the integration
+fixture, and the E2E reset/seed scripts support it only when an explicit process-local connection
+string is supplied; normal local and production runs continue to use integrated authentication.
+
 `Invoke-Qa.ps1` returns a non-zero exit code on any failure. The E2E database must exist with the
 schema deployed (see `scripts/Prepare-E2EDatabase.ps1`); the runner starts the app itself.
 
