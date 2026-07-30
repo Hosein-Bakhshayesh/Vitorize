@@ -374,3 +374,8 @@ outputs/launch-hardening/*.ndjson
 # Local development data-protection keys are runtime state, never source artifacts.
 Vitorize/Vitorize.Api/data-protection-keys/
 Vitorize/Vitorize.Web/data-protection-keys/
+
+# Generated customer handoff and disposable runtime-certification artifacts.
+outputs/customer-release/
+outputs/database-certification/
+outputs/database-deployment/_certification*.sql
