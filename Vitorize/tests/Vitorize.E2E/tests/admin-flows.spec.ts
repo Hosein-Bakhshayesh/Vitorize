@@ -153,7 +153,7 @@ test('admin imports and removes an isolated encrypted gift-code batch', async ({
   await page.locator('.vz-page-head button.vz-btn--primary').click();
   const dialog = page.getByRole('dialog');
   await dialog.locator('select.vz-select').selectOption(instantProductId);
-  await dialog.locator('input.vz-input').nth(0).fill(title);
+  await dialog.getByTestId('gift-code-batch-title').fill(title);
   await dialog.locator('textarea.vz-textarea').fill(`E2E-CODE-${Date.now()}`);
   await dialog.locator('button.vz-btn--primary').click();
   await expect(dialog).toBeHidden();

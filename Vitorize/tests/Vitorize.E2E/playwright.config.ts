@@ -15,6 +15,10 @@ export default defineConfig({
   // headroom on slower CI machines without masking real hangs (steps still fail fast on assertions).
   timeout: 60_000,
   expect: { timeout: 10_000 },
+  // The Admin release suite deliberately runs 31 stateful scenarios over three device projects
+  // serially against one managed SQL/API/Web stack. Measured normal runtime is about 15 minutes;
+  // 25 minutes preserves a bounded diagnostic failure while allowing a realistic CI margin.
+  globalTimeout: 1_500_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   globalTeardown: manageStack ? './global-teardown.ts' : undefined,

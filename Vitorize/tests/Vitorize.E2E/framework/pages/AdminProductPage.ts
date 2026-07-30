@@ -122,7 +122,7 @@ export class AdminProductPage extends BasePage {
       await expect(selects).toHaveCount(2);
       await selects.nth(1).selectOption(variantId);
     }
-    await dialog.locator('input.vz-input').first().fill(`Matrix batch ${productId.slice(0, 8)} ${Date.now()}`);
+    await dialog.getByTestId('gift-code-batch-title').fill(`Matrix batch ${productId.slice(0, 8)} ${Date.now()}`);
     await dialog.locator('textarea.vz-textarea').fill(codes.join('\n'));
     await dialog.locator('button.vz-btn--primary').click();
     await expect(dialog).toBeHidden();
