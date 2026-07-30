@@ -100,4 +100,23 @@ public sealed class TestingFaultInjectionTests
         Assert.False(result.Success);
         await configuration.Received(1).GetAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Production_deployment_placeholder_never_invokes_gateway()
+    {
+        var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
+        configuration.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration(
+            Guid.Empty.ToString(), false,
+            new Uri("https://payment.zarinpal.com/pg/v4/payment"),
+            new Uri("https://payment.zarinpal.com/pg/StartPay"),
+            new Uri("https://vitorize.invalid/api/payments/zarinpal/callback"),
+            new Uri("https://vitorize.invalid")));
+        var gateway = new ZarinpalGatewayService(
+            new HttpClient(), configuration, Env("Production"), Faults(new TestingFaultInjectionOptions()));
+
+        var result = await gateway.CreatePaymentAsync(100m, CurrencyType.Toman, "certification");
+
+        Assert.False(result.Success);
+        await configuration.DidNotReceive().ValidateAsync(Arg.Any<CancellationToken>());
+    }
 }

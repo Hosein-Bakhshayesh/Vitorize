@@ -341,7 +341,7 @@ BEGIN TRY
     BEGIN TRANSACTION;
     DECLARE @RequiredPaymentSettings TABLE ([Key] nvarchar(200) NOT NULL PRIMARY KEY, [Value] nvarchar(max) NOT NULL, [Description] nvarchar(500) NOT NULL);
     INSERT @RequiredPaymentSettings VALUES
-      (N'ZarinpalMerchantId',N'00000000-0000-0000-0000-000000000001',N'Non-live deployment placeholder; replace through protected admin configuration before payment activation.'),
+      (N'ZarinpalMerchantId',N'00000000-0000-0000-0000-000000000000',N'Non-live deployment sentinel; replace through protected admin configuration before payment activation.'),
       (N'ZarinpalSandbox',N'false',N'Production-safe default; live gateway certification is required before payments are enabled.'),
       (N'ZarinpalBaseUrl',N'https://payment.zarinpal.com/pg/v4/payment',N'Canonical production gateway base URL.'),
       (N'ZarinpalStartPayUrl',N'https://payment.zarinpal.com/pg/StartPay',N'Canonical production start-payment URL.'),
