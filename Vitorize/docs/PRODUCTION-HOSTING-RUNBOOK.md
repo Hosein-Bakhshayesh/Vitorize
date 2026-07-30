@@ -31,6 +31,6 @@ The reverse proxy must only forward `X-Forwarded-For`, `X-Forwarded-Proto`, and 
 2. Upload one public test image and one private KYC test document; verify the public file works and the private URL is denied without authorization.
 3. Restart one API/Web instance. Confirm both cookies remain valid, the public media remains, and authorized KYC viewing still works.
 4. With sticky routing enabled, repeat against every replica. For a rolling update, drain a node, wait for active requests/circuits according to the platform policy, update it, then restore traffic before continuing.
-5. Confirm `/api/health` and protected diagnostics, checkout callback origin, logs, public media write/read, and private-document authorization. Preserve screenshots/log timestamps as evidence.
+5. Confirm `/api/health/live` stays 200 without dependency access, `/api/health/ready` is 200 only while SQL is reachable, and `/api/health` retains its compatibility response. Confirm protected `/api/health/details` only with a `security.diagnostics` principal; do not copy its response into public tickets. Also verify checkout callback origin, logs, public media write/read, and private-document authorization. Preserve screenshots/log timestamps as evidence.
 
 Actual restart, proxy, and multi-node rehearsal require the production hosting owner and remain the external acceptance gate for RB-007.

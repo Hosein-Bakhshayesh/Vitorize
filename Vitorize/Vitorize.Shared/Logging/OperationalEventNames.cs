@@ -55,4 +55,7 @@ public static class OperationalEventNames
     public const string WorkerStopped = nameof(WorkerStopped);
     public const string WorkerIterationCompleted = nameof(WorkerIterationCompleted);
     public const string WorkerIterationFailed = nameof(WorkerIterationFailed);
+    public const string ReadinessProbeFailed = nameof(ReadinessProbeFailed);
+    public const string ReadinessProbeTimedOut = nameof(ReadinessProbeTimedOut);
+    public const string DiagnosticsViewed = nameof(DiagnosticsViewed);
 }

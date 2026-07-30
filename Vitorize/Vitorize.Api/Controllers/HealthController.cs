@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.Interfaces;
+using Vitorize.Api.Services;
 using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Shared.Logging;
 
 namespace Vitorize.Api.Controllers
 {
@@ -16,15 +18,21 @@ namespace Vitorize.Api.Controllers
         private readonly VitorizeDbContext _dbContext;
         private readonly ISettingService _settingService;
         private readonly IZarinpalPaymentConfigurationProvider _paymentConfiguration;
+        private readonly IReadinessProbe _readinessProbe;
+        private readonly ILogger<HealthController> _logger;
 
         public HealthController(
             VitorizeDbContext dbContext,
             ISettingService settingService,
-            IZarinpalPaymentConfigurationProvider paymentConfiguration)
+            IZarinpalPaymentConfigurationProvider paymentConfiguration,
+            IReadinessProbe readinessProbe,
+            ILogger<HealthController> logger)
         {
             _dbContext = dbContext;
             _settingService = settingService;
             _paymentConfiguration = paymentConfiguration;
+            _readinessProbe = readinessProbe;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -32,11 +40,24 @@ namespace Vitorize.Api.Controllers
             Summary = "وضعیت کلی سیستم",
             Description = "بررسی سلامت API، دیتابیس، تنظیمات اصلی و پیکربندی پرداخت.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Check()
+        public async Task<IActionResult> Check(CancellationToken cancellationToken)
         {
-            var healthy = await _dbContext.Database.CanConnectAsync();
+            var healthy = await _readinessProbe.IsReadyAsync(cancellationToken);
             var result = new { Status = healthy ? "Healthy" : "Unhealthy" };
             return healthy ? Ok(result) : StatusCode(StatusCodes.Status503ServiceUnavailable, result);
+        }
+
+        [HttpGet("ready")]
+        [SwaggerOperation(
+            Summary = "Dependency readiness",
+            Description = "Checks that the API can accept store traffic. The result is intentionally minimal and contains no dependency details.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+        public async Task<IActionResult> Readiness(CancellationToken cancellationToken)
+        {
+            var ready = await _readinessProbe.IsReadyAsync(cancellationToken);
+            var result = new { Status = ready ? "Ready" : "NotReady" };
+            return ready ? Ok(result) : StatusCode(StatusCodes.Status503ServiceUnavailable, result);
         }
 
         [HttpGet("details")]
@@ -45,26 +66,30 @@ namespace Vitorize.Api.Controllers
             Summary = "وضعیت دیتابیس",
             Description = "بررسی اتصال به SQL Server و دریافت یک آمار ساده از محصولات.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> CheckDatabaseOnly()
+        public async Task<IActionResult> CheckDatabaseOnly(CancellationToken cancellationToken)
         {
+            _logger.LogInformation(
+                "Protected diagnostics were viewed. EventType={EventType}",
+                OperationalEventNames.DiagnosticsViewed);
+
             return Ok(new
             {
-                Database = await CheckDatabase(),
+                Database = await CheckDatabase(cancellationToken),
                 Settings = await CheckSettings(),
-                Payment = await CheckPayment(),
+                Payment = await CheckPayment(cancellationToken),
                 ServerTime = DateTime.UtcNow
             });
         }
 
-        private async Task<object> CheckDatabase()
+        private async Task<object> CheckDatabase(CancellationToken cancellationToken)
         {
             try
             {
-                var canConnect =
-                    await _dbContext.Database.CanConnectAsync();
+                var canConnect = await _readinessProbe.IsReadyAsync(cancellationToken);
+                if (!canConnect)
+                    return new { Healthy = false, Error = "Database health check failed." };
 
-                var productCount =
-                    await _dbContext.Products.CountAsync();
+                var productCount = await _dbContext.Products.CountAsync(cancellationToken);
 
                 return new
                 {
@@ -72,8 +97,16 @@ namespace Vitorize.Api.Controllers
                     ProductCount = productCount
                 };
             }
-            catch
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    "Protected database diagnostics failed. ExceptionType={ExceptionType} EventType={EventType}",
+                    exception.GetType().Name,
+                    OperationalEventNames.ReadinessProbeFailed);
                 return new
                 {
                     Healthy = false,
@@ -86,13 +119,12 @@ namespace Vitorize.Api.Controllers
         {
             try
             {
-                var siteName =
-                    await _settingService.GetValueAsync("SiteName");
+                var siteName = await _settingService.GetValueAsync("SiteName");
 
                 return new
                 {
                     Healthy = !string.IsNullOrWhiteSpace(siteName),
-                    SiteName = siteName
+                    SiteNameConfigured = !string.IsNullOrWhiteSpace(siteName)
                 };
             }
             catch
@@ -105,23 +137,31 @@ namespace Vitorize.Api.Controllers
             }
         }
 
-        private async Task<object> CheckPayment()
+        private async Task<object> CheckPayment(CancellationToken cancellationToken)
         {
             try
             {
-                var configuration = await _paymentConfiguration.GetAsync();
-                var validation = await _paymentConfiguration.ValidateAsync();
+                var configuration = await _paymentConfiguration.GetAsync(cancellationToken);
+                var validation = await _paymentConfiguration.ValidateAsync(cancellationToken);
 
                 return new
                 {
                     Healthy = validation.IsValid,
                     MerchantConfigured = !string.IsNullOrWhiteSpace(configuration.MerchantId),
                     Sandbox = configuration.IsSandbox,
-                    Errors = validation.IsValid ? Array.Empty<string>() : validation.Errors
+                    Error = validation.IsValid ? null : "Payment configuration is invalid."
                 };
             }
-            catch
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    "Protected payment diagnostics failed. ExceptionType={ExceptionType} EventType={EventType}",
+                    exception.GetType().Name,
+                    OperationalEventNames.ReadinessProbeFailed);
                 return new
                 {
                     Healthy = false,

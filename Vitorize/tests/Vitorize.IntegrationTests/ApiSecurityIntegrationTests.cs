@@ -47,7 +47,34 @@ public sealed class ApiSecurityIntegrationTests
         var health = await client.GetAsync("/api/health");
         health.StatusCode.Should().Be(HttpStatusCode.OK);
         (await health.Content.ReadAsStringAsync()).Should().Be("{\"status\":\"Healthy\"}");
+        var liveness = await client.GetAsync("/api/health/live");
+        liveness.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await liveness.Content.ReadAsStringAsync()).Should().Be("{\"status\":\"Healthy\"}");
+        var readiness = await client.GetAsync("/api/health/ready");
+        readiness.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await readiness.Content.ReadAsStringAsync()).Should().Be("{\"status\":\"Ready\"}");
         (await client.GetAsync("/api/health/details")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Protected_diagnostics_require_the_security_diagnostics_permission_and_never_return_payment_secrets()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("Admin");
+        var (_, superAdminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var admin = _fixture.CreateClient(adminToken);
+        using var superAdmin = _fixture.CreateClient(superAdminToken);
+
+        (await admin.GetAsync("/api/health/details")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var response = await superAdmin.GetAsync("/api/health/details");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("merchantConfigured", Exactly.Once());
+        var lowerCaseBody = body.ToLowerInvariant();
+        lowerCaseBody.Should().NotContain("merchantid");
+        lowerCaseBody.Should().NotContain("zarinpalmerchant");
+        lowerCaseBody.Should().NotContain("apikey");
+        lowerCaseBody.Should().NotContain("token");
     }
 
     [Fact]

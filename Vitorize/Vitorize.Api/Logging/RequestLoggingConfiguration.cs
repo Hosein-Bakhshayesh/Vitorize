@@ -30,7 +30,7 @@ public static class RequestLoggingConfiguration
     private static LogEventLevel MapLevel(HttpContext context, Exception? exception)
     {
         var path = context.Request.Path;
-        var noise = path.StartsWithSegments("/health") || path.StartsWithSegments("/swagger") ||
+        var noise = path.StartsWithSegments("/health") || path.StartsWithSegments("/api/health") || path.StartsWithSegments("/swagger") ||
                     context.Response.StatusCode == StatusCodes.Status404NotFound;
         return OperationalLogLevelPolicy.ForHttpStatus(context.Response.StatusCode, exception is not null, noise) switch
         {

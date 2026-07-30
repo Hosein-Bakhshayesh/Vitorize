@@ -16,6 +16,7 @@ using Vitorize.Api.Filters;
 using Vitorize.Api.Logging;
 using Vitorize.Api.Hosting;
 using Vitorize.Api.Middlewares;
+using Vitorize.Api.Services;
 using Vitorize.Application;
 using Vitorize.Application.Common;
 using Vitorize.Infrastructure;
@@ -147,6 +148,7 @@ namespace Vitorize.Api
 
             builder.Services.AddApplication();
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddScoped<IReadinessProbe, SqlServerReadinessProbe>();
 
             builder.Services.Configure<JwtSettings>(
                 builder.Configuration.GetSection("Jwt"));

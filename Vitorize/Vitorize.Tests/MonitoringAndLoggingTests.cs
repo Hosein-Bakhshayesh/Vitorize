@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Vitorize.Api.Controllers.Admin;
+using Vitorize.Api.Controllers;
 using Vitorize.Api.Middlewares;
 using Vitorize.Application.DTOs.Admin.System;
 using Vitorize.Application.Interfaces;
@@ -167,6 +168,21 @@ public sealed class MonitoringAndLoggingTests
             .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
             .Cast<AuthorizeAttribute>());
         Assert.Equal("SecurityDiagnostics", attribute.Policy);
+    }
+
+    [Fact]
+    public void Detailed_health_endpoint_requires_security_diagnostics_permission_while_liveness_is_explicitly_anonymous()
+    {
+        var healthAuthorization = Assert.Single(typeof(HealthController)
+            .GetMethod(nameof(HealthController.CheckDatabaseOnly))!
+            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+            .Cast<AuthorizeAttribute>());
+        var livenessAuthorization = Assert.Single(typeof(LivenessController)
+            .GetCustomAttributes(typeof(AllowAnonymousAttribute), inherit: true)
+            .Cast<AllowAnonymousAttribute>());
+
+        Assert.Equal("SecurityDiagnostics", healthAuthorization.Policy);
+        Assert.NotNull(livenessAuthorization);
     }
 
     [Fact]

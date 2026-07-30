@@ -38,6 +38,14 @@ Request completion events contain method, path, route/controller/action, status,
 
 Stable `EventType` values cover lifecycle, checkout, payments, SMS, outbox, and workers. Extend `OperationalEventNames` for new events. Debug is temporary/idle detail; Information is meaningful success; Warning is recoverable abnormal behavior; Error requires investigation; Fatal is startup/severe host failure. Business validation is not Error.
 
+## Kubernetes / load-balancer probes
+
+The API deliberately exposes three separate probe contracts. Configure the process restart probe against `GET /api/health/live`: it has no database, payment, cache, or configuration dependency and returns only `{"status":"Healthy"}`. A dependency failure must not cause an otherwise healthy API process to be restarted.
+
+Configure traffic admission against `GET /api/health/ready`. It performs one bounded (five-second) SQL connectivity check using the request-scoped DbContext and returns `{"status":"Ready"}` on success or HTTP 503 with `{"status":"NotReady"}`. It exposes no connection, exception, setting, provider, or customer data. Concurrent checks are isolated reads; they do not mutate data or share a DbContext.
+
+`GET /api/health` remains the compatibility readiness endpoint and retains its established `Healthy`/`Unhealthy` response contract. `GET /api/health/details` is never a load-balancer probe: it requires the `SecurityDiagnostics` (`security.diagnostics`) permission, records a safe diagnostic-view event, and returns only bounded aggregate database/settings/payment configuration state. It does not return merchant identifiers, payment validation text, credentials, tokens, or customer data.
+
 ## Admin monitoring
 
 `/admin/monitoring` and `GET /api/admin/monitoring` require `SecurityDiagnostics` (`security.diagnostics`). The page reads safe aggregate state from existing operational tables plus this process's in-memory worker heartbeat registry. It never returns provider credentials, Seq API keys, customer content, gift codes, or KYC data.
