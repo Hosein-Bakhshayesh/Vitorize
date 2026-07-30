@@ -35,7 +35,10 @@ test('storefront, product, cart and checkout match approved responsive baselines
       content: 'section.st-section:has(.st-pcard__wish) > .st-grid { height: 360px !important; overflow: hidden !important; }'
     });
   });
-  await capture(page, '/category/e2e-category', 'category.png');
+  // Recency is intentionally live production data. Exercise the category route
+  // with the supported server-side price sort so the visual baseline represents
+  // a fixed catalog state rather than mutable insertion timestamps.
+  await capture(page, '/category/e2e-category?sort=cheapest', 'category.png');
   await capture(page, '/product/e2e-seo-product', 'product.png');
 
   await registerCustomer(page, uniqueCustomer('Visual Customer'));

@@ -25,11 +25,12 @@ else if (_category is null)
 }
 else
 {
-    <ShopBrowser Title="@_category.Title" CategorySlug="@Slug" />
+    <ShopBrowser Title="@_category.Title" CategorySlug="@Slug" InitialSort="@Sort" />
 }
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
     private StoreLookupModel? _category;
     private bool _loaded;
     private StoreBranding _branding = new(new Dictionary<string, string>());

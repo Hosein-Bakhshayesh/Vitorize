@@ -154,28 +154,33 @@ namespace Vitorize.Infrastructure.Services
             query = (filter.Sort ?? string.Empty).Trim().ToLowerInvariant() switch
             {
                 "newest" => query
-                    .OrderByDescending(x => x.CreatedAt),
+                    .OrderByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
                 "cheapest" => query
                     .OrderBy(x =>
                         x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
                             ? x.DiscountPrice.Value
                             : x.BasePrice)
-                    .ThenByDescending(x => x.CreatedAt),
+                    .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
                 "expensive" => query
                     .OrderByDescending(x =>
                         x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice
                             ? x.DiscountPrice.Value
                             : x.BasePrice)
-                    .ThenByDescending(x => x.CreatedAt),
+                    .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
                 "discount" => query
                     .OrderByDescending(x =>
                         x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice && x.BasePrice > 0
                             ? (x.BasePrice - x.DiscountPrice.Value) / x.BasePrice
                             : 0)
-                    .ThenByDescending(x => x.CreatedAt),
+                    .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
                 _ => query
                     .OrderBy(x => x.SortOrder)
                     .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id)
             };
 
             var products = await query

@@ -99,6 +99,30 @@ public sealed class ProductExperienceIntegrationTests
         Assert.Equal(matching.Id, result.Items[0].Id);
     }
 
+    [Fact]
+    public async Task Catalog_sort_uses_id_as_a_stable_tie_breaker()
+    {
+        await using var db = CreateDb();
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = "Catalog", Slug = $"catalog-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var createdAt = DateTime.UtcNow;
+        var laterId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        var earlierId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        db.AddRange(
+            new Product { Id = laterId, Category = category, CategoryId = category.Id, Title = "Later", Slug = $"later-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 100m, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = createdAt },
+            new Product { Id = earlierId, Category = category, CategoryId = category.Id, Title = "Earlier", Slug = $"earlier-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 100m, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = createdAt });
+        await db.SaveChangesAsync();
+
+        var result = await new ProductService(db, new StrictHtmlContentSanitizer()).GetProductsAsync(new ProductFilterDto
+        {
+            Sort = "newest", Page = 1, PageSize = 20
+        });
+
+        Assert.Equal(new[] { earlierId, laterId }, result.Items.Select(x => x.Id));
+    }
+
     private static VitorizeDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<VitorizeDbContext>()
