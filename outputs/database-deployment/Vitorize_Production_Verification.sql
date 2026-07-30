@@ -1,0 +1,16 @@
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+DECLARE @checks table(CheckName nvarchar(160), Status nvarchar(16), Details nvarchar(4000));
+IF CONVERT(int, SERVERPROPERTY('ProductMajorVersion')) < 16 THROW 53100, 'SQL Server 2022+ is required.', 1;
+IF DB_NAME() <> N'$(DatabaseName)' THROW 53101, 'Run verification in the configured target database.', 1;
+IF DATABASEPROPERTYEX(DB_NAME(),'Status') <> 'ONLINE' OR DATABASEPROPERTYEX(DB_NAME(),'Updateability') <> 'READ_WRITE' THROW 53102, 'Database must be online and writable.', 1;
+IF NOT EXISTS(SELECT 1 FROM sys.schemas WHERE name=N'AdminVitorize') THROW 53103, 'Required AdminVitorize schema missing.',1;
+IF (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped=0) < 50 THROW 53104, 'Unexpected table count.',1;
+IF NOT EXISTS(SELECT 1 FROM dbo.DatabaseScriptHistory WHERE ScriptVersion=N'V0007' AND Success=1) THROW 53105, 'Latest required V0007 ledger record missing.',1;
+IF EXISTS(SELECT 1 FROM (VALUES(N'SuperAdmin'),(N'Admin'),(N'Support'),(N'Customer')) r(Name) WHERE NOT EXISTS(SELECT 1 FROM dbo.Roles x WHERE x.Name=r.Name)) THROW 53106,'Required roles missing.',1;
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'UX_Tickets_OneFulfillmentPerOrder') THROW 53107,'Automatic fulfilment-ticket invariant index missing.',1;
+IF EXISTS(SELECT 1 FROM sys.foreign_keys WHERE is_not_trusted=1 OR is_disabled=1) THROW 53108,'Untrusted or disabled foreign key found.',1;
+IF EXISTS(SELECT 1 FROM sys.check_constraints WHERE is_not_trusted=1 OR is_disabled=1) THROW 53109,'Untrusted or disabled check constraint found.',1;
+INSERT @checks VALUES (N'Database state',N'PASS',N'Online, writable, SQL Server 2022+'),(N'Schema',N'PASS',CONCAT((SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped=0),N' user tables')),(N'Reference roles',N'PASS',N'SuperAdmin/Admin/Support/Customer present'),(N'Migration ledger',N'PASS',N'Required chain through V0007 present'),(N'Constraints',N'PASS',N'Foreign keys and checks trusted');
+SELECT CheckName,Status,Details FROM @checks;
+SELECT (SELECT COUNT(*) FROM dbo.Roles) RoleCount,(SELECT COUNT(*) FROM dbo.Users WHERE Status=1 AND IsDeleted=0) EnabledUserCount,(SELECT COUNT(*) FROM dbo.Products) ProductCount,(SELECT COUNT(*) FROM dbo.Orders) OrderCount,(SELECT COUNT(*) FROM dbo.Payments) PaymentCount,(SELECT COUNT(*) FROM dbo.GiftCodes) GiftCodeCount,(SELECT COUNT(*) FROM dbo.Tickets) TicketCount;
