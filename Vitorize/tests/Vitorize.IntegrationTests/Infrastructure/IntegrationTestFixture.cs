@@ -69,7 +69,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         // CI provides an explicit SQL-auth connection string for its isolated container.
         if (!string.IsNullOrWhiteSpace(_configuredConnection))
             SetEnvironmentVariable("VITORIZE_DATABASE_DEPLOYMENT_CONNECTION", ConnectionString);
-        await RunAsync("powershell", new[]
+        await RunAsync(OperatingSystem.IsWindows() ? "powershell" : "pwsh", new[]
         {
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
             Path.Combine(RepositoryRoot, "Database", "Deploy-Database.ps1"),
