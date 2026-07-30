@@ -8,6 +8,8 @@ IF NOT EXISTS(SELECT 1 FROM sys.schemas WHERE name=N'AdminVitorize') THROW 53103
 IF (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped=0) < 50 THROW 53104, 'Unexpected table count.',1;
 IF NOT EXISTS(SELECT 1 FROM dbo.DatabaseScriptHistory WHERE ScriptVersion=N'V0007' AND Success=1) THROW 53105, 'Latest required V0007 ledger record missing.',1;
 IF EXISTS(SELECT 1 FROM (VALUES(N'SuperAdmin'),(N'Admin'),(N'Support'),(N'Customer')) r(Name) WHERE NOT EXISTS(SELECT 1 FROM dbo.Roles x WHERE x.Name=r.Name)) THROW 53106,'Required roles missing.',1;
+IF EXISTS (SELECT [Key] FROM dbo.Settings WHERE [Key] IN (N'ZarinpalMerchantId',N'ZarinpalSandbox',N'ZarinpalBaseUrl',N'ZarinpalStartPayUrl',N'ZarinpalCallbackUrl') GROUP BY [Key] HAVING COUNT(*)<>1) OR (SELECT COUNT(*) FROM dbo.Settings WHERE [Key] IN (N'ZarinpalMerchantId',N'ZarinpalSandbox',N'ZarinpalBaseUrl',N'ZarinpalStartPayUrl',N'ZarinpalCallbackUrl'))<>5 THROW 53110,'Required payment settings are absent or duplicated.',1;
+IF EXISTS(SELECT 1 FROM dbo.Settings WHERE [Key]=N'ZarinpalStartPaymentUrl') THROW 53111,'Legacy misspelled payment key is not supported.',1;
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'UX_Tickets_OneFulfillmentPerOrder') THROW 53107,'Automatic fulfilment-ticket invariant index missing.',1;
 IF EXISTS(SELECT 1 FROM sys.foreign_keys WHERE is_not_trusted=1 OR is_disabled=1) THROW 53108,'Untrusted or disabled foreign key found.',1;
 IF EXISTS(SELECT 1 FROM sys.check_constraints WHERE is_not_trusted=1 OR is_disabled=1) THROW 53109,'Untrusted or disabled check constraint found.',1;

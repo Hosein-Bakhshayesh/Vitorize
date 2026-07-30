@@ -335,5 +335,22 @@ SELECT NEWID(),s.[Key],s.[Value],s.GroupName,s.ValueType,s.[Description],SYSUTCD
 FROM @Seed s WHERE NOT EXISTS (SELECT 1 FROM dbo.Settings x WHERE x.[Key]=s.[Key]);
 
 GO
+/* Required pre-startup payment configuration. Values are syntactically valid
+   non-live placeholders; deployers must replace merchant ID/callback before enabling payments. */
+BEGIN TRY
+    BEGIN TRANSACTION;
+    DECLARE @RequiredPaymentSettings TABLE ([Key] nvarchar(200) NOT NULL PRIMARY KEY, [Value] nvarchar(max) NOT NULL, [Description] nvarchar(500) NOT NULL);
+    INSERT @RequiredPaymentSettings VALUES
+      (N'ZarinpalMerchantId',N'00000000-0000-0000-0000-000000000001',N'Non-live deployment placeholder; replace through protected admin configuration before payment activation.'),
+      (N'ZarinpalSandbox',N'false',N'Production-safe default; live gateway certification is required before payments are enabled.'),
+      (N'ZarinpalBaseUrl',N'https://payment.zarinpal.com/pg/v4/payment',N'Canonical production gateway base URL.'),
+      (N'ZarinpalStartPayUrl',N'https://payment.zarinpal.com/pg/StartPay',N'Canonical production start-payment URL.'),
+      (N'ZarinpalCallbackUrl',N'https://vitorize.invalid/api/payments/zarinpal/callback',N'Non-live placeholder; replace with the final HTTPS public callback URL before payment activation.');
+    INSERT dbo.Settings (Id,[Key],[Value],GroupName,ValueType,[Description],UpdatedAt)
+    SELECT NEWID(),s.[Key],s.[Value],N'Payment',N'string',s.[Description],SYSUTCDATETIME()
+    FROM @RequiredPaymentSettings s WHERE NOT EXISTS (SELECT 1 FROM dbo.Settings x WHERE x.[Key]=s.[Key]);
+    COMMIT;
+END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
+GO
 /* Immutable clean-bootstrap deployment ledger. */
 INSERT dbo.DatabaseScriptHistory (ScriptName, ScriptVersion, ScriptHash, Environment, Success, Notes) SELECT v.n,v.v,v.h,N'Production',1,N'Included in clean-production bootstrap' FROM (VALUES (N'V0001__create_database_script_history.sql',N'V0001',N'0d95329a1e6b5eafbb377b6898f6f43ade76054ad22c970a00c92ffcdc8c6053'),(N'V0002__normalize_gift_code_reservation_status_constraint.sql',N'V0002',N'918491680f470df380fff99caaa3b291b8e3354309e28b144945950ae7bc4b45'),(N'2026-07-13_create_sms_history.sql',N'H20260713-SMS-SCHEMA',N'ece5f2dbebf7266c2c58e079377148a43bc02699d31ff9c3e853ca30b731a8f0'),(N'2026-07-14_product_experience_schema.sql',N'H20260714-PRODUCT-SCHEMA',N'907cabcb1eefb753ae3b2ff19add608d2f011c448295f2e39a2a22e3799c393c'),(N'V0003__seed_reference_roles.sql',N'V0003',N'9cd5ff472bb5d776269b43f14565870c6c1de862b0a275a36e342138e635be35'),(N'V0004__financial_integrity_and_security_hardening.sql',N'V0004',N'8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4'),(N'V0005__seo_content_and_legacy_redirects.sql',N'V0005',N'ed6b02b7453590d09fc2d1a085ea3e8f006ab66659c046c911196d7af8955b22'),(N'V0006__preserve_currency_through_checkout.sql',N'V0006',N'70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc'),(N'V0007__support_fulfillment_ticket_uniqueness.sql',N'V0007',N'b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10'),(N'2026-07-08_seed_settings_ui_customization.sql',N'H20260708-UI',N'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),(N'2026-07-13_seed_sms_settings.sql',N'H20260713-SMS-SEED',N'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),(N'2026-07-14_seed_product_experience_settings.sql',N'H20260714-PRODUCT-SEED',N'90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00'))v(n,v,h) WHERE NOT EXISTS (SELECT 1 FROM dbo.DatabaseScriptHistory h WHERE h.ScriptVersion=v.v);
