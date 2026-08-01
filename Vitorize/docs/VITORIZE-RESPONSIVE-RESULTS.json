@@ -1,0 +1,2452 @@
+{
+  "generatedAt": "2026-08-01",
+  "direction": "rtl",
+  "routeCount": 67,
+  "stabilityRuns": [
+    {
+      "passed": 93,
+      "skipped": 102,
+      "retries": 0
+    },
+    {
+      "passed": 93,
+      "skipped": 102,
+      "retries": 0
+    },
+    {
+      "passed": 93,
+      "skipped": 102,
+      "retries": 0
+    }
+  ],
+  "routes": [
+    {
+      "route": "/",
+      "persona": "Anonymous",
+      "component/page": "Store/Home",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "header",
+        "banners",
+        "catalog",
+        "footer"
+      ],
+      "issuesFound": [
+        "Storefront/account header controls clipped at the narrowest phone width."
+      ],
+      "fixes": [
+        "Compacted header gaps/wordmark and preserved all essential controls."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/{*PageRoute}",
+      "persona": "Anonymous",
+      "component/page": "Store/NotFoundPage",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "404 state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/access-denied",
+      "persona": "Anonymous",
+      "component/page": "Store/AccessDenied",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "denied state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/blog",
+      "persona": "Anonymous",
+      "component/page": "Store/Blog",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/blog/{Slug}",
+      "persona": "Anonymous",
+      "component/page": "Store/BlogPost",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "missing state",
+        "rich content"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/brand/{Slug}",
+      "persona": "Anonymous",
+      "component/page": "Store/Brand",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "catalog",
+        "filter",
+        "sort"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/cart",
+      "persona": "Customer",
+      "component/page": "Store/Cart",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty cart"
+      ],
+      "issuesFound": [
+        "Shared public dialogs and desktop split grids were not fully viewport-bounded."
+      ],
+      "fixes": [
+        "Added public modal bounds and responsive single-column split behavior."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/categories",
+      "persona": "Anonymous",
+      "component/page": "Store/Categories",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "category cards"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/category/{Slug}",
+      "persona": "Anonymous",
+      "component/page": "Store/Category",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "catalog",
+        "sort"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/checkout",
+      "persona": "Customer",
+      "component/page": "Store/Checkout",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/filled state",
+        "coupon",
+        "payment methods"
+      ],
+      "issuesFound": [
+        "Shared public dialogs and desktop split grids were not fully viewport-bounded."
+      ],
+      "fixes": [
+        "Added public modal bounds and responsive single-column split behavior."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/error",
+      "persona": "Anonymous",
+      "component/page": "Store/Status",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "default error"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/error/{Code}",
+      "persona": "Anonymous",
+      "component/page": "Store/Status",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "500 error"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/faq",
+      "persona": "Anonymous",
+      "component/page": "Store/Faq",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/forgot-password",
+      "persona": "Anonymous",
+      "component/page": "Store/ForgotPassword",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/login",
+      "persona": "Anonymous",
+      "component/page": "Store/Login",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "password tab",
+        "OTP tab",
+        "validation"
+      ],
+      "issuesFound": [
+        "Storefront/account header controls clipped at the narrowest phone width."
+      ],
+      "fixes": [
+        "Compacted header gaps/wordmark and preserved all essential controls."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/page/{Slug}",
+      "persona": "Anonymous",
+      "component/page": "Store/StaticPage",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "missing/rich content state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/payment/result",
+      "persona": "Anonymous",
+      "component/page": "Store/PaymentResult",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "failed payment",
+        "recovery actions"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/product/{Slug}",
+      "persona": "Anonymous",
+      "component/page": "Store/Product",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "gallery",
+        "variants",
+        "features",
+        "rich content",
+        "purchase dialog"
+      ],
+      "issuesFound": [
+        "Mobile gallery height and source order delayed title and purchase controls."
+      ],
+      "fixes": [
+        "Bounded media with object-fit:contain and enforced gallery ? purchase ? features/content mobile order."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/register",
+      "persona": "Anonymous",
+      "component/page": "Store/Register",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/reset-password",
+      "persona": "Anonymous",
+      "component/page": "Store/ResetPassword",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "OTP form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/search",
+      "persona": "Anonymous",
+      "component/page": "Store/Search",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "results/empty state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/shop",
+      "persona": "Anonymous",
+      "component/page": "Store/Shop",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "sort",
+        "catalog"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/dashboard",
+      "persona": "Customer",
+      "component/page": "Customer/Dashboard",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "account navigation",
+        "summary"
+      ],
+      "issuesFound": [
+        "Storefront/account header controls clipped at the narrowest phone width."
+      ],
+      "fixes": [
+        "Compacted header gaps/wordmark and preserved all essential controls."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/gift-codes",
+      "persona": "Customer",
+      "component/page": "Customer/GiftCodes",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state",
+        "reveal/copy"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/notifications",
+      "persona": "Customer",
+      "component/page": "Customer/Notifications",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/orders",
+      "persona": "Customer",
+      "component/page": "Customer/Orders",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state",
+        "pagination"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/orders/{Id:guid}",
+      "persona": "Customer",
+      "component/page": "Customer/OrderDetails",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "not-found/detail contract"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/profile",
+      "persona": "Customer",
+      "component/page": "Customer/Profile",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/reviews",
+      "persona": "Customer",
+      "component/page": "Customer/Reviews",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/tickets",
+      "persona": "Customer",
+      "component/page": "Customer/Tickets",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state",
+        "filters"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/tickets/{Id:guid}",
+      "persona": "Customer",
+      "component/page": "Customer/TicketDetails",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "not-found/detail contract"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/tickets/new",
+      "persona": "Customer",
+      "component/page": "Customer/CreateTicket",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/verification",
+      "persona": "Customer",
+      "component/page": "Customer/Verification",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "upload",
+        "validation",
+        "status"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/wallet",
+      "persona": "Customer",
+      "component/page": "Customer/Wallet",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "balance",
+        "top-up",
+        "transactions"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/customer/wishlist",
+      "persona": "Customer",
+      "component/page": "Customer/Wishlist",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "empty/list state",
+        "product cards"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/login",
+      "persona": "Anonymous",
+      "component/page": "Account/Login",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "form",
+        "validation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/access-denied",
+      "persona": "Anonymous",
+      "component/page": "Account/AccessDenied",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "denied state"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Dashboard",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "alias",
+        "dashboard"
+      ],
+      "issuesFound": [
+        "Admin top-bar profile metadata overflowed at 320px."
+      ],
+      "fixes": [
+        "Compacted the profile trigger and bounded the drawer/top bar at phone widths."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/dashboard",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Dashboard",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "cards",
+        "charts",
+        "table"
+      ],
+      "issuesFound": [
+        "Admin top-bar profile metadata overflowed at 320px."
+      ],
+      "fixes": [
+        "Compacted the profile trigger and bounded the drawer/top bar at phone widths."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/audit-logs",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/AuditLogs",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "pagination",
+        "detail panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/banners",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Banners",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "cards/table",
+        "form panel",
+        "image preview"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/brands",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Brands",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "form panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/categories",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Categories",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "tree/table",
+        "form panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/coupons",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Coupons",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "form panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/error-logs",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ErrorLogs",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "long table",
+        "detail panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/gift-codes",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/GiftCodes",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "tabs",
+        "tables",
+        "import dialog"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/monitoring",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Monitoring",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "health cards",
+        "links"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/notifications",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Notifications",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "send/detail"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/orders",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Orders",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "pagination",
+        "details"
+      ],
+      "issuesFound": [
+        "Dense dialog footers could place actions outside the usable mobile area."
+      ],
+      "fixes": [
+        "Made dialog footers wrap and stack with bounded internal scrolling."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/payments",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Payments",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "detail/refund"
+      ],
+      "issuesFound": [
+        "Dense dialog footers could place actions outside the usable mobile area."
+      ],
+      "fixes": [
+        "Made dialog footers wrap and stack with bounded internal scrolling."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/products",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Products",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "pagination",
+        "context menu"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/products/create",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ProductEdit",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "validation",
+        "CKEditor",
+        "icon picker"
+      ],
+      "issuesFound": [
+        "Intrinsic grid and CKEditor widths expanded the editor beyond its mobile container."
+      ],
+      "fixes": [
+        "Applied minmax(0,1fr), min-width:0, and bounded editor/icon-picker controls."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/products/{Id:guid}",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ProductEdit",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "all editor sections",
+        "CKEditor",
+        "icon picker"
+      ],
+      "issuesFound": [
+        "Intrinsic grid and CKEditor widths expanded the editor beyond its mobile container."
+      ],
+      "fixes": [
+        "Applied minmax(0,1fr), min-width:0, and bounded editor/icon-picker controls."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/products/{Id:guid}/details",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ProductDetails",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "details",
+        "variants",
+        "features",
+        "dialogs"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/products/{Id:guid}/images",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ProductImages",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "upload",
+        "gallery",
+        "pagination"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/product-tags",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/ProductTags",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "form dialog"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/reports",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Reports",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "tabs",
+        "date range",
+        "tables"
+      ],
+      "issuesFound": [
+        "Report actions could not shrink or wrap on phones."
+      ],
+      "fixes": [
+        "Added a wrapping responsive action container."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/reviews",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Reviews",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "moderation"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/roles",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Roles",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "roles",
+        "permissions"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/security-logs",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/SecurityLogs",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "long table",
+        "detail panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/settings",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Settings",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "17 tabs",
+        "182 settings",
+        "search",
+        "icon/upload/color controls"
+      ],
+      "issuesFound": [
+        "Icon-block setting editor fixed columns overflowed narrow containers."
+      ],
+      "fixes": [
+        "Replaced fixed icon-block tracks with container-aware auto-fit tracks."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts",
+        "tests/responsive-accessibility.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/sms",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Sms",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "statistics",
+        "table",
+        "details/send"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/tickets",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Tickets",
+      "testedViewports": [
+        "320x568",
+        "360x640 @3x",
+        "375x667",
+        "390x844",
+        "412x915",
+        "430x932",
+        "667x375 landscape",
+        "768x1024",
+        "820x1180",
+        "1024x768 landscape",
+        "1280x800",
+        "1366x768",
+        "1440x900",
+        "1920x1080"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "reply/status"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Approved strategic baseline and failure-on-demand capture",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts",
+        "tests/responsive-interactions.spec.ts",
+        "tests/responsive-visual.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/tools",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Tools",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "diagnostics",
+        "confirm dialog"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/users",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Users",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "context menu",
+        "detail panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/verifications",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Verifications",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "filters",
+        "table",
+        "document/review panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    },
+    {
+      "route": "/admin/wallets",
+      "persona": "SuperAdmin",
+      "component/page": "Admin/Wallets",
+      "testedViewports": [
+        "320x568",
+        "390x844",
+        "768x1024",
+        "820x1180",
+        "1440x900"
+      ],
+      "testedThemes": [
+        "light",
+        "dark"
+      ],
+      "interactions": [
+        "search",
+        "table",
+        "transactions/adjustment panel"
+      ],
+      "issuesFound": [
+        "No route-specific defect; verified against shared responsive invariants."
+      ],
+      "fixes": [
+        "Inherited verified shared shell, typography, wrapping, table-scroll, media, and dialog safeguards."
+      ],
+      "overflowStatus": "PASS ? no unintended document-level overflow, off-viewport visible element, critical clipping, or viewport-escaping dialog",
+      "screenshotStatus": "Failure-on-demand capture configured; no failure screenshot produced",
+      "automatedTest": [
+        "tests/responsive-route-audit.spec.ts"
+      ],
+      "finalStatus": "PASS"
+    }
+  ]
+}
