@@ -222,3 +222,80 @@ test('an imported instant gift code is delivered into the customer code library'
   await card.locator('.st-codecard__actions button').first().click();
   await expect(card.locator('.st-codecard__code')).toHaveText(code);
 });
+
+test('@multiqty a two-unit instant purchase delivers two distinct codes and shows quantity two everywhere', async ({ page, browser }) => {
+  await registerCustomer(page, uniqueCustomer('Multi Qty Customer'));
+  const baseURL = new URL(page.url()).origin;
+  const monitor = monitorBrowser(page);
+  const stamp = Date.now();
+  const codes = [0, 1, 2, 3, 4].map(i => `E2E-MQ-${i}-${stamp}`);
+
+  // Admin imports five distinct gift codes for the instant product.
+  const adminContext = await browser.newContext({ baseURL, locale: 'fa-IR', timezoneId: 'Asia/Tehran' });
+  const adminPage = await adminContext.newPage();
+  await loginAdmin(adminPage);
+  await adminPage.goto('/admin/gift-codes', { waitUntil: 'networkidle' });
+  await adminPage.locator('.vz-page-head button.vz-btn--primary').click();
+  const importDialog = adminPage.getByRole('dialog');
+  await importDialog.locator('select.vz-select').first().selectOption(instantProductId);
+  await importDialog.locator('[data-testid="gift-code-batch-title"]').fill(`E2E MultiQty Batch ${stamp}`);
+  await importDialog.locator('textarea.vz-textarea').fill(codes.join('\n'));
+  await importDialog.locator('button.vz-btn--primary').click();
+  await expect(importDialog).toBeHidden();
+  await adminContext.close();
+
+  // Customer adds the instant product and raises the quantity to two in the cart.
+  await page.goto('/product/e2e-related-product', { waitUntil: 'networkidle' });
+  await page.locator('.st-buy__card button.st-btn--accent').click();
+  await expect(page.locator('.vz-toast.success')).toBeVisible();
+  await page.goto('/cart', { waitUntil: 'networkidle' });
+  const item = page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Related Product' });
+  await item.locator('.st-qty button').last().click();
+  await expect(item.locator('.st-qty')).toContainText('۲');
+
+  // Checkout must complete (previously the two-unit instant checkout returned HTTP 500).
+  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  await page.locator('button.st-btn--accent').click();
+  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+  const orderId = new URL(page.url()).searchParams.get('orderId')!;
+  expect(orderId).toMatch(/^[0-9a-f-]{36}$/i);
+
+  await page.locator('a[href*="/customer/orders/"]').first().click();
+  await expect(page).toHaveURL(/\/customer\/orders\/[0-9a-f-]+/i);
+  const orderNumber = (await page.locator('h1 .st-mono').innerText()).trim();
+
+  // Customer code library shows exactly two distinct codes from the imported batch.
+  await page.goto('/customer/gift-codes', { waitUntil: 'networkidle' });
+  const cards = page.locator('.st-codecard').filter({ hasText: 'E2E Related Product' });
+  await expect(cards).toHaveCount(2);
+  const revealed: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    const c = cards.nth(i);
+    await c.locator('.st-codecard__actions button').first().click();
+    revealed.push((await c.locator('.st-codecard__code').innerText()).trim());
+  }
+  expect(new Set(revealed).size, 'each unit receives a distinct code').toBe(2);
+  revealed.forEach(value => expect(codes).toContain(value));
+
+  // Reloading the library must not duplicate the delivered codes.
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.locator('.st-codecard').filter({ hasText: 'E2E Related Product' })).toHaveCount(2);
+
+  // Admin order detail reflects quantity two and two deliveries.
+  const admin2 = await browser.newContext({ baseURL, locale: 'fa-IR', timezoneId: 'Asia/Tehran' });
+  const admin2Page = await admin2.newPage();
+  await loginAdmin(admin2Page);
+  await admin2Page.goto('/admin/orders', { waitUntil: 'networkidle' });
+  await admin2Page.locator('#order-search').fill(orderNumber);
+  const row = admin2Page.locator('tbody tr').filter({ hasText: orderNumber });
+  await expect(row).toHaveCount(1);
+  await row.locator('.vz-ctx__trigger').click();
+  await admin2Page.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+  const details = admin2Page.getByRole('dialog').filter({ hasText: orderNumber });
+  await expect(details).toBeVisible();
+  await expect(details).toContainText('E2E Related Product');
+  await expect(details).toContainText('۲');
+  await admin2.close();
+
+  monitor.assertClean();
+});

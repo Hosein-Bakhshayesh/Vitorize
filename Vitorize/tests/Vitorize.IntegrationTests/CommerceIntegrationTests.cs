@@ -2,8 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Vitorize.Application.DTOs.Cart;
 using Vitorize.Application.DTOs.Checkout;
+using Vitorize.Application.DTOs.Orders;
+using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.IntegrationTests.Infrastructure;
 using Vitorize.Shared.Common;
@@ -176,6 +179,122 @@ public sealed class CommerceIntegrationTests
             Quantity = 1
         });
         add.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Instant_multi_unit_checkout_reserves_pays_and_delivers_distinct_codes_end_to_end()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (product, plaintextCodes) = await CreateInstantProductWithCodesAsync(codeCount: 3, price: 150m);
+        using var client = _fixture.CreateClient(token);
+
+        // Buy TWO units of an instant-delivery product in a single order (the defect returned HTTP 500 here).
+        var add = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 });
+        add.StatusCode.Should().Be(HttpStatusCode.OK, await add.Content.ReadAsStringAsync());
+
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"instant-multi-{Guid.NewGuid():N}");
+        var checkoutResponse = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        var checkoutBody = await checkoutResponse.Content.ReadAsStringAsync();
+        checkoutResponse.StatusCode.Should().Be(HttpStatusCode.OK, checkoutBody);
+        var checkout = (await checkoutResponse.Content.ReadFromJsonAsync<ApiResult<CheckoutResultDto>>())!.Data!;
+        checkout.ReservationIds.Should().HaveCount(2, "two units reserve two distinct codes");
+        checkout.ReservationIds.Distinct().Should().HaveCount(2);
+        checkout.FinalAmount.Should().Be(300m);
+
+        // Complete payment through the real DI payment + delivery pipeline.
+        Guid paymentId;
+        await using (var db = _fixture.CreateDbContext())
+            paymentId = await db.Payments.Where(x => x.OrderId == checkout.OrderId).Select(x => x.Id).SingleAsync();
+        using (var scope = _fixture.Factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<IPaymentService>().VerifyMockPaymentAsync(user.Id, paymentId);
+
+        await using var verify = _fixture.CreateDbContext();
+        var order = await verify.Orders.Include(x => x.OrderItems).SingleAsync(x => x.Id == checkout.OrderId);
+        order.Status.Should().Be((byte)OrderStatus.Completed);
+        order.OrderItems.Single().Quantity.Should().Be(2, "order item quantity equals the purchased units");
+        var deliveries = await verify.OrderItemDeliveries.Where(x => x.OrderItem.OrderId == checkout.OrderId).ToListAsync();
+        deliveries.Should().HaveCount(2);
+        deliveries.Select(x => x.GiftCodeId).Distinct().Should().HaveCount(2, "each unit gets a distinct code");
+        (await verify.GiftCodeReservations.CountAsync(x => x.OrderId == checkout.OrderId)).Should().Be(2);
+        (await verify.GiftCodes.CountAsync(x => x.ProductId == product.Id && x.Status == (byte)GiftCodeStatus.Delivered)).Should().Be(2);
+        (await verify.GiftCodes.CountAsync(x => x.ProductId == product.Id && x.Status == (byte)GiftCodeStatus.Available)).Should().Be(1, "the third code stays available");
+
+        // Customer gift-code library returns BOTH distinct codes over HTTP.
+        var library = await client.GetAsync("/api/orders/deliveries");
+        library.EnsureSuccessStatusCode();
+        var libraryBody = await library.Content.ReadAsStringAsync();
+        foreach (var code in plaintextCodes.Take(2))
+            libraryBody.Should().Contain(code);
+
+        // Admin order detail shows the correct delivered quantity over HTTP.
+        using var adminClient = _fixture.CreateClient(adminToken);
+        var adminResponse = await adminClient.GetAsync($"/api/admin/orders/{checkout.OrderId}");
+        adminResponse.EnsureSuccessStatusCode();
+        var adminOrder = (await adminResponse.Content.ReadFromJsonAsync<ApiResult<OrderDto>>())!.Data!;
+        var adminItem = adminOrder.Items.Should().ContainSingle().Subject;
+        adminItem.Quantity.Should().Be(2);
+        adminItem.Deliveries.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Instant_checkout_beyond_available_inventory_fails_cleanly_without_side_effects()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (product, _) = await CreateInstantProductWithCodesAsync(codeCount: 1, price: 150m); // only one code
+        using var client = _fixture.CreateClient(token);
+
+        (await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 3 }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"instant-short-{Guid.NewGuid():N}");
+
+        var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "insufficient inventory is a controlled business error, not HTTP 500");
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+        (await verify.GiftCodeReservations.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+        (await verify.GiftCodes.CountAsync(x => x.ProductId == product.Id && x.Status == (byte)GiftCodeStatus.Available)).Should().Be(1);
+    }
+
+    private async Task<(Product Product, List<string> Codes)> CreateInstantProductWithCodesAsync(int codeCount, decimal price)
+    {
+        using var scope = _fixture.Factory.Services.CreateScope();
+        var crypto = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        await using var db = _fixture.CreateDbContext();
+        var category = new Category
+        {
+            Id = Guid.NewGuid(), Title = "Instant category", Slug = $"instant-cat-{Guid.NewGuid():N}",
+            SortOrder = 0, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var product = new Product
+        {
+            Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Instant gift card",
+            Slug = $"instant-{Guid.NewGuid():N}", ProductType = (byte)ProductType.GiftCard,
+            DeliveryType = (byte)DeliveryType.Instant, BasePrice = price,
+            CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1,
+            IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var plaintexts = new List<string>();
+        var codes = new List<GiftCode>();
+        for (var i = 0; i < codeCount; i++)
+        {
+            var plain = $"GIFT-{Guid.NewGuid():N}";
+            plaintexts.Add(plain);
+            codes.Add(new GiftCode
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, EncryptedCode = crypto.Encrypt(plain),
+                MaskedCode = "****" + plain[^4..], Status = (byte)GiftCodeStatus.Available, EncryptionVersion = 2,
+                CodeHashFingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(plain))),
+                CreatedAt = DateTime.UtcNow.AddSeconds(i)
+            });
+        }
+        db.Categories.Add(category);
+        db.Products.Add(product);
+        db.GiftCodes.AddRange(codes);
+        await db.SaveChangesAsync();
+        return (product, plaintexts);
     }
 
     private async Task<CartDto> AddAsync(HttpClient client, Guid productId, string reference)
