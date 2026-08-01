@@ -279,8 +279,8 @@ namespace Vitorize.Api
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseVitorizeRequestLogging();
 
-            app.ValidateProductionPaymentConfiguration();
             app.SeedVitorizeInitialDataAsync();
+            app.ValidateProductionPaymentConfiguration();
 
             // Global Exception Handler
             app.UseMiddleware<GlobalExceptionMiddleware>();

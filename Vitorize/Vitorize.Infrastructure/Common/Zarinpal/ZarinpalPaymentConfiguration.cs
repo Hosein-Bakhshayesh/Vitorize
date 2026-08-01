@@ -89,6 +89,14 @@ public static class ZarinpalPaymentConfigurationRules
     private const string SandboxHost = "sandbox.zarinpal.com";
     private const string ProductionHost = "payment.zarinpal.com";
 
+    /// <summary>
+    /// A blank value or Guid.Empty is the installation-time sentinel. It is never
+    /// a usable merchant account and callers must prevent it from reaching Zarinpal.
+    /// </summary>
+    public static bool IsDeploymentPlaceholder(string? merchantId) =>
+        string.IsNullOrWhiteSpace(merchantId) ||
+        (Guid.TryParse(merchantId, out var parsedMerchantId) && parsedMerchantId == Guid.Empty);
+
     public static ZarinpalConfigurationValidation Validate(
         ZarinpalPaymentConfiguration configuration,
         bool production)

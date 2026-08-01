@@ -128,6 +128,7 @@ namespace Vitorize.Api.BackgroundServices
 
             var old = await db.OtpCodes
                 .Where(x => x.ExpiresAt < now || x.ConsumedAt != null)
+                .OrderBy(x => x.ExpiresAt).ThenBy(x => x.Id)
                 .Take(500)
                 .ToListAsync(ct);
 
@@ -145,6 +146,7 @@ namespace Vitorize.Api.BackgroundServices
 
             var tokens = await db.UserRefreshTokens
                 .Where(x => x.ExpiresAt < now)
+                .OrderBy(x => x.ExpiresAt).ThenBy(x => x.Id)
                 .Take(500)
                 .ToListAsync(ct);
 
@@ -162,6 +164,7 @@ namespace Vitorize.Api.BackgroundServices
 
             var keys = await db.IdempotencyKeys
                 .Where(x => x.ExpiresAt < now)
+                .OrderBy(x => x.ExpiresAt).ThenBy(x => x.Id)
                 .Take(500)
                 .ToListAsync(ct);
 
@@ -177,8 +180,10 @@ namespace Vitorize.Api.BackgroundServices
         {
             var auditCutoff = DateTime.UtcNow.AddDays(-365);
             var securityCutoff = DateTime.UtcNow.AddDays(-730);
-            var audits = await db.AuditLogs.Where(x => x.CreatedAt < auditCutoff).Take(500).ToListAsync(ct);
-            var security = await db.SecurityLogs.Where(x => x.CreatedAt < securityCutoff).Take(500).ToListAsync(ct);
+            var audits = await db.AuditLogs.Where(x => x.CreatedAt < auditCutoff)
+                .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Take(500).ToListAsync(ct);
+            var security = await db.SecurityLogs.Where(x => x.CreatedAt < securityCutoff)
+                .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Take(500).ToListAsync(ct);
             if (audits.Count > 0) db.AuditLogs.RemoveRange(audits);
             if (security.Count > 0) db.SecurityLogs.RemoveRange(security);
             if (audits.Count > 0 || security.Count > 0) await db.SaveChangesAsync(ct);
@@ -192,6 +197,7 @@ namespace Vitorize.Api.BackgroundServices
         {
             var deliveries = await db.OrderItemDeliveries
                 .Where(x => x.EncryptionVersion == null && x.DeliveredContent != null)
+                .OrderBy(x => x.Id)
                 .Take(100).ToListAsync(ct);
             foreach (var row in deliveries)
             {
@@ -202,7 +208,7 @@ namespace Vitorize.Api.BackgroundServices
             }
 
             var profiles = await db.UserVerificationProfiles
-                .Where(x => x.EncryptedPayload == null).Take(100).ToListAsync(ct);
+                .Where(x => x.EncryptedPayload == null).OrderBy(x => x.Id).Take(100).ToListAsync(ct);
             foreach (var profile in profiles)
             {
                 profile.EncryptedPayload = encryption.Encrypt(JsonSerializer.Serialize(new

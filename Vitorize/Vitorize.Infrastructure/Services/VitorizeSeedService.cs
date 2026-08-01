@@ -482,7 +482,7 @@ namespace Vitorize.Infrastructure.Services
                 S("WalletMaxCharge", "100000000", "Wallet", "decimal", "حداکثر شارژ کیف پول"),
 
                 // ───────────── Payment ─────────────
-                S("ZarinpalMerchantId", "", "Payment", "string", "شناسه پذیرنده زرین‌پال"),
+                S("ZarinpalMerchantId", Guid.Empty.ToString(), "Payment", "string", "شناسه پذیرنده زرین‌پال (مقدار نصب اولیه؛ پیش از پذیرش پرداخت باید با شناسه واقعی جایگزین شود)"),
                 S("ZarinpalSandbox", "true", "Payment", "bool", "حالت آزمایشی زرین‌پال"),
                 S("ZarinpalStartPayUrl", "https://sandbox.zarinpal.com/pg/StartPay", "Payment", "string", "آدرس شروع پرداخت زرین‌پال"),
                 S("ZarinpalBaseUrl", "https://sandbox.zarinpal.com/pg/v4/payment", "Payment", "string", "آدرس اصلی زرین‌پال"),

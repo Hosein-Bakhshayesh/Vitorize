@@ -74,8 +74,8 @@ Vitorize.Api\wwwroot\uploads\{products|categories|brands|banners|settings|verifi
 
 ### 3) پیکربندی API (`Vitorize.Api\appsettings.Production.json` یا Env Vars)
 - `ConnectionStrings:DefaultConnection` → کانکشن Production.
-- `Jwt:SecretKey` → **حتماً عوض شود** (مقدار داخل مخزن فقط برای توسعه است). حداقل ۳۲ کاراکتر تصادفی.
-- `Encryption:Key` → **حتماً عوض شود** (کلید رمزنگاری کدهای گیفت؛ ۳۲ بایت). توجه: تغییر این
+- `Jwt:SecretKey` → از Secret Provider تأمین شود؛ هیچ مقدار پیش‌فرضی در مخزن وجود ندارد. حداقل ۳۲ کاراکتر تصادفی.
+- `Encryption:Key` → از Secret Provider تأمین شود (کلید رمزنگاری کدهای گیفت؛ ۳۲ بایت). توجه: تغییر این
   کلید پس از ثبت کد در دیتابیس، کدهای قبلی را غیرقابل رمزگشایی می‌کند — قبل از ورود داده واقعی نهایی شود.
 - `ASPNETCORE_ENVIRONMENT=Production` → مسیرهای Mock (پرداخت تستی و شارژ تستی کیف پول)
   به‌صورت خودکار 404 می‌شوند.

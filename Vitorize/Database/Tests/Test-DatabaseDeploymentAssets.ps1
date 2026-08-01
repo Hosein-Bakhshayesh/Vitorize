@@ -77,6 +77,14 @@ $rehearsalFiles = @(
 foreach ($relativePath in $rehearsalFiles) {
     Assert-True (Test-Path -LiteralPath (Join-Path $databaseRoot $relativePath) -PathType Leaf) "Missing database rehearsal asset: $relativePath"
 }
+$cleanPublish = Get-Content -LiteralPath (Join-Path $databaseRoot 'Rehearsal\Publish-CleanDatabase.ps1') -Raw -Encoding utf8
+Assert-True ($cleanPublish -notmatch '(?s)\[string\]\s+\$DacpacPath\s*=\s*\(Join-Path') 'Clean publish script resolves $PSScriptRoot too early in a parameter default.'
+Assert-True ($cleanPublish -match 'IsNullOrWhiteSpace\(\$DacpacPath\)') 'Clean publish script lacks deferred default DACPAC resolution.'
+
+$repositoryRoot = Split-Path -Parent $databaseRoot
+$apiSettings = Get-Content -LiteralPath (Join-Path $repositoryRoot 'Vitorize.Api\appsettings.json') -Raw -Encoding utf8 | ConvertFrom-Json
+Assert-True ($null -eq $apiSettings.Jwt.PSObject.Properties['SecretKey']) 'API appsettings.json must not contain a JWT signing secret.'
+Assert-True ($null -eq $apiSettings.Encryption.PSObject.Properties['Key']) 'API appsettings.json must not contain an encryption key.'
 $rehearsalReadme = Get-Content -LiteralPath (Join-Path $databaseRoot 'Rehearsal\README.md') -Raw -Encoding utf8
 Assert-True ($rehearsalReadme -match 'DBA sign-off') 'Rehearsal pack lacks a DBA sign-off template.'
 Assert-True ($rehearsalReadme -match 'checksum') 'Rehearsal pack lacks immutable checksum guidance.'

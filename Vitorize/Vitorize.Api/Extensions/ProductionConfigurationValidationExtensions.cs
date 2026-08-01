@@ -10,6 +10,16 @@ public static class ProductionConfigurationValidationExtensions
 
         using var scope = app.Services.CreateScope();
         var provider = scope.ServiceProvider.GetRequiredService<IZarinpalPaymentConfigurationProvider>();
+        var configuration = provider.GetAsync().GetAwaiter().GetResult();
+        if (ZarinpalPaymentConfigurationRules.IsDeploymentPlaceholder(configuration.MerchantId))
+        {
+            // A fresh database needs to boot so the one-time SuperAdmin can configure
+            // Payment settings. The gateway separately rejects this sentinel before it
+            // can issue an external request or treat an order as paid.
+            app.Logger.LogWarning("Production is running with the Zarinpal deployment placeholder; gateway payments remain unavailable until Payment settings are configured. EventType={EventType}", "ZarinpalDeploymentPlaceholder");
+            return;
+        }
+
         var validation = provider.ValidateAsync().GetAwaiter().GetResult();
         if (!validation.IsValid)
         {

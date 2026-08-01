@@ -53,7 +53,7 @@ namespace Vitorize.Infrastructure.Services
             // end-to-end testing). In production we must NOT silently "succeed" — that would let
             // orders complete without a real payment — so we degrade to a failure that surfaces a
             // friendly "gateway unavailable" message instead of an unhandled 500.
-            if (IsDeploymentPlaceholder(configuration.MerchantId))
+            if (ZarinpalPaymentConfigurationRules.IsDeploymentPlaceholder(configuration.MerchantId))
                 return (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))
                     ? (true, $"MOCK-{Guid.NewGuid():N}", string.Empty)
                     : (false, string.Empty, string.Empty);
@@ -128,7 +128,7 @@ namespace Vitorize.Infrastructure.Services
 
             var configuration = await _configurationProvider.GetAsync();
 
-            if (IsDeploymentPlaceholder(configuration.MerchantId))
+            if (ZarinpalPaymentConfigurationRules.IsDeploymentPlaceholder(configuration.MerchantId))
                 return (false, 0);
 
             var validation = await _configurationProvider.ValidateAsync();
@@ -191,12 +191,5 @@ namespace Vitorize.Infrastructure.Services
             return $"{configuration.StartPayUri.AbsoluteUri.TrimEnd('/')}/{authority}";
         }
 
-        // Guid.Empty is the explicitly documented deployment sentinel. It passes the
-        // structural configuration check so a new Production database can start, but it
-        // must never be sent to the external gateway before an operator configures a
-        // real merchant identifier.
-        private static bool IsDeploymentPlaceholder(string merchantId) =>
-            string.IsNullOrWhiteSpace(merchantId) ||
-            (Guid.TryParse(merchantId, out var parsedMerchantId) && parsedMerchantId == Guid.Empty);
     }
 }

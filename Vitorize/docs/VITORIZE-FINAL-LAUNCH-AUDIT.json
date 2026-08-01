@@ -1,0 +1,30 @@
+{
+  "auditDate": "2026-08-01",
+  "branch": "Responsive",
+  "baselineCommit": "a4d03b7cd93cbde0df8ee41ec99d28339eba13c8",
+  "verdict": "READY WITH NON-BLOCKING CURRENT DEFECTS",
+  "freshDatabase": "Vitorize_FinalLaunchAudit_20260801",
+  "evidence": {
+    "releaseBuild": { "warnings": 0, "errors": 0 },
+    "databaseAssets": "passed",
+    "publishedApi": { "liveness": 200, "readiness": 200, "bootstrapSuperAdminsAfterRestart": 1 },
+    "unitTests": { "passed": 438, "failed": 0 }
+  },
+  "releasePackage": {
+    "path": "artifacts/final-launch/Vitorize-release-candidate-20260801.zip",
+    "entries": 296,
+    "sha256": "50C3B030E5D9855BCB8A673FE5FC731ADE98E714160CFD1DF0961BD55EC30426"
+  },
+  "repositoryFixes": [
+    "clean-publish DACPAC default resolution",
+    "no committed API JWT/encryption keys",
+    "fresh-production bootstrap with a payment sentinel",
+    "deterministic maintenance cleanup ordering"
+  ],
+  "externalCutoverRequirements": [
+    "secret-provider values",
+    "TLS/reverse-proxy and persistent storage",
+    "CKEditor licence decision",
+    "real Zarinpal settings"
+  ]
+}

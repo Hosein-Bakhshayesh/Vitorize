@@ -7,6 +7,14 @@ public sealed class ZarinpalPaymentConfigurationTests
 {
     private const string MerchantId = "7d424aa5-0776-4aae-99c4-c71f704e1154";
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public void Installation_placeholder_is_recognized_and_never_a_merchant_id(string merchantId)
+    {
+        Assert.True(ZarinpalPaymentConfigurationRules.IsDeploymentPlaceholder(merchantId));
+    }
+
     [Fact]
     public void Live_configuration_with_matching_https_callback_is_valid()
     {

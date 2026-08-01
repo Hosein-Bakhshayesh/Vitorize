@@ -4,12 +4,19 @@ param(
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string] $Database,
     [Parameter(Mandatory = $true)][ValidateSet('Development', 'Staging', 'Production')][string] $Environment,
     [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string] $ConfirmDatabaseName,
-    [string] $DacpacPath = (Join-Path $PSScriptRoot '..\Baseline\VitorizeDb.schema-candidate.dacpac'),
+    [string] $DacpacPath,
     [string] $LogDirectory
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Parameter default expressions run before $PSScriptRoot is populated when the
+# script is invoked with -File. Resolve the documented default only after the
+# script context exists, so a release operator can use the command as written.
+if ([string]::IsNullOrWhiteSpace($DacpacPath)) {
+    $DacpacPath = Join-Path $PSScriptRoot '..\Baseline\VitorizeDb.schema-candidate.dacpac'
+}
 
 if ($Database -notmatch '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$' -or $ServerInstance -match "[`r`n;]") {
     throw 'The target database or server instance contains unsupported characters.'
