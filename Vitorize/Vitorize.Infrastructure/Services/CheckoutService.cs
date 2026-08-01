@@ -62,6 +62,28 @@ namespace Vitorize.Infrastructure.Services
                 if (user.Status != (byte)UserStatus.Active)
                     throw new BusinessException("حساب کاربری برای خرید فعال نیست.");
 
+                // قفل انحصاری و به‌ازای هر محصول/تنوعِ تحویل‌آنی، پیش از هر خواندنِ قفل‌دارِ سبد.
+                // شناسایی محصولات با هینت READCOMMITTEDLOCK انجام می‌شود تا این خواندن قفلی نگه ندارد؛
+                // بنابراین Checkoutِ منتظرِ همان محصول، هیچ قفلِ متعارضی روی سبد نگه نمی‌دارد و
+                // چرخهٔ بن‌بست (GiftCodes ⇄ CartItems) میان دو خرید هم‌زمانِ یک محصول شکل نمی‌گیرد.
+                // کلید قفل هم‌راستا با GiftCodeReservationService است تا تخصیص کد در همهٔ مسیرها سریالی شود.
+                var instantLockKeys = (await _dbContext.Database
+                    .SqlQuery<string>($@"
+                        SELECT DISTINCT
+                            LOWER(REPLACE(CONVERT(varchar(36), ci.ProductId), '-', '')) + ':' +
+                            ISNULL(LOWER(REPLACE(CONVERT(varchar(36), ci.ProductVariantId), '-', '')), 'none') AS Value
+                        FROM CartItems AS ci WITH (READCOMMITTEDLOCK)
+                        INNER JOIN Carts AS c WITH (READCOMMITTEDLOCK) ON c.Id = ci.CartId
+                        INNER JOIN Products AS p WITH (READCOMMITTEDLOCK) ON p.Id = ci.ProductId
+                        WHERE c.UserId = {userId} AND p.DeliveryType = {(byte)DeliveryType.Instant}")
+                    .ToListAsync())
+                    .Select(x => $"gift-reservation:{x}")
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .ToList();
+
+                foreach (var lockKey in instantLockKeys)
+                    await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
+
                 // Cart prices are display caches; authoritative catalog state is reloaded and
                 // repriced inside this serializable transaction.
                 var cart = await _dbContext.Carts
@@ -231,31 +253,38 @@ namespace Vitorize.Infrastructure.Services
                 var reservationIds = new List<Guid>();
                 var reservationExpiresAt = now.AddMinutes(15);
 
+                // قفل انحصاری و به‌ازای هر محصول/تنوع پیش از انتخاب کد. کلید هم‌راستا با
+                // GiftCodeReservationService است تا تخصیص کد در همهٔ مسیرها سریالی شود.
+                // قفل‌ها به ترتیب یکسان (مرتب‌شده) گرفته می‌شوند تا هنگام رزرو چند کد به‌صورت
+                // هم‌زمان، نه بن‌بست ردیفی (deadlock) رخ دهد و نه بن‌بست ناشی از ترتیب قفل‌ها.
                 foreach (var orderItem in orderItems)
                 {
                     if (orderItem.DeliveryType != (byte)DeliveryType.Instant)
                         continue;
 
-                    for (var i = 0; i < orderItem.Quantity; i++)
+                    var quantity = orderItem.Quantity;
+
+                    // تمام کدهای موردنیاز این آیتم در یک کوئری قفل‌دار و به‌صورت مجزا انتخاب می‌شوند.
+                    // UPDLOCK/ROWLOCK: دو Checkout هم‌زمان هرگز یک کد را رزرو نمی‌کنند. انتخاب یکجای
+                    // TOP(N) از انتخاب دوبارهٔ یک کد جلوگیری می‌کند؛ چون در حلقهٔ تک‌به‌تک، تغییرِ
+                    // وضعیت هنوز در پایگاه‌داده اعمال نشده بود و همان ردیف دوباره برگردانده می‌شد.
+                    var giftCodes = await _dbContext.GiftCodes
+                        .FromSqlInterpolated($@"
+                            SELECT TOP({quantity}) * FROM GiftCodes WITH (UPDLOCK, ROWLOCK)
+                            WHERE ProductId = {orderItem.ProductId}
+                              AND ((ProductVariantId IS NULL AND {orderItem.ProductVariantId} IS NULL)
+                                   OR ProductVariantId = {orderItem.ProductVariantId})
+                              AND Status = {(byte)GiftCodeStatus.Available}
+                            ORDER BY CreatedAt")
+                        .AsTracking()
+                        .ToListAsync();
+
+                    if (giftCodes.Count < quantity)
+                        throw new BusinessException(
+                            $"موجودی کد برای محصول {orderItem.ProductTitle} کافی نیست.");
+
+                    foreach (var giftCode in giftCodes)
                     {
-                        // UPDLOCK/READPAST: دو Checkout هم‌زمان هرگز یک کد را رزرو نمی‌کنند
-                        // (بدون قفل، خواندن-سپس-نوشتن باعث فروش دوباره‌ی یک کد می‌شد).
-                        var giftCode = (await _dbContext.GiftCodes
-                            .FromSqlInterpolated($@"
-                                SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, ROWLOCK)
-                                WHERE ProductId = {orderItem.ProductId}
-                                  AND ((ProductVariantId IS NULL AND {orderItem.ProductVariantId} IS NULL)
-                                       OR ProductVariantId = {orderItem.ProductVariantId})
-                                  AND Status = {(byte)GiftCodeStatus.Available}
-                                ORDER BY CreatedAt")
-                            .AsTracking()
-                            .ToListAsync())
-                            .FirstOrDefault();
-
-                        if (giftCode == null)
-                            throw new BusinessException(
-                                $"موجودی کد برای محصول {orderItem.ProductTitle} کافی نیست.");
-
                         giftCode.Status = (byte)GiftCodeStatus.Reserved;
                         giftCode.ReservedByUserId = userId;
                         giftCode.ReservedAt = now;
@@ -331,6 +360,9 @@ namespace Vitorize.Infrastructure.Services
             catch (BusinessException exception)
             {
                 await transaction.RollbackAsync();
+                // موجودیت‌های ردیابی‌شده‌ی این تراکنشِ برگشت‌خورده (مثلاً Order/OrderItem) نباید در
+                // ذخیره‌ی بعدی روی همین DbContext مشترک (مثل ثبت شکست Idempotency در کنترلر) نشت کنند.
+                _dbContext.ChangeTracker.Clear();
                 stopwatch.Stop();
                 _logger.LogWarning(
                     "Checkout rejected for user {UserId}. ReasonCategory={ReasonCategory} ElapsedMs={ElapsedMs} EventType={EventType}",
@@ -340,6 +372,7 @@ namespace Vitorize.Infrastructure.Services
             catch
             {
                 await transaction.RollbackAsync();
+                _dbContext.ChangeTracker.Clear();
                 throw;
             }
         }
