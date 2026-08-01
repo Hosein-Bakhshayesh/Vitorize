@@ -203,7 +203,7 @@ test('an imported instant gift code is delivered into the customer code library'
   await adminPage.locator('.vz-page-head button.vz-btn--primary').click();
   const importDialog = adminPage.getByRole('dialog');
   await importDialog.locator('select.vz-select').selectOption(instantProductId);
-  await importDialog.locator('input.vz-input').nth(0).fill(`E2E Delivery Batch ${Date.now()}`);
+  await importDialog.getByTestId('gift-code-batch-title').fill(`E2E Delivery Batch ${Date.now()}`);
   await importDialog.locator('textarea.vz-textarea').fill(code);
   await importDialog.locator('button.vz-btn--primary').click();
   await expect(importDialog).toBeHidden();
