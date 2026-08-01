@@ -16,6 +16,8 @@
     "test:a11y": "playwright test tests/accessibility.spec.ts",
     "test:performance": "playwright test tests/performance.spec.ts",
     "test:visual": "playwright test tests/visual-regression.spec.ts",
+    "test:responsive": "playwright test --config=playwright.responsive.config.ts",
+    "test:responsive:release": "playwright test --config=playwright.responsive.config.ts --grep @release",
     "test:tag": "playwright test --grep",
     "report": "playwright show-report artifacts/report",
     "install:browsers": "playwright install chromium ffmpeg"

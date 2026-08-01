@@ -14,10 +14,10 @@
     database with fake SMS + fake payment providers and ephemeral keys.
 
 .PARAMETER Suite
-    smoke | auth | admin | customer | business | product | security | seo | ui | a11y | performance | visual | regression | release | all
+    smoke | auth | admin | customer | business | product | security | seo | ui | a11y | performance | visual | responsive | regression | release | all
 
 .PARAMETER Project
-    Playwright project(s): desktop-light (default, fastest) or all (desktop-light, desktop-dark, mobile-dark).
+    Playwright project(s): desktop-light (default, fastest), a responsive matrix project, or all.
 
 .PARAMETER Tag
     Optional custom --grep expression (e.g. '@business'); overrides the suite's default selection.
@@ -27,9 +27,9 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('smoke','auth','admin','customer','business','product','security','seo','ui','a11y','performance','visual','regression','release','all')]
+    [ValidateSet('smoke','auth','admin','customer','business','product','security','seo','ui','a11y','performance','visual','responsive','regression','release','all')]
     [string] $Suite = 'smoke',
-    [ValidateSet('desktop-light','desktop-dark','mobile-dark','all')]
+    [ValidateSet('desktop-light','desktop-dark','mobile-dark','phone-320-light','phone-360-dark-hidpi','phone-375-light','phone-390-dark','phone-412-light','phone-430-dark','phone-landscape-667-light','tablet-768-light','tablet-820-dark','tablet-landscape-1024-light','laptop-1280-dark','desktop-1366-light','desktop-1440-light','desktop-1440-dark','desktop-1920-light','all')]
     [string] $Project = 'desktop-light',
     [string] $Tag = '',
     [int] $Repeat = 1,
@@ -87,6 +87,7 @@ $selection = switch ($Suite) {
     'a11y'        { @('tests/accessibility.spec.ts') }
     'performance' { @('tests/performance.spec.ts') }
     'visual'      { @('tests/visual-regression.spec.ts') }
+    'responsive'  { @() }
     default       { @() }  # regression / all -> everything
 }
 if ($Tag) { $selection = @('--grep', $Tag) }
@@ -94,8 +95,14 @@ if ($Tag) { $selection = @('--grep', $Tag) }
 $pwBin = Join-Path $e2eRoot 'node_modules\.bin\playwright.cmd'
 if (-not (Test-Path $pwBin)) { throw "Playwright not installed. Run 'npm ci' in $e2eRoot." }
 $isRelease = $Suite -eq 'release'
-$pwArgs = @('test') + $selection
-if ($Project -ne 'all') { $pwArgs += @('--project', $Project) }
+$isResponsive = $Suite -eq 'responsive'
+$pwArgs = @('test')
+if ($isResponsive) { $pwArgs += @('--config', 'playwright.responsive.config.ts') }
+$pwArgs += $selection
+if ($Project -ne 'all') {
+    $selectedProject = if ($isResponsive -and $Project -eq 'desktop-light') { 'desktop-1440-light' } else { $Project }
+    $pwArgs += @('--project', $selectedProject)
+}
 if ($Headed) { $pwArgs += '--headed' }
 if ($UpdateSnapshots) { $pwArgs += '--update-snapshots' }
 
