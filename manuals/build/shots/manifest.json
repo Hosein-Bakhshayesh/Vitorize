@@ -1,0 +1,546 @@
+{
+  "pub-home": {
+    "url": "http://127.0.0.1:5077/",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "public",
+    "path": "/"
+  },
+  "pub-shop": {
+    "url": "http://127.0.0.1:5077/shop",
+    "title": "فروشگاه | ویتورایز",
+    "area": "public",
+    "path": "/shop"
+  },
+  "pub-categories": {
+    "url": "http://127.0.0.1:5077/categories",
+    "title": "دسته‌بندی محصولات | ویتورایز",
+    "area": "public",
+    "path": "/categories"
+  },
+  "pub-category": {
+    "url": "http://127.0.0.1:5077/category/gift-cards",
+    "title": "خرید گیفت کارت | ویتورایز",
+    "area": "public",
+    "path": "/category/gift-cards"
+  },
+  "pub-brand": {
+    "url": "http://127.0.0.1:5077/brand/brand-steam",
+    "title": "Steam | ویتورایز",
+    "area": "public",
+    "path": "/brand/brand-steam"
+  },
+  "pub-search": {
+    "url": "http://127.0.0.1:5077/search?q=%DA%AF%DB%8C%D9%81%D8%AA%20%DA%A9%D8%A7%D8%B1%D8%AA",
+    "title": "جستجو | ویتورایز",
+    "area": "public",
+    "path": "/search?q=%DA%AF%DB%8C%D9%81%D8%AA%20%DA%A9%D8%A7%D8%B1%D8%AA"
+  },
+  "pub-product-detail": {
+    "url": "http://127.0.0.1:5077/product/giftcard-steam",
+    "title": "گیفت کارت استیم | ویتورایز",
+    "area": "public",
+    "path": "/product/giftcard-steam"
+  },
+  "pub-product-detail-netflix": {
+    "url": "http://127.0.0.1:5077/product/giftcard-netflix",
+    "title": "گیفت کارت نتفلیکس | ویتورایز",
+    "area": "public",
+    "path": "/product/giftcard-netflix"
+  },
+  "pub-faq": {
+    "url": "http://127.0.0.1:5077/faq",
+    "title": "سوالات متداول | ویتورایز",
+    "area": "public",
+    "path": "/faq"
+  },
+  "pub-blog": {
+    "url": "http://127.0.0.1:5077/blog",
+    "title": "وبلاگ | ویتورایز",
+    "area": "public",
+    "path": "/blog"
+  },
+  "pub-blog-post": {
+    "url": "http://127.0.0.1:5077/blog/steam-activation-guide",
+    "title": "فعال‌سازی گیفت کارت استیم | ویتورایز",
+    "area": "public",
+    "path": "/blog/steam-activation-guide"
+  },
+  "pub-page-about": {
+    "url": "http://127.0.0.1:5077/page/about-us",
+    "title": "درباره ما | ویتورایز",
+    "area": "public",
+    "path": "/page/about-us"
+  },
+  "pub-page-contact": {
+    "url": "http://127.0.0.1:5077/page/contact-us",
+    "title": "تماس با ما | ویتورایز",
+    "area": "public",
+    "path": "/page/contact-us"
+  },
+  "pub-page-terms": {
+    "url": "http://127.0.0.1:5077/page/terms",
+    "title": "قوانین و مقررات | ویتورایز",
+    "area": "public",
+    "path": "/page/terms"
+  },
+  "pub-page-privacy": {
+    "url": "http://127.0.0.1:5077/page/privacy",
+    "title": "حریم خصوصی | ویتورایز",
+    "area": "public",
+    "path": "/page/privacy"
+  },
+  "pub-login": {
+    "url": "http://127.0.0.1:5077/login",
+    "title": "ورود | ویتورایز",
+    "area": "public",
+    "path": "/login"
+  },
+  "pub-register": {
+    "url": "http://127.0.0.1:5077/register",
+    "title": "ثبت‌نام | ویتورایز",
+    "area": "public",
+    "path": "/register"
+  },
+  "pub-forgot-password": {
+    "url": "http://127.0.0.1:5077/forgot-password",
+    "title": "بازیابی رمز عبور | ویتورایز",
+    "area": "public",
+    "path": "/forgot-password"
+  },
+  "pub-payment-result": {
+    "url": "http://127.0.0.1:5077/payment/result",
+    "title": "نتیجه پرداخت | ویتورایز",
+    "area": "public",
+    "path": "/payment/result"
+  },
+  "pub-product-detail-apple": {
+    "url": "http://127.0.0.1:5077/product/giftcard-apple",
+    "title": "گیفت کارت اپل | ویتورایز",
+    "area": "public",
+    "path": "/product/giftcard-apple"
+  },
+  "pub-product-detail-googleplay": {
+    "url": "http://127.0.0.1:5077/product/giftcard-googleplay",
+    "title": "گیفت کارت گوگل پلی | ویتورایز",
+    "area": "public",
+    "path": "/product/giftcard-googleplay"
+  },
+  "cust-dashboard": {
+    "url": "http://127.0.0.1:5077/customer/dashboard",
+    "title": "داشبورد | ویتورایز",
+    "area": "customer",
+    "path": "/customer/dashboard"
+  },
+  "cust-orders": {
+    "url": "http://127.0.0.1:5077/customer/orders",
+    "title": "سفارش‌های من | ویتورایز",
+    "area": "customer",
+    "path": "/customer/orders"
+  },
+  "cust-order-detail": {
+    "url": "http://127.0.0.1:5077/customer/orders/BB6F545C-9F69-4CDC-8A8E-47EDDD24CC16",
+    "title": "جزئیات سفارش | ویتورایز",
+    "area": "customer",
+    "path": "/customer/orders/BB6F545C-9F69-4CDC-8A8E-47EDDD24CC16"
+  },
+  "cust-gift-codes": {
+    "url": "http://127.0.0.1:5077/customer/gift-codes",
+    "title": "کدهای من | ویتورایز",
+    "area": "customer",
+    "path": "/customer/gift-codes"
+  },
+  "cust-wallet": {
+    "url": "http://127.0.0.1:5077/customer/wallet",
+    "title": "کیف پول | ویتورایز",
+    "area": "customer",
+    "path": "/customer/wallet"
+  },
+  "cust-wishlist": {
+    "url": "http://127.0.0.1:5077/customer/wishlist",
+    "title": "علاقه‌مندی‌ها | ویتورایز",
+    "area": "customer",
+    "path": "/customer/wishlist"
+  },
+  "cust-notifications": {
+    "url": "http://127.0.0.1:5077/customer/notifications",
+    "title": "اعلان‌ها | ویتورایز",
+    "area": "customer",
+    "path": "/customer/notifications"
+  },
+  "cust-tickets": {
+    "url": "http://127.0.0.1:5077/customer/tickets",
+    "title": "پشتیبانی | ویتورایز",
+    "area": "customer",
+    "path": "/customer/tickets"
+  },
+  "cust-ticket-detail": {
+    "url": "http://127.0.0.1:5077/customer/tickets/B762D64A-F908-4263-8D56-71C685DC1DBE",
+    "title": "تیکت | ویتورایز",
+    "area": "customer",
+    "path": "/customer/tickets/B762D64A-F908-4263-8D56-71C685DC1DBE"
+  },
+  "cust-ticket-new": {
+    "url": "http://127.0.0.1:5077/customer/tickets/new",
+    "title": "تیکت جدید | ویتورایز",
+    "area": "customer",
+    "path": "/customer/tickets/new"
+  },
+  "cust-reviews": {
+    "url": "http://127.0.0.1:5077/customer/reviews",
+    "title": "نظرات من | ویتورایز",
+    "area": "customer",
+    "path": "/customer/reviews"
+  },
+  "cust-verification": {
+    "url": "http://127.0.0.1:5077/customer/verification",
+    "title": "احراز هویت | ویتورایز",
+    "area": "customer",
+    "path": "/customer/verification"
+  },
+  "cust-profile": {
+    "url": "http://127.0.0.1:5077/customer/profile",
+    "title": "پروفایل | ویتورایز",
+    "area": "customer",
+    "path": "/customer/profile"
+  },
+  "flow-cart": {
+    "url": "http://127.0.0.1:5077/cart",
+    "title": "سبد خرید | ویتورایز",
+    "area": "customer",
+    "path": "/cart"
+  },
+  "flow-checkout": {
+    "url": "http://127.0.0.1:5077/checkout",
+    "title": "تکمیل خرید | ویتورایز",
+    "area": "customer",
+    "path": "/checkout"
+  },
+  "adm-dashboard": {
+    "url": "http://127.0.0.1:5077/admin/dashboard",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/dashboard"
+  },
+  "adm-products": {
+    "url": "http://127.0.0.1:5077/admin/products",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/products"
+  },
+  "adm-product-create": {
+    "url": "http://127.0.0.1:5077/admin/products/create",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/products/create"
+  },
+  "adm-product-edit": {
+    "url": "http://127.0.0.1:5077/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054"
+  },
+  "adm-product-details": {
+    "url": "http://127.0.0.1:5077/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054/details",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054/details"
+  },
+  "adm-product-images": {
+    "url": "http://127.0.0.1:5077/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054/images",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/products/69B5772B-C230-4664-AFB2-3D47D7E42054/images"
+  },
+  "adm-categories": {
+    "url": "http://127.0.0.1:5077/admin/categories",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/categories"
+  },
+  "adm-brands": {
+    "url": "http://127.0.0.1:5077/admin/brands",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/brands"
+  },
+  "adm-product-tags": {
+    "url": "http://127.0.0.1:5077/admin/product-tags",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/product-tags"
+  },
+  "adm-gift-codes": {
+    "url": "http://127.0.0.1:5077/admin/gift-codes",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/gift-codes"
+  },
+  "adm-orders": {
+    "url": "http://127.0.0.1:5077/admin/orders",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/orders"
+  },
+  "adm-payments": {
+    "url": "http://127.0.0.1:5077/admin/payments",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/payments"
+  },
+  "adm-coupons": {
+    "url": "http://127.0.0.1:5077/admin/coupons",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/coupons"
+  },
+  "adm-users": {
+    "url": "http://127.0.0.1:5077/admin/users",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/users"
+  },
+  "adm-roles": {
+    "url": "http://127.0.0.1:5077/admin/roles",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/roles"
+  },
+  "adm-tickets": {
+    "url": "http://127.0.0.1:5077/admin/tickets",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/tickets"
+  },
+  "adm-reviews": {
+    "url": "http://127.0.0.1:5077/admin/reviews",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/reviews"
+  },
+  "adm-verifications": {
+    "url": "http://127.0.0.1:5077/admin/verifications",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/verifications"
+  },
+  "adm-wallets": {
+    "url": "http://127.0.0.1:5077/admin/wallets",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/wallets"
+  },
+  "adm-reports": {
+    "url": "http://127.0.0.1:5077/admin/reports",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/reports"
+  },
+  "adm-audit-logs": {
+    "url": "http://127.0.0.1:5077/admin/audit-logs",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/audit-logs"
+  },
+  "adm-error-logs": {
+    "url": "http://127.0.0.1:5077/admin/error-logs",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/error-logs"
+  },
+  "adm-security-logs": {
+    "url": "http://127.0.0.1:5077/admin/security-logs",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/security-logs"
+  },
+  "adm-monitoring": {
+    "url": "http://127.0.0.1:5077/admin/monitoring",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/monitoring"
+  },
+  "adm-notifications": {
+    "url": "http://127.0.0.1:5077/admin/notifications",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/notifications"
+  },
+  "adm-sms": {
+    "url": "http://127.0.0.1:5077/admin/sms",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/sms"
+  },
+  "adm-settings": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings"
+  },
+  "adm-tools": {
+    "url": "http://127.0.0.1:5077/admin/tools",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/tools"
+  },
+  "adm-banners": {
+    "url": "http://127.0.0.1:5077/admin/banners",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/banners"
+  },
+  "adm-settings-01": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "عمومی6"
+  },
+  "adm-settings-02": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "برند6"
+  },
+  "adm-settings-03": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "لوگو و تصاویر15"
+  },
+  "adm-settings-04": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "تایپوگرافی / فونت6"
+  },
+  "adm-settings-05": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "مجوزها و نمادهای اعتماد21"
+  },
+  "adm-settings-06": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "سئو6"
+  },
+  "adm-settings-07": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "صفحه اصلی17"
+  },
+  "adm-settings-08": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "فوتر1"
+  },
+  "adm-settings-09": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "شبکه‌های اجتماعی8"
+  },
+  "adm-settings-10": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "تماس و پشتیبانی4"
+  },
+  "adm-settings-11": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "متن‌ها و پیام‌ها28"
+  },
+  "adm-settings-12": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "ایمیل6"
+  },
+  "adm-settings-13": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "پرداخت5"
+  },
+  "adm-settings-14": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "امنیت8"
+  },
+  "adm-settings-15": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "آپلودها2"
+  },
+  "adm-settings-16": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "اعلان‌ها28"
+  },
+  "adm-settings-17": {
+    "url": "http://127.0.0.1:5077/admin/settings",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin",
+    "path": "/admin/settings",
+    "tab": "پیشرفته4"
+  },
+  "adm-giftcode-import": {
+    "url": "http://127.0.0.1:5077/admin/gift-codes",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "adm-coupon-create": {
+    "url": "http://127.0.0.1:5077/admin/coupons",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "adm-order-detail": {
+    "url": "http://127.0.0.1:5077/admin/orders",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "adm-verification-detail": {
+    "url": "http://127.0.0.1:5077/admin/verifications",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "adm-user-detail": {
+    "url": "http://127.0.0.1:5077/admin/users",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "adm-order-open": {
+    "url": "http://127.0.0.1:5077/admin/orders",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "admin"
+  },
+  "cust-gift-code-revealed": {
+    "url": "http://127.0.0.1:5077/",
+    "title": "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین",
+    "area": "customer"
+  }
+}
