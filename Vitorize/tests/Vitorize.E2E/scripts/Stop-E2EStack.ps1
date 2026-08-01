@@ -9,7 +9,12 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $PidFile)) { return }
 
 try {
-    $entries = Get-Content -LiteralPath $PidFile -Raw | ConvertFrom-Json
+    # Multiple Playwright processes can reach teardown together. Another process may
+    # remove the PID file after the initial existence check, which is already a
+    # successful cleanup outcome rather than an error worth surfacing.
+    $rawEntries = Get-Content -LiteralPath $PidFile -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($rawEntries)) { return }
+    $entries = $rawEntries | ConvertFrom-Json
     foreach ($entry in @($entries)) {
         $process = Get-Process -Id $entry.Id -ErrorAction SilentlyContinue
         if ($null -eq $process -or $process.ProcessName -ne $entry.ProcessName -or $process.Path -ne $entry.Path) {

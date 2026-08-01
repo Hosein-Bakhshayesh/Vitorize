@@ -21,7 +21,14 @@ async function exportFirstSelectedRow(page: import('@playwright/test').Page, rou
 
 test('selected-row exports are server-approved and only expose approved CSV columns', {
   tag: [TAG.admin, TAG.release, TAG.regression]
-}, async ({ page, loginAs }) => {
+}, async ({ page, loginAs, storefront }) => {
+  // The release database is intentionally pristine. Create the order this assertion
+  // needs instead of depending on another spec having run first.
+  await loginAs('Customer');
+  await storefront.addToCart('e2e-seo-product', {
+    account_email: `admin-export-${Date.now()}@example.test`
+  });
+  await storefront.checkoutAndPay();
   await loginAs('SuperAdmin');
 
   const productsCsv = await exportFirstSelectedRow(page, '/admin/products', 'products');
