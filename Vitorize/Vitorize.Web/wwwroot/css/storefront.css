@@ -643,6 +643,27 @@ body { background: var(--st-bg, #fff); }
 .st-dialog__b { padding: 24px; }
 .st-dialog__foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--st-border); }
 
+/* Shared Razor modal is also used by public product/cart workflows.  Keep its
+   viewport contract in the storefront bundle instead of depending on Admin CSS. */
+.st-shell .vz-overlay {
+    position: fixed; inset: 0; z-index: 220; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(4, 12, 16, .62); backdrop-filter: blur(3px);
+}
+.st-shell .vz-dialog {
+    inline-size: min(560px, 100%); max-inline-size: 100%; max-block-size: calc(100dvh - 32px);
+    display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--st-border);
+    border-radius: var(--st-clip); color: var(--st-text); background: var(--st-elevated); box-shadow: var(--st-shadow-lg);
+}
+.st-shell .vz-dialog.sm { inline-size: min(440px, 100%); }
+.st-shell .vz-dialog.lg { inline-size: min(860px, 100%); }
+.st-shell .vz-dialog.xl { inline-size: min(1080px, 100%); }
+.st-shell .vz-dialog__head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--st-border); }
+.st-shell .vz-dialog__head > div:nth-child(2) { min-width: 0; }
+.st-shell .vz-dialog__title { min-width: 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+.st-shell .vz-dialog__close { margin-inline-start: auto; inline-size: 40px; block-size: 40px; flex: 0 0 40px; display: grid; place-items: center; border: 0; border-radius: 10px; color: var(--st-text-2); background: var(--st-surface-2); }
+.st-shell .vz-dialog__body { min-width: 0; min-height: 0; padding: 18px; overflow: auto; overscroll-behavior: contain; }
+.st-shell .vz-dialog__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--st-border); }
+
 /* side panel — slides from inline-end, direction-aware */
 .st-panel {
     position: fixed; top: 0; bottom: 0; inset-inline-end: 0; z-index: 210;
@@ -1011,7 +1032,9 @@ body { background: var(--st-bg, #fff); }
 .st-mobile-only { display: none; }
 
 @media (max-width: 1024px) {
-    .st-split { grid-template-columns: minmax(0, 1fr); }
+    /* Several pages provide their desktop tracks inline; force the shared
+       split primitive back to one bounded column at responsive widths. */
+    .st-split { grid-template-columns: minmax(0, 1fr) !important; }
     .st-split > * { min-width: 0; }
     .st-pd { grid-template-columns: 1fr; }
     .st-shop { grid-template-columns: 1fr; }
@@ -1021,6 +1044,16 @@ body { background: var(--st-bg, #fff); }
     .st-hero__art { display: none; }
     .st-acc__side, .st-filters, .st-buybox, .st-cart-sum { position: static !important; top: auto !important; }
     .st-container { padding: 0 22px; }
+}
+
+/* The full desktop header is just wider than portrait tablets once localized
+   account labels are present. Keep navigation visible, but use the same
+   icon-only secondary actions already used on phones. */
+@media (max-width: 900px) {
+    .st-header__row { gap: 12px; }
+    .st-nav a { padding-inline: 10px; }
+    .st-header__actions { gap: 8px; min-width: 0; }
+    .st-mobile-hide { display: none; }
 }
 
 @media (max-width: 720px) {
@@ -1448,18 +1481,40 @@ body { background: var(--st-bg, #fff); }
     .st-lgrid { grid-template-columns: repeat(2, 1fr); }
     .st-fab { display: inline-flex; }
     .st-pd2 { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+    /* On the desktop the gallery/content column sits beside the purchase
+       panel. Once stacked, expose that wrapper's children to the parent grid
+       so the purchase decision follows the gallery instead of all rich
+       content appearing before the price and primary action. */
+    .st-pd2 > div:first-child { display: contents; }
+    .st-pd2 .st-gal { grid-row: 1; }
+    .st-pd2 > .st-buy { grid-row: 2; }
+    .st-pd2 .st-product-features { grid-row: 3; }
+    .st-pd2 .st-ptabs { grid-row: 4; }
+    .st-gal__main { height: min(54vw, 55dvh, 420px); }
+    .st-gal__main .st-img, .st-gal__main img { object-fit: contain; }
     .st-buy { position: static; }
     .st-whyband__grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
     .st-lgrid { grid-template-columns: 1fr; }
-    .st-gal__main { height: 300px; }
+    .st-gal__main { height: clamp(210px, 68vw, 260px); }
+    .st-gal__main .st-img, .st-gal__main img { object-fit: contain; }
     .st-gal__thumb { width: 52px; height: 52px; flex-basis: 52px; }
     .st-cart-item { display: grid !important; grid-template-columns: 70px minmax(0, 1fr); align-items: start !important; }
     .st-cart-item__image { grid-column: 1; grid-row: 1; }
     .st-cart-item__info { grid-column: 2; grid-row: 1; }
     .st-cart-item > .st-qty { grid-column: 1; grid-row: 2; }
     .st-cart-item__total { grid-column: 2; grid-row: 2; min-width: 0 !important; }
+}
+
+@media (max-width: 400px) {
+    .st-header__row { gap: 8px; }
+    .st-logo { gap: 0; }
+    .st-logo__word { display: none; }
+    .st-header__actions { min-width: 0; gap: 6px; }
+    .st-shell .vz-dialog__head, .st-shell .vz-dialog__body { padding-inline: 14px; }
+    .st-shell .vz-dialog__foot { padding-inline: 14px; }
+    .st-shell .vz-dialog__foot > * { flex: 1 1 120px; }
 }
 
 .st-heart-on { color: var(--st-danger); fill: var(--st-danger); }

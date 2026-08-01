@@ -36,14 +36,14 @@ else
                 <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی</div>
                 <div class="st-card__pad">
                     <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
-                        <div class="st-field"><label class="st-label">نام</label><input class="st-input" @bind="_firstName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">نام خانوادگی</label><input class="st-input" @bind="_lastName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">کد ملی</label><input class="st-input st-mono" @bind="_nationalCode" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">نام</label><input class="st-input" aria-label="نام" @bind="_firstName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">نام خانوادگی</label><input class="st-input" aria-label="نام خانوادگی" @bind="_lastName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد ملی</label><input class="st-input st-mono" aria-label="کد ملی" @bind="_nationalCode" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">تاریخ تولد</label><PersianDatePicker @bind-Value="_birthDate" /></div>
-                        <div class="st-field"><label class="st-label">شماره کارت بانکی</label><input class="st-input st-mono" @bind="_bankCard" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">شماره شبا</label><input class="st-input st-mono" @bind="_shaba" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">کد پستی</label><input class="st-input st-mono" @bind="_postalCode" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">آدرس</label><input class="st-input" @bind="_address" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">شماره کارت بانکی</label><input class="st-input st-mono" aria-label="شماره کارت بانکی" @bind="_bankCard" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">شماره شبا</label><input class="st-input st-mono" aria-label="شماره شبا" @bind="_shaba" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد پستی</label><input class="st-input st-mono" aria-label="کد پستی" @bind="_postalCode" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">آدرس</label><input class="st-input" aria-label="آدرس" @bind="_address" disabled="@ReadOnly" /></div>
                     </div>
                     @if (!ReadOnly)
                     {

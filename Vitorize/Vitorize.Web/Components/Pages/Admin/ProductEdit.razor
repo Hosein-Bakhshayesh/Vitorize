@@ -74,17 +74,17 @@ else
                         <div class="vz-form-grid">
                             <div class="vz-field span-2">
                                 <label class="vz-label">عنوان محصول <span class="req">*</span></label>
-                                <InputText class="vz-input" data-testid="product-title" @bind-Value="_model.Title" @bind-Value:after="OnTitleChanged" />
+                                <InputText class="vz-input" data-testid="product-title" aria-label="عنوان محصول" @bind-Value="_model.Title" @bind-Value:after="OnTitleChanged" />
                                 <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label" dir="ltr" style="text-align:start">Slug <span class="req">*</span></label>
-                                <InputText class="vz-input vz-mono" data-testid="product-slug" @bind-Value="_model.Slug" />
+                                <InputText class="vz-input vz-mono" data-testid="product-slug" aria-label="Slug" @bind-Value="_model.Slug" />
                                 <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">دسته‌بندی <span class="req">*</span></label>
-                                <select class="vz-select" data-testid="product-category" value="@(_model.CategoryId == Guid.Empty ? "" : _model.CategoryId.ToString())"
+                                <select class="vz-select" data-testid="product-category" aria-label="دسته‌بندی" value="@(_model.CategoryId == Guid.Empty ? "" : _model.CategoryId.ToString())"
                                         @onchange="e => _model.CategoryId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
                                     <option value="">— انتخاب دسته‌بندی —</option>
                                     @foreach (var c in _categories) { <option value="@c.Id">@c.Title</option> }
@@ -93,7 +93,7 @@ else
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">برند</label>
-                                <select class="vz-select" data-testid="product-brand" value="@(_model.BrandId?.ToString() ?? "")"
+                                <select class="vz-select" data-testid="product-brand" aria-label="برند" value="@(_model.BrandId?.ToString() ?? "")"
                                         @onchange="e => _model.BrandId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : null">
                                     <option value="">— بدون برند —</option>
                                     @foreach (var b in _brands) { <option value="@b.Id">@b.Title</option> }
@@ -101,7 +101,7 @@ else
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">نوع محصول</label>
-                                <select class="vz-select" data-testid="product-type" value="@_model.ProductType" @onchange="e => _model.ProductType = byte.Parse(e.Value!.ToString()!)">
+                                <select class="vz-select" data-testid="product-type" aria-label="نوع محصول" value="@_model.ProductType" @onchange="e => _model.ProductType = byte.Parse(e.Value!.ToString()!)">
                                     <option value="1">گیفت کارت</option>
                                     <option value="2">اکانت بازی</option>
                                     <option value="3">سرویس بازی</option>
@@ -111,7 +111,7 @@ else
                             </div>
                             <div class="vz-field span-2">
                                 <label class="vz-label">توضیحات کوتاه</label>
-                                <InputTextArea class="vz-textarea" data-testid="product-short-description" style="min-height:80px" @bind-Value="_model.ShortDescription" />
+                                <InputTextArea class="vz-textarea" data-testid="product-short-description" aria-label="توضیحات کوتاه" style="min-height:80px" @bind-Value="_model.ShortDescription" />
                             </div>
                             <div class="vz-field span-2">
                                 <label class="vz-label">توضیحات کامل</label>
@@ -198,34 +198,34 @@ else
                         <div class="vz-form-grid three">
                             <div class="vz-field">
                                 <label class="vz-label">واحد پول</label>
-                                <select class="vz-select" data-testid="product-currency" value="@_model.CurrencyType" @onchange="e => _model.CurrencyType = byte.Parse(e.Value!.ToString()!)">
+                                <select class="vz-select" data-testid="product-currency" aria-label="واحد پول" value="@_model.CurrencyType" @onchange="e => _model.CurrencyType = byte.Parse(e.Value!.ToString()!)">
                                     <option value="2">تومان</option>
                                     <option value="1">ریال</option>
                                 </select>
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">قیمت پایه <span class="req">*</span></label>
-                                <InputNumber class="vz-input" data-testid="product-base-price" @bind-Value="_model.BasePrice" />
+                                <InputNumber class="vz-input" data-testid="product-base-price" aria-label="قیمت پایه" @bind-Value="_model.BasePrice" />
                                 <ValidationMessage For="() => _model.BasePrice" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">قیمت با تخفیف</label>
-                                <InputNumber class="vz-input" data-testid="product-discount-price" @bind-Value="_model.DiscountPrice" />
+                                <InputNumber class="vz-input" data-testid="product-discount-price" aria-label="قیمت با تخفیف" @bind-Value="_model.DiscountPrice" />
                                 <ValidationMessage For="() => _model.DiscountPrice" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">حداقل تعداد سفارش</label>
-                                <InputNumber class="vz-input" data-testid="product-min-quantity" @bind-Value="_model.MinOrderQuantity" />
+                                <InputNumber class="vz-input" data-testid="product-min-quantity" aria-label="حداقل تعداد سفارش" @bind-Value="_model.MinOrderQuantity" />
                                 <ValidationMessage For="() => _model.MinOrderQuantity" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">حداکثر تعداد سفارش</label>
-                                <InputNumber class="vz-input" data-testid="product-max-quantity" @bind-Value="_model.MaxOrderQuantity" />
+                                <InputNumber class="vz-input" data-testid="product-max-quantity" aria-label="حداکثر تعداد سفارش" @bind-Value="_model.MaxOrderQuantity" />
                                 <ValidationMessage For="() => _model.MaxOrderQuantity" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">ترتیب نمایش</label>
-                                <InputNumber class="vz-input" data-testid="product-sort-order" @bind-Value="_model.SortOrder" />
+                                <InputNumber class="vz-input" data-testid="product-sort-order" aria-label="ترتیب نمایش" @bind-Value="_model.SortOrder" />
                             </div>
                         </div>
                     </div>
@@ -307,17 +307,17 @@ else
                         <div class="vz-form-grid one">
                             <div class="vz-field">
                                 <label class="vz-label" dir="ltr" style="text-align:start">SEO Title</label>
-                                <InputText class="vz-input" data-testid="product-seo-title" @bind-Value="_model.SeoTitle" />
+                                <InputText class="vz-input" data-testid="product-seo-title" aria-label="SEO Title" @bind-Value="_model.SeoTitle" />
                                 <ValidationMessage For="() => _model.SeoTitle" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label" dir="ltr" style="text-align:start">SEO Description</label>
-                                <InputTextArea class="vz-textarea" data-testid="product-seo-description" style="min-height:70px" @bind-Value="_model.SeoDescription" />
+                                <InputTextArea class="vz-textarea" data-testid="product-seo-description" aria-label="SEO Description" style="min-height:70px" @bind-Value="_model.SeoDescription" />
                                 <ValidationMessage For="() => _model.SeoDescription" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label" dir="ltr" style="text-align:start">Focus Keyword</label>
-                                <InputText class="vz-input" data-testid="product-focus-keyword" @bind-Value="_model.FocusKeyword" />
+                                <InputText class="vz-input" data-testid="product-focus-keyword" aria-label="Focus Keyword" @bind-Value="_model.FocusKeyword" />
                                 <span class="vz-help">فقط راهنمای تحریریه است و به‌عنوان meta keywords منتشر نمی‌شود.</span>
                             </div>
                             <div class="vz-field">
@@ -340,7 +340,7 @@ else
                     <div class="vz-card__head"><Icon Name="image" Size="18" /><div><div class="vz-card__title">تصویر شاخص</div></div></div>
                     <div class="vz-card__body">
                         <UploadBox @bind-Value="_model.ThumbnailImagePath" Label="آپلود تصویر شاخص" />
-                        <div class="vz-field" style="margin-top:12px"><label class="vz-label">متن جایگزین تصویر</label><InputText class="vz-input" data-testid="product-thumbnail-alt" @bind-Value="_model.ThumbnailAltText" placeholder="توصیف کوتاه و طبیعی تصویر" /></div>
+                        <div class="vz-field" style="margin-top:12px"><label class="vz-label">متن جایگزین تصویر</label><InputText class="vz-input" data-testid="product-thumbnail-alt" aria-label="متن جایگزین تصویر" @bind-Value="_model.ThumbnailAltText" placeholder="توصیف کوتاه و طبیعی تصویر" /></div>
                         <ImageGuideline Spec="ImageSpecs.ProductThumbnail" />
                         @if (IsEdit)
                         {
