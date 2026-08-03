@@ -25,7 +25,7 @@ else
     <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>@_page.Title</span></div>
     <article style="max-width:840px;margin:0 auto">
         <h1 style="font-size:24px;margin-bottom:18px">@_page.Title</h1>
-        <div style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
+        <div class="st-rich-content" style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
             @((MarkupString)(_page.ContentHtml ?? string.Empty))
         </div>
     </article>

@@ -395,6 +395,19 @@ else
                         <div class="vz-hint" style="margin-top:4px">مقدار ذخیره‌شده به‌صورت محرمانه نگهداری و هرگز کامل نمایش داده نمی‌شود.</div>
                         break;
 
+                    case "font":
+                        <div class="vz-setfield__row">
+                            <select class="vz-select" value="@s.Value" aria-label="@SettingLabel(s)"
+                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }">
+                                @foreach (var family in StorefrontFontOptions(s.Value))
+                                {
+                                    <option value="@family">@family</option>
+                                }
+                            </select>
+                            @SaveInline(s)
+                        </div>
+                        break;
+
                     case "icon":
                         <LucideIconPicker Value="@s.Value" ValueChanged="v => OnSettingIconChanged(s, v)" Placeholder="انتخاب آیکون" />
                         <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
@@ -437,6 +450,14 @@ else
 
     private static string SettingLabel(SettingModel setting) =>
         string.IsNullOrWhiteSpace(setting.Description) ? setting.Key : setting.Description;
+
+    private IEnumerable<string> StorefrontFontOptions(string? current) =>
+        new[] { "Peyda", "Funnel Display", "Manrope" }
+            .Concat(_fonts.Where(x => x.IsActive).Select(x => x.FamilyName))
+            .Append(current ?? string.Empty)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
 
     private RenderFragment SaveInline(SettingModel s) =>
         @<span class="vz-setfield__save">

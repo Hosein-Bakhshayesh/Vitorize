@@ -34,7 +34,7 @@ else
         {
             <img src="@Media.Resolve(_post.CoverImagePath)" alt="@(_post.CoverImageAltText ?? _post.Title)" width="1200" height="630" loading="eager" fetchpriority="high" style="width:100%;height:auto;border-radius:18px;margin-bottom:22px" />
         }
-        <div style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
+        <div class="st-rich-content" style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
             @((MarkupString)(_post.ContentHtml ?? string.Empty))
         </div>
     </article>

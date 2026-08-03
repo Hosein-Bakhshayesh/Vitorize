@@ -294,6 +294,8 @@ namespace Vitorize.Infrastructure.Services
                 S("Typography.Scope", "3", "Typography", "int", "محدوده اعمال فونت: ۱ فروشگاه، ۲ مدیریت، ۳ کل برنامه"),
                 S("Typography.Version", "1", "Typography", "string", "نسخه کش فونت"),
                 S("Typography.MaxUploadMb", "5", "Typography", "int", "حداکثر حجم آپلود فونت بر حسب مگابایت"),
+                S("StorefrontPersianFont", "Peyda", "Typography", "font", "فونت پیش‌فرض فارسی فروشگاه"),
+                S("StorefrontEnglishFont", "Funnel Display", "Typography", "font", "فونت پیش‌فرض انگلیسی فروشگاه"),
 
                 // ───────────── Iranian trust seals (safe link + image only) ─────────────
                 S("TrustSeal.Enamad.Enabled", "false", "TrustSeals", "bool", "نمایش نماد اعتماد الکترونیکی"),

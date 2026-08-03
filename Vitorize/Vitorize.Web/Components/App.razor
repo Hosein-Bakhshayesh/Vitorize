@@ -46,6 +46,11 @@
         <link rel="stylesheet" href="lib/ckeditor5/ckeditor5.css?v=44.1.0-sh" />
         <link rel="stylesheet" href="css/ckeditor-theme.css?v=@AssetVersion" />
     }
+    @if (_isStorefront)
+    {
+        <link rel="preload" href="fonts/storefront/peyda-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="preload" href="fonts/storefront/funnel-display-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    }
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
 
     @if (!string.IsNullOrWhiteSpace(_b.GoogleAnalyticsId))
@@ -59,6 +64,7 @@
         </script>
     }
     @if (!string.IsNullOrWhiteSpace(_fontFaceCss)) { <style>@((MarkupString)_fontFaceCss)</style> }
+    @if (!string.IsNullOrWhiteSpace(_storefrontTypographyCss)) { <style>@((MarkupString)_storefrontTypographyCss)</style> }
 
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
@@ -102,14 +108,15 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260801-responsive-1.0.0";
+    private const string AssetVersion = "20260803-storefront-typography-1.0.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";
     private string _logoSrc = "images/logo.png";
     private string? _appleIcon;
     private string? _fontFaceCss;
-    private bool _prerender, _indexableRoute, _needsAdminAssets, _needsEditorAssets;
+    private string? _storefrontTypographyCss;
+    private bool _prerender, _indexableRoute, _needsAdminAssets, _needsEditorAssets, _isStorefront;
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,6 +126,7 @@
         _needsAdminAssets = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
                             path.StartsWith("/customer", StringComparison.OrdinalIgnoreCase);
         _needsEditorAssets = path.StartsWith("/admin/products", StringComparison.OrdinalIgnoreCase);
+        _isStorefront = !path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
         // برندینگ عمومی از API خوانده می‌شود (کش استاتیک ۲ دقیقه‌ای)؛ در صورت خطا پیش‌فرض‌ها استفاده می‌شوند.
         _b = await Branding.GetAsync();
 
@@ -135,10 +143,22 @@
             var selector = _b.FontScope switch { 1 => ".st-shell", 2 => ".vz-shell", _ => ":root" };
             _fontFaceCss = $"@font-face{{font-family:'{family}';src:url('{url}') format('{CssString(_b.FontFormat)}');font-display:swap;}}{selector}{{--font:'{family}',Vazirmatn,Tahoma,sans-serif;--st-font:'{family}',Vazirmatn,Tahoma,sans-serif;}}";
         }
+
+        if (_isStorefront)
+        {
+            var persian = CssFontFamily(_b.StorefrontPersianFont, "Peyda");
+            var english = CssFontFamily(_b.StorefrontEnglishFont, "Funnel Display");
+            _storefrontTypographyCss = $".st-shell{{--font-fa:'{persian}';--font-en:'{english}','Manrope';--st-font:var(--font-fa),var(--font-en),system-ui,sans-serif;}}";
+        }
     }
 
     private static string Versioned(string url, string version) => $"{url}{(url.Contains('?') ? '&' : '?')}v={Uri.EscapeDataString(version)}";
     private static string CssString(string value) => new(value.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_' or '.' or '/' or ':' or '?' or '&' or '=').ToArray());
+    private static string CssFontFamily(string value, string fallback)
+    {
+        var family = new string(value.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_').ToArray()).Trim();
+        return family.Length is >= 2 and <= 60 ? family : fallback;
+    }
     private static bool IsSafeFont(string path, string format) => path.StartsWith("/uploads/fonts/", StringComparison.OrdinalIgnoreCase) && format is "woff2" or "woff" or "ttf";
 
     private static bool IsPrerenderedPublicPath(string path) =>

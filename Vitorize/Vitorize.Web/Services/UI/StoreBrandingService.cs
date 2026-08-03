@@ -123,6 +123,10 @@ namespace Vitorize.Web.Services.UI
         public int FontScope => int.TryParse(Get("Typography.Scope", "3"), out var scope) && scope is >= 1 and <= 3 ? scope : 3;
         public string FontVersion => Get("Typography.Version", "1");
 
+        // Emitted by App.razor on .st-shell only; Admin uses its own --font token.
+        public string StorefrontPersianFont => Get("StorefrontPersianFont", "Peyda");
+        public string StorefrontEnglishFont => Get("StorefrontEnglishFont", "Funnel Display");
+
         // ── SEO ──
         public string MetaTitle => Get("MetaTitle", "");
         public string MetaDescription => FirstNonEmpty("MetaDescription", "SiteDescription");
