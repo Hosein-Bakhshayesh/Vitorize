@@ -96,6 +96,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 85,
+      "version": "V0008",
+      "name": "V0008__seed_storefront_typography_settings.sql",
+      "path": "Versioned/V0008__seed_storefront_typography_settings.sql",
+      "sha256": "fff9d2f0f22c6ac51629f3edee38c30a3e90dc7433d3914e10fbf2035eaade15",
+      "classification": "required",
+      "dependencies": ["V0007", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

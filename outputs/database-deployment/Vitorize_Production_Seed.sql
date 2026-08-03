@@ -301,6 +301,8 @@ GO
 SET NOCOUNT ON;
 DECLARE @Seed TABLE ([Key] nvarchar(200), [Value] nvarchar(max), GroupName nvarchar(100), ValueType nvarchar(50), [Description] nvarchar(500));
 INSERT @Seed VALUES
+(N'StorefrontPersianFont',N'Peyda',N'Typography',N'font',N'Default Persian storefront font.'),
+(N'StorefrontEnglishFont',N'Funnel Display',N'Typography',N'font',N'Default English storefront font.'),
 (N'Typography.FontFamily',N'Vazirmatn',N'Typography',N'string',N'Ù†Ø§Ù… ÙÙˆÙ†Øª ÙØ¹Ø§Ù„Ø› Ù¾ÛŒØ´â€ŒÙØ±Ø¶ Vazirmatn'),
 (N'Typography.FontPath',N'',N'Typography',N'string',N'Ù…Ø³ÛŒØ± ÙØ§ÛŒÙ„ ÙÙˆÙ†Øª ÙØ¹Ø§Ù„'),
 (N'Typography.FontFormat',N'woff2',N'Typography',N'string',N'ÙØ±Ù…Øª ÙØ§ÛŒÙ„ ÙÙˆÙ†Øª ÙØ¹Ø§Ù„'),

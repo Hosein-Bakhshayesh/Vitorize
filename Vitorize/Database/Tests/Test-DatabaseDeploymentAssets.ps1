@@ -93,4 +93,23 @@ $allDeploymentText = ($trackedSql | ForEach-Object { Get-Content -LiteralPath $_
 Assert-True ($allDeploymentText -notmatch '(?im)^\s*INSERT\s+(?:INTO\s+)?(?:dbo\.)?Users\b') 'A deployment SQL script creates application users.'
 Assert-True ($allDeploymentText -notmatch '(?im)^\s*UPDATE\s+(?:dbo\.)?Users\s+SET\s+Password') 'A deployment SQL script updates user passwords.'
 
+$workspaceRoot = Split-Path -Parent $repositoryRoot
+$productionSeedPath = Join-Path $workspaceRoot 'outputs\database-deployment\Vitorize_Production_Seed.sql'
+$productionVerificationPath = Join-Path $workspaceRoot 'outputs\database-deployment\Vitorize_Production_Verification.sql'
+Assert-True (Test-Path -LiteralPath $productionSeedPath -PathType Leaf) 'Production seed package is missing.'
+Assert-True (Test-Path -LiteralPath $productionVerificationPath -PathType Leaf) 'Production verification package is missing.'
+$productionSeed = Get-Content -LiteralPath $productionSeedPath -Raw -Encoding utf8
+$productionVerification = Get-Content -LiteralPath $productionVerificationPath -Raw -Encoding utf8
+foreach ($expected in @(
+    @{ Key = 'StorefrontPersianFont'; Value = 'Peyda' },
+    @{ Key = 'StorefrontEnglishFont'; Value = 'Funnel Display' }
+)) {
+    $keyPattern = [regex]::Escape("N'$($expected.Key)'")
+    Assert-True (([regex]::Matches($productionSeed, $keyPattern)).Count -eq 1) "Production seed must contain exactly one $($expected.Key) row."
+    $valuePattern = "\(N'$($expected.Key)',N'$([regex]::Escape($expected.Value))',N'Typography',N'font'"
+    Assert-True ($productionSeed -match $valuePattern) "Production seed default for $($expected.Key) is incorrect."
+    Assert-True ($productionVerification -match [regex]::Escape("N'$($expected.Key)'")) "Production verification does not require $($expected.Key)."
+}
+Assert-True ($productionVerification -match '53116') 'Production verification does not reject missing or duplicate storefront typography settings.'
+
 Write-Host "Database deployment asset tests passed: $($scripts.Count) scripts, checksums, UTF-8, baseline, validators, and target guard."

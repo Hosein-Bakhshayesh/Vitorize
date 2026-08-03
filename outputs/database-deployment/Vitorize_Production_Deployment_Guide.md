@@ -17,6 +17,15 @@
 
 The package creates exactly these required protected settings: `ZarinpalMerchantId`, `ZarinpalSandbox`, `ZarinpalBaseUrl`, `ZarinpalStartPayUrl`, and `ZarinpalCallbackUrl`. The initial MerchantId is a non-live sentinel that blocks gateway calls. Before deliberately enabling live payments, set a real merchant identifier through protected configuration, set the final HTTPS callback URL (`/api/payments/zarinpal/callback`) and matching `Hosting:PublicOrigin`, review the live gateway URLs, complete provider certification, and obtain the operational approval. Never place gateway, SMS, SMTP, JWT, encryption, connection-string, or Data Protection secrets in SQL or source control.
 
+## Storefront typography
+
+The Web publish package self-hosts Peyda, Funnel Display, and Manrope under `wwwroot/fonts/storefront/`; no font CDN or Google Fonts dependency is used. The production seed inserts the following values only when they are missing, so a previously configured value is preserved:
+
+- `StorefrontPersianFont`: `Peyda`
+- `StorefrontEnglishFont`: `Funnel Display`
+
+Funnel Display falls back to Manrope when a Latin glyph is unavailable. An authorized Admin can change either storefront setting in **Settings → Typography** and refresh the storefront to load the new selection. These settings apply only to the customer storefront; Admin typography intentionally remains separate and unchanged.
+
 ## IIS / reverse-proxy checklist
 
 Install the .NET 8 Hosting Bundle; use separate API and Web application pools set to **No Managed Code**; configure HTTPS certificates and bindings; set forwarded headers only for known proxies; set persistent writable storage and key directories; configure log retention; recycle one component at a time and recheck liveness/readiness. Place environment variables in the server secret/configuration facility, not in `appsettings.json`. Configure monitoring to use the health URLs and collect customer acceptance evidence after the smoke test.

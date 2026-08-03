@@ -57,6 +57,8 @@ BEGIN
         (N'V0004', N'V0004__financial_integrity_and_security_hardening.sql', '8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4'),
         (N'V0005', N'V0005__seo_content_and_legacy_redirects.sql', 'ed6b02b7453590d09fc2d1a085ea3e8f006ab66659c046c911196d7af8955b22'),
         (N'V0006', N'V0006__preserve_currency_through_checkout.sql', '70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc'),
+        (N'V0007', N'V0007__support_fulfillment_ticket_uniqueness.sql', 'b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10'),
+        (N'V0008', N'V0008__seed_storefront_typography_settings.sql', 'fff9d2f0f22c6ac51629f3edee38c30a3e90dc7433d3914e10fbf2035eaade15'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -109,12 +111,14 @@ BEGIN
     INSERT @RequiredSettings VALUES
         (N'HeaderLogoPath'), (N'FaviconPath'), (N'Sms.OtpTemplateId'),
         (N'Sms.NotificationTemplateId'), (N'Typography.FontFamily'),
+        (N'StorefrontPersianFont'), (N'StorefrontEnglishFont'),
         (N'Branding.AssetVersion'), (N'TrustSeal.Enamad.Enabled');
 
     INSERT @Issues
     SELECT 'ERROR', N'Required setting', N'Setting ' + expected.[Key] + N' is missing.'
     FROM @RequiredSettings expected
     WHERE NOT EXISTS (SELECT 1 FROM dbo.Settings actual WHERE actual.[Key] = expected.[Key]);
+
 END;
 
 IF OBJECT_ID(N'dbo.Roles', N'U') IS NOT NULL
