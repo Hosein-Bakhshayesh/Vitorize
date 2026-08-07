@@ -109,3 +109,10 @@ table.fields th:first-child { width: 32%; }
 .statecard h4 { margin: 0 0 1mm; }
 .kv { font-size: 9.6pt; }
 .lead { font-size: 11pt; color: #0b3b39; font-weight: 500; margin-bottom: 4mm; }
+
+/* Current-state supplement (2026-08): explicit Persian labels avoid legacy
+   mojibake in generated-content strings while retaining the existing layout. */
+h1.chapter::before { content: "فصل " counter(chapter, pnum) "\A"; }
+figcaption::before { content: "تصویر " counter(chapter, pnum) "-" counter(figure, pnum) ": "; }
+.manual-meta { color: var(--muted); font-size: 9pt; margin-bottom: 4mm; }
+.field-types td:first-child { white-space: nowrap; }
