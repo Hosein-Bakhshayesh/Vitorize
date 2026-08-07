@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Tickets;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -193,7 +194,7 @@ namespace Vitorize.Infrastructure.Services
             return await _dbContext.Tickets
                 .Include(x => x.User)
                 .Include(x => x.TicketMessages)
-                .Include(x => x.OrderItems)
+                .Include(x => x.OrderItems).ThenInclude(x => x.InputValues)
                 .AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => MapTicket(x, true))
@@ -237,7 +238,7 @@ namespace Vitorize.Infrastructure.Services
             var ticket = await _dbContext.Tickets
                 .Include(x => x.User)
                 .Include(x => x.TicketMessages)
-                .Include(x => x.OrderItems)
+                .Include(x => x.OrderItems).ThenInclude(x => x.InputValues)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId);
 
@@ -251,7 +252,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var ticket = await _dbContext.Tickets
                 .Include(x => x.User)
-                .Include(x => x.OrderItems)
+                .Include(x => x.OrderItems).ThenInclude(x => x.InputValues)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == ticketId, cancellationToken)
                 ?? throw new NotFoundException("تیکت یافت نشد.");
@@ -451,7 +452,19 @@ namespace Vitorize.Infrastructure.Services
                     .Select(x => new TicketOrderItemDto
                     {
                         Id = x.Id, ProductTitle = x.ProductTitle, VariantTitle = x.VariantTitle,
-                        Quantity = x.Quantity, DeliveryType = x.DeliveryType, DeliveryStatus = x.DeliveryStatus
+                        Quantity = x.Quantity, DeliveryType = x.DeliveryType, DeliveryStatus = x.DeliveryStatus,
+                        // Ticket payloads never contain decrypted secrets. Admin fulfillment sees
+                        // the safe order snapshot; sensitive values remain masked and use the
+                        // existing audited reveal endpoint when operationally required.
+                        InputValues = includeInternalNotes
+                            ? x.InputValues.OrderBy(v => v.FieldKey).Select(v => new Vitorize.Application.DTOs.Products.ProductInputValueDto
+                            {
+                                Id = v.Id, ProductInputFieldId = v.ProductInputFieldId, FieldKey = v.FieldKey,
+                                FieldLabel = v.FieldLabel, FieldType = v.FieldType,
+                                Value = v.IsSensitive ? ProductInputRules.Mask(null) : v.Value,
+                                IsSensitive = v.IsSensitive, IsMasked = v.IsSensitive
+                            }).ToList()
+                            : new()
                     })
                     .ToList()
             };

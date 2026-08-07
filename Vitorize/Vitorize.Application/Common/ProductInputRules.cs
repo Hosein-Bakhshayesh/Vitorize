@@ -10,6 +10,7 @@ namespace Vitorize.Application.Common;
 
 public static class ProductInputRules
 {
+    public const int MaximumValueLength = 2000;
     private static readonly Regex SafeKey = new("^[a-z][a-z0-9_]{1,63}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex Email = new("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex Telegram = new("^@?[A-Za-z0-9_]{5,32}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -26,7 +27,8 @@ public static class ProductInputRules
             throw new BusinessException("نوع فیلد معتبر نیست.");
         if (!Enum.IsDefined(typeof(ProductInputStage), field.DisplayStage))
             throw new BusinessException("مرحله نمایش فیلد معتبر نیست.");
-        if ((field.Description?.Length ?? 0) > 500 || (field.Placeholder?.Length ?? 0) > 200)
+        if ((field.Description?.Length ?? 0) > 500 || (field.Placeholder?.Length ?? 0) > 200 ||
+            (field.DefaultValue?.Length ?? 0) > MaximumValueLength || (field.ValidationMessage?.Length ?? 0) > 300)
             throw new BusinessException("متن راهنما یا placeholder بیش از حد طولانی است.");
         if (field.MinLength is < 0 || field.MaxLength is < 1 or > 2000 ||
             field.MinLength.HasValue && field.MaxLength.HasValue && field.MinLength > field.MaxLength)
@@ -63,7 +65,8 @@ public static class ProductInputRules
         if (field.IsRequired && (string.IsNullOrWhiteSpace(value) || type == ProductInputFieldType.Checkbox && value != "true"))
             throw new BusinessException(field.ValidationMessage ?? $"تکمیل «{field.Label}» الزامی است.");
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (field.MinLength.HasValue && value.Length < field.MinLength || field.MaxLength.HasValue && value.Length > field.MaxLength)
+        if (value.Length > MaximumValueLength ||
+            field.MinLength.HasValue && value.Length < field.MinLength || field.MaxLength.HasValue && value.Length > field.MaxLength)
             throw new BusinessException(field.ValidationMessage ?? $"طول مقدار «{field.Label}» معتبر نیست.");
 
         var valid = type switch

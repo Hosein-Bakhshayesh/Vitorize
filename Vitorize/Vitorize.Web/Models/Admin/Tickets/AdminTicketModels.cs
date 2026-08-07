@@ -31,6 +31,17 @@ namespace Vitorize.Web.Models.Admin.Tickets
         public int Quantity { get; set; }
         public byte DeliveryType { get; set; }
         public byte DeliveryStatus { get; set; }
+        public List<TicketInputValueModel> InputValues { get; set; } = new();
+    }
+
+    public class TicketInputValueModel
+    {
+        public Guid? Id { get; set; }
+        public string FieldKey { get; set; } = string.Empty;
+        public string FieldLabel { get; set; } = string.Empty;
+        public string? Value { get; set; }
+        public bool IsSensitive { get; set; }
+        public bool IsMasked { get; set; }
     }
 
     public class TicketMessageModel

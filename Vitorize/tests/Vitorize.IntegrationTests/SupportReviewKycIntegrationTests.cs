@@ -56,6 +56,60 @@ public sealed class SupportReviewKycIntegrationTests
     }
 
     [Fact]
+    public async Task Fulfillment_ticket_exposes_its_safe_order_item_input_snapshot_only_to_admin()
+    {
+        var (customer, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("Admin");
+        var (_, product) = await SeedProductAsync();
+        var now = DateTime.UtcNow;
+        var order = new Order
+        {
+            Id = Guid.NewGuid(), UserId = customer.Id, OrderNumber = $"VT-INPUT-{Guid.NewGuid():N}",
+            Status = (byte)OrderStatus.Processing, PaymentStatus = (byte)PaymentStatus.Paid,
+            SubtotalAmount = 10m, FinalAmount = 10m, CurrencyType = (byte)CurrencyType.Toman, CreatedAt = now
+        };
+        var ticket = new Ticket
+        {
+            Id = Guid.NewGuid(), UserId = customer.Id, OrderId = order.Id, Subject = "Fulfillment input snapshot",
+            Department = (byte)TicketDepartment.Orders, Priority = (byte)TicketPriority.Normal,
+            Status = (byte)TicketStatus.WaitingForAdmin, IsFulfillmentTicket = true, CreatedAt = now
+        };
+        var item = new OrderItem
+        {
+            Id = Guid.NewGuid(), OrderId = order.Id, ProductId = product.Id, ProductTitle = product.Title,
+            Quantity = 1, UnitPrice = 10m, TotalPrice = 10m, CurrencyType = (byte)CurrencyType.Toman,
+            DeliveryType = (byte)DeliveryType.SupportRequired, DeliveryStatus = (byte)DeliveryStatus.Pending,
+            SupportTicketId = ticket.Id, CreatedAt = now
+        };
+        item.InputValues.Add(new OrderItemInputValue
+        {
+            Id = Guid.NewGuid(), FieldKey = "player_id", FieldLabel = "Player ID", FieldType = 1,
+            Value = "player-42", IsSensitive = false, CreatedAt = now
+        });
+        item.InputValues.Add(new OrderItemInputValue
+        {
+            Id = Guid.NewGuid(), FieldKey = "account_password", FieldLabel = "Password", FieldType = 12,
+            EncryptedValue = "ciphertext-only", IsSensitive = true, CreatedAt = now
+        });
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.Orders.Add(order); db.Tickets.Add(ticket); db.OrderItems.Add(item);
+            await db.SaveChangesAsync();
+        }
+
+        using var admin = _fixture.CreateClient(adminToken);
+        var adminResult = await admin.GetFromJsonAsync<ApiResult<TicketDto>>($"/api/admin/tickets/{ticket.Id}");
+        adminResult!.IsSuccess.Should().BeTrue();
+        var adminInputs = adminResult.Data!.FulfillmentItems.Single().InputValues;
+        adminInputs.Should().Contain(x => x.FieldKey == "player_id" && x.Value == "player-42" && !x.IsSensitive);
+        adminInputs.Should().Contain(x => x.FieldKey == "account_password" && x.IsSensitive && x.IsMasked && x.Value != "ciphertext-only");
+
+        using var customerClient = _fixture.CreateClient(customerToken);
+        var customerBody = await (await customerClient.GetAsync($"/api/tickets/{ticket.Id}")).Content.ReadAsStringAsync();
+        customerBody.Should().NotContain("player-42").And.NotContain("ciphertext-only");
+    }
+
+    [Fact]
     public async Task Admin_ticket_message_history_is_paged_stable_and_not_loaded_with_the_header()
     {
         var (owner, ownerToken) = await _fixture.CreateUserAndTokenAsync("Customer");

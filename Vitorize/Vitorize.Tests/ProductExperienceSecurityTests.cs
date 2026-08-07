@@ -50,6 +50,15 @@ public sealed class ProductExperienceSecurityTests
     }
 
     [Fact]
+    public void Oversized_input_is_rejected_before_persistence()
+    {
+        var field = Field("player_id");
+        ProductInputRules.ValidateDefinition(field);
+
+        Assert.Throws<BusinessException>(() => ProductInputRules.ValidateValue(field, new string('x', ProductInputRules.MaximumValueLength + 1)));
+    }
+
+    [Fact]
     public void Different_custom_values_produce_different_cart_identity()
     {
         var first = ProductInputRules.Fingerprint(new Dictionary<string, string?> { ["platform_id"] = "A-100" });

@@ -89,6 +89,15 @@ else
                             @foreach (var item in t.FulfillmentItems)
                             {
                                 <div>@item.ProductTitle @if (!string.IsNullOrWhiteSpace(item.VariantTitle)) { <span>— @item.VariantTitle</span> } <span>× @item.Quantity</span></div>
+                                @if (item.InputValues.Count > 0)
+                                {
+                                    <dl class="vz-order-inputs">
+                                        @foreach (var value in item.InputValues)
+                                        {
+                                            <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)">@value.Value</dd></div>
+                                        }
+                                    </dl>
+                                }
                             }
                         </div>
                     }

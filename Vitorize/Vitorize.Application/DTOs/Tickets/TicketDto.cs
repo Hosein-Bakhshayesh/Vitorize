@@ -37,5 +37,6 @@
         public int Quantity { get; set; }
         public byte DeliveryType { get; set; }
         public byte DeliveryStatus { get; set; }
+        public List<Vitorize.Application.DTOs.Products.ProductInputValueDto> InputValues { get; set; } = new();
     }
 }
