@@ -219,9 +219,11 @@ dotnet run --project Vitorize/Vitorize.Api
 
 ### Production
 
-Do **not** use User Secrets in Production. Supply the two keys via **environment variables** (or your
-host's secret provider). The startup validation is identical in every environment — the keys are
-mandatory and length‑checked.
+Do **not** use User Secrets in Production. Set the two keys in the API
+`appsettings.Production.json`; the checked-in template has explicit replace-me
+values. Environment variables remain normal ASP.NET Core overrides, but a Plesk
+deployment does not require them. Startup validation still requires a JWT key of
+at least 32 bytes and an encryption key of exactly 32 bytes.
 
 ### How local Development startup works
 

@@ -34,7 +34,7 @@ public sealed class CkEditorLicensingTests
     {
         var ex = Assert.Throws<InvalidOperationException>(
             () => CkEditorOptions.Resolve(Config(key), Env(Environments.Production)));
-        Assert.Contains("CkEditor__LicenseKey", ex.Message);
+        Assert.Contains("CkEditor:", ex.Message);
         Assert.Contains("Production", ex.Message);
     }
 
@@ -89,7 +89,7 @@ public sealed class CkEditorLicensingTests
     {
         var ex = Assert.Throws<InvalidOperationException>(
             () => CkEditorOptions.Resolve(Config(key, allow), Env(Environments.Production)));
-        Assert.Contains("CkEditor__AllowGplInProduction", ex.Message);
+        Assert.Contains("CkEditor:AllowGplInProduction", ex.Message);
     }
 
     [Theory]
@@ -100,7 +100,7 @@ public sealed class CkEditorLicensingTests
     {
         var ex = Assert.Throws<InvalidOperationException>(
             () => CkEditorOptions.Resolve(Config(key, allow), Env(Environments.Production)));
-        Assert.Contains("CkEditor__LicenseKey", ex.Message);
+        Assert.Contains("CkEditor:LicenseKey", ex.Message);
     }
 
     [Theory]

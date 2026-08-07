@@ -16,31 +16,28 @@ public sealed class ZarinpalPaymentConfigurationTests
     }
 
     [Fact]
-    public void Live_configuration_with_matching_https_callback_is_valid()
+    public void Live_configuration_with_https_callback_is_valid()
     {
         var result = ZarinpalPaymentConfigurationRules.Validate(Configuration(
             sandbox: false,
             baseUrl: "https://payment.zarinpal.com/pg/v4/payment",
             startUrl: "https://payment.zarinpal.com/pg/StartPay",
-            callbackUrl: "https://api.vitorize.example/api/payments/zarinpal/callback",
-            publicOrigin: "https://api.vitorize.example"), production: true);
+            callbackUrl: "https://api.vitorize.example/api/payments/zarinpal/callback"), production: true);
 
         Assert.True(result.IsValid);
     }
 
     [Fact]
-    public void Production_rejects_sandbox_endpoint_and_missing_public_origin()
+    public void Production_rejects_sandbox_endpoint()
     {
         var result = ZarinpalPaymentConfigurationRules.Validate(Configuration(
             sandbox: true,
             baseUrl: "https://sandbox.zarinpal.com/pg/v4/payment",
             startUrl: "https://sandbox.zarinpal.com/pg/StartPay",
-            callbackUrl: "https://localhost/api/payments/zarinpal/callback",
-            publicOrigin: null), production: true);
+            callbackUrl: "https://localhost/api/payments/zarinpal/callback"), production: true);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, x => x.Contains("sandbox", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(result.Errors, x => x.Contains("PublicOrigin", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]
@@ -50,13 +47,11 @@ public sealed class ZarinpalPaymentConfigurationTests
     {
         var result = ZarinpalPaymentConfigurationRules.Validate(new ZarinpalPaymentConfiguration(
             merchantId, false, new Uri(baseUrl), new Uri(startUrl),
-            new Uri("https://api.vitorize.example/api/payments/zarinpal/callback"),
-            new Uri("https://api.vitorize.example")), production: true);
+            new Uri("https://api.vitorize.example/api/payments/zarinpal/callback")), production: true);
 
         Assert.False(result.IsValid);
     }
 
-    private static ZarinpalPaymentConfiguration Configuration(bool sandbox, string baseUrl, string startUrl, string callbackUrl, string? publicOrigin) =>
-        new(MerchantId, sandbox, new Uri(baseUrl), new Uri(startUrl), new Uri(callbackUrl),
-            publicOrigin is null ? null : new Uri(publicOrigin));
+    private static ZarinpalPaymentConfiguration Configuration(bool sandbox, string baseUrl, string startUrl, string callbackUrl) =>
+        new(MerchantId, sandbox, new Uri(baseUrl), new Uri(startUrl), new Uri(callbackUrl));
 }

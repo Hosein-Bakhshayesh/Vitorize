@@ -1,36 +1,69 @@
-# Production hosting and restart rehearsal
+# Plesk production deployment
 
-Vitorize requires a TLS-terminating reverse proxy, persistent Data Protection keys shared by API and Web instances, and durable storage roots that survive a package replacement. Production startup rejects missing API storage roots, public origin, or trusted-proxy configuration; the Web host also rejects missing shared key configuration.
+A normal Plesk deployment uses no Vitorize-specific environment variables, no
+physical path settings, and no hand-edited `web.config`. Publish the API and
+Web projects, edit their included `appsettings.Production.json` files, upload
+the results, and start the applications.
 
-## Required deployment configuration
+## API configuration
 
-Supply through the platform configuration/secret provider, never committed appsettings:
+Before upload, edit `Vitorize.Api/appsettings.Production.json`:
 
-```text
-Hosting__PublicOrigin=https://api.example.com
-Hosting__DataProtectionKeysPath=<shared persistent path>
-Hosting__DataProtectionApplicationName=Vitorize
-Hosting__PublicMediaRoot=<shared persistent public media path>
-Hosting__PrivateDocumentsRoot=<shared persistent private KYC path>
-Hosting__TrustedProxies__0=<reverse-proxy IP>
-# or Hosting__TrustedProxyNetworks__0=<CIDR>
-```
+1. Set `ConnectionStrings:DefaultConnection` to the production SQL Server
+   connection string.
+2. Replace `Jwt:SecretKey` with a random value of at least 32 UTF-8 bytes.
+3. Replace `Encryption:Key` with exactly 32 UTF-8 bytes. Do not change this
+   value after protected data has been written.
+4. `Cors:AllowedOrigins` is preconfigured for `https://hbakhshayesh.ir`; amend
+   it only if the storefront origin changes.
+5. To create the initial administrator, set `BootstrapAdmin:Enabled` to `true`
+   and fill its mobile, password, and full name. After the first successful
+   start, set `Enabled` back to `false` and clear those values.
 
-The reverse proxy must only forward `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` from the configured proxy/network. Do not trust client-supplied forwarding headers. Keep the public-media root served at `/uploads`; private documents are never a static-file root and remain authorized API downloads.
+The database `Payment` and SMS settings remain their respective authoritative
+sources. A new database starts with the non-live Zarinpal sentinel, which
+blocks payment-gateway calls until an authorized operator configures it.
 
-## IIS / reverse proxy and container notes
+## Web configuration
 
-- IIS app-pool identities (or the container service user) need read/write access to the key, public-media, and private-document roots. The API probes write access during startup.
-- Mount these paths outside the published package and mount the same paths into every API/Web replica. Preserve normal least-privilege ACLs; private KYC storage must not be mounted into a public static host.
-- Route HTTPS at the proxy and forward the original scheme/host. Confirm callbacks use `Hosting__PublicOrigin`.
-- Blazor Server circuits are stateful. Use sticky sessions for the current deployment model. Multi-instance scale-out also needs a SignalR backplane before arbitrary cross-node circuit routing can be supported; do not claim no-affinity scale-out until that component is deployed and rehearsed.
+`Vitorize.Web/appsettings.Production.json` is preconfigured to call
+`https://api.hbakhshayesh.ir/api/` and serve media from
+`https://api.hbakhshayesh.ir`. Change both together if the API origin changes.
+It deliberately enables CKEditor GPL mode; leave the required CKEditor badge in
+place. A commercial key may replace `CkEditor:LicenseKey`, after which
+`AllowGplInProduction` should be set to `false`.
 
-## Restart and rolling deployment acceptance checklist
+## Persistent application data
 
-1. Log in as a customer and an admin, record only the test account IDs and timestamps.
-2. Upload one public test image and one private KYC test document; verify the public file works and the private URL is denied without authorization.
-3. Restart one API/Web instance. Confirm both cookies remain valid, the public media remains, and authorized KYC viewing still works.
-4. With sticky routing enabled, repeat against every replica. For a rolling update, drain a node, wait for active requests/circuits according to the platform policy, update it, then restore traffic before continuing.
-5. Confirm `/api/health/live` stays 200 without dependency access, `/api/health/ready` is 200 only while SQL is reachable, and `/api/health` retains its compatibility response. Confirm protected `/api/health/details` only with a `security.diagnostics` principal; do not copy its response into public tickets. Also verify checkout callback origin, logs, public media write/read, and private-document authorization. Preserve screenshots/log timestamps as evidence.
+Each application creates and owns its own `App_Data` directory beneath its
+published content root:
 
-Actual restart, proxy, and multi-node rehearsal require the production hosting owner and remain the external acceptance gate for RB-007.
+| Directory | Purpose |
+| --- | --- |
+| `App_Data/DataProtection` | Persistent Data Protection keys |
+| API `App_Data/PublicMedia` | Files served by the API at `/uploads` |
+| API `App_Data/PrivateDocuments` | Authorization-only documents; never static files |
+
+Preserve `App_Data` whenever replacing published files. No server path is put
+in configuration. The default forwarded-header policy trusts loopback, which is
+the normal IIS/Plesk in-process path; deployments with an additional reverse
+proxy may configure `Hosting:TrustedProxies` or `Hosting:TrustedProxyNetworks`
+in appsettings with that proxy's known IP address or network.
+
+## Plesk flow
+
+1. Create the database and run the reviewed production SQL deployment.
+2. Edit the API production settings as above.
+3. Publish and upload the API, preserving its `App_Data` directory during later
+   updates.
+4. Edit and upload the Web production settings.
+5. Start both applications. The published `web.config` needs no
+   `environmentVariables` section.
+6. Check API liveness at `/api/health/live` and readiness at
+   `/api/health/ready`.
+7. Log in with the bootstrap administrator, then disable bootstrap.
+8. Check storefront login, a public upload, and an authorized private-document
+   download. Restart the applications and confirm cookies and files still work.
+
+Environment variables remain normal ASP.NET Core overrides, but none are
+required by Vitorize for this deployment path.

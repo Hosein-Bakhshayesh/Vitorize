@@ -89,7 +89,7 @@ public sealed class TestingFaultInjectionTests
     public async Task Payment_verify_fault_is_ignored_outside_testing_environment()
     {
         var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
-        configuration.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration("", null, null, null, null, null));
+        configuration.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration("", null, null, null, null));
         configuration.ValidateAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalConfigurationValidation(false, new[] { "invalid" }));
         var gateway = new ZarinpalGatewayService(
             new HttpClient(), configuration, Env("Production"),
@@ -109,8 +109,7 @@ public sealed class TestingFaultInjectionTests
             Guid.Empty.ToString(), false,
             new Uri("https://payment.zarinpal.com/pg/v4/payment"),
             new Uri("https://payment.zarinpal.com/pg/StartPay"),
-            new Uri("https://vitorize.invalid/api/payments/zarinpal/callback"),
-            new Uri("https://vitorize.invalid")));
+            new Uri("https://vitorize.invalid/api/payments/zarinpal/callback")));
         var gateway = new ZarinpalGatewayService(
             new HttpClient(), configuration, Env("Production"), Faults(new TestingFaultInjectionOptions()));
 

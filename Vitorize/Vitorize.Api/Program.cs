@@ -61,7 +61,7 @@ namespace Vitorize.Api
             var hostingPaths = new HostingStoragePaths(builder.Environment, builder.Configuration);
             builder.Services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(hostingPaths.DataProtectionKeysPath))
-                .SetApplicationName((builder.Configuration["Hosting:DataProtectionApplicationName"] ?? "Vitorize").Trim());
+                .SetApplicationName("Vitorize");
             builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options => hostingPaths.ConfigureForwardedHeaders(options));
 
             // Controllers + FluentValidation filter
@@ -110,18 +110,16 @@ namespace Vitorize.Api
             });
 
             // CORS برای اتصال Web/Razor/Frontend به API
+            var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+            if (builder.Environment.IsProduction() && corsOrigins.Length == 0)
+                throw new InvalidOperationException("Cors:AllowedOrigins must contain at least one origin in Production.");
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("VitorizeCors", policy =>
                 {
                     policy
-                        .WithOrigins(
-                            "https://localhost:7221",
-                            "http://localhost:5177",
-                            "https://localhost:7002",
-                            "https://localhost:7003",
-                            "https://vitorize.com",
-                            "https://www.vitorize.com")
+                        .WithOrigins(corsOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();
@@ -146,6 +144,10 @@ namespace Vitorize.Api
                 options.Level = CompressionLevel.Fastest;
             });
 
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("CHANGE_THIS_BEFORE_PRODUCTION", StringComparison.Ordinal))
+                throw new InvalidOperationException("ConnectionStrings:DefaultConnection is missing or still contains the production placeholder.");
+
             builder.Services.AddApplication();
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddScoped<IReadinessProbe, SqlServerReadinessProbe>();
@@ -158,16 +160,18 @@ namespace Vitorize.Api
                 .Get<JwtSettings>();
 
             if (jwtSettings == null || string.IsNullOrWhiteSpace(jwtSettings.SecretKey) ||
-                Encoding.UTF8.GetByteCount(jwtSettings.SecretKey) < 32)
+                Encoding.UTF8.GetByteCount(jwtSettings.SecretKey) < 32 ||
+                jwtSettings.SecretKey.Contains("CHANGE_THIS_BEFORE_PRODUCTION", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    "Jwt:SecretKey must be supplied by an environment variable or secret provider and contain at least 32 bytes.");
+                    "Jwt:SecretKey is missing or must contain at least 32 bytes.");
             }
 
             var encryptionKey = builder.Configuration["Encryption:Key"];
-            if (string.IsNullOrWhiteSpace(encryptionKey) || Encoding.UTF8.GetByteCount(encryptionKey) != 32)
+            if (string.IsNullOrWhiteSpace(encryptionKey) || Encoding.UTF8.GetByteCount(encryptionKey) != 32 ||
+                encryptionKey.Contains("CHANGE_THIS_BEFORE_PRODUCTION", StringComparison.Ordinal))
                 throw new InvalidOperationException(
-                    "Encryption:Key must be supplied by an environment variable or secret provider and contain exactly 32 bytes.");
+                    "Encryption:Key is missing or must contain exactly 32 bytes.");
 
             // JWT Authentication
             builder.Services

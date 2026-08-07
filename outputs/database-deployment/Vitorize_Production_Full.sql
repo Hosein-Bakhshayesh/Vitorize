@@ -31,4 +31,4 @@ GO
 /* 16 Post-deployment verification. */
 :r .\Vitorize_Production_Verification.sql
 GO
-PRINT N'Vitorize production database deployment completed. Configure secrets outside SQL, then use the one-time BootstrapAdmin environment variables.';
+PRINT N'Vitorize production database deployment completed. Configure the API appsettings.Production.json, then use the one-time BootstrapAdmin settings.';

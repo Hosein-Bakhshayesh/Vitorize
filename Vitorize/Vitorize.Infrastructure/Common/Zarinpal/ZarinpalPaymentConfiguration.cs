@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Vitorize.Application.Interfaces;
 
@@ -6,15 +5,14 @@ namespace Vitorize.Infrastructure.Common.Zarinpal;
 
 /// <summary>
 /// The single authoritative gateway configuration. Values are intentionally loaded from the
-/// protected Payment settings group; only the public API origin is host configuration.
+/// protected Payment settings group, including the callback URL.
 /// </summary>
 public sealed record ZarinpalPaymentConfiguration(
     string MerchantId,
     bool? IsSandbox,
     Uri? BaseUri,
     Uri? StartPayUri,
-    Uri? CallbackUri,
-    Uri? PublicOrigin);
+    Uri? CallbackUri);
 
 public sealed record ZarinpalConfigurationValidation(bool IsValid, IReadOnlyList<string> Errors)
 {
@@ -36,16 +34,13 @@ public sealed class ZarinpalPaymentConfigurationProvider : IZarinpalPaymentConfi
     public const string CallbackUrlKey = "ZarinpalCallbackUrl";
 
     private readonly ISettingService _settings;
-    private readonly IConfiguration _configuration;
     private readonly IHostEnvironment _environment;
 
     public ZarinpalPaymentConfigurationProvider(
         ISettingService settings,
-        IConfiguration configuration,
         IHostEnvironment environment)
     {
         _settings = settings;
-        _configuration = configuration;
         _environment = environment;
     }
 
@@ -66,8 +61,7 @@ public sealed class ZarinpalPaymentConfigurationProvider : IZarinpalPaymentConfi
             bool.TryParse(sandboxValue, out var sandbox) ? sandbox : null,
             ParseAbsoluteHttpsUri(baseUrl),
             ParseAbsoluteHttpsUri(startPayUrl),
-            ParseAbsoluteHttpsUri(callbackUrl),
-            ParseAbsoluteHttpsUri(_configuration["Hosting:PublicOrigin"]));
+            ParseAbsoluteHttpsUri(callbackUrl));
     }
 
     public async Task<ZarinpalConfigurationValidation> ValidateAsync(CancellationToken cancellationToken = default)
@@ -123,14 +117,6 @@ public static class ZarinpalPaymentConfigurationRules
         if (configuration.CallbackUri is not null && !string.Equals(configuration.CallbackUri.AbsolutePath, "/api/payments/zarinpal/callback", StringComparison.OrdinalIgnoreCase))
             errors.Add("Zarinpal callback URL must target /api/payments/zarinpal/callback.");
 
-        if (production)
-        {
-            if (configuration.PublicOrigin is null)
-                errors.Add("Hosting:PublicOrigin must be configured as an HTTPS origin in Production.");
-            else if (configuration.CallbackUri is not null && !SameOrigin(configuration.CallbackUri, configuration.PublicOrigin))
-                errors.Add("Zarinpal callback origin must match Hosting:PublicOrigin.");
-        }
-
         return errors.Count == 0
             ? ZarinpalConfigurationValidation.Valid
             : new ZarinpalConfigurationValidation(false, errors);
@@ -139,7 +125,4 @@ public static class ZarinpalPaymentConfigurationRules
     private static bool HostEquals(Uri uri, string host) =>
         string.Equals(uri.Host, host, StringComparison.OrdinalIgnoreCase) && uri.Port == 443;
 
-    private static bool SameOrigin(Uri left, Uri right) =>
-        string.Equals(left.Scheme, right.Scheme, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase) && left.Port == right.Port;
 }

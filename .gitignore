@@ -371,7 +371,10 @@ FodyWeavers.xsd
 outputs/launch-hardening/*.png
 outputs/launch-hardening/*.ndjson
 
-# Local development data-protection keys are runtime state, never source artifacts.
+# Application-owned persistent storage is runtime state, never source artifacts.
+Vitorize/Vitorize.Api/App_Data/
+Vitorize/Vitorize.Web/App_Data/
+# Legacy local runtime state from earlier releases.
 Vitorize/Vitorize.Api/data-protection-keys/
 Vitorize/Vitorize.Web/data-protection-keys/
 

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using Vitorize.Application.Interfaces;
@@ -41,8 +40,7 @@ public sealed class ZarinpalPaymentConfigurationProviderTests
 
         var environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns("Testing");
-        var configuration = new ConfigurationBuilder().Build();
-        var provider = new ZarinpalPaymentConfigurationProvider(settings, configuration, environment);
+        var provider = new ZarinpalPaymentConfigurationProvider(settings, environment);
 
         var result = await provider.GetAsync();
 

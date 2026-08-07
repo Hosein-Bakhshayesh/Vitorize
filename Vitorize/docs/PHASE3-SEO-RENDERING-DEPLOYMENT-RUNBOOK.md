@@ -11,8 +11,8 @@ No EF migration is used. The only Phase 3 schema upgrade is `Database/Versioned/
 - SQL Server 2022-compatible engine/compatibility level tested by the database preflight.
 - .NET 8 hosting bundle/runtime for separate API and Web processes.
 - HTTPS reverse proxy forwarding the original scheme and host.
-- Persistent public media volume for API uploads and a separate private KYC volume.
-- External secret provider for SQL credentials (when integrated auth is unavailable), JWT signing key, AES-GCM key, payment/SMS credentials and one-time bootstrap values.
+- Application-owned `App_Data` preserved across package replacement; it contains API public media, private KYC documents, and each application's Data Protection keys.
+- Production `appsettings.Production.json` files for SQL credentials, JWT signing key, AES-GCM key, Web API URLs, and one-time bootstrap values. Payment and SMS credentials remain database settings.
 - Backups with a restore test, centralized structured logs, readiness monitoring and alerting.
 
 ## Database deployment
@@ -29,11 +29,11 @@ Rollback is restore-based. V0005 is additive, but do not drop columns/table duri
 
 ## Configuration and secrets
 
-- Configure `ConnectionStrings__DefaultConnection`, `Jwt__SecretKey` and `Encryption__Key` from secrets.
-- Configure Web `ApiSettings__BaseUrl` and `ApiSettings__MediaBaseUrl` to the public API origin.
+- Configure `ConnectionStrings:DefaultConnection`, `Jwt:SecretKey`, and `Encryption:Key` in the API `appsettings.Production.json`.
+- Configure Web `ApiSettings:BaseUrl` and `ApiSettings:MediaBaseUrl` in its `appsettings.Production.json`.
 - Set the public setting `Seo.CanonicalBaseUrl` to the single final HTTPS origin, for example `https://vitorize.com`. It must not include a path.
 - Choose one host convention at the proxy and redirect the alternate host to it before the application.
-- Keep `BootstrapAdmin__Enabled=false` except during the documented one-time bootstrap; remove its secret values immediately afterward.
+- Keep `BootstrapAdmin:Enabled=false` except during the documented one-time bootstrap; clear its values immediately afterward.
 - Configure SMS.ir and payment sandbox/production values only in their intended environments. Never run E2E fixtures against staging or production.
 
 ## Reverse proxy, HTTPS, and headers
@@ -75,7 +75,7 @@ Also run `dotnet list package --vulnerable --include-transitive`, `npm audit`, `
 
 ## Staging dress rehearsal
 
-Use the same SQL major version, HTTPS/reverse-proxy topology, persistent media mounts, external secret provider and realistic data volume as production. Use mock/sandbox payment and test SMS. Rehearse fresh publish and upgrade, backup/restore, two API/Web instances, readiness, outbox lease recovery, restart resilience, cache behavior, file permissions and encryption-key availability. Capture CPU/memory/SQL blocking/connection-pool and p95/p99 latency evidence.
+Use the same SQL major version, HTTPS/reverse-proxy topology, preserved `App_Data` directories, production appsettings model, and realistic data volume as production. Use mock/sandbox payment and test SMS. Rehearse fresh publish and upgrade, backup/restore, two API/Web instances, readiness, outbox lease recovery, restart resilience, cache behavior, file permissions and encryption-key availability. Capture CPU/memory/SQL blocking/connection-pool and p95/p99 latency evidence.
 
 ## Post-deploy smoke test
 

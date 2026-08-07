@@ -38,7 +38,7 @@ public sealed class HealthProbeTests
         readiness.IsReadyAsync(Arg.Any<CancellationToken>()).Returns(true);
         var payment = Substitute.For<IZarinpalPaymentConfigurationProvider>();
         payment.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration(
-            "merchant-secret-that-must-not-be-returned", false, null, null, null, null));
+            "merchant-secret-that-must-not-be-returned", false, null, null, null));
         payment.ValidateAsync(Arg.Any<CancellationToken>()).Returns(
             new ZarinpalConfigurationValidation(false, ["provider-error-secret-that-must-not-be-returned"]));
         var controller = CreateController(readiness, payment);
@@ -70,7 +70,7 @@ public sealed class HealthProbeTests
         if (payment is null)
         {
             payment = Substitute.For<IZarinpalPaymentConfigurationProvider>();
-            payment.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration("", null, null, null, null, null));
+            payment.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration("", null, null, null, null));
             payment.ValidateAsync(Arg.Any<CancellationToken>()).Returns(ZarinpalConfigurationValidation.Valid);
         }
 

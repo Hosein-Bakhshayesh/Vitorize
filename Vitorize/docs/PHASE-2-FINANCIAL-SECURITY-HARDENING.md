@@ -8,8 +8,8 @@ This solution remains Database-First. There are no EF Core migrations.
 2. Run `Database/Deploy-Database.ps1 -DryRun` and review preflight findings.
 3. Run the canonical deployment runner. It applies required manifest entry `V0004`.
 4. Run `Database/Tests/verify_phase2_financial_security.sql` on the rehearsal database.
-5. Configure `Jwt__SecretKey` (at least 32 bytes) and `Encryption__Key` (exactly 32 bytes) from a secret provider. No usable keys are committed.
-6. Give the service identity write access to `Vitorize.Api/private/verification-documents`; never map this directory as static content.
+5. Configure `Jwt:SecretKey` (at least 32 bytes) and `Encryption:Key` (exactly 32 bytes) in `Vitorize.Api/appsettings.Production.json`.
+6. Preserve `Vitorize.Api/App_Data`; private documents are stored beneath it and are never mapped as static content.
 7. Deploy one application instance first. The background job converts legacy plaintext KYC and delivery rows to authenticated AES-GCM in bounded batches.
 8. Verify health at `/api/health`; privileged diagnostic detail is `/api/health/details` and requires `security.diagnostics`.
 
