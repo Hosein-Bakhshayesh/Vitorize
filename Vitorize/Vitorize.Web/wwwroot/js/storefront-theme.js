@@ -39,6 +39,18 @@
         }
     };
 
+    window.vzStorefront = {
+        focusAndScroll: function (id) {
+            try {
+                var element = document.getElementById(id);
+                if (!element) return false;
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+                return true;
+            } catch (e) { return false; }
+        }
+    };
+
     // کمک‌کننده‌های ورود با کد یکبار‌مصرف (OTP): ارسال فرم نهایی برای ست‌کردن کوکی و فوکوس خودکار.
     window.vzOtp = {
         submitForm: function (id) {

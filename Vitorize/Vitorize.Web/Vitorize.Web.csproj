@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Vitorize.Application\Vitorize.Application.csproj" />
     <ProjectReference Include="..\Vitorize.Shared\Vitorize.Shared.csproj" />
   </ItemGroup>
 

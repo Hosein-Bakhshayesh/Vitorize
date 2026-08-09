@@ -36,6 +36,16 @@
                 document.documentElement.setAttribute('data-theme', t);
             } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
         })();
+        window.vzStorefront = window.vzStorefront || {};
+        window.vzStorefront.focusAndScroll = function (id) {
+            try {
+                var element = document.getElementById(id);
+                if (!element) return false;
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+                return true;
+            } catch (e) { return false; }
+        };
     </script>
     @if (_needsAdminAssets)
     {
@@ -88,7 +98,7 @@
         <script src="js/admin.js"></script>
         <script src="js/lucide-picker.js?v=@AssetVersion"></script>
     }
-    <script src="js/storefront-theme.js"></script>
+    <script src="js/storefront-theme.js?v=@AssetVersion"></script>
 </body>
 
 </html>
@@ -98,7 +108,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260803-storefront-typography-1.0.0";
+    private const string AssetVersion = "20260809-fix02-input-validation-1.0.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

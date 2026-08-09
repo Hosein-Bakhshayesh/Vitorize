@@ -4,8 +4,10 @@
 @inject CartState CartSvc
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @using Vitorize.Web.Helpers
+@using Vitorize.Web.Services.UI
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>سبد خرید | ویتورایز</PageTitle>
@@ -92,9 +94,9 @@ else
             }
             <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(_cart.SubtotalAmount - _discount)</span></div>
 
-            <a class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" href="@CheckoutHref">
+            <button type="button" class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="ContinueToCheckoutAsync">
                 <Icon Name="lock" Size="17" /> ادامه و پرداخت امن
-            </a>
+            </button>
             <a class="st-btn st-btn--ghost st-btn--block" style="margin-top:8px" href="/shop">ادامه خرید</a>
 
             <div class="st-cart-trust">
@@ -114,17 +116,25 @@ else
                 @foreach (var field in _editingItem.InputFields.OrderBy(x => x.SortOrder))
                 {
                     <div class="st-field">
-                        <label class="st-label">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                        <label class="st-label" for="@InputId(_editingItem, field.Key)">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
                         @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
                         @if (field.FieldType is 6 or 7)
-                        { <select class="st-select" value="@EditValue(field.Key)" @onchange="e => SetEditValue(field.Key, e.Value?.ToString())"><option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }</select> }
+                        { <select id="@InputId(_editingItem, field.Key)" class="st-select @(EditError(field.Key) is null ? null : "is-invalid")" value="@EditValue(field.Key)" @onchange="e => SetEditValue(field.Key, e.Value?.ToString())" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))"><option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }</select> }
                         else if (field.FieldType == 8)
-                        { <label class="st-check"><input type="checkbox" checked="@IsEditChecked(field.Key)" @onchange="e => SetEditCheckbox(field.Key, e.Value)" /><span>@field.Placeholder</span></label> }
+                        { <label class="st-check @(EditError(field.Key) is null ? null : "is-invalid")"><input id="@InputId(_editingItem, field.Key)" type="checkbox" checked="@IsEditChecked(field.Key)" @onchange="e => SetEditCheckbox(field.Key, e.Value)" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))" /><span>@field.Placeholder</span></label> }
                         else if (field.FieldType == 5)
-                        { <textarea class="st-textarea" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())"></textarea> }
+                        { <textarea id="@InputId(_editingItem, field.Key)" class="st-textarea @(EditError(field.Key) is null ? null : "is-invalid")" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))"></textarea> }
                         else
-                        { <input class="st-input" type="@InputType(field.FieldType)" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" autocomplete="off" /> }
+                        { <input id="@InputId(_editingItem, field.Key)" class="st-input @(EditError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))" /> }
                         @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> برای حفظ امنیت، مقدار قبلی نمایش داده نمی‌شود و باید دوباره وارد شود.</span> }
+                        @if (field.RequiresConfirmation)
+                        {
+                            <input id="@ConfirmationId(_editingItem, field.Key)" class="st-input @(EditError(field.Key) is null ? null : "is-invalid")" type="password" placeholder="تکرار @field.Label" value="@EditConfirmation(field.Key)" @oninput="e => SetEditConfirmation(field.Key, e.Value?.ToString())" autocomplete="off" />
+                        }
+                        @if (EditError(field.Key) is { } error)
+                        {
+                            <span id="@ErrorId(_editingItem, field.Key)" class="st-field__error" role="alert">@error</span>
+                        }
                     </div>
                 }
             </div>
@@ -143,10 +153,9 @@ else
     private bool _inputOpen;
     private CartItemModel? _editingItem;
     private readonly Dictionary<string, string?> _editValues = new(StringComparer.OrdinalIgnoreCase);
-
-    private string CheckoutHref => _discount > 0 && !string.IsNullOrWhiteSpace(_appliedCode)
-        ? $"/checkout?coupon={Uri.EscapeDataString(_appliedCode)}"
-        : "/checkout";
+    private readonly Dictionary<string, string?> _editConfirmValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _editFieldErrors = new(StringComparer.OrdinalIgnoreCase);
+    private string? _focusTargetId;
 
     private ErrorStateInfo _emptyInfo =
         ErrorStates.Resolve("empty-cart", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
@@ -231,13 +240,39 @@ else
         else Toasts.Error(result.Message);
     }
 
-    private void EditInputs(CartItemModel item)
+    private async Task ContinueToCheckoutAsync()
     {
-        _editingItem = item; _editValues.Clear();
+        if (_cart is null) return;
+
+        var validation = StorefrontInputValidator.ValidateCartCheckout(_cart.Items);
+        if (!validation.IsValid && validation.InvalidItem is not null)
+        {
+            OpenInputs(validation.InvalidItem, validation.Validation.Errors);
+            return;
+        }
+
+        var checkoutHref = _discount > 0 && !string.IsNullOrWhiteSpace(_appliedCode)
+            ? $"/checkout?coupon={Uri.EscapeDataString(_appliedCode)}"
+            : "/checkout";
+        Nav.NavigateTo(checkoutHref);
+        await Task.CompletedTask;
+    }
+
+    private void EditInputs(CartItemModel item) => OpenInputs(item, null);
+
+    private void OpenInputs(CartItemModel item, IReadOnlyDictionary<string, string>? errors)
+    {
+        _editingItem = item; _editValues.Clear(); _editConfirmValues.Clear(); _editFieldErrors.Clear();
         foreach (var field in item.InputFields)
         {
             var existing = item.InputValues.FirstOrDefault(x => x.FieldKey.Equals(field.Key, StringComparison.OrdinalIgnoreCase));
             _editValues[field.Key] = field.IsSensitive ? null : existing?.Value ?? field.DefaultValue;
+        }
+        if (errors is not null)
+        {
+            foreach (var error in errors) _editFieldErrors[error.Key] = error.Value;
+            var firstInvalidKey = item.InputFields.Where(x => errors.ContainsKey(x.Key)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id).Select(x => x.Key).FirstOrDefault();
+            _focusTargetId = firstInvalidKey is null ? null : InputId(item, firstInvalidKey);
         }
         _inputOpen = true;
     }
@@ -245,17 +280,42 @@ else
     private async Task SaveInputs()
     {
         if (_editingItem is null) return;
-        foreach (var field in _editingItem.InputFields)
-            if (field.IsRequired && string.IsNullOrWhiteSpace(EditValue(field.Key))) { Toasts.Error($"تکمیل «{field.Label}» الزامی است."); return; }
+        var validation = StorefrontInputValidator.ValidateFields(_editingItem.InputFields, _editValues, _editConfirmValues, _editingItem.InputValues);
+        if (!validation.IsValid)
+        {
+            _editFieldErrors.Clear();
+            foreach (var error in validation.Errors) _editFieldErrors[error.Key] = error.Value;
+            var firstInvalidKey = _editingItem.InputFields.Where(x => validation.Errors.ContainsKey(x.Key)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id).Select(x => x.Key).FirstOrDefault();
+            _focusTargetId = firstInvalidKey is null ? null : InputId(_editingItem, firstInvalidKey);
+            return;
+        }
         _busy = true;
         var result = await Api.PutAsync<CartModel>($"cart/items/{_editingItem.Id}", new { Quantity = _editingItem.Quantity, InputValues = _editValues });
         _busy = false;
-        if (result.IsSuccess) { _inputOpen = false; Apply(result); } else Toasts.Error(result.Message);
+        if (result.IsSuccess) { _editFieldErrors.Clear(); _inputOpen = false; Apply(result); } else Toasts.Error(result.Message);
     }
     private string? EditValue(string key) => _editValues.GetValueOrDefault(key);
-    private void SetEditValue(string key, string? value) => _editValues[key] = value;
+    private string? EditConfirmation(string key) => _editConfirmValues.GetValueOrDefault(key);
+    private string? EditError(string key) => _editFieldErrors.GetValueOrDefault(key);
+    private void SetEditValue(string key, string? value) { _editValues[key] = value; RefreshEditError(key); }
     private bool IsEditChecked(string key) => string.Equals(EditValue(key), "true", StringComparison.OrdinalIgnoreCase);
     private void SetEditCheckbox(string key, object? value) => SetEditValue(key, value is true ? "true" : "false");
-    private void CloseInputs() => _inputOpen = false;
+    private void SetEditConfirmation(string key, string? value) { _editConfirmValues[key] = value; RefreshEditError(key); }
+    private void RefreshEditError(string key)
+    {
+        if (_editingItem is null || !_editFieldErrors.ContainsKey(key)) return;
+        var validation = StorefrontInputValidator.ValidateFields(_editingItem.InputFields.Where(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase)), _editValues, _editConfirmValues, _editingItem.InputValues);
+        if (validation.IsValid) _editFieldErrors.Remove(key); else _editFieldErrors[key] = validation.Errors[key];
+    }
+    private void CloseInputs() { _inputOpen = false; _editFieldErrors.Clear(); _focusTargetId = null; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTargetId is not { } targetId) return;
+        _focusTargetId = null;
+        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
+    }
+    private static string InputId(CartItemModel item, string key) => $"cart-input-{item.Id:N}-{key}";
+    private static string ConfirmationId(CartItemModel item, string key) => $"cart-confirm-{item.Id:N}-{key}";
+    private static string ErrorId(CartItemModel item, string key) => $"cart-error-{item.Id:N}-{key}";
     private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
 }

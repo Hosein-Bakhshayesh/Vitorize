@@ -54,6 +54,7 @@ namespace Vitorize.Web.Models.Store
         public string? DefaultValue { get; set; }
         public int? MinLength { get; set; }
         public int? MaxLength { get; set; }
+        public string? ValidationPattern { get; set; }
         public string? ValidationMessage { get; set; }
         public bool IsSensitive { get; set; }
         public bool RequiresConfirmation { get; set; }

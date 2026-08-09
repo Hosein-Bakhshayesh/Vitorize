@@ -166,6 +166,35 @@ public sealed class CommerceIntegrationTests
     }
 
     [Fact]
+    public async Task Checkout_stage_required_input_is_allowed_in_cart_but_rejected_by_server_checkout()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var product = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 100m);
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.ProductInputFields.Add(new ProductInputField
+            {
+                Id = Guid.NewGuid(), ProductId = product.Id, Key = "checkout_player_id", Label = "شناسه بازی",
+                FieldType = (byte)ProductInputFieldType.Text, IsRequired = true,
+                DisplayStage = (byte)ProductInputStage.Checkout, IsActive = true,
+                SortOrder = 0, CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var client = _fixture.CreateClient(token);
+        var add = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 1 });
+        add.StatusCode.Should().Be(HttpStatusCode.OK, "stage-two values are intentionally completed from the cart");
+
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"fix02-stage-two-{Guid.NewGuid():N}");
+        var checkout = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        checkout.StatusCode.Should().Be(HttpStatusCode.BadRequest, "the UI guard must complement, never replace, server validation");
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Inactive_product_is_hidden_and_cannot_be_added_to_cart()
     {
         var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");

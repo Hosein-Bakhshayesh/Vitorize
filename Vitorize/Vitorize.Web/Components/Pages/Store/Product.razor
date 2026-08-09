@@ -11,6 +11,7 @@
 @inject IHttpContextAccessor HttpContext
 @using Vitorize.Web.Models.Customer
 @using Vitorize.Web.Models.Store
+@using Vitorize.Web.Services.UI
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 @if (_p is not null)
@@ -281,32 +282,36 @@ else
             @foreach (var field in ProductStageFields)
             {
                 <div class="st-field">
-                    <label class="st-label" for="@($"product-input-{field.Key}")">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                    <label class="st-label" for="@ProductInputId(field.Key)">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
                     @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
                     @if (field.FieldType is 6 or 7)
                     {
-                        <select id="@($"product-input-{field.Key}")" class="st-select" value="@GetInput(field.Key)" @onchange="e => SetInput(field.Key, e.Value?.ToString())">
+                        <select id="@ProductInputId(field.Key)" class="st-select @(InputError(field.Key) is null ? null : "is-invalid")" value="@GetInput(field.Key)" @onchange="e => SetInput(field.Key, e.Value?.ToString())" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))">
                             <option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }
                         </select>
                     }
                     else if (field.FieldType == 8)
                     {
-                        <label class="st-check"><input type="checkbox" checked="@IsInputChecked(field.Key)" @onchange="e => SetInputCheckbox(field.Key, e.Value)" /><span>@field.Placeholder</span></label>
+                        <label class="st-check @(InputError(field.Key) is null ? null : "is-invalid")"><input id="@ProductInputId(field.Key)" type="checkbox" checked="@IsInputChecked(field.Key)" @onchange="e => SetInputCheckbox(field.Key, e.Value)" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))" /><span>@field.Placeholder</span></label>
                     }
                     else if (field.FieldType == 5)
                     {
-                        <textarea id="@($"product-input-{field.Key}")" class="st-textarea" placeholder="@field.Placeholder" value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())"></textarea>
+                        <textarea id="@ProductInputId(field.Key)" class="st-textarea @(InputError(field.Key) is null ? null : "is-invalid")" placeholder="@field.Placeholder" value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))"></textarea>
                     }
                     else
                     {
-                        <input id="@($"product-input-{field.Key}")" class="st-input" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)"
+                        <input id="@ProductInputId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)"
                                placeholder="@field.Placeholder" minlength="@field.MinLength" maxlength="@field.MaxLength"
-                               value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" autocomplete="off" />
+                               value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))" />
                     }
                     @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> این مقدار رمزگذاری و در نمایش‌ها مخفی می‌شود.</span> }
-                    @if (field.IsSensitive && field.RequiresConfirmation)
+                    @if (field.RequiresConfirmation)
                     {
-                        <input class="st-input" type="password" placeholder="تکرار @field.Label" value="@GetConfirmation(field.Key)" @oninput="e => SetConfirmation(field.Key, e.Value?.ToString())" autocomplete="off" />
+                        <input id="@ProductConfirmationId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="password" placeholder="تکرار @field.Label" value="@GetConfirmation(field.Key)" @oninput="e => SetConfirmation(field.Key, e.Value?.ToString())" autocomplete="off" />
+                    }
+                    @if (InputError(field.Key) is { } error)
+                    {
+                        <span id="@ProductErrorId(field.Key)" class="st-field__error" role="alert">@error</span>
                     }
                 </div>
             }
@@ -338,6 +343,8 @@ else
     private bool _inputOpen, _pendingBuyNow;
     private readonly Dictionary<string, string?> _inputValues = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string?> _confirmValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _inputFieldErrors = new(StringComparer.OrdinalIgnoreCase);
+    private string? _focusTargetId;
     private IEnumerable<StoreProductInputFieldModel> ProductStageFields => _p?.InputFields.Where(x => x.IsActive && x.DisplayStage == 1).OrderBy(x => x.SortOrder) ?? Enumerable.Empty<StoreProductInputFieldModel>();
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
@@ -505,6 +512,7 @@ else
         if (ProductStageFields.Any())
         {
             _pendingBuyNow = buyNow;
+            _inputFieldErrors.Clear();
             foreach (var field in ProductStageFields)
                 if (!_inputValues.ContainsKey(field.Key)) _inputValues[field.Key] = field.DefaultValue;
             _inputOpen = true;
@@ -515,11 +523,14 @@ else
 
     private async Task SubmitInputForm()
     {
-        foreach (var field in ProductStageFields)
+        var validation = StorefrontInputValidator.ValidateFields(ProductStageFields, _inputValues, _confirmValues);
+        if (!validation.IsValid)
         {
-            var value = GetInput(field.Key);
-            if (field.IsRequired && string.IsNullOrWhiteSpace(value)) { Toasts.Error($"تکمیل «{field.Label}» الزامی است."); return; }
-            if (field.RequiresConfirmation && value != GetConfirmation(field.Key)) { Toasts.Error($"تکرار «{field.Label}» یکسان نیست."); return; }
+            _inputFieldErrors.Clear();
+            foreach (var error in validation.Errors) _inputFieldErrors[error.Key] = error.Value;
+            var firstInvalidKey = ProductStageFields.Where(x => validation.Errors.ContainsKey(x.Key)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id).Select(x => x.Key).FirstOrDefault();
+            _focusTargetId = firstInvalidKey is null ? null : ProductInputId(firstInvalidKey);
+            return;
         }
         _inputOpen = false;
         await AddToCart(_pendingBuyNow);
@@ -548,12 +559,30 @@ else
     }
 
     private string? GetInput(string key) => _inputValues.GetValueOrDefault(key);
-    private void SetInput(string key, string? value) => _inputValues[key] = value;
+    private string? InputError(string key) => _inputFieldErrors.GetValueOrDefault(key);
+    private void SetInput(string key, string? value) { _inputValues[key] = value; RefreshInputError(key); }
     private bool IsInputChecked(string key) => string.Equals(GetInput(key), "true", StringComparison.OrdinalIgnoreCase);
     private void SetInputCheckbox(string key, object? value) => SetInput(key, value is true ? "true" : "false");
     private string? GetConfirmation(string key) => _confirmValues.GetValueOrDefault(key);
-    private void SetConfirmation(string key, string? value) => _confirmValues[key] = value;
-    private void CloseInputForm() => _inputOpen = false;
+    private void SetConfirmation(string key, string? value) { _confirmValues[key] = value; RefreshInputError(key); }
+    private void RefreshInputError(string key)
+    {
+        if (!_inputFieldErrors.ContainsKey(key)) return;
+        var field = ProductStageFields.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (field is null) return;
+        var validation = StorefrontInputValidator.ValidateFields(new[] { field }, _inputValues, _confirmValues);
+        if (validation.IsValid) _inputFieldErrors.Remove(key); else _inputFieldErrors[key] = validation.Errors[key];
+    }
+    private void CloseInputForm() { _inputOpen = false; _inputFieldErrors.Clear(); _focusTargetId = null; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTargetId is not { } targetId) return;
+        _focusTargetId = null;
+        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
+    }
+    private static string ProductInputId(string key) => $"product-input-{key}";
+    private static string ProductConfirmationId(string key) => $"product-confirm-{key}";
+    private static string ProductErrorId(string key) => $"product-error-{key}";
     private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
     private static string? InputMode(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "decimal", 10 => "url", _ => null };
 
