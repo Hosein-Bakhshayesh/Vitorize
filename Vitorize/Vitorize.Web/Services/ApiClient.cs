@@ -20,6 +20,7 @@ namespace Vitorize.Web.Services
         private readonly HttpClient _httpClient;
         private readonly IAccessTokenProvider _tokenProvider;
         private readonly SessionTokenRefreshCoordinator _refreshCoordinator;
+        private readonly ITokenSessionPersistence _tokenSessionPersistence;
         private readonly IServiceProvider _serviceProvider;
         private readonly PrerenderApiState? _prerenderState;
         private readonly ILogger<ApiClient> _logger;
@@ -34,6 +35,7 @@ namespace Vitorize.Web.Services
             HttpClient httpClient,
             IAccessTokenProvider tokenProvider,
             SessionTokenRefreshCoordinator refreshCoordinator,
+            ITokenSessionPersistence tokenSessionPersistence,
             IServiceProvider serviceProvider,
             PrerenderApiState? prerenderState,
             ILogger<ApiClient> logger)
@@ -41,6 +43,7 @@ namespace Vitorize.Web.Services
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
             _refreshCoordinator = refreshCoordinator;
+            _tokenSessionPersistence = tokenSessionPersistence;
             _serviceProvider = serviceProvider;
             _prerenderState = prerenderState;
             _logger = logger;
@@ -133,6 +136,8 @@ namespace Vitorize.Web.Services
         {
             try
             {
+                if (!await EnsureMutationAccessTokenAsync(url, cancellationToken))
+                    return ApiResult<T>.Failure(ExpiredSessionMessage);
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
@@ -170,6 +175,8 @@ namespace Vitorize.Web.Services
         {
             try
             {
+                if (IsMutation(method) && !await EnsureMutationAccessTokenAsync(url, cancellationToken))
+                    return ApiResult<T>.Failure(ExpiredSessionMessage);
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
@@ -207,6 +214,8 @@ namespace Vitorize.Web.Services
         {
             try
             {
+                if (IsMutation(method) && !await EnsureMutationAccessTokenAsync(url, cancellationToken))
+                    return ApiResult.Failure(ExpiredSessionMessage);
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
@@ -258,6 +267,20 @@ namespace Vitorize.Web.Services
             if (method != HttpMethod.Get && method != HttpMethod.Head) return false;
             var path = url.TrimStart('/');
             if (path.StartsWith("auth/", StringComparison.OrdinalIgnoreCase)) return false;
+            return await RefreshTokensAsync(cancellationToken);
+        }
+
+        private async Task<bool> EnsureMutationAccessTokenAsync(string url, CancellationToken cancellationToken)
+        {
+            var path = url.TrimStart('/');
+            if (path.StartsWith("auth/", StringComparison.OrdinalIgnoreCase)) return true;
+            var accessToken = await _tokenProvider.GetAccessTokenAsync();
+            return !AccessTokenLifetime.RequiresRefresh(accessToken, DateTimeOffset.UtcNow)
+                || await RefreshTokensAsync(cancellationToken);
+        }
+
+        private async Task<bool> RefreshTokensAsync(CancellationToken cancellationToken)
+        {
             var scheme = await _tokenProvider.GetSchemeAsync();
             var refresh = await _tokenProvider.GetRefreshTokenAsync();
             if (string.IsNullOrWhiteSpace(scheme) || string.IsNullOrWhiteSpace(refresh))
@@ -272,8 +295,15 @@ namespace Vitorize.Web.Services
                 return false;
             }
             _tokenProvider.SetTokens(scheme, result.AccessToken, result.RefreshToken);
-            return true;
+            if (await _tokenSessionPersistence.PersistAsync(scheme, result.AccessToken, result.RefreshToken, cancellationToken))
+                return true;
+
+            await EndLocalSessionAsync(scheme);
+            return false;
         }
+
+        private static bool IsMutation(HttpMethod method) =>
+            method == HttpMethod.Post || method == HttpMethod.Put || method == HttpMethod.Delete || method.Method.Equals("PATCH", StringComparison.OrdinalIgnoreCase);
 
         private async Task EndLocalSessionAsync(string? scheme)
         {
@@ -384,6 +414,9 @@ namespace Vitorize.Web.Services
 
         private const string ConnectionErrorMessage =
             "امکان برقراری ارتباط با سرور وجود ندارد. لطفاً اتصال خود را بررسی کرده و دوباره تلاش کنید.";
+
+        private const string ExpiredSessionMessage =
+            "نشست شما منقضی شده است. لطفاً دوباره وارد شوید.";
 
         private static T Deserialize<T>(string json, HttpResponseMessage response)
         {

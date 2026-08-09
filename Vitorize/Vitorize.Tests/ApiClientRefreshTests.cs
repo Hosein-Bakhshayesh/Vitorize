@@ -56,7 +56,7 @@ public sealed class ApiClientRefreshTests
     {
         var protectedApi = new SequenceHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized));
         var refreshApi = new SequenceHandler(_ => throw new InvalidOperationException("unsafe POST must not refresh"));
-        var client = CreateClient(protectedApi, refreshApi, new FakeTokenProvider(VitorizeAuthSchemes.CustomerScheme, "old-access", "client-post-refresh-3"));
+        var client = CreateClient(protectedApi, refreshApi, new FakeTokenProvider(VitorizeAuthSchemes.CustomerScheme, ValidToken(TimeSpan.FromMinutes(20)), "client-post-refresh-3"));
 
         await client.PostAsync<string>("orders", new { productId = 1 });
 
@@ -81,14 +81,97 @@ public sealed class ApiClientRefreshTests
         Assert.Null(tokens.RefreshToken);
     }
 
-    private static ApiClient CreateClient(SequenceHandler protectedApi, SequenceHandler refreshApi, FakeTokenProvider tokens) =>
+    [Fact]
+    public async Task Valid_post_does_not_refresh_before_the_mutation()
+    {
+        var protectedApi = new SequenceHandler(_ => Json(HttpStatusCode.OK, ApiResult<string>.Success("created")));
+        var refreshApi = new SequenceHandler(_ => throw new InvalidOperationException("valid token must not refresh"));
+        var client = CreateClient(protectedApi, refreshApi, new FakeTokenProvider(VitorizeAuthSchemes.AdminScheme, ValidToken(TimeSpan.FromMinutes(20)), "valid-post-refresh"));
+
+        var result = await client.PostAsync<string>("admin/products", new { title = "x" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, protectedApi.CallCount);
+        Assert.Equal(0, refreshApi.CallCount);
+    }
+
+    [Fact]
+    public async Task Near_expired_post_refreshes_before_sending_once_and_persists_rotated_tokens()
+    {
+        var protectedApi = new SequenceHandler(_ => Json(HttpStatusCode.OK, ApiResult<string>.Success("created")));
+        var refreshApi = SuccessfulRefreshHandler();
+        var persisted = new FakeTokenSessionPersistence();
+        var client = CreateClient(protectedApi, refreshApi, new FakeTokenProvider(VitorizeAuthSchemes.AdminScheme, ValidToken(TimeSpan.FromSeconds(45)), "near-post-refresh"), persisted);
+
+        var result = await client.PostAsync<string>("admin/products", new { title = "x" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, refreshApi.CallCount);
+        Assert.Equal(1, protectedApi.CallCount);
+        Assert.Equal("Bearer new-access", protectedApi.AuthorizationValues.Single());
+        Assert.Equal((VitorizeAuthSchemes.AdminScheme, "new-access", "new-refresh"), persisted.LastPersisted);
+    }
+
+    [Theory]
+    [InlineData("put")]
+    [InlineData("delete")]
+    [InlineData("upload")]
+    public async Task Expired_mutation_refreshes_before_sending(string operation)
+    {
+        var protectedApi = new SequenceHandler(_ => Json(HttpStatusCode.OK, ApiResult<string>.Success("ok")));
+        var refreshApi = SuccessfulRefreshHandler();
+        var client = CreateClient(protectedApi, refreshApi, new FakeTokenProvider(VitorizeAuthSchemes.CustomerScheme, ValidToken(TimeSpan.FromMinutes(-1)), $"expired-{operation}-refresh"));
+
+        switch (operation)
+        {
+            case "put": await client.PutAsync<string>("profile", new { name = "x" }); break;
+            case "delete": await client.DeleteAsync("cart/items/1"); break;
+            case "upload":
+                await using (var stream = new MemoryStream([1, 2, 3]))
+                    await client.UploadAsync<string>("uploads", stream, "a.txt", "text/plain");
+                break;
+        }
+
+        Assert.Equal(1, refreshApi.CallCount);
+        Assert.Equal(1, protectedApi.CallCount);
+        Assert.Equal("Bearer new-access", protectedApi.AuthorizationValues.Single());
+    }
+
+    [Fact]
+    public async Task Failed_preflight_refresh_blocks_mutation_and_expires_the_local_session()
+    {
+        var protectedApi = new SequenceHandler(_ => throw new InvalidOperationException("mutation must not be sent"));
+        var refreshApi = new SequenceHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+        var tokens = new FakeTokenProvider(VitorizeAuthSchemes.CustomerScheme, ValidToken(TimeSpan.FromMinutes(-1)), "failed-preflight-refresh");
+        var client = CreateClient(protectedApi, refreshApi, tokens);
+
+        var result = await client.PostAsync<string>("orders", new { productId = 1 });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(0, protectedApi.CallCount);
+        Assert.Equal(1, refreshApi.CallCount);
+        Assert.True(tokens.WasCleared);
+    }
+
+    private static ApiClient CreateClient(SequenceHandler protectedApi, SequenceHandler refreshApi, FakeTokenProvider tokens, FakeTokenSessionPersistence? persistence = null) =>
         new(
             new HttpClient(protectedApi) { BaseAddress = new Uri("https://api.test/") },
             tokens,
             new SessionTokenRefreshCoordinator(new HttpClient(refreshApi) { BaseAddress = new Uri("https://api.test/") }),
+            persistence ?? new FakeTokenSessionPersistence(),
             new EmptyServiceProvider(),
             null,
             NullLogger<ApiClient>.Instance);
+
+    private static SequenceHandler SuccessfulRefreshHandler() => new(_ => Json(HttpStatusCode.OK,
+        ApiResult<AdminLoginResponseModel>.Success(new AdminLoginResponseModel { AccessToken = "new-access", RefreshToken = "new-refresh" })));
+
+    private static string ValidToken(TimeSpan expiresIn)
+    {
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { exp = DateTimeOffset.UtcNow.Add(expiresIn).ToUnixTimeSeconds() })))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return $"header.{payload}.signature";
+    }
 
     private static HttpResponseMessage Json(HttpStatusCode status, object value) => new(status)
     {
@@ -116,6 +199,16 @@ public sealed class ApiClientRefreshTests
     private sealed class EmptyServiceProvider : IServiceProvider
     {
         public object? GetService(Type serviceType) => null;
+    }
+
+    private sealed class FakeTokenSessionPersistence : ITokenSessionPersistence
+    {
+        public (string Scheme, string AccessToken, string RefreshToken)? LastPersisted { get; private set; }
+        public Task<bool> PersistAsync(string scheme, string accessToken, string refreshToken, CancellationToken cancellationToken)
+        {
+            LastPersisted = (scheme, accessToken, refreshToken);
+            return Task.FromResult(true);
+        }
     }
 
     private sealed class SequenceHandler(params Func<HttpRequestMessage, HttpResponseMessage>[] responses) : HttpMessageHandler

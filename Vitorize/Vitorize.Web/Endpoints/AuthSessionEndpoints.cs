@@ -8,6 +8,10 @@ public static class AuthSessionEndpoints
 {
     public static void MapAuthSessionEndpoints(this WebApplication app)
     {
+        app.MapPost("/auth/session/tokens", PersistRotatedTokensAsync)
+            .RequireAuthorization()
+            .DisableAntiforgery();
+
         app.MapGet("/auth/session-expired", async (HttpContext context, string? area, string? returnUrl) =>
         {
             var scheme = string.Equals(area, "admin", StringComparison.OrdinalIgnoreCase)
@@ -23,4 +27,17 @@ public static class AuthSessionEndpoints
             context.Response.Redirect($"{loginPath}?returnUrl={Uri.EscapeDataString(destination)}");
         }).AllowAnonymous();
     }
+
+    private static async Task<IResult> PersistRotatedTokensAsync(HttpContext context, RotatedTokensRequest request)
+    {
+        var scheme = context.User.Identity?.AuthenticationType;
+        if (scheme is not (VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme) ||
+            !string.Equals(scheme, request.Scheme, StringComparison.Ordinal)) return Results.Forbid();
+
+        return await AuthSessionCookieWriter.PersistAsync(context, scheme, request.AccessToken, request.RefreshToken)
+            ? Results.NoContent()
+            : Results.BadRequest();
+    }
+
+    private sealed record RotatedTokensRequest(string Scheme, string AccessToken, string RefreshToken);
 }

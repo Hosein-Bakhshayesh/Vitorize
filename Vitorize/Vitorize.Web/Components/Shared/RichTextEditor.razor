@@ -1,6 +1,8 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject CkEditorOptions CkEditor
+@inject Vitorize.Web.Services.UI.EditorAssetManifest EditorAssets
+@inject ILogger<RichTextEditor> Logger
 
 @* Reusable CKEditor 5 admin editor. Self-hosted build; all lifecycle is driven
    through the vzCkEditor interop module keyed by a stable instance id. *@
@@ -26,6 +28,10 @@
     <div class="vz-ck__slot">
         <div @ref="_host" class="vz-ck__host"></div>
     </div>
+    @if (_loadError is not null)
+    {
+        <div class="vz-ck__status is-error" role="alert">@_loadError</div>
+    }
 </div>
 
 @code {
@@ -44,6 +50,7 @@
 
     private ElementReference _host;
     private DotNetObjectReference<RichTextEditor>? _self;
+    private IJSObjectReference? _loader;
     private string _instanceId = string.Empty;
     private bool _ready;
     private string? _lastValue;
@@ -51,6 +58,7 @@
     private bool _fullscreen;
     private string? _attachStatus;
     private bool _attachError;
+    private string? _loadError;
 
     protected override void OnInitialized() =>
         _instanceId = string.IsNullOrWhiteSpace(EditorId) ? $"vz-ck-{Guid.NewGuid():N}" : EditorId!;
@@ -71,9 +79,20 @@
                 imageUploadUrl = ImageUploadUrl,
                 licenseKey = CkEditor.LicenseKey
             };
-            _ready = await JS.InvokeAsync<bool>("vzCkEditor.create", _host, _self, _instanceId, options);
-            _lastValue = Value;
-            if (_ready) StateHasChanged();
+            try
+            {
+                _loader = await JS.InvokeAsync<IJSObjectReference>("import", EditorAssets.GetUrls().Loader);
+                var loaded = await _loader.InvokeAsync<bool>("ensure", EditorAssets.GetUrls());
+                _ready = loaded && await JS.InvokeAsync<bool>("vzCkEditor.create", _host, _self, _instanceId, options);
+                _lastValue = Value;
+                if (!_ready) SetLoadError(null);
+            }
+            catch (JSDisconnectedException) { }
+            catch (Exception ex)
+            {
+                SetLoadError(ex);
+            }
+            if (_ready || _loadError is not null) StateHasChanged();
             return;
         }
 
@@ -81,15 +100,25 @@
 
         if (Value != _lastValue)
         {
-            await JS.InvokeVoidAsync("vzCkEditor.setData", _instanceId, Value ?? string.Empty);
-            _lastValue = Value;
+            try
+            {
+                await JS.InvokeVoidAsync("vzCkEditor.setData", _instanceId, Value ?? string.Empty);
+                _lastValue = Value;
+            }
+            catch (JSDisconnectedException) { }
+            catch (Exception ex) { SetLoadError(ex); }
         }
 
         var readOnly = ReadOnly || Disabled;
         if (readOnly != _lastReadOnly)
         {
-            await JS.InvokeVoidAsync("vzCkEditor.setReadOnly", _instanceId, readOnly);
-            _lastReadOnly = readOnly;
+            try
+            {
+                await JS.InvokeVoidAsync("vzCkEditor.setReadOnly", _instanceId, readOnly);
+                _lastReadOnly = readOnly;
+            }
+            catch (JSDisconnectedException) { }
+            catch (Exception ex) { SetLoadError(ex); }
         }
     }
 
@@ -112,13 +141,25 @@
     private async Task ToggleFullscreenAsync()
     {
         if (!_ready) return;
-        _fullscreen = await JS.InvokeAsync<bool>("vzCkEditor.toggleFullscreen", _instanceId);
+        try { _fullscreen = await JS.InvokeAsync<bool>("vzCkEditor.toggleFullscreen", _instanceId); }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex) { SetLoadError(ex); }
     }
 
     private async Task AttachFileAsync()
     {
         if (!_ready || ReadOnly || Disabled) return;
-        await JS.InvokeVoidAsync("vzCkEditor.pickAndAttach", _instanceId, FileUploadUrl);
+        try { await JS.InvokeVoidAsync("vzCkEditor.pickAndAttach", _instanceId, FileUploadUrl); }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex) { SetLoadError(ex); }
+    }
+
+    private void SetLoadError(Exception? exception)
+    {
+        if (exception is not null)
+            Logger.LogError(exception, "CKEditor could not be initialized for editor {EditorId}", _instanceId);
+        _ready = false;
+        _loadError = "ویرایشگر بارگذاری نشد. لطفاً صفحه را دوباره بارگذاری کنید یا با پشتیبانی تماس بگیرید.";
     }
 
     public async ValueTask DisposeAsync()
@@ -126,6 +167,12 @@
         if (_ready)
         {
             try { await JS.InvokeVoidAsync("vzCkEditor.dispose", _instanceId); }
+            catch (JSDisconnectedException) { }
+            catch (Exception) { }
+        }
+        if (_loader is not null)
+        {
+            try { await _loader.DisposeAsync(); }
             catch (JSDisconnectedException) { }
             catch (Exception) { }
         }

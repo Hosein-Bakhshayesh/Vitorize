@@ -41,11 +41,6 @@
     {
         <link rel="stylesheet" href="css/admin.css?v=@AssetVersion" />
     }
-    @if (_needsEditorAssets)
-    {
-        <link rel="stylesheet" href="lib/ckeditor5/ckeditor5.css?v=44.1.0-sh" />
-        <link rel="stylesheet" href="css/ckeditor-theme.css?v=@AssetVersion" />
-    }
     @if (_isStorefront)
     {
         <link rel="preload" href="fonts/storefront/peyda-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
@@ -87,12 +82,7 @@
     </div>
 
     <script src="_framework/blazor.web.js"></script>
-    @if (_needsEditorAssets)
-    {
-        <script src="lib/ckeditor5/ckeditor5.umd.js?v=44.1.0-sh"></script>
-        <script src="lib/ckeditor5/translations/fa.umd.js?v=44.1.0-sh"></script>
-        <script src="js/ckeditor-interop.js?v=@AssetVersion"></script>
-    }
+    <script src="js/auth-session.js?v=@AssetVersion"></script>
     @if (_needsAdminAssets)
     {
         <script src="js/admin.js"></script>
@@ -116,7 +106,7 @@
     private string? _appleIcon;
     private string? _fontFaceCss;
     private string? _storefrontTypographyCss;
-    private bool _prerender, _indexableRoute, _needsAdminAssets, _needsEditorAssets, _isStorefront;
+    private bool _prerender, _indexableRoute, _needsAdminAssets, _isStorefront;
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,7 +115,6 @@
         _prerender = IsPrerenderedPublicPath(path);
         _needsAdminAssets = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
                             path.StartsWith("/customer", StringComparison.OrdinalIgnoreCase);
-        _needsEditorAssets = path.StartsWith("/admin/products", StringComparison.OrdinalIgnoreCase);
         _isStorefront = !path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
         // برندینگ عمومی از API خوانده می‌شود (کش استاتیک ۲ دقیقه‌ای)؛ در صورت خطا پیش‌فرض‌ها استفاده می‌شوند.
         _b = await Branding.GetAsync();

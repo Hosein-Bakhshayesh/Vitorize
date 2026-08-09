@@ -149,6 +149,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
+builder.Services.AddScoped<ITokenSessionPersistence, TokenSessionPersistence>();
 builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? throw new InvalidOperationException("ApiSettings:BaseUrl is required.");
@@ -158,6 +159,7 @@ builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<StoreBrandingService>();
+builder.Services.AddSingleton<EditorAssetManifest>();
 builder.Services.AddScoped<PrerenderApiState>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<WishlistState>();
