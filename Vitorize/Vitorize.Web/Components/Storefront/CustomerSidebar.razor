@@ -6,7 +6,11 @@
             <div class="st-muted" style="font-size:11.5px">حساب کاربری</div>
         </div>
     </div>
-    <nav class="st-acc__nav">
+    <button type="button" class="st-acc__mobile-toggle" aria-expanded="@(_mobileMenuOpen ? "true" : "false")" aria-controls="customer-account-nav" @onclick="ToggleMobileMenu">
+        <span><Icon Name="menu" Size="18" /> بخش‌های حساب کاربری</span>
+        <Icon Name="chevron-down" Size="18" class="st-acc__mobile-chevron" />
+    </button>
+    <nav id="customer-account-nav" class="st-acc__nav @(_mobileMenuOpen ? "is-open" : null)">
         <NavLink href="/customer/dashboard" Match="NavLinkMatch.All"><span class="ic"><Icon Name="dashboard" Size="18" /></span> داشبورد</NavLink>
         <NavLink href="/customer/orders"><span class="ic"><Icon Name="cart" Size="18" /></span> سفارش‌های من</NavLink>
         <NavLink href="/customer/gift-codes"><span class="ic"><Icon Name="gift" Size="18" /></span> کدهای من</NavLink>
@@ -29,6 +33,9 @@
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
     private string _name = "کاربر";
     private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
+
+    private bool _mobileMenuOpen;
+    private void ToggleMobileMenu() => _mobileMenuOpen = !_mobileMenuOpen;
 
     protected override async Task OnInitializedAsync()
     {

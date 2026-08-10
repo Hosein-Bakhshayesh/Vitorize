@@ -18,7 +18,7 @@
             <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/details")"><Icon Name="eye" Size="17" /> جزئیات</a>
             <a class="vz-btn vz-btn--outline" href="@($"admin/products/{Id}/images")"><Icon Name="image" Size="17" /> مدیریت تصاویر</a>
         }
-        <button class="vz-btn vz-btn--primary" @onclick="Save" disabled="@_saving">
+        <button class="vz-btn vz-btn--primary vz-product-header-save" @onclick="Save" disabled="@_saving">
             @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="17" /> <span>@(IsEdit ? "ذخیره تغییرات" : "ثبت محصول")</span> }
         </button>
     </Actions>
@@ -60,7 +60,7 @@ else
         </div>
     }
 
-    <EditForm Model="_model" OnValidSubmit="Save" data-testid="admin-product-form">
+    <EditForm Model="_model" OnValidSubmit="Save" data-testid="admin-product-form" class="vz-long-form">
         <DataAnnotationsValidator />
         <div class="vz-grid-2">
             <div class="vz-stack">

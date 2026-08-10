@@ -77,9 +77,9 @@ body { background: var(--st-bg, #fff); }
     --st-muted: #64748B;
 
     /* semantic */
-    --st-success: #16A34A;  --st-success-soft: rgba(22, 163, 74, 0.1);
-    --st-warning: #D97706;  --st-warning-soft: rgba(217, 119, 6, 0.1);
-    --st-danger: #DC2626;   --st-danger-soft: rgba(220, 38, 38, 0.1);
+    --st-success: #15803D;  --st-on-success: #FFFFFF; --st-success-soft: rgba(22, 163, 74, 0.1);
+    --st-warning: #B45309;  --st-on-warning: #FFFFFF; --st-warning-soft: rgba(217, 119, 6, 0.1);
+    --st-danger: #DC2626;   --st-on-danger: #FFFFFF; --st-danger-soft: rgba(220, 38, 38, 0.1);
     --st-info: #0891B2;     --st-info-soft: rgba(8, 145, 178, 0.1);
     --st-amber: #F59E0B;
 
@@ -163,9 +163,9 @@ body { background: var(--st-bg, #fff); }
     --st-text-2: rgba(241, 245, 249, 0.62);
     --st-muted: #94A3B8;
 
-    --st-success: #4ADE80;  --st-success-soft: rgba(74, 222, 128, 0.14);
-    --st-warning: #FBBF24;  --st-warning-soft: rgba(251, 191, 36, 0.14);
-    --st-danger: #F87171;   --st-danger-soft: rgba(248, 113, 113, 0.14);
+    --st-success: #4ADE80;  --st-on-success: #06251F; --st-success-soft: rgba(74, 222, 128, 0.14);
+    --st-warning: #FBBF24;  --st-on-warning: #422006; --st-warning-soft: rgba(251, 191, 36, 0.14);
+    --st-danger: #F87171;   --st-on-danger: #450A0A; --st-danger-soft: rgba(248, 113, 113, 0.14);
     --st-info: #22D3EE;     --st-info-soft: rgba(34, 211, 238, 0.14);
     --st-amber: #FBBF24;
 
@@ -298,7 +298,7 @@ body { background: var(--st-bg, #fff); }
 .st-btn--ghost { background: transparent; color: var(--st-text-2); }
 .st-btn--ghost:hover:not(:disabled) { background: var(--st-surface-2); color: var(--st-text); }
 
-.st-btn--danger { background: var(--st-danger); color: #fff; }
+.st-btn--danger { background: var(--st-danger); color: var(--st-on-danger); }
 .st-btn--danger:hover:not(:disabled) { filter: brightness(1.08); }
 
 .st-btn--sm { height: 36px; padding: 0 14px; font-size: 12.5px; }
@@ -332,6 +332,7 @@ body { background: var(--st-bg, #fff); }
     transition: border-color var(--st-t-fast) var(--st-ease), box-shadow var(--st-t-fast) var(--st-ease);
 }
 .st-input::placeholder, .st-textarea::placeholder { color: var(--st-muted); }
+.st-shell :is(input[type="email"], input[type="url"], input[type="number"], input[inputmode="tel"], input[inputmode="numeric"]) { direction: ltr; text-align: start; }
 .st-textarea { min-height: 110px; resize: vertical; line-height: 1.85; }
 .st-input:focus, .st-select:focus, .st-textarea:focus { outline: none; border-color: var(--st-primary); box-shadow: var(--st-ring); }
 .st-input.invalid, .st-select.invalid, .st-textarea.invalid { border-color: var(--st-danger); }
@@ -339,6 +340,7 @@ body { background: var(--st-bg, #fff); }
 .st-field { margin-bottom: 16px; }
 .st-hint { font-size: 11.5px; color: var(--st-muted); margin-top: 5px; }
 .st-error { font-size: 11.5px; color: var(--st-danger); margin-top: 5px; }
+.st-btn--surface-danger { background: var(--st-elevated); color: var(--st-danger); }
 
 /* custom checkbox — 17px, rounded 6 */
 .st-check { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13px; color: var(--st-text-2); cursor: pointer; }
@@ -696,11 +698,11 @@ body { background: var(--st-bg, #fff); }
     display: flex; align-items: center; justify-content: center; font-size: 12px;
 }
 .st-toast--success { border-color: var(--st-success); }
-.st-toast--success .st-toast__ic { background: var(--st-success); color: #fff; }
+.st-toast--success .st-toast__ic { background: var(--st-success); color: var(--st-on-success); }
 .st-toast--danger { border-color: var(--st-danger); }
-.st-toast--danger .st-toast__ic { background: var(--st-danger); color: #fff; }
+.st-toast--danger .st-toast__ic { background: var(--st-danger); color: var(--st-on-danger); }
 .st-toast--warning { border-color: var(--st-warning); }
-.st-toast--warning .st-toast__ic { background: var(--st-warning); color: #fff; }
+.st-toast--warning .st-toast__ic { background: var(--st-warning); color: var(--st-on-warning); }
 
 /* --------------------------------------------------------------------------
    13 · Loading states — spinner + shimmer skeletons
@@ -897,6 +899,7 @@ body { background: var(--st-bg, #fff); }
 .st-acc__nav a.active { background: var(--st-primary-soft); color: var(--st-primary); font-weight: 700; }
 .st-acc__nav a .ic { width: 20px; display: flex; }
 .st-acc__nav a.danger { color: var(--st-danger); }
+.st-acc__mobile-toggle { display: none; }
 
 .st-stat { background: var(--st-surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--st-border); border-radius: var(--st-clip-sm); padding: 18px; box-shadow: var(--st-shadow-sm); }
 .st-stat__ic { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
@@ -1066,7 +1069,14 @@ body { background: var(--st-bg, #fff); }
     }
     .st-bottomnav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--st-muted); padding: 4px 10px; border-radius: 10px; }
     .st-bottomnav a.active { color: var(--st-primary); }
-    .st-acc__side { position: static; }
+    .st-acc__side { position: static; padding: 12px; }
+    .st-acc__user { padding: 4px 6px 10px; margin-bottom: 8px; }
+    .st-acc__mobile-toggle { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--st-border); border-radius: 11px; background: var(--st-surface-2); color: var(--st-text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .st-acc__mobile-toggle > span { display: inline-flex; align-items: center; gap: 8px; }
+    .st-acc__mobile-chevron { transition: transform var(--st-t-fast) var(--st-ease); }
+    .st-acc__mobile-toggle[aria-expanded="true"] .st-acc__mobile-chevron { transform: rotate(180deg); }
+    .st-acc__nav { display: none; padding-top: 8px; }
+    .st-acc__nav.is-open { display: block; }
     .st-pcard__title { min-height: auto; }
     .st-container { padding: 0 16px; }
     .st-toast-host { inset-inline: 16px; bottom: 96px; align-items: stretch; }

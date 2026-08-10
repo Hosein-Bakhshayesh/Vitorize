@@ -300,7 +300,7 @@ else
                     }
                     else
                     {
-                        <input id="@ProductInputId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)"
+                        <input id="@ProductInputId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)" dir="@InputDirection(field.FieldType)"
                                placeholder="@field.Placeholder" minlength="@field.MinLength" maxlength="@field.MaxLength"
                                value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))" />
                     }
@@ -585,6 +585,7 @@ else
     private static string ProductErrorId(string key) => $"product-error-{key}";
     private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
     private static string? InputMode(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "decimal", 10 => "url", _ => null };
+    private static string InputDirection(byte type) => type is 2 or 3 or 4 or 10 or 11 ? "ltr" : "rtl";
 
     private async Task ToggleWishlist()
     {

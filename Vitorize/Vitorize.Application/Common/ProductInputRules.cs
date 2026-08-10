@@ -13,6 +13,9 @@ public static class ProductInputRules
     public const int MaximumValueLength = 2000;
     private static readonly Regex SafeKey = new("^[a-z][a-z0-9_]{1,63}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex Email = new("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    // Product "Mobile" fields are contact values, not account-login identifiers. Preserve Iran-mobile
+    // normalization while accepting a valid international E.164 contact number for cross-border products.
+    private static readonly Regex InternationalMobile = new("^\\+[1-9]\\d{6,14}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex Telegram = new("^@?[A-Za-z0-9_]{5,32}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static void ValidateDefinition(ProductInputFieldDto field)
@@ -72,7 +75,7 @@ public static class ProductInputRules
         var valid = type switch
         {
             ProductInputFieldType.Email => Email.IsMatch(value),
-            ProductInputFieldType.Mobile => IranMobile.IsValid(value),
+            ProductInputFieldType.Mobile => IranMobile.IsValid(value) || InternationalMobile.IsMatch(value),
             ProductInputFieldType.Number => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _),
             ProductInputFieldType.TelegramUsername => Telegram.IsMatch(value),
             ProductInputFieldType.Url => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https",

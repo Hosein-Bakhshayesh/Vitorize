@@ -39,7 +39,7 @@
         @if (_tab == LoginTab.Password)
         {
             @* ── روش ۱: موبایل + رمز عبور (POST سرور برای ست‌شدن کوکی) ── *@
-            <form method="post" action="/auth/customer/login" data-enhance="false">
+            <form method="post" action="/auth/customer/login" data-enhance="false" data-vz-validate novalidate>
                 <input type="hidden" name="returnUrl" value="@ReturnUrl" />
                 <div class="st-field">
                     <label class="st-label" for="pw-mobile">شماره موبایل</label>
@@ -64,7 +64,7 @@
             @* ── روش ۲: ورود با کد یکبار مصرف ── *@
             @if (!string.IsNullOrWhiteSpace(_otpError))
             {
-                <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
+                <div id="otp-error" class="st-alert st-alert--danger" role="alert" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
             }
 
             @if (_step == OtpStep.Mobile)
@@ -89,9 +89,10 @@
 
                 <div class="st-field">
                     <label class="st-label" for="otp-code">کد تایید</label>
-                    <input id="otp-code" class="st-input" @bind="_code" @bind:event="oninput"
+                    <input id="otp-code" class="st-input @(!string.IsNullOrWhiteSpace(_otpError) ? "is-invalid" : null)" @bind="_code" @bind:event="oninput"
                            inputmode="numeric" autocomplete="one-time-code" maxlength="6"
                            placeholder="------"
+                           dir="ltr" aria-invalid="@(!string.IsNullOrWhiteSpace(_otpError) ? "true" : "false")" aria-describedby="@(!string.IsNullOrWhiteSpace(_otpError) ? "otp-error" : null)"
                            style="text-align:center;letter-spacing:8px;font-size:20px;font-weight:700"
                            @onkeydown="OnCodeKeyDown" />
                 </div>

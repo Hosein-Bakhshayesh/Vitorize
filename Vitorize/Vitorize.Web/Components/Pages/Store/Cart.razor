@@ -143,7 +143,7 @@ else
                         else if (field.FieldType == 5)
                         { <textarea id="@InputId(_editingItem, field.Key)" class="st-textarea @(EditError(field.Key) is null ? null : "is-invalid")" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))"></textarea> }
                         else
-                        { <input id="@InputId(_editingItem, field.Key)" class="st-input @(EditError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))" /> }
+                        { <input id="@InputId(_editingItem, field.Key)" class="st-input @(EditError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" dir="@InputDirection(field.FieldType)" placeholder="@field.Placeholder" value="@EditValue(field.Key)" @oninput="e => SetEditValue(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))" /> }
                         @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> برای حفظ امنیت، مقدار قبلی نمایش داده نمی‌شود و باید دوباره وارد شود.</span> }
                         @if (field.RequiresConfirmation)
                         {
@@ -348,9 +348,16 @@ else
         var validation = StorefrontInputValidator.ValidateFields(_editingItem.InputFields.Where(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase)), _editValues, _editConfirmValues, _editingItem.InputValues);
         if (validation.IsValid) _editFieldErrors.Remove(key); else _editFieldErrors[key] = validation.Errors[key];
     }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTargetId is not { } targetId) return;
+        _focusTargetId = null;
+        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
+    }
     private void CloseInputs() { _inputOpen = false; _editFieldErrors.Clear(); _focusTargetId = null; }
     private static string InputId(CartItemModel item, string key) => $"cart-input-{item.Id:N}-{key}";
     private static string ConfirmationId(CartItemModel item, string key) => $"cart-confirm-{item.Id:N}-{key}";
     private static string ErrorId(CartItemModel item, string key) => $"cart-error-{item.Id:N}-{key}";
     private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
+    private static string InputDirection(byte type) => type is 2 or 3 or 4 or 10 or 11 ? "ltr" : "rtl";
 }
