@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Vitorize.Web.Models.Admin.Auth;
 using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
+using Vitorize.Web.Services.Cart;
 
 namespace Vitorize.Web.Endpoints
 {
@@ -25,7 +26,7 @@ namespace Vitorize.Web.Endpoints
         /// مرحله نهایی ورود با کد یکبار‌مصرف: توکن‌های صادرشده توسط API (پس از تایید موفق کد در
         /// مدار تعاملی) را می‌گیرد و کوکی احراز هویت مشتری را می‌نویسد. هیچ کد یا رمزی اینجا نیست.
         /// </summary>
-        private static async Task OtpCompleteAsync(HttpContext http)
+        private static async Task OtpCompleteAsync(HttpContext http, GuestCartMergeService guestCartMerge)
         {
             var form = await http.Request.ReadFormAsync();
             var accessToken = form["accessToken"].ToString();
@@ -51,10 +52,10 @@ namespace Vitorize.Web.Endpoints
             };
 
             await SignInCustomerAsync(http, data, mobile);
-            http.Response.Redirect(SafeReturn(returnUrl));
+            await CompleteGuestMergeAndRedirectAsync(http, guestCartMerge, accessToken, returnUrl);
         }
 
-        private static async Task LoginAsync(HttpContext http, ApiClient apiClient)
+        private static async Task LoginAsync(HttpContext http, ApiClient apiClient, GuestCartMergeService guestCartMerge)
         {
             var form = await http.Request.ReadFormAsync();
             var mobile = form["mobile"].ToString().Trim();
@@ -82,10 +83,10 @@ namespace Vitorize.Web.Endpoints
             }
 
             await SignInCustomerAsync(http, result.Data, mobile);
-            http.Response.Redirect(SafeReturn(returnUrl));
+            await CompleteGuestMergeAndRedirectAsync(http, guestCartMerge, result.Data.GetAccessToken(), returnUrl);
         }
 
-        private static async Task RegisterAsync(HttpContext http, ApiClient apiClient)
+        private static async Task RegisterAsync(HttpContext http, ApiClient apiClient, GuestCartMergeService guestCartMerge)
         {
             var form = await http.Request.ReadFormAsync();
             var fullName = form["fullName"].ToString().Trim();
@@ -123,7 +124,7 @@ namespace Vitorize.Web.Endpoints
             }
 
             await SignInCustomerAsync(http, result.Data, mobile);
-            http.Response.Redirect(SafeReturn(returnUrl));
+            await CompleteGuestMergeAndRedirectAsync(http, guestCartMerge, result.Data.GetAccessToken(), returnUrl);
         }
 
         private static async Task LogoutAsync(HttpContext http, ApiClient apiClient)
@@ -213,5 +214,19 @@ namespace Vitorize.Web.Endpoints
 
         private static string SafeReturn(string? returnUrl) =>
             SafeRedirect.LocalOrDefault(returnUrl, "/customer/dashboard");
+
+        private static async Task CompleteGuestMergeAndRedirectAsync(HttpContext http, GuestCartMergeService guestCartMerge, string accessToken, string returnUrl)
+        {
+            var guestToken = http.Request.Cookies[GuestCartIdentityProvider.CookieName];
+            if (!await guestCartMerge.MergeAsync(guestToken, accessToken))
+            {
+                http.Response.Redirect("/cart?mergeError=1");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(guestToken))
+                http.Response.Cookies.Delete(GuestCartIdentityProvider.CookieName);
+            http.Response.Redirect(SafeReturn(returnUrl));
+        }
     }
 }

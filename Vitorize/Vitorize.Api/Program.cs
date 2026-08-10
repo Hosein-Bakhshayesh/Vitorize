@@ -150,6 +150,10 @@ namespace Vitorize.Api
 
             builder.Services.AddApplication();
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddScoped<Vitorize.Api.Services.CartIdentityResolver>();
+            if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
+                builder.Services.AddSingleton<Vitorize.Api.Services.TestingCartFaultService>();
+            builder.Services.AddHostedService<Vitorize.Api.BackgroundServices.GuestCartCleanupService>();
             builder.Services.AddScoped<IReadinessProbe, SqlServerReadinessProbe>();
 
             builder.Services.Configure<JwtSettings>(
@@ -352,6 +356,15 @@ namespace Vitorize.Api
             app.UseRateLimiter();
 
             app.MapControllers();
+
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+            {
+                app.MapPost("/api/testing/cart/fail-next-read", (TestingCartFaultService faults) =>
+                {
+                    faults.FailNextCartRead();
+                    return Results.NoContent();
+                });
+            }
 
             if (app.Environment.IsEnvironment("Testing") &&
                 app.Configuration.GetValue<bool>("Testing:UseFakeSms"))

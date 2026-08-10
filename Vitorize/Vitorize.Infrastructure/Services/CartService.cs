@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.Json;
 using Vitorize.Application.Common;
+using Vitorize.Application.Cart;
 using Vitorize.Application.DTOs.Cart;
 using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
@@ -23,11 +24,28 @@ public class CartService : ICartService
         _encryptionService = encryptionService;
     }
 
-    public async Task<CartDto> GetAsync(Guid userId) => MapToDto(await GetOrCreateCartAsync(userId));
+    public Task<CartDto> GetAsync(Guid userId) => GetAsync(CartIdentity.ForUser(userId));
 
-    public async Task<CartDto> AddItemAsync(Guid userId, AddToCartRequestDto request)
+    public async Task<CartDto> GetAsync(CartIdentity identity)
     {
-        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        EnsureIdentity(identity);
+        // Retain the established authenticated-cart initialization behavior, but avoid
+        // creating an empty database row for every newly provisioned guest cookie.
+        var cart = identity.IsAuthenticated
+            ? await GetOrCreateCartAsync(identity)
+            : await LoadCartOrDefaultAsync(identity);
+        if (cart is null) return new CartDto { UserId = identity.UserId };
+        TouchGuestCart(cart, identity);
+        if (identity.IsGuest) await _dbContext.SaveChangesAsync();
+        return MapToDto(cart);
+    }
+
+    public Task<CartDto> AddItemAsync(Guid userId, AddToCartRequestDto request) =>
+        AddItemAsync(CartIdentity.ForUser(userId), request);
+
+    public async Task<CartDto> AddItemAsync(CartIdentity identity, AddToCartRequestDto request)
+    {
+        EnsureIdentity(identity);
         if (request.ProductId == Guid.Empty) throw new BusinessException("محصول الزامی است.");
         if (request.Quantity <= 0) throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
 
@@ -64,9 +82,10 @@ public class CartService : ICartService
         try
         {
             if (isRelational)
-                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"cart:user:{userId:N}");
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(identity));
 
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(identity);
+            TouchGuestCart(cart, identity);
             if (cart.CartItems.Any(x => x.CurrencyType != product.CurrencyType))
                 throw new BusinessException("سبد خرید نمی‌تواند شامل کالاهایی با واحد پول متفاوت باشد.");
             var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
@@ -95,7 +114,7 @@ public class CartService : ICartService
             await _dbContext.SaveChangesAsync();
             if (transaction is not null)
                 await transaction.CommitAsync();
-            return MapToDto(await LoadCartAsync(userId));
+            return MapToDto(await LoadCartAsync(identity));
         }
         catch
         {
@@ -105,16 +124,30 @@ public class CartService : ICartService
         }
     }
 
-    public async Task<CartDto> UpdateItemAsync(Guid userId, Guid cartItemId, UpdateCartItemRequestDto request)
+    public Task<CartDto> UpdateItemAsync(Guid userId, Guid cartItemId, UpdateCartItemRequestDto request) =>
+        UpdateItemAsync(CartIdentity.ForUser(userId), cartItemId, request);
+
+    public async Task<CartDto> UpdateItemAsync(CartIdentity identity, Guid cartItemId, UpdateCartItemRequestDto request)
     {
-        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        EnsureIdentity(identity);
         if (cartItemId == Guid.Empty) throw new BusinessException("آیتم سبد خرید معتبر نیست.");
         if (request.Quantity <= 0) throw new BusinessException("تعداد باید بیشتر از صفر باشد.");
+
+        var isRelational = _dbContext.Database.IsRelational();
+        await using var transaction = isRelational
+            ? await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
+        try
+        {
+        if (isRelational)
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(identity));
 
         var item = await _dbContext.CartItems
             .Include(x => x.Cart).Include(x => x.InputValues)
             .Include(x => x.Product).ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
-            .FirstOrDefaultAsync(x => x.Id == cartItemId && x.Cart.UserId == userId)
+            .FirstOrDefaultAsync(x => x.Id == cartItemId &&
+                ((identity.IsAuthenticated && x.Cart.UserId == identity.UserId) ||
+                 (identity.IsGuest && x.Cart.GuestTokenHash == identity.GuestTokenHash)))
             ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
 
         item.Quantity = request.Quantity;
@@ -125,39 +158,57 @@ public class CartService : ICartService
             item.InputFingerprint = ProductInputRules.Fingerprint(values);
             SyncInputValues(item, item.Product.ProductInputFields, values);
         }
+        TouchGuestCart(item.Cart, identity);
         await _dbContext.SaveChangesAsync();
-        return MapToDto(await LoadCartAsync(userId));
+        if (transaction is not null) await transaction.CommitAsync();
+        return MapToDto(await LoadCartAsync(identity));
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.RollbackAsync();
+            throw;
+        }
     }
 
-    public async Task<CartDto> RemoveItemAsync(Guid userId, Guid cartItemId)
+    public Task<CartDto> RemoveItemAsync(Guid userId, Guid cartItemId) =>
+        RemoveItemAsync(CartIdentity.ForUser(userId), cartItemId);
+
+    public async Task<CartDto> RemoveItemAsync(CartIdentity identity, Guid cartItemId)
     {
-        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+        EnsureIdentity(identity);
         var item = await _dbContext.CartItems.Include(x => x.Cart)
-            .FirstOrDefaultAsync(x => x.Id == cartItemId && x.Cart.UserId == userId)
+            .FirstOrDefaultAsync(x => x.Id == cartItemId &&
+                ((identity.IsAuthenticated && x.Cart.UserId == identity.UserId) ||
+                 (identity.IsGuest && x.Cart.GuestTokenHash == identity.GuestTokenHash)))
             ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
+        TouchGuestCart(item.Cart, identity);
         _dbContext.CartItems.Remove(item);
         await _dbContext.SaveChangesAsync();
-        return MapToDto(await LoadCartAsync(userId));
+        return MapToDto(await LoadCartAsync(identity));
     }
 
-    public async Task ClearAsync(Guid userId)
+    public Task ClearAsync(Guid userId) => ClearAsync(CartIdentity.ForUser(userId));
+
+    public async Task ClearAsync(CartIdentity identity)
     {
-        if (userId == Guid.Empty) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-        var cart = await LoadCartAsync(userId);
+        EnsureIdentity(identity);
+        var cart = await LoadCartOrDefaultAsync(identity);
+        if (cart is null) return;
         if (cart.CartItems.Count == 0) return;
+        TouchGuestCart(cart, identity);
         _dbContext.CartItems.RemoveRange(cart.CartItems);
         await _dbContext.SaveChangesAsync();
     }
 
-    private async Task<Cart> GetOrCreateCartAsync(Guid userId)
+    private async Task<Cart> GetOrCreateCartAsync(CartIdentity identity)
     {
-        var cart = await LoadCartOrDefaultAsync(userId);
+        var cart = await LoadCartOrDefaultAsync(identity);
         if (cart is not null) return cart;
         var id = Guid.NewGuid();
         var createdAt = DateTime.UtcNow;
         if (!_dbContext.Database.IsRelational())
         {
-            cart = new Cart { Id = id, UserId = userId, CreatedAt = createdAt };
+            cart = new Cart { Id = id, UserId = identity.UserId, GuestTokenHash = identity.GuestTokenHash, CreatedAt = createdAt, LastActivityAt = identity.IsGuest ? createdAt : null };
             await _dbContext.Carts.AddAsync(cart);
             await _dbContext.SaveChangesAsync();
             return cart;
@@ -167,25 +218,101 @@ public class CartService : ICartService
         // serializable key-range lock makes the create-if-missing operation atomic and
         // avoids using a unique-index exception as normal control flow.
         await _dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-            INSERT INTO dbo.Carts (Id, UserId, CreatedAt)
-            SELECT {id}, {userId}, {createdAt}
+            INSERT INTO dbo.Carts (Id, UserId, GuestTokenHash, CreatedAt, LastActivityAt)
+            SELECT {id}, {identity.UserId}, {identity.GuestTokenHash}, {createdAt}, {(identity.IsGuest ? createdAt : (DateTime?)null)}
             WHERE NOT EXISTS
             (
-                SELECT 1
-                FROM dbo.Carts WITH (UPDLOCK, HOLDLOCK)
-                WHERE UserId = {userId}
+                SELECT 1 FROM dbo.Carts WITH (UPDLOCK, HOLDLOCK)
+                WHERE ({identity.UserId} IS NOT NULL AND UserId = {identity.UserId})
+                   OR ({identity.GuestTokenHash} IS NOT NULL AND GuestTokenHash = {identity.GuestTokenHash})
             );");
-        return await LoadCartAsync(userId);
+        return await LoadCartAsync(identity);
     }
 
-    private async Task<Cart> LoadCartAsync(Guid userId) =>
-        await LoadCartOrDefaultAsync(userId) ?? throw new NotFoundException("سبد خرید یافت نشد.");
+    private async Task<Cart> LoadCartAsync(CartIdentity identity) =>
+        await LoadCartOrDefaultAsync(identity) ?? throw new NotFoundException("سبد خرید یافت نشد.");
 
-    private Task<Cart?> LoadCartOrDefaultAsync(Guid userId) => _dbContext.Carts
+    private Task<Cart?> LoadCartOrDefaultAsync(CartIdentity identity) => _dbContext.Carts
         .Include(x => x.CartItems).ThenInclude(x => x.Product).ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
         .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
         .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
-        .FirstOrDefaultAsync(x => x.UserId == userId);
+        .FirstOrDefaultAsync(x => (identity.IsAuthenticated && x.UserId == identity.UserId) ||
+                                  (identity.IsGuest && x.GuestTokenHash == identity.GuestTokenHash));
+
+    public async Task<CartDto> MergeGuestCartAsync(Guid userId, string guestToken)
+    {
+        if (userId == Guid.Empty || !GuestCartToken.IsWellFormed(guestToken))
+            throw new BusinessException("سبد خرید مهمان معتبر نیست.");
+
+        var guest = CartIdentity.ForGuest(GuestCartToken.Hash(guestToken));
+        var user = CartIdentity.ForUser(userId);
+        await using var transaction = _dbContext.Database.IsRelational()
+            ? await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+        try
+        {
+            if (_dbContext.Database.IsRelational())
+            {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(guest));
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(user));
+            }
+
+            var guestCart = await LoadCartOrDefaultAsync(guest);
+            if (guestCart is null) return await GetAsync(user);
+            var userCart = await LoadCartOrDefaultAsync(user);
+            if (userCart is null)
+            {
+                guestCart.UserId = userId;
+                guestCart.GuestTokenHash = null;
+                guestCart.LastActivityAt = null;
+                guestCart.UpdatedAt = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync();
+                if (transaction is not null) await transaction.CommitAsync();
+                return MapToDto(await LoadCartAsync(user));
+            }
+
+            foreach (var guestItem in guestCart.CartItems.ToList())
+            {
+                var existing = userCart.CartItems.FirstOrDefault(item =>
+                    item.ProductId == guestItem.ProductId && item.ProductVariantId == guestItem.ProductVariantId &&
+                    item.InputFingerprint == guestItem.InputFingerprint);
+                if (existing is not null)
+                {
+                    existing.Quantity += guestItem.Quantity;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    _dbContext.CartItems.Remove(guestItem);
+                }
+                else
+                {
+                    guestItem.CartId = userCart.Id;
+                    userCart.CartItems.Add(guestItem);
+                }
+            }
+            _dbContext.Carts.Remove(guestCart);
+            await _dbContext.SaveChangesAsync();
+            if (transaction is not null) await transaction.CommitAsync();
+            return MapToDto(await LoadCartAsync(user));
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    private static void EnsureIdentity(CartIdentity identity)
+    {
+        if (!identity.IsAuthenticated && !identity.IsGuest)
+            throw new UnauthorizedException("شناسه سبد خرید معتبر نیست.");
+    }
+
+    private static string OwnerLockKey(CartIdentity identity) => identity.IsAuthenticated
+        ? $"cart:user:{identity.UserId!.Value:N}"
+        : $"cart:guest:{identity.GuestTokenHash}";
+
+    private static void TouchGuestCart(Cart cart, CartIdentity identity)
+    {
+        if (identity.IsGuest) cart.LastActivityAt = DateTime.UtcNow;
+    }
 
     private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
         discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
@@ -243,14 +370,16 @@ public class CartService : ICartService
         foreach (var field in definitions.Where(x => values.ContainsKey(x.Key)))
         {
             var value = values[field.Key];
-            item.InputValues.Add(new CartItemInputValue
+            var inputValue = new CartItemInputValue
             {
-                Id = Guid.NewGuid(), ProductInputFieldId = field.Id, FieldKey = field.Key,
+                Id = Guid.NewGuid(), CartItemId = item.Id, ProductInputFieldId = field.Id, FieldKey = field.Key,
                 FieldLabel = field.Label, FieldType = field.FieldType,
                 Value = field.IsSensitive ? null : value,
                 EncryptedValue = field.IsSensitive && value is not null ? _encryptionService.Encrypt(value) : null,
                 IsSensitive = field.IsSensitive, CreatedAt = DateTime.UtcNow
-            });
+            };
+            item.InputValues.Add(inputValue);
+            _dbContext.CartItemInputValues.Add(inputValue);
         }
     }
 

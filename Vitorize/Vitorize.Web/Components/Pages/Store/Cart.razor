@@ -8,6 +8,7 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @using Vitorize.Web.Helpers
 @using Vitorize.Web.Services.UI
+@using Microsoft.AspNetCore.Components.Authorization
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>سبد خرید | ویتورایز</PageTitle>
@@ -15,13 +16,30 @@
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سبد خرید</span></div>
 <h1 style="font-size:22px;margin-bottom:18px">سبد خرید شما</h1>
 
+@if (MergeError == "1")
+{
+    <div class="st-alert st-alert--danger st-errpage--inline" role="alert">
+        انتقال سبد مهمان انجام نشد و اطلاعات آن حفظ شده است. برای تلاش مجدد، از حساب خارج شوید و دوباره وارد شوید.
+    </div>
+}
+
 @if (_loading)
 {
     <div class="st-state"><div class="st-spinner"></div></div>
 }
 else if (_cart is null || _cart.Items.Count == 0)
 {
-    <StoreState Info="_emptyInfo" Class="st-errpage--inline" />
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="st-alert st-alert--danger st-errpage--inline" role="alert">
+            <span>@_loadError</span>
+            <button class="st-btn st-btn--outline st-btn--sm" @onclick="Load">تلاش مجدد</button>
+        </div>
+    }
+    else
+    {
+        <StoreState Info="_emptyInfo" Class="st-errpage--inline" />
+    }
 }
 else
 {
@@ -108,7 +126,7 @@ else
     </div>
 }
 
-<Modal Visible="_inputOpen" Title="ویرایش اطلاعات خرید" Icon="file-text" OnClose="CloseInputs">
+<Modal Visible="_inputOpen" Title="ویرایش اطلاعات خرید" Icon="file-text" OnClose="CloseInputs" InitialFocusId="@_focusTargetId">
     <ChildContent>
         @if (_editingItem is not null)
         {
@@ -145,6 +163,7 @@ else
 
 @code {
     private bool _loading = true, _busy, _couponBusy;
+    private string? _loadError;
     private CartModel? _cart;
     private string _coupon = string.Empty;
     private string _appliedCode = string.Empty;
@@ -156,6 +175,8 @@ else
     private readonly Dictionary<string, string?> _editConfirmValues = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _editFieldErrors = new(StringComparer.OrdinalIgnoreCase);
     private string? _focusTargetId;
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [SupplyParameterFromQuery(Name = "mergeError")] public string? MergeError { get; set; }
 
     private ErrorStateInfo _emptyInfo =
         ErrorStates.Resolve("empty-cart", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
@@ -193,14 +214,27 @@ else
 
     private async Task Load()
     {
-        _loading = true;
-        var result = await Api.GetAsync<CartModel>("cart");
-        if (result.IsSuccess && result.Data is not null)
+        _loading = true; _loadError = null;
+        try
         {
-            _cart = result.Data;
-            CartSvc.Set(_cart.TotalQuantity);
+            var result = await Api.GetAsync<CartModel>("cart");
+            if (result.IsSuccess && result.Data is not null)
+            {
+                _cart = result.Data;
+                CartSvc.Set(_cart.TotalQuantity);
+            }
+            else
+            {
+                _cart = null;
+                _loadError = "سبد خرید بارگذاری نشد. لطفاً دوباره تلاش کنید.";
+            }
         }
-        _loading = false;
+        catch
+        {
+            _cart = null;
+            _loadError = "سبد خرید بارگذاری نشد. لطفاً دوباره تلاش کنید.";
+        }
+        finally { _loading = false; }
     }
 
     private async Task UpdateQty(CartItemModel item, int qty)
@@ -248,6 +282,12 @@ else
         if (!validation.IsValid && validation.InvalidItem is not null)
         {
             OpenInputs(validation.InvalidItem, validation.Validation.Errors);
+            return;
+        }
+
+        if (AuthState is null || (await AuthState).User.Identity?.IsAuthenticated != true)
+        {
+            Nav.NavigateTo("/login?returnUrl=%2Fcheckout", forceLoad: true);
             return;
         }
 
@@ -299,7 +339,8 @@ else
     private string? EditError(string key) => _editFieldErrors.GetValueOrDefault(key);
     private void SetEditValue(string key, string? value) { _editValues[key] = value; RefreshEditError(key); }
     private bool IsEditChecked(string key) => string.Equals(EditValue(key), "true", StringComparison.OrdinalIgnoreCase);
-    private void SetEditCheckbox(string key, object? value) => SetEditValue(key, value is true ? "true" : "false");
+    private void SetEditCheckbox(string key, object? value) => SetEditValue(key,
+        value is true || string.Equals(value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false");
     private void SetEditConfirmation(string key, string? value) { _editConfirmValues[key] = value; RefreshEditError(key); }
     private void RefreshEditError(string key)
     {
@@ -308,12 +349,6 @@ else
         if (validation.IsValid) _editFieldErrors.Remove(key); else _editFieldErrors[key] = validation.Errors[key];
     }
     private void CloseInputs() { _inputOpen = false; _editFieldErrors.Clear(); _focusTargetId = null; }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_focusTargetId is not { } targetId) return;
-        _focusTargetId = null;
-        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
-    }
     private static string InputId(CartItemModel item, string key) => $"cart-input-{item.Id:N}-{key}";
     private static string ConfirmationId(CartItemModel item, string key) => $"cart-confirm-{item.Id:N}-{key}";
     private static string ErrorId(CartItemModel item, string key) => $"cart-error-{item.Id:N}-{key}";

@@ -12,6 +12,10 @@ DECLARE @BrandId uniqueidentifier = '31000000-0000-0000-0000-000000000006';
 DECLARE @VariantId uniqueidentifier = '31000000-0000-0000-0000-000000000007';
 DECLARE @FeatureId uniqueidentifier = '31000000-0000-0000-0000-000000000008';
 DECLARE @InputFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000009';
+DECLARE @Stage2TextFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000033';
+DECLARE @Stage2SelectFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000034';
+DECLARE @Stage2CheckboxFieldId uniqueidentifier = '31000000-0000-0000-0000-000000000035';
+DECLARE @Stage2ProductId uniqueidentifier = '31000000-0000-0000-0000-000000000036';
 DECLARE @ImageId uniqueidentifier = '31000000-0000-0000-0000-000000000010';
 DECLARE @RelatedProductId uniqueidentifier = '31000000-0000-0000-0000-000000000011';
 DECLARE @CouponId uniqueidentifier = '31000000-0000-0000-0000-000000000012';
@@ -163,6 +167,37 @@ IF NOT EXISTS (SELECT 1 FROM dbo.ProductInputFields WHERE Id = @InputFieldId)
          IsSensitive, RequiresConfirmation, DisplayStage, SortOrder, IsActive, CreatedAt)
     VALUES (@InputFieldId, @ProductId, 'account_email', N'Account Email', N'Used only to fulfill this test order.',
             N'customer@example.test', 2, 1, 0, 0, 1, 1, 1, SYSUTCDATETIME());
+
+-- FIX-03 closure fixture: a fully valid staged form for cart-edit and checkout validation.
+IF NOT EXISTS (SELECT 1 FROM dbo.Products WHERE Id = @Stage2ProductId)
+    INSERT dbo.Products
+        (Id, CategoryId, BrandId, Title, Slug, ShortDescription, FullDescription, SeoTitle, SeoDescription,
+         ThumbnailImagePath, ThumbnailAltText, ProductType, DeliveryType, BasePrice, CurrencyType,
+         MinOrderQuantity, IsActive, IsFeatured, IsDeleted, CreatedAt)
+    VALUES (@Stage2ProductId, @CategoryId, @BrandId, N'E2E Staged Cart Product', N'e2e-staged-cart-product',
+            N'Valid Stage-2 cart fixture.', N'<p>Stage-2 cart fixture.</p>', N'E2E staged cart', N'E2E staged cart',
+            N'/uploads/products/95f7a15fd1a443d7abf1ad2ff22efbd7.png', N'E2E staged artwork',
+            1, 2, 75000, 2, 1, 1, 0, 0, SYSUTCDATETIME());
+UPDATE dbo.Products SET IsActive = 1, IsDeleted = 0, BrandId = @BrandId WHERE Id = @Stage2ProductId;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.ProductInputFields WHERE Id = @Stage2TextFieldId)
+    INSERT dbo.ProductInputFields
+        (Id, ProductId, [Key], Label, [Description], Placeholder, FieldType, IsRequired,
+         IsSensitive, RequiresConfirmation, DisplayStage, SortOrder, IsActive, CreatedAt)
+    VALUES (@Stage2TextFieldId, @Stage2ProductId, 'stage2_reference', N'Stage-2 reference', N'Required before checkout.',
+            N'valid reference', 1, 1, 0, 0, 2, 2, 1, SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.ProductInputFields WHERE Id = @Stage2SelectFieldId)
+    INSERT dbo.ProductInputFields
+        (Id, ProductId, [Key], Label, [Description], Placeholder, FieldType, IsRequired,
+         IsSensitive, RequiresConfirmation, DisplayStage, SortOrder, IsActive, OptionsJson, CreatedAt)
+    VALUES (@Stage2SelectFieldId, @Stage2ProductId, 'stage2_region', N'Stage-2 region', N'Optional selectable value.',
+            N'', 6, 0, 0, 0, 2, 3, 1, N'["north","south"]', SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.ProductInputFields WHERE Id = @Stage2CheckboxFieldId)
+    INSERT dbo.ProductInputFields
+        (Id, ProductId, [Key], Label, [Description], Placeholder, FieldType, IsRequired,
+         IsSensitive, RequiresConfirmation, DisplayStage, SortOrder, IsActive, CreatedAt)
+    VALUES (@Stage2CheckboxFieldId, @Stage2ProductId, 'stage2_terms', N'Stage-2 terms', N'Required acknowledgement.',
+            N'I accept the test terms', 8, 1, 0, 0, 2, 4, 1, SYSUTCDATETIME());
 
 IF NOT EXISTS (SELECT 1 FROM dbo.ProductImages WHERE Id = @ImageId)
     INSERT dbo.ProductImages (Id, ProductId, ImagePath, AltText, SortOrder, CreatedAt)

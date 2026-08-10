@@ -106,6 +106,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 86,
+      "version": "V0009",
+      "name": "V0009__persistent_guest_carts.sql",
+      "path": "Versioned/V0009__persistent_guest_carts.sql",
+      "sha256": "3763a5b6236065f47b6b461f42188672bbb5584408a495eb7f1bd30c327ab438",
+      "classification": "required",
+      "dependencies": ["V0008", "dbo.Carts", "dbo.CartItems"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

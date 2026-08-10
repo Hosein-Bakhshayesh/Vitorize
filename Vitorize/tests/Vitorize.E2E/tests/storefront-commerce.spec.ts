@@ -53,7 +53,7 @@ test('product page renders variant, gallery, feature card, rich HTML, related pr
   await page.locator('.st-buy__card button.st-btn--accent').click();
   await expect(page.locator('#product-input-account_email')).toBeVisible();
   await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.vz-toast.error')).toBeVisible();
+  await expect(page.locator('#product-input-account_email')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#product-input-account_email')).toBeVisible();
   await expectRtlAndNoOverflow(page);
   browser.assertClean();

@@ -13,6 +13,8 @@ using System.IO.Compression;
 using Serilog;
 using Vitorize.Shared.Logging;
 using Vitorize.Web.Logging;
+using Vitorize.Web.Middleware;
+using Vitorize.Web.Services.Cart;
 
 Log.Logger = SerilogHostConfiguration.CreateBootstrapLogger();
 try
@@ -149,6 +151,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
+builder.Services.AddScoped<GuestCartIdentityProvider>();
+builder.Services.AddScoped<GuestCartMergeService>();
 builder.Services.AddScoped<ITokenSessionPersistence, TokenSessionPersistence>();
 builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
 {
@@ -243,6 +247,7 @@ app.UseRouting();
 app.UseMiddleware<LegacyRedirectMiddleware>();
 
 app.UseAuthentication();
+app.UseMiddleware<GuestCartCookieMiddleware>();
 app.UseAuthorization();
 
 app.UseAntiforgery();

@@ -164,8 +164,9 @@
         if (_authenticated)
         {
             _name = state.User.Identity?.Name ?? "کاربر";
-            await Task.WhenAll(RefreshCartCount(), RefreshWishlist());
+            await RefreshWishlist();
         }
+        await RefreshCartCount();
     }
 
     private void ToggleMega() { _megaOpen = !_megaOpen; _searchOpen = false; }

@@ -18,6 +18,61 @@ async function supportState(page: import('@playwright/test').Page, orderId: stri
 }
 
 test.describe('support/ticket delivery', () => {
+  test('admin fulfills a pending SupportRequired order from order details', {
+    tag: [TAG.supportDelivery, TAG.business, TAG.customer, TAG.admin, TAG.regression, TAG.release]
+  }, async ({ page, browser, storefront }) => {
+    // This is deliberately an order-fulfillment flow, rather than the ticket-reply flow below:
+    // SupportRequired items must have the same audited manual fulfillment route accepted by the API.
+    await loginSeededCustomerWithEmptyCart(page);
+    await storefront.addToCart(SUPPORT_SLUG, { support_ref: 'e2e-fix04-ref' });
+    const orderId = await storefront.checkoutAndPay();
+    await storefront.openOrder(orderId);
+    const orderNumber = (await page.locator('h1 .st-mono').innerText()).trim();
+
+    const before = await supportState(page, orderId);
+    expect(before.paid).toBe(true);
+    expect(before.orderStatus).toBe(2); // Processing: paid, but the support item is still pending.
+    expect(before.manualDeliveries).toBe(0);
+
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    try {
+      await new AdminLoginPage(adminPage).signIn(USERS.SuperAdmin);
+      await adminPage.goto('/admin/orders', { waitUntil: 'networkidle' });
+      await adminPage.locator('#order-search').fill(orderNumber);
+      const row = adminPage.locator('tbody tr').filter({ hasText: orderNumber });
+      await expect(row).toHaveCount(1);
+      await row.locator('.vz-ctx__trigger').click();
+      await adminPage.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+
+      const details = adminPage.getByRole('dialog').filter({ hasText: orderNumber });
+      await expect(details).toBeVisible();
+      await expect(details.locator('#completion-reason')).toBeVisible();
+      await expect(details.getByRole('button', { name: 'تکمیل سفارش' })).toBeDisabled();
+      await expect(details.locator('.vz-manual-delivery')).toBeVisible();
+
+      await details.locator('.vz-manual-delivery').click();
+      const content = `FIX-04 support fulfillment ${Date.now()}`;
+      const deliveryDialog = adminPage.getByRole('dialog').filter({ has: adminPage.locator('#manual-delivery-content') });
+      await deliveryDialog.locator('#manual-delivery-content').fill(content);
+      await deliveryDialog.locator('button.vz-btn--primary').click();
+      await expect(deliveryDialog).toBeHidden();
+      await expect(adminPage.locator('.vz-toast.success')).toBeVisible();
+      await expect(details.locator('.vz-manual-delivery')).toHaveCount(0);
+      await expect(details.getByRole('button', { name: 'تکمیل سفارش' })).toHaveCount(0);
+
+      const after = await supportState(adminPage, orderId);
+      expect(after.manualDeliveries).toBe(1);
+      expect(after.orderStatus).toBe(3); // Completed automatically after the final item is fulfilled.
+
+      await page.goto(`/customer/orders/${orderId}`, { waitUntil: 'networkidle' });
+      await expect(page.locator('main')).toContainText(content);
+      await expect(page.locator('main')).toContainText('تکمیل شده');
+    } finally {
+      await adminContext.close();
+    }
+  });
+
   test('buy support product -> open ticket -> admin delivers via reply + closes -> customer verifies', {
     tag: [TAG.supportDelivery, TAG.business, TAG.customer, TAG.admin, TAG.ticket, TAG.regression, TAG.release]
   }, async ({ page, browser, storeLogin, storefront, customerTickets }) => {

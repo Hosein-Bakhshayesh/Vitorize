@@ -4,6 +4,7 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using Vitorize.Web.Helpers
+@using Vitorize.Application.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="مدیریت سفارش‌ها" Subtitle="سفارش‌های مشتریان را پیگیری و مدیریت کنید"
@@ -63,7 +64,6 @@ else
         <div class="vz-bulkbar">
             <span>@AUI.Number(_selected.Count) سفارش انتخاب شد</span>
             <div style="flex:1"></div>
-            <button class="vz-btn vz-btn--success vz-btn--sm" @onclick="BulkComplete" disabled="@_bulkBusy"><Icon Name="check" Size="14" /> تکمیل</button>
             <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="OpenBulkCancel" disabled="@_bulkBusy"><Icon Name="x-circle" Size="14" /> لغو</button>
             <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="ExportSelected"><Icon Name="download" Size="14" /> خروجی انتخاب‌شده از صفحه جاری</button>
             <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن</button>
@@ -122,7 +122,6 @@ else
                                                     <button class="vz-ctx__item" @onclick="() => OpenDetails(o.Id)"><Icon Name="eye" Size="15" /> مشاهده جزئیات</button>
                                                     @if (CanAct(o.Status))
                                                     {
-                                                        <button class="vz-ctx__item" @onclick="() => QuickComplete(o)"><Icon Name="check" Size="15" /> تکمیل سریع</button>
                                                         <button class="vz-ctx__item" @onclick="() => QuickCancel(o)"><Icon Name="x-circle" Size="15" /> لغو سفارش</button>
                                                     }
                                                     <div class="vz-ctx__divider"></div>
@@ -172,11 +171,17 @@ else
                     </div>
                 </div>
 
+                <div id="completion-reason" class="vz-alert @(CanComplete(d) ? "vz-alert--success" : "vz-alert--warning")">
+                    <Icon Name="package-check" Size="16" />
+                    <span><b>وضعیت تحویل:</b> @FulfillmentSummary(d)</span>
+                    @if (!CanComplete(d)) { <span style="margin-inline-start:6px">@CompletionReason(d)</span> }
+                </div>
+
                 <div>
                     <div class="vz-card__title" style="margin-bottom:10px">اقلام سفارش</div>
                     <div class="vz-table-wrap">
                         <table class="vz-table">
-                            <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th><th>تحویل</th></tr></thead>
+                            <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th><th>نوع تحویل</th><th>تحویل</th></tr></thead>
                             <tbody>
                                 @foreach (var item in Items(d))
                                 {
@@ -197,14 +202,19 @@ else
                                         <td class="num">@AUI.Number(item.Quantity)</td>
                                         <td><MoneyDisplay Amount="item.UnitPrice" /></td>
                                         <td><MoneyDisplay Amount="item.TotalPrice" /></td>
+                                        <td>@AUI.DeliveryType(item.DeliveryType)</td>
                                         <td>
                                             <StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" />
-                                            @if (item.DeliveryType == (byte)DeliveryType.Manual && item.DeliveryStatus != (byte)DeliveryStatus.Delivered)
+                                            @if (CanFulfill(d, item))
                                             {
                                                 <button class="vz-btn vz-btn--primary vz-btn--sm vz-manual-delivery" style="margin-top:8px"
                                                         @onclick="() => OpenManualDelivery(d, item)">
-                                                    <Icon Name="package-check" Size="13" /> تحویل دستی
+                                                    <Icon Name="package-check" Size="13" /> ثبت تحویل
                                                 </button>
+                                            }
+                                            else if (item.DeliveryStatus != (byte)DeliveryStatus.Delivered)
+                                            {
+                                                <div class="vz-muted" style="font-size:12px;margin-top:6px">@FulfillmentGuidance(item)</div>
                                             }
                                         </td>
                                     </tr>
@@ -226,7 +236,7 @@ else
         @if (_detail is not null && CanAct(_detail.Status))
         {
             <button class="vz-btn vz-btn--danger-soft" @onclick="OpenCancel" disabled="@_acting">لغو سفارش</button>
-            <button class="vz-btn vz-btn--success" @onclick="CompleteDetail" disabled="@_acting">
+            <button class="vz-btn vz-btn--success" @onclick="CompleteDetail" disabled="@(_acting || !CanComplete(_detail))" aria-describedby="completion-reason">
                 @if (_acting) { <span class="vz-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>تکمیل سفارش</span> }
             </button>
         }
@@ -342,7 +352,42 @@ else
     }
 
     private int CountStatus(byte status) => _items.Count(o => o.Status == status);
-    private static bool CanAct(byte status) => status != (byte)OrderStatus.Completed && status != (byte)OrderStatus.Cancelled;
+    private static bool CanAct(byte status) => status is not (byte)OrderStatus.Completed
+        and not (byte)OrderStatus.Cancelled and not (byte)OrderStatus.Refunded;
+
+    private static bool CanComplete(AdminOrderModel order) =>
+        CanAct(order.Status) && OrderFulfillmentRules.CanComplete(order.PaymentStatus, Items(order).Select(x => x.DeliveryStatus));
+
+    private static bool CanFulfill(AdminOrderModel order, AdminOrderItemModel item) =>
+        OrderFulfillmentRules.IsPaid(order.PaymentStatus) && CanAct(order.Status) &&
+        item.DeliveryStatus != (byte)DeliveryStatus.Delivered &&
+        item.DeliveryType is (byte)DeliveryType.Manual or (byte)DeliveryType.SupportRequired;
+
+    private static string FulfillmentSummary(AdminOrderModel order)
+    {
+        var items = Items(order);
+        var delivered = items.Count(x => x.DeliveryStatus == (byte)DeliveryStatus.Delivered);
+        return $"{AUI.Number(delivered)} از {AUI.Number(items.Count)} آیتم تحویل شده است.";
+    }
+
+    private static string CompletionReason(AdminOrderModel order)
+    {
+        if (!OrderFulfillmentRules.IsPaid(order.PaymentStatus))
+            return "تکمیل سفارش پس از پرداخت امکان‌پذیر است.";
+        var outstanding = OrderFulfillmentRules.OutstandingCount(Items(order).Select(x => x.DeliveryStatus));
+        return outstanding > 0
+            ? $"{AUI.Number(outstanding)} آیتم هنوز نیاز به تحویل دارد."
+            : "وضعیت سفارش برای تکمیل معتبر نیست.";
+    }
+
+    private static string FulfillmentGuidance(AdminOrderItemModel item) => item.DeliveryType switch
+    {
+        (byte)DeliveryType.Instant => item.DeliveryStatus == (byte)DeliveryStatus.Failed
+            ? "تحویل خودکار ناموفق بوده است. وضعیت تحویل را بررسی کنید."
+            : "در انتظار تحویل خودکار است.",
+        (byte)DeliveryType.SupportRequired => "پس از انجام خدمت یا بررسی پشتیبانی، تحویل این آیتم را ثبت کنید.",
+        _ => "این آیتم هنوز تحویل نشده است."
+    };
 
     private async Task ResetPage() { _page = 1; await Load(); }
     private async Task SetStatusChip(string key) { _statusFilter = key; await ResetPage(); }

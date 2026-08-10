@@ -209,10 +209,15 @@ public partial class VitorizeDbContext : DbContext
 
         modelBuilder.Entity<Cart>(entity =>
         {
-            entity.HasIndex(e => e.UserId, "UX_Carts_UserId").IsUnique();
+            entity.HasIndex(e => e.UserId, "UX_Carts_UserId").IsUnique().HasFilter("[UserId] IS NOT NULL");
+            entity.HasIndex(e => e.GuestTokenHash, "UX_Carts_GuestTokenHash").IsUnique().HasFilter("[GuestTokenHash] IS NOT NULL");
+            entity.HasIndex(e => e.LastActivityAt, "IX_Carts_GuestLastActivityAt").HasFilter("[GuestTokenHash] IS NOT NULL");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.GuestTokenHash).HasMaxLength(64).IsUnicode(false);
+            entity.ToTable(table => table.HasCheckConstraint("CK_Carts_ExactlyOneOwner",
+                "([UserId] IS NOT NULL AND [GuestTokenHash] IS NULL) OR ([UserId] IS NULL AND [GuestTokenHash] IS NOT NULL)"));
 
             entity.HasOne(d => d.User).WithOne(p => p.Cart)
                 .HasForeignKey<Cart>(d => d.UserId)

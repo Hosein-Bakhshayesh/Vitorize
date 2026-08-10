@@ -59,6 +59,7 @@ BEGIN
         (N'V0006', N'V0006__preserve_currency_through_checkout.sql', '70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc'),
         (N'V0007', N'V0007__support_fulfillment_ticket_uniqueness.sql', 'b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10'),
         (N'V0008', N'V0008__seed_storefront_typography_settings.sql', 'fff9d2f0f22c6ac51629f3edee38c30a3e90dc7433d3914e10fbf2035eaade15'),
+        (N'V0009', N'V0009__persistent_guest_carts.sql', '3763a5b6236065f47b6b461f42188672bbb5584408a495eb7f1bd30c327ab438'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -164,6 +165,12 @@ IF COL_LENGTH(N'dbo.CartItems', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.OrderItems', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.Payments', N'CurrencyType') IS NULL
     INSERT @Issues VALUES ('ERROR', N'Currency snapshots', N'CurrencyType is missing from a checkout aggregate.');
+IF COL_LENGTH(N'dbo.Carts', N'GuestTokenHash') IS NULL OR COL_LENGTH(N'dbo.Carts', N'LastActivityAt') IS NULL
+    INSERT @Issues VALUES ('ERROR', N'Guest cart columns', N'GuestTokenHash or LastActivityAt is missing from dbo.Carts.');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Carts') AND name = N'UX_Carts_GuestTokenHash' AND is_unique = 1)
+    INSERT @Issues VALUES ('ERROR', N'Guest cart token uniqueness', N'UX_Carts_GuestTokenHash is missing or not unique.');
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.Carts') AND name = N'CK_Carts_ExactlyOneOwner' AND is_disabled = 0 AND is_not_trusted = 0)
+    INSERT @Issues VALUES ('ERROR', N'Guest cart ownership constraint', N'CK_Carts_ExactlyOneOwner is missing or untrusted.');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.WalletTransactions') AND name = N'UX_WalletTransactions_FinancialReference' AND is_unique = 1)
     INSERT @Issues VALUES ('ERROR', N'Wallet idempotency', N'Unique financial reference index is missing.');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PaymentCallbacks') AND name = N'UX_PaymentCallbacks_PaymentId_CallbackKey' AND is_unique = 1)

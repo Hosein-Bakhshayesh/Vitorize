@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Logging;
 using Vitorize.Web.Services.Auth;
+using Vitorize.Web.Services.Cart;
 
 namespace Vitorize.Web.Services
 {
@@ -19,6 +20,7 @@ namespace Vitorize.Web.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAccessTokenProvider _tokenProvider;
+        private readonly GuestCartIdentityProvider? _guestCartIdentity;
         private readonly SessionTokenRefreshCoordinator _refreshCoordinator;
         private readonly ITokenSessionPersistence _tokenSessionPersistence;
         private readonly IServiceProvider _serviceProvider;
@@ -38,10 +40,12 @@ namespace Vitorize.Web.Services
             ITokenSessionPersistence tokenSessionPersistence,
             IServiceProvider serviceProvider,
             PrerenderApiState? prerenderState,
-            ILogger<ApiClient> logger)
+            ILogger<ApiClient> logger,
+            GuestCartIdentityProvider? guestCartIdentity = null)
         {
             _httpClient = httpClient;
             _tokenProvider = tokenProvider;
+            _guestCartIdentity = guestCartIdentity;
             _refreshCoordinator = refreshCoordinator;
             _tokenSessionPersistence = tokenSessionPersistence;
             _serviceProvider = serviceProvider;
@@ -257,7 +261,12 @@ namespace Vitorize.Web.Services
             {
                 request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", token);
+                return;
             }
+
+            var guestToken = _guestCartIdentity?.GetToken();
+            if (!string.IsNullOrWhiteSpace(guestToken))
+                request.Headers.TryAddWithoutValidation("X-Vitorize-Guest-Cart", guestToken);
         }
 
         private async Task<bool> TryRefreshAsync(HttpMethod method, string url, CancellationToken cancellationToken)

@@ -3,7 +3,7 @@ namespace Vitorize.Web.Models.Store
     public class CartModel
     {
         public Guid Id { get; set; }
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         public List<CartItemModel> Items { get; set; } = new();
         public int TotalQuantity { get; set; }
         public decimal SubtotalAmount { get; set; }

@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Vitorize.Application.Interfaces;
+using Vitorize.Application.Common;
 using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
@@ -134,10 +135,7 @@ namespace Vitorize.Infrastructure.Services
                 });
             }
 
-            var allItemsDelivered = order.OrderItems
-                .All(x => x.DeliveryStatus == (byte)DeliveryStatus.Delivered);
-
-            if (allItemsDelivered)
+            if (OrderFulfillmentRules.CanComplete(order.PaymentStatus, order.OrderItems.Select(x => x.DeliveryStatus)))
             {
                 order.Status = (byte)OrderStatus.Completed;
                 order.CompletedAt = now;

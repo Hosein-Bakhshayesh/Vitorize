@@ -344,10 +344,10 @@ namespace Vitorize.Infrastructure.Services
             if (order.Status == (byte)OrderStatus.Cancelled)
                 throw new BusinessException("سفارش لغو شده قابل تکمیل نیست.");
 
-            if (order.PaymentStatus != (byte)PaymentStatus.Paid)
+            if (!OrderFulfillmentRules.IsPaid(order.PaymentStatus))
                 throw new BusinessException("سفارش پرداخت نشده قابل تکمیل نیست.");
 
-            if (order.OrderItems.Any(x => x.DeliveryStatus != (byte)DeliveryStatus.Delivered))
+            if (!OrderFulfillmentRules.IsFullyFulfilled(order.OrderItems.Select(x => x.DeliveryStatus)))
                 throw new BusinessException("تا زمان تحویل همه آیتم‌ها، تکمیل سفارش مجاز نیست.");
 
             var now = DateTime.UtcNow;
@@ -433,7 +433,7 @@ namespace Vitorize.Infrastructure.Services
             item.DeliveredAt = now;
 
             var fromStatus = order.Status;
-            if (order.OrderItems.All(x => x.Id == item.Id || x.DeliveryStatus == (byte)DeliveryStatus.Delivered))
+            if (OrderFulfillmentRules.CanComplete(order.PaymentStatus, order.OrderItems.Select(x => x.DeliveryStatus)))
             {
                 order.Status = (byte)OrderStatus.Completed;
                 order.CompletedAt ??= now;

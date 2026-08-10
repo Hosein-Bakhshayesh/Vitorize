@@ -13,22 +13,30 @@ namespace Vitorize.Api.Controllers
     public class CartController : ControllerBase
     {
         private readonly ICartService _cartService;
-        private readonly ICurrentUserService _currentUserService;
+        private readonly Vitorize.Api.Services.CartIdentityResolver _identityResolver;
+        private readonly ILogger<CartController> _logger;
+        private readonly Vitorize.Api.Services.TestingCartFaultService? _testingCartFaults;
 
         public CartController(
             ICartService cartService,
-            ICurrentUserService currentUserService)
+            Vitorize.Api.Services.CartIdentityResolver identityResolver,
+            ILogger<CartController> logger,
+            Vitorize.Api.Services.TestingCartFaultService? testingCartFaults = null)
         {
             _cartService = cartService;
-            _currentUserService = currentUserService;
+            _identityResolver = identityResolver;
+            _logger = logger;
+            _testingCartFaults = testingCartFaults;
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResult<CartDto>>> Get()
         {
-            var userId = GetUserId();
-
-            var result = await _cartService.GetAsync(userId);
+            if (_testingCartFaults?.ConsumeCartReadFailure() == true)
+                return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    ApiResult<CartDto>.Failure("بارگذاری سبد خرید موقتاً در دسترس نیست."));
+            var result = await _cartService.GetAsync(_identityResolver.Resolve());
 
             return Ok(ApiResult<CartDto>.Success(
                 result,
@@ -36,12 +44,11 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPost("items")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResult<CartDto>>> AddItem(
             AddToCartRequestDto request)
         {
-            var userId = GetUserId();
-
-            var result = await _cartService.AddItemAsync(userId, request);
+            var result = await _cartService.AddItemAsync(_identityResolver.Resolve(), request);
 
             return Ok(ApiResult<CartDto>.Success(
                 result,
@@ -49,14 +56,13 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpPut("items/{cartItemId:guid}")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResult<CartDto>>> UpdateItem(
             Guid cartItemId,
             UpdateCartItemRequestDto request)
         {
-            var userId = GetUserId();
-
             var result = await _cartService.UpdateItemAsync(
-                userId,
+                _identityResolver.Resolve(),
                 cartItemId,
                 request);
 
@@ -66,13 +72,12 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpDelete("items/{cartItemId:guid}")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResult<CartDto>>> RemoveItem(
             Guid cartItemId)
         {
-            var userId = GetUserId();
-
             var result = await _cartService.RemoveItemAsync(
-                userId,
+                _identityResolver.Resolve(),
                 cartItemId);
 
             return Ok(ApiResult<CartDto>.Success(
@@ -81,21 +86,24 @@ namespace Vitorize.Api.Controllers
         }
 
         [HttpDelete("clear")]
+        [AllowAnonymous]
         public async Task<ActionResult<ApiResult>> Clear()
         {
-            var userId = GetUserId();
-
-            await _cartService.ClearAsync(userId);
+            await _cartService.ClearAsync(_identityResolver.Resolve());
 
             return Ok(ApiResult.Success("سبد خرید با موفقیت خالی شد."));
         }
 
-        private Guid GetUserId()
+        [HttpPost("merge-guest")]
+        public async Task<ActionResult<ApiResult<CartDto>>> MergeGuest([FromBody] MergeGuestCartRequest request)
         {
-            if (!_currentUserService.UserId.HasValue)
-                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
-
-            return _currentUserService.UserId.Value;
+            var user = HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(user, out var userId)) throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            var result = await _cartService.MergeGuestCartAsync(userId, request.GuestToken);
+            _logger.LogInformation("GuestCartMerged UserId={UserId} EventType={EventType}", userId, "GuestCartMerged");
+            return Ok(ApiResult<CartDto>.Success(result, "سبد خرید مهمان با موفقیت منتقل شد."));
         }
+
+        public sealed record MergeGuestCartRequest(string GuestToken);
     }
 }
