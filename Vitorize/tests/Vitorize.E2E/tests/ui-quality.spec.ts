@@ -23,9 +23,9 @@ test('responsive catalog controls remain operable at the active viewport', async
   if (mobile) {
     await expect(page.locator('.st-fab')).toBeVisible();
     await page.locator('.st-fab').click();
-    await expect(page.locator('.st-sheet__panel')).toBeVisible();
-    await page.locator('.st-sheet__bd').click({ position: { x: 10, y: 10 } });
-    await expect(page.locator('.st-sheet')).toBeHidden();
+    await expect(page.locator('.st-filter-sheet__panel')).toBeVisible();
+    await page.locator('.st-filter-sheet__backdrop').click({ position: { x: 10, y: 10 } });
+    await expect(page.locator('.st-filter-sheet')).toBeHidden();
   } else {
     await expect(page.locator('.st-fsidebar')).toBeVisible();
     await page.locator('.st-sort__btn').click();

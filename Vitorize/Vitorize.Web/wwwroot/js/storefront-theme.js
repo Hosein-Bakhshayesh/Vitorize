@@ -39,8 +39,8 @@
         }
     };
 
-    window.vzStorefront = {
-        focusAndScroll: function (id) {
+    window.vzStorefront = window.vzStorefront || {};
+    window.vzStorefront.focusAndScroll = function (id) {
             try {
                 var element = document.getElementById(id);
                 if (!element) return false;
@@ -48,7 +48,18 @@
                 if (typeof element.focus === 'function') element.focus({ preventScroll: true });
                 return true;
             } catch (e) { return false; }
-        }
+    };
+    window.vzStorefront.focus = function (id) {
+        try {
+            var element = document.getElementById(id);
+            if (!element || typeof element.focus !== 'function') return false;
+            element.focus({ preventScroll: true });
+            return true;
+        } catch (e) { return false; }
+    };
+    window.vzStorefront.setFilterScrollLock = function (locked) {
+        document.documentElement.classList.toggle('st-filter-scroll-locked', !!locked);
+        document.body.classList.toggle('st-filter-scroll-locked', !!locked);
     };
 
     // کمک‌کننده‌های ورود با کد یکبار‌مصرف (OTP): ارسال فرم نهایی برای ست‌کردن کوکی و فوکوس خودکار.

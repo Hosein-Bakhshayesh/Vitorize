@@ -1,7 +1,9 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @using Vitorize.Shared.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
+@implements IAsyncDisposable
 
 <div class="st-bc">
     <a href="/">خانه</a> <Icon Name="chevron-left" Size="13" />
@@ -29,14 +31,17 @@
 @{
     RenderFragment filters =
     @<div>
-        <div class="st-fhead">
-            <div class="st-fhead__t">فیلترها @if (ActiveCount > 0) { <span class="st-fhead__count">@AUI.Number(ActiveCount)</span> }</div>
-            @if (ActiveCount > 0) { <button class="st-fhead__clear" @onclick="ClearAll">پاک کردن همه</button> }
-        </div>
+        @if (!_sheetOpen)
+        {
+            <div class="st-fhead">
+                <div class="st-fhead__t">فیلترها @if (ActiveCount > 0) { <span class="st-fhead__count">@AUI.Number(ActiveCount)</span> }</div>
+                @if (ActiveCount > 0) { <button type="button" class="st-fhead__clear" @onclick="ClearAll">پاک کردن همه</button> }
+            </div>
+        }
 
         <div class="st-fsearch">
             <span class="ic"><Icon Name="search" Size="13" /></span>
-            <input placeholder="جستجو در فیلترها ..." @bind="_filterSearch" @bind:event="oninput" />
+            <input aria-label="جستجو در فیلترها" placeholder="جستجو در فیلترها ..." @bind="_filterSearch" @bind:event="oninput" />
         </div>
 
         @if (ActiveChips.Count > 0)
@@ -51,19 +56,19 @@
 
         @* Category (single-select) *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gCat = !_gCat">
+            <button type="button" class="st-fg__head" @onclick="() => _gCat = !_gCat" aria-expanded="@_gCat">
                 <span class="st-fg__label">دسته‌بندی @if (!string.IsNullOrEmpty(_categoryId)) { <span class="st-fg__sel">۱</span> }</span>
                 <span class="st-fg__chev @(_gCat ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gCat)
             {
                 <div class="st-fg__body">
                     @foreach (var c in FilterList(_categories))
                     {
                         var on = _categoryId == c.Id.ToString();
-                        <div class="st-fopt" @onclick="() => SelectCategory(on ? null : c.Id.ToString())">
+                        <button type="button" class="st-fopt" @onclick="() => SelectCategory(on ? null : c.Id.ToString())" aria-pressed="@on">
                             <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@c.Title</span></span>
-                        </div>
+                        </button>
                     }
                     @if (FilterList(_categories).Count == 0) { <div class="st-fg__empty">موردی یافت نشد</div> }
                 </div>
@@ -72,19 +77,19 @@
 
         @* Brand (single-select) *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gBrand = !_gBrand">
+            <button type="button" class="st-fg__head" @onclick="() => _gBrand = !_gBrand" aria-expanded="@_gBrand">
                 <span class="st-fg__label">برند @if (!string.IsNullOrEmpty(_brandId)) { <span class="st-fg__sel">۱</span> }</span>
                 <span class="st-fg__chev @(_gBrand ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gBrand)
             {
                 <div class="st-fg__body">
                     @foreach (var b in FilterList(_brands))
                     {
                         var on = _brandId == b.Id.ToString();
-                        <div class="st-fopt" @onclick="() => SelectBrand(on ? null : b.Id.ToString())">
+                        <button type="button" class="st-fopt" @onclick="() => SelectBrand(on ? null : b.Id.ToString())" aria-pressed="@on">
                             <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@b.Title</span></span>
-                        </div>
+                        </button>
                     }
                     @if (FilterList(_brands).Count == 0) { <div class="st-fg__empty">موردی یافت نشد</div> }
                 </div>
@@ -93,19 +98,19 @@
 
         @* Product type (server filtered, multi-select) *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gType = !_gType">
+            <button type="button" class="st-fg__head" @onclick="() => _gType = !_gType" aria-expanded="@_gType">
                 <span class="st-fg__label">نوع محصول @if (_types.Count > 0) { <span class="st-fg__sel">@AUI.Number(_types.Count)</span> }</span>
                 <span class="st-fg__chev @(_gType ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gType)
             {
                 <div class="st-fg__body">
                     @foreach (var t in ProductTypes)
                     {
                         var on = _types.Contains(t.Key);
-                        <div class="st-fopt" @onclick="() => ToggleType(t.Key)">
+                        <button type="button" class="st-fopt" @onclick="() => ToggleType(t.Key)" aria-pressed="@on">
                             <span class="st-fopt__l"><span class="st-fbox @(on ? "on" : null)">@if (on) { <Icon Name="check" Size="11" /> }</span><span>@t.Value</span></span>
-                        </div>
+                        </button>
                     }
                 </div>
             }
@@ -113,32 +118,32 @@
 
         @* Availability + delivery (server filtered) *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gAvail = !_gAvail">
+            <button type="button" class="st-fg__head" @onclick="() => _gAvail = !_gAvail" aria-expanded="@_gAvail">
                 <span class="st-fg__label">موجودی و تحویل</span>
                 <span class="st-fg__chev @(_gAvail ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gAvail)
             {
                 <div class="st-fg__body">
-                    <div class="st-fopt" @onclick="ToggleInStock">
+                    <button type="button" class="st-fopt" @onclick="ToggleInStock" aria-pressed="@_inStockOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_inStockOnly ? "on" : null)">@if (_inStockOnly) { <Icon Name="check" Size="11" /> }</span><span>فقط کالاهای موجود</span></span>
-                    </div>
-                    <div class="st-fopt" @onclick="ToggleInstantOnly">
+                    </button>
+                    <button type="button" class="st-fopt" @onclick="ToggleInstantOnly" aria-pressed="@_instantOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_instantOnly ? "on" : null)">@if (_instantOnly) { <Icon Name="check" Size="11" /> }</span><span>تحویل آنی</span></span>
-                    </div>
-                    <div class="st-fopt" @onclick="ToggleVerifiedOnly">
+                    </button>
+                    <button type="button" class="st-fopt" @onclick="ToggleVerifiedOnly" aria-pressed="@_verifiedOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_verifiedOnly ? "on" : null)">@if (_verifiedOnly) { <Icon Name="check" Size="11" /> }</span><span>نیازمند احراز هویت</span></span>
-                    </div>
+                    </button>
                 </div>
             }
         </div>
 
         @* Discount tiers *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gDiscount = !_gDiscount">
+            <button type="button" class="st-fg__head" @onclick="() => _gDiscount = !_gDiscount" aria-expanded="@_gDiscount">
                 <span class="st-fg__label">تخفیف</span>
                 <span class="st-fg__chev @(_gDiscount ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gDiscount)
             {
                 <div class="st-dpills">
@@ -153,16 +158,16 @@
 
         @* Price range *@
         <div class="st-fg">
-            <div class="st-fg__head" @onclick="() => _gPrice = !_gPrice">
+            <button type="button" class="st-fg__head" @onclick="() => _gPrice = !_gPrice" aria-expanded="@_gPrice">
                 <span class="st-fg__label">محدوده قیمت</span>
                 <span class="st-fg__chev @(_gPrice ? "open" : null)">▾</span>
-            </div>
+            </button>
             @if (_gPrice)
             {
                 <div class="st-prange">
                     <div class="st-prange__inputs">
-                        <input type="number" placeholder="از (تومان)" @bind="_minPrice" @bind:after="ReloadFromFilters" />
-                        <input type="number" placeholder="تا (تومان)" @bind="_maxPrice" @bind:after="ReloadFromFilters" />
+                        <input type="number" aria-label="حداقل قیمت به تومان" placeholder="از (تومان)" @bind="_minPrice" @bind:after="ReloadFromFilters" />
+                        <input type="number" aria-label="حداکثر قیمت به تومان" placeholder="تا (تومان)" @bind="_maxPrice" @bind:after="ReloadFromFilters" />
                     </div>
                 </div>
             }
@@ -255,21 +260,34 @@
     </div>
 </div>
 
-@* ---------- mobile filter FAB + bottom sheet ---------- *@
-<button class="st-fab" @onclick="() => _sheetOpen = true">
+@* ---------- mobile filter dialog ---------- *@
+<button id="st-filter-trigger" type="button" class="st-fab" @onclick="OpenSheet" aria-haspopup="dialog" aria-expanded="@_sheetOpen">
     <Icon Name="sliders" Size="17" /> فیلترها @if (ActiveCount > 0) { <span class="st-fab__c">@AUI.Number(ActiveCount)</span> }
 </button>
 @if (_sheetOpen)
 {
-    <div class="st-sheet">
-        <div class="st-sheet__bd" @onclick="() => _sheetOpen = false"></div>
-        <div class="st-sheet__panel">
-            <div class="st-sheet__grip"></div>
-            @filters
-            <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="() => _sheetOpen = false">
-                نمایش @AUI.Number(_totalCount) محصول
-            </button>
-        </div>
+    <div class="st-filter-sheet" @onkeydown="HandleFilterSheetKeyDown">
+        <div class="st-filter-sheet__backdrop" @onclick="CloseSheet"></div>
+        <section class="st-filter-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="st-filter-sheet-title" tabindex="-1">
+            <header class="st-filter-sheet__header">
+                <div id="st-filter-sheet-title" class="st-filter-sheet__title">فیلترها @if (ActiveCount > 0) { <span class="st-fhead__count">@AUI.Number(ActiveCount)</span> }</div>
+                <button id="st-filter-sheet-close" type="button" class="st-filter-sheet__close" @onclick="CloseSheet" aria-label="بستن فیلترها" title="بستن فیلترها">
+                    <Icon Name="x" Size="20" />
+                </button>
+            </header>
+            <div class="st-filter-sheet__body">
+                @filters
+            </div>
+            <footer class="st-filter-sheet__footer">
+                @if (ActiveCount > 0)
+                {
+                    <button type="button" class="st-btn st-btn--outline st-btn--lg" @onclick="ClearAll">پاک کردن همه</button>
+                }
+                <button type="button" class="st-btn st-btn--accent st-btn--lg" @onclick="CloseSheet">
+                    نمایش @AUI.Number(_totalCount) محصول
+                </button>
+            </footer>
+        </section>
     </div>
 }
 
@@ -302,7 +320,7 @@
     private decimal? _minPrice, _maxPrice;
 
     private bool _gCat = true, _gBrand = true, _gType, _gAvail = true, _gDiscount = true, _gPrice = true;
-    private bool _sortOpen, _sheetOpen;
+    private bool _sortOpen, _sheetOpen, _sheetEffectsActive;
 
     private static readonly Dictionary<byte, string> ProductTypes = new()
     {
@@ -391,6 +409,43 @@
     private async Task SelectCategory(string? id) { _categoryId = id ?? string.Empty; await ReloadFromFilters(); }
     private async Task SelectBrand(string? id) { _brandId = id ?? string.Empty; await ReloadFromFilters(); }
     private async Task SelectSort(string s) { _sort = s; _sortOpen = false; await ReloadFromFilters(); }
+
+    private Task OpenSheet()
+    {
+        _sheetOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task CloseSheet()
+    {
+        if (!_sheetOpen) return;
+
+        _sheetOpen = false;
+        _sheetEffectsActive = false;
+        try { await JS.InvokeVoidAsync("vzStorefront.setFilterScrollLock", false); } catch { }
+        await JS.InvokeVoidAsync("vzStorefront.focus", "st-filter-trigger");
+    }
+
+    private async Task HandleFilterSheetKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") await CloseSheet();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_sheetOpen && !_sheetEffectsActive)
+        {
+            _sheetEffectsActive = true;
+            await JS.InvokeVoidAsync("vzStorefront.setFilterScrollLock", true);
+            await JS.InvokeVoidAsync("vzStorefront.focus", "st-filter-sheet-close");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_sheetEffectsActive) return;
+        try { await JS.InvokeVoidAsync("vzStorefront.setFilterScrollLock", false); } catch { }
+    }
 
     private async Task SetDiscount(int tier)
     {
