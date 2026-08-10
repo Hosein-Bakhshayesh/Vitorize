@@ -2,10 +2,10 @@
 @inject MediaUrlResolver Media
 
 <a class="st-logo" href="@Href" aria-label="@_alt">
-    <img class="st-logo__img @(_hasDark ? "st-logo__img--light" : null)" src="@_src" alt="@_alt" />
+    <img class="st-logo__img @(_hasDark ? "st-logo__img--light" : null)" src="@_src" alt="@_alt" width="42" height="42" />
     @if (_hasDark)
     {
-        <img class="st-logo__img st-logo__img--dark" src="@_darkSrc" alt="@_alt" />
+        <img class="st-logo__img st-logo__img--dark" src="@_darkSrc" alt="@_alt" width="42" height="42" />
     }
     @if (ShowWord)
     {
