@@ -39,9 +39,9 @@ else
                 </div>
             </div>
 
-            @if (_user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
+            @if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
             {
-                <div class="st-alert st-alert--warn">
+                <div data-testid="checkout-kyc-gate" class="st-alert st-alert--warn">
                     <Icon Name="shield" Size="20" />
                     <div>
                         <div style="font-weight:700">احراز هویت</div>
@@ -149,6 +149,7 @@ else
 
     private decimal Payable => _cart is null ? 0 : Math.Max(0, _cart.SubtotalAmount - _discount);
     private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
+    private bool RequiresKyc => _cart?.Items.Any(x => x.RequiresKyc) == true;
 
     protected override async Task OnInitializedAsync()
     {

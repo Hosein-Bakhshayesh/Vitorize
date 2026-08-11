@@ -236,6 +236,9 @@ namespace Vitorize.Api
                 options.AddPolicy("KycReview", policy => policy.RequireClaim(
                     Vitorize.Application.Common.AdminPermissions.ClaimType,
                     Vitorize.Application.Common.AdminPermissions.KycReview));
+                options.AddPolicy("KycManage", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.KycManage));
                 options.AddPolicy("SecurityDiagnostics", policy => policy.RequireClaim(
                     Vitorize.Application.Common.AdminPermissions.ClaimType,
                     Vitorize.Application.Common.AdminPermissions.SecurityDiagnostics));

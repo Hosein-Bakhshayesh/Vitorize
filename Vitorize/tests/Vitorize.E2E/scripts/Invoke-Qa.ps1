@@ -29,7 +29,7 @@
 param(
     [ValidateSet('smoke','auth','admin','customer','business','product','security','seo','ui','a11y','performance','visual','responsive','regression','release','all')]
     [string] $Suite = 'smoke',
-    [ValidateSet('desktop-light','desktop-dark','mobile-dark','phone-320-light','phone-360-dark-hidpi','phone-375-light','phone-390-dark','phone-412-light','phone-430-dark','phone-landscape-667-light','tablet-768-light','tablet-820-dark','tablet-landscape-1024-light','laptop-1280-dark','desktop-1366-light','desktop-1440-light','desktop-1440-dark','desktop-1920-light','all')]
+    [ValidateSet('desktop-light','desktop-dark','mobile-light','mobile-dark','phone-320-light','phone-360-dark-hidpi','phone-375-light','phone-390-dark','phone-412-light','phone-430-dark','phone-landscape-667-light','tablet-768-light','tablet-820-dark','tablet-landscape-1024-light','laptop-1280-dark','desktop-1366-light','desktop-1440-light','desktop-1440-dark','desktop-1920-light','all')]
     [string] $Project = 'desktop-light',
     [string] $Tag = '',
     [int] $Repeat = 1,
@@ -40,7 +40,10 @@ param(
     # Implied by -Suite release. Required before re-approving data-driven visual baselines.
     [switch] $Reset,
     # Re-approve Playwright visual baselines. Use ONLY with -Reset so baselines capture a pristine DB.
-    [switch] $UpdateSnapshots
+    [switch] $UpdateSnapshots,
+    # Remove the isolated Testing database after the stack stops. Intended for
+    # closure verification and CI agents that must leave no test data behind.
+    [switch] $DropDatabaseAfterRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -206,4 +209,18 @@ try {
 }
 finally {
     if (-not $KeepStack) { Stop-Stack }
+    if ($DropDatabaseAfterRun) {
+        $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder $connection
+        $database = $builder.InitialCatalog
+        if ($database -notmatch '^Vitorize_[A-Za-z0-9_]+$' -or $database -ieq 'VitorizeDb') {
+            throw "Refusing to drop non-testing database '$database'."
+        }
+        if ($builder.IntegratedSecurity) {
+            & sqlcmd -S $builder.DataSource -d master -E -b -Q "IF DB_ID(N'$database') IS NOT NULL BEGIN ALTER DATABASE [$database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$database]; END"
+        } else {
+            & sqlcmd -S $builder.DataSource -d master -U $builder.UserID -P $builder.Password -C -b -Q "IF DB_ID(N'$database') IS NOT NULL BEGIN ALTER DATABASE [$database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$database]; END"
+        }
+        if ($LASTEXITCODE -ne 0) { throw "Failed to drop isolated Testing database '$database'." }
+        Write-Host "Dropped isolated Testing database: $database" -ForegroundColor Green
+    }
 }

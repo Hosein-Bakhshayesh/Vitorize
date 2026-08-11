@@ -45,7 +45,7 @@ public sealed class AuthenticationUnitTests
         root.EnumerateObject().Should().Contain(x =>
             x.Name.EndsWith("/role", StringComparison.OrdinalIgnoreCase) && x.Value.GetString() == "Admin");
         token.Claims.Where(x => x.Type == AdminPermissions.ClaimType).Select(x => x.Value)
-            .Should().BeEquivalentTo(AdminPermissions.OrderFulfillment, AdminPermissions.KycReview, AdminPermissions.SettingsManage);
+            .Should().BeEquivalentTo(AdminPermissions.OrderFulfillment, AdminPermissions.KycReview, AdminPermissions.KycManage, AdminPermissions.SettingsManage);
         var expires = DateTimeOffset.FromUnixTimeSeconds(root.GetProperty("exp").GetInt64()).UtcDateTime;
         expires.Should().BeAfter(DateTime.UtcNow.AddMinutes(14));
         expires.Should().BeBefore(DateTime.UtcNow.AddMinutes(16));

@@ -116,6 +116,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 90,
+      "version": "V0010",
+      "name": "V0010__kyc_policy_and_order_item_snapshot.sql",
+      "path": "Versioned/V0010__kyc_policy_and_order_item_snapshot.sql",
+      "sha256": "029bf21945b4d1f19c14b3620955a64cbcf37512767e92b482ac8b7d5c5557f0",
+      "classification": "required",
+      "dependencies": ["V0009", "dbo.Products", "dbo.OrderItems", "dbo.UserVerificationProfiles"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

@@ -30,6 +30,10 @@ public partial class OrderItem
     public byte DeliveryStatus { get; set; }
 
     public bool RequiresVerification { get; set; }
+    public byte KycRequirementMode { get; set; }
+    public decimal? KycThresholdAmount { get; set; }
+    public decimal KycEvaluatedAmount { get; set; }
+    public Guid? KycPolicyVersionId { get; set; }
 
     public Guid? SupportTicketId { get; set; }
 
@@ -52,4 +56,5 @@ public partial class OrderItem
     public virtual ProductVariant? ProductVariant { get; set; }
 
     public virtual Ticket? SupportTicket { get; set; }
+    public virtual KycPolicyVersion? KycPolicyVersion { get; set; }
 }

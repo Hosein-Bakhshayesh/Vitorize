@@ -23,6 +23,9 @@ namespace Vitorize.Web.Models.Admin.Products
         public decimal? DiscountPrice { get; set; }
         public decimal FinalPrice => DiscountPrice.HasValue && DiscountPrice.Value > 0 && DiscountPrice.Value < BasePrice ? DiscountPrice.Value : BasePrice;
         public bool RequiresVerification { get; set; }
+        public byte KycRequirementMode { get; set; }
+        public decimal? KycThresholdAmount { get; set; }
+        public Guid? KycPolicyVersionId { get; set; }
         public bool RequiresSupportMessage { get; set; }
         public int MinOrderQuantity { get; set; } = 1;
         public int? MaxOrderQuantity { get; set; }
@@ -65,6 +68,9 @@ namespace Vitorize.Web.Models.Admin.Products
         [Range(0, double.MaxValue, ErrorMessage = "قیمت تخفیف معتبر نیست.")]
         public decimal? DiscountPrice { get; set; }
         public bool RequiresVerification { get; set; }
+        public byte KycRequirementMode { get; set; }
+        public decimal? KycThresholdAmount { get; set; }
+        public Guid? KycPolicyVersionId { get; set; }
         public bool RequiresSupportMessage { get; set; }
         [Range(1, 999999)] public int MinOrderQuantity { get; set; } = 1;
         [Range(1, 999999)] public int? MaxOrderQuantity { get; set; }

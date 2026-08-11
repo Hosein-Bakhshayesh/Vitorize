@@ -21,6 +21,19 @@ DECLARE @RelatedProductId uniqueidentifier = '31000000-0000-0000-0000-0000000000
 DECLARE @CouponId uniqueidentifier = '31000000-0000-0000-0000-000000000012';
 DECLARE @ChildCategoryId uniqueidentifier = '31000000-0000-0000-0000-000000000032';
 DECLARE @E2eAdminId uniqueidentifier = (SELECT TOP (1) Id FROM dbo.Users WHERE Mobile = N'09120000011');
+-- FIX-09 Phase 1 deterministic KYC fixture. These IDs and catalog records exist
+-- only in the disposable browser database prepared by Invoke-Qa.ps1.
+DECLARE @Fix09PolicyId uniqueidentifier = '31000000-0000-0000-0000-000000000041';
+DECLARE @Fix09PolicyV1Id uniqueidentifier = '31000000-0000-0000-0000-000000000042';
+DECLARE @Fix09PolicyV2Id uniqueidentifier = '31000000-0000-0000-0000-000000000043';
+DECLARE @Fix09PolicyDraftId uniqueidentifier = '31000000-0000-0000-0000-000000000046';
+DECLARE @Fix09DocumentAId uniqueidentifier = '31000000-0000-0000-0000-000000000044';
+DECLARE @Fix09DocumentBId uniqueidentifier = '31000000-0000-0000-0000-000000000045';
+DECLARE @Fix09NoneProductId uniqueidentifier = '31000000-0000-0000-0000-000000000050';
+DECLARE @Fix09AlwaysProductId uniqueidentifier = '31000000-0000-0000-0000-000000000051';
+DECLARE @Fix09QuantityProductId uniqueidentifier = '31000000-0000-0000-0000-000000000052';
+DECLARE @Fix09AboveProductId uniqueidentifier = '31000000-0000-0000-0000-000000000053';
+DECLARE @Fix09BelowProductId uniqueidentifier = '31000000-0000-0000-0000-000000000054';
 
 -- Keep the dedicated Testing-only administrator stable between runs. Browser
 -- scenarios create immutable financial history that must retain its actor FK,
@@ -69,7 +82,7 @@ WHERE ur.UserId = @E2eAdminUserId AND r.Name IN (N'SuperAdmin', N'Support', N'Cu
 IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @E2eCustomerUserId)
     INSERT dbo.Users (Id, FullName, Mobile, Email, PasswordHash, Status, IsMobileConfirmed, CreatedAt)
     VALUES (@E2eCustomerUserId, N'E2E Customer', N'09120000013', N'e2e-customer@example.test', @E2ePasswordHash, 1, 1, SYSUTCDATETIME());
-UPDATE dbo.Users SET PasswordHash = @E2ePasswordHash, Status = 1, IsMobileConfirmed = 1, IsDeleted = 0 WHERE Id = @E2eCustomerUserId;
+UPDATE dbo.Users SET PasswordHash = @E2ePasswordHash, Status = 1, VerificationStatus = 0, IsMobileConfirmed = 1, IsDeleted = 0 WHERE Id = @E2eCustomerUserId;
 INSERT dbo.UserRoles (UserId, RoleId)
 SELECT @E2eCustomerUserId, r.Id FROM dbo.Roles r
 WHERE r.Name = N'Customer'
@@ -263,6 +276,52 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Coupons WHERE Id = @CouponId)
          MinOrderAmount, StartsAt, EndsAt, IsActive, CreatedAt)
     VALUES (@CouponId, N'E2E10', N'E2E ten percent', 1, 10, 1000, 0, 10, 1000,
             DATEADD(day, -1, SYSUTCDATETIME()), DATEADD(day, 30, SYSUTCDATETIME()), 1, SYSUTCDATETIME());
+
+-- FIX-09 Phase 1: published V1/V2 policy, required/optional image documents,
+-- and the exact product price boundaries used by the focused browser suite.
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicies WHERE Id = @Fix09PolicyId)
+    INSERT dbo.KycPolicies (Id, Code, Name, IsActive, CreatedAt)
+    VALUES (@Fix09PolicyId, N'e2e-fix09-phase1', N'E2E FIX-09 Phase 1 Policy', 1, SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicyVersions WHERE Id = @Fix09PolicyV1Id)
+    INSERT dbo.KycPolicyVersions (Id, KycPolicyId, Version, Status, CustomerTitle, CustomerInstructions, CreatedAt, PublishedAt)
+    VALUES (@Fix09PolicyV1Id, @Fix09PolicyId, 1, 2, N'E2E KYC V1', N'Deterministic V1 instructions.', SYSUTCDATETIME(), SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicyVersions WHERE Id = @Fix09PolicyV2Id)
+    INSERT dbo.KycPolicyVersions (Id, KycPolicyId, Version, Status, CustomerTitle, CustomerInstructions, CreatedAt, PublishedAt)
+    VALUES (@Fix09PolicyV2Id, @Fix09PolicyId, 2, 2, N'E2E KYC V2', N'Deterministic V2 instructions.', SYSUTCDATETIME(), SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicyVersions WHERE Id = @Fix09PolicyDraftId)
+    INSERT dbo.KycPolicyVersions (Id, KycPolicyId, Version, Status, CustomerTitle, CustomerInstructions, CreatedAt)
+    VALUES (@Fix09PolicyDraftId, @Fix09PolicyId, 3, 1, N'E2E KYC Draft', N'Deterministic unpublished policy.', SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycDocumentTypes WHERE Id = @Fix09DocumentAId)
+    INSERT dbo.KycDocumentTypes (Id, Code, Title, IsActive, AllowedExtensions, MaxFileSizeBytes, SortOrder, CreatedAt)
+    VALUES (@Fix09DocumentAId, N'e2e-identity-a', N'E2E Identity A', 1, N'jpg,jpeg,png,webp', 5242880, 10, SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycDocumentTypes WHERE Id = @Fix09DocumentBId)
+    INSERT dbo.KycDocumentTypes (Id, Code, Title, IsActive, AllowedExtensions, MaxFileSizeBytes, SortOrder, CreatedAt)
+    VALUES (@Fix09DocumentBId, N'e2e-identity-b', N'E2E Identity B', 1, N'jpg,jpeg,png,webp', 5242880, 20, SYSUTCDATETIME());
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicyDocumentRequirements WHERE KycPolicyVersionId = @Fix09PolicyV1Id AND KycDocumentTypeId = @Fix09DocumentAId)
+    INSERT dbo.KycPolicyDocumentRequirements (Id, KycPolicyVersionId, KycDocumentTypeId, IsRequired, SortOrder)
+    VALUES (NEWID(), @Fix09PolicyV1Id, @Fix09DocumentAId, 1, 10);
+IF NOT EXISTS (SELECT 1 FROM dbo.KycPolicyDocumentRequirements WHERE KycPolicyVersionId = @Fix09PolicyV1Id AND KycDocumentTypeId = @Fix09DocumentBId)
+    INSERT dbo.KycPolicyDocumentRequirements (Id, KycPolicyVersionId, KycDocumentTypeId, IsRequired, SortOrder)
+    VALUES (NEWID(), @Fix09PolicyV1Id, @Fix09DocumentBId, 0, 20);
+
+DECLARE @Fix09Products TABLE (Id uniqueidentifier, Title nvarchar(250), Slug nvarchar(250), Price decimal(18,2), Mode tinyint, Threshold decimal(18,2) NULL);
+INSERT @Fix09Products VALUES
+    (@Fix09NoneProductId, N'E2E FIX09 None', N'e2e-fix09-none', 3000, 0, NULL),
+    (@Fix09AlwaysProductId, N'E2E FIX09 Always', N'e2e-fix09-always', 5001, 1, NULL),
+    (@Fix09QuantityProductId, N'E2E FIX09 Quantity', N'e2e-fix09-quantity', 2500, 2, 4000),
+    (@Fix09AboveProductId, N'E2E FIX09 Above', N'e2e-fix09-above', 5001, 2, 5000),
+    (@Fix09BelowProductId, N'E2E FIX09 Below', N'e2e-fix09-below', 4999, 2, 5000);
+INSERT dbo.Products (Id, CategoryId, BrandId, Title, Slug, ShortDescription, FullDescription, SeoTitle, SeoDescription,
+    ProductType, DeliveryType, BasePrice, CurrencyType, RequiresVerification, KycRequirementMode, KycThresholdAmount, KycPolicyVersionId,
+    MinOrderQuantity, IsActive, IsFeatured, IsDeleted, CreatedAt)
+SELECT p.Id, @CategoryId, @BrandId, p.Title, p.Slug, N'Deterministic FIX-09 Phase 1 browser product.', N'<p>FIX-09 fixture.</p>', p.Title, p.Title,
+    1, 2, p.Price, 2, CASE WHEN p.Mode = 0 THEN 0 ELSE 1 END, p.Mode, p.Threshold, CASE WHEN p.Mode = 0 THEN NULL ELSE @Fix09PolicyV1Id END,
+    1, 1, 0, 0, SYSUTCDATETIME()
+FROM @Fix09Products p WHERE NOT EXISTS (SELECT 1 FROM dbo.Products existing WHERE existing.Id = p.Id);
+UPDATE p SET p.Title = f.Title, p.BasePrice = f.Price, p.IsActive = 1, p.IsDeleted = 0, p.DeliveryType = 2,
+    p.RequiresVerification = CASE WHEN f.Mode = 0 THEN 0 ELSE 1 END, p.KycRequirementMode = f.Mode,
+    p.KycThresholdAmount = f.Threshold, p.KycPolicyVersionId = CASE WHEN f.Mode = 0 THEN NULL ELSE @Fix09PolicyV1Id END
+FROM dbo.Products p JOIN @Fix09Products f ON f.Id = p.Id;
 
 UPDATE dbo.Settings SET Value = N'true' WHERE [Key] IN (N'Sms.IsEnabled', N'SmsEnabled');
 UPDATE dbo.Settings SET Value = N'Testing' WHERE [Key] IN (N'Sms.Provider', N'SmsProvider');

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vitorize.Application.DTOs.Cart;
 using Vitorize.Application.DTOs.Checkout;
+using Vitorize.Application.DTOs.Admin.Kyc;
 using Vitorize.Application.DTOs.Orders;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -208,6 +209,113 @@ public sealed class CommerceIntegrationTests
             Quantity = 1
         });
         add.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Product_threshold_kyc_is_checked_before_payment_and_snapshotted_at_checkout()
+    {
+        var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var product = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 250m);
+        Guid policyVersionId;
+        await using (var db = _fixture.CreateDbContext())
+        {
+            policyVersionId = await db.KycPolicyVersions
+                .Where(x => x.KycPolicy.Code == "legacy-profile-verification")
+                .Select(x => x.Id).SingleAsync();
+            var stored = await db.Products.SingleAsync(x => x.Id == product.Id);
+            stored.KycRequirementMode = (byte)KycRequirementMode.AboveThreshold;
+            stored.KycThresholdAmount = 500m;
+            stored.KycPolicyVersionId = policyVersionId;
+            stored.RequiresVerification = true;
+            await db.SaveChangesAsync();
+        }
+
+        using var client = _fixture.CreateClient(token);
+        (await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"kyc-threshold-{Guid.NewGuid():N}");
+        (await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto())).StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "the KYC threshold is reached at UnitPrice × Quantity before a payment attempt is created");
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var storedUser = await db.Users.SingleAsync(x => x.Id == user.Id);
+            storedUser.IsMobileConfirmed = true;
+            storedUser.VerificationStatus = (byte)VerificationStatus.Verified;
+            await db.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Remove("Idempotency-Key");
+        client.DefaultRequestHeaders.Add("Idempotency-Key", $"kyc-threshold-verified-{Guid.NewGuid():N}");
+        var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var checkout = (await response.Content.ReadFromJsonAsync<ApiResult<CheckoutResultDto>>())!.Data!;
+
+        await using var verify = _fixture.CreateDbContext();
+        var item = await verify.OrderItems.SingleAsync(x => x.OrderId == checkout.OrderId);
+        item.RequiresVerification.Should().BeTrue();
+        item.KycRequirementMode.Should().Be((byte)KycRequirementMode.AboveThreshold);
+        item.KycThresholdAmount.Should().Be(500m);
+        item.KycEvaluatedAmount.Should().Be(500m);
+        item.KycPolicyVersionId.Should().Be(policyVersionId);
+    }
+
+    [Fact]
+    public async Task Kyc_policy_admin_returns_only_published_active_policy_versions()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var client = _fixture.CreateClient(adminToken);
+
+        var response = await client.GetAsync("/api/admin/kyc/policy-versions");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = (await response.Content.ReadFromJsonAsync<ApiResult<List<AdminKycPolicyVersionOptionDto>>>())!;
+        body.IsSuccess.Should().BeTrue();
+        body.Data.Should().Contain(x => x.PolicyCode == "legacy-profile-verification" && x.Status == (byte)KycPolicyVersionStatus.Published);
+    }
+
+    [Fact]
+    public async Task Kyc_policy_versions_are_draft_editable_then_immutable_with_historical_requirements()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var client = _fixture.CreateClient(adminToken);
+        var suffix = Guid.NewGuid().ToString("N");
+        var documentResponse = await client.PostAsJsonAsync("/api/admin/kyc/document-types", new UpsertKycDocumentTypeRequestDto
+        {
+            Code = $"id-{suffix}", Title = "Integration identity", IsActive = true, AllowedExtensions = "jpg,jpeg,png,webp", MaxFileSizeBytes = 1024
+        });
+        documentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var document = (await documentResponse.Content.ReadFromJsonAsync<ApiResult<AdminKycDocumentTypeDto>>())!.Data!;
+
+        var createResponse = await client.PostAsJsonAsync("/api/admin/kyc/policies", new UpsertKycPolicyRequestDto
+        {
+            Code = $"policy-{suffix}", Name = "Integration policy", CustomerTitle = "V1 title", CustomerInstructions = "V1 instructions"
+        });
+        createResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var policy = (await createResponse.Content.ReadFromJsonAsync<ApiResult<AdminKycPolicyDto>>())!.Data!;
+        var v1 = policy.Versions.Should().ContainSingle().Which;
+
+        (await client.PutAsJsonAsync($"/api/admin/kyc/policy-versions/{v1.Id}/document-requirements", new SetKycPolicyDocumentRequirementsRequestDto
+        {
+            Requirements = [new KycPolicyDocumentRequirementRequestDto { KycDocumentTypeId = document.Id, IsRequired = true, SortOrder = 10, CustomerInstructions = "V1 document" }]
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.PostAsJsonAsync($"/api/admin/kyc/policy-versions/{v1.Id}/publish", new { })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await client.PutAsJsonAsync($"/api/admin/kyc/policy-versions/{v1.Id}", new UpdateKycPolicyVersionRequestDto { CustomerTitle = "mutated" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "published semantic fields must be immutable");
+        (await client.PutAsJsonAsync($"/api/admin/kyc/policy-versions/{v1.Id}/document-requirements", new SetKycPolicyDocumentRequirementsRequestDto()))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "published requirements must be immutable");
+
+        var v2Response = await client.PostAsJsonAsync($"/api/admin/kyc/policies/{policy.Id}/versions", new CreateKycPolicyVersionRequestDto { CustomerTitle = "V2 title", CustomerInstructions = "V2 instructions" });
+        v2Response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var v2 = (await v2Response.Content.ReadFromJsonAsync<ApiResult<AdminKycPolicyVersionOptionDto>>())!.Data!;
+        v2.Version.Should().Be(2);
+        (await client.PostAsJsonAsync($"/api/admin/kyc/policy-versions/{v2.Id}/publish", new { })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var v1Read = (await (await client.GetAsync($"/api/admin/kyc/policy-versions/{v1.Id}")).Content.ReadFromJsonAsync<ApiResult<AdminKycPolicyVersionOptionDto>>())!.Data!;
+        v1Read.CustomerTitle.Should().Be("V1 title");
+        v1Read.CustomerInstructions.Should().Be("V1 instructions");
+        v1Read.DocumentRequirements.Should().ContainSingle(x => x.KycDocumentTypeId == document.Id && x.IsRequired && x.CustomerInstructions == "V1 document");
     }
 
     [Fact]

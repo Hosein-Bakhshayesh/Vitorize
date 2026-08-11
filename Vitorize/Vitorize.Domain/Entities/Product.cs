@@ -31,6 +31,10 @@ public partial class Product
 
     public bool RequiresVerification { get; set; }
 
+    public byte KycRequirementMode { get; set; }
+    public decimal? KycThresholdAmount { get; set; }
+    public Guid? KycPolicyVersionId { get; set; }
+
     public bool RequiresSupportMessage { get; set; }
 
     public int MinOrderQuantity { get; set; }
@@ -86,6 +90,7 @@ public partial class Product
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();
 
     public virtual ICollection<WishList> WishLists { get; set; } = new List<WishList>();
+    public virtual KycPolicyVersion? KycPolicyVersion { get; set; }
 
     public virtual ICollection<ProductTag> Tags { get; set; } = new List<ProductTag>();
 }

@@ -49,6 +49,10 @@ public partial class VitorizeDbContext : DbContext
     public virtual DbSet<IdempotencyKey> IdempotencyKeys { get; set; }
 
     public virtual DbSet<LegacyRedirect> LegacyRedirects { get; set; }
+    public virtual DbSet<KycPolicy> KycPolicies { get; set; }
+    public virtual DbSet<KycPolicyVersion> KycPolicyVersions { get; set; }
+    public virtual DbSet<KycDocumentType> KycDocumentTypes { get; set; }
+    public virtual DbSet<KycPolicyDocumentRequirement> KycPolicyDocumentRequirements { get; set; }
 
     public virtual DbSet<Notification> Notifications { get; set; }
 
@@ -553,8 +557,13 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Quantity).HasDefaultValue(1);
             entity.Property(e => e.TotalPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.KycThresholdAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.KycEvaluatedAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.VariantTitle).HasMaxLength(200);
+
+            entity.HasIndex(e => e.KycPolicyVersionId, "IX_OrderItems_KycPolicyVersionId")
+                .HasFilter("([KycPolicyVersionId] IS NOT NULL)");
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.OrderId)
@@ -573,6 +582,11 @@ public partial class VitorizeDbContext : DbContext
             entity.HasOne(d => d.SupportTicket).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.SupportTicketId)
                 .HasConstraintName("FK_OrderItems_Tickets");
+
+            entity.HasOne(d => d.KycPolicyVersion).WithMany()
+                .HasForeignKey(d => d.KycPolicyVersionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_OrderItems_KycPolicyVersions");
         });
 
         modelBuilder.Entity<OrderItemDelivery>(entity =>
@@ -764,6 +778,43 @@ public partial class VitorizeDbContext : DbContext
                 .HasConstraintName("FK_Payments_Users");
         });
 
+        modelBuilder.Entity<KycPolicy>(entity =>
+        {
+            entity.ToTable("KycPolicies");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code, "UX_KycPolicies_Code").IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(100);
+            entity.Property(x => x.Name).HasMaxLength(250);
+        });
+        modelBuilder.Entity<KycPolicyVersion>(entity =>
+        {
+            entity.ToTable("KycPolicyVersions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.KycPolicyId, x.Version }, "UX_KycPolicyVersions_Policy_Version").IsUnique();
+            entity.Property(x => x.CustomerTitle).HasMaxLength(250);
+            entity.Property(x => x.CustomerInstructions).HasMaxLength(4000);
+            entity.HasOne(x => x.KycPolicy).WithMany(x => x.Versions).HasForeignKey(x => x.KycPolicyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<KycDocumentType>(entity =>
+        {
+            entity.ToTable("KycDocumentTypes");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code, "UX_KycDocumentTypes_Code").IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(100);
+            entity.Property(x => x.Title).HasMaxLength(250);
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.AllowedExtensions).HasMaxLength(100);
+        });
+        modelBuilder.Entity<KycPolicyDocumentRequirement>(entity =>
+        {
+            entity.ToTable("KycPolicyDocumentRequirements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.KycPolicyVersionId, x.KycDocumentTypeId }, "UX_KycPolicyDocumentRequirements_Version_Document").IsUnique();
+            entity.Property(x => x.Instructions).HasMaxLength(1000);
+            entity.HasOne(x => x.KycPolicyVersion).WithMany(x => x.DocumentRequirements).HasForeignKey(x => x.KycPolicyVersionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.KycDocumentType).WithMany(x => x.PolicyRequirements).HasForeignKey(x => x.KycDocumentTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<PaymentCallback>(entity =>
         {
             entity.HasIndex(e => e.PaymentId, "IX_PaymentCallbacks_PaymentId");
@@ -821,6 +872,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.BasePrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.DiscountPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.KycThresholdAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.MinOrderQuantity).HasDefaultValue(1);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
@@ -832,6 +884,9 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.ThumbnailAltText).HasMaxLength(250);
             entity.Property(e => e.Title).HasMaxLength(250);
 
+            entity.HasIndex(e => e.KycPolicyVersionId, "IX_Products_KycPolicyVersionId")
+                .HasFilter("([KycPolicyVersionId] IS NOT NULL)");
+
             entity.HasOne(d => d.Brand).WithMany(p => p.Products)
                 .HasForeignKey(d => d.BrandId)
                 .HasConstraintName("FK_Products_Brands");
@@ -840,6 +895,11 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.CategoryId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Products_Categories");
+
+            entity.HasOne(d => d.KycPolicyVersion).WithMany()
+                .HasForeignKey(d => d.KycPolicyVersionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Products_KycPolicyVersions");
 
             entity.HasMany(d => d.Tags).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(

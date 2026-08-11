@@ -356,7 +356,32 @@ else
                     <div class="vz-card__body vz-stack">
                         <label class="vz-switch"><input type="checkbox" data-testid="product-active" @bind="_model.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول فعال (منتشر شده)</span></label>
                         <label class="vz-switch"><input type="checkbox" data-testid="product-featured" @bind="_model.IsFeatured" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول ویژه</span></label>
-                        <label class="vz-switch"><input type="checkbox" @bind="_model.RequiresVerification" /><span class="vz-switch__track"></span><span class="vz-switch__label">نیازمند احراز هویت</span></label>
+                        <div class="vz-field">
+                            <label>سیاست احراز هویت</label>
+                            <select data-testid="product-kyc-mode" @bind="_model.KycRequirementMode">
+                                <option value="0">بدون احراز هویت</option>
+                                <option value="1">همیشه احراز هویت لازم است</option>
+                                <option value="2">احراز هویت از آستانه مبلغ</option>
+                            </select>
+                        </div>
+                        @if (_model.KycRequirementMode == 2)
+                        {
+                            <div class="vz-field"><label>آستانه مبلغ (مبلغ کالا × تعداد)</label><InputNumber @bind-Value="_model.KycThresholdAmount" /></div>
+                        }
+                        @if (_model.KycRequirementMode != 0)
+                        {
+                            <div class="vz-field">
+                                <label>نسخه منتشرشده سیاست</label>
+                                <select data-testid="product-kyc-policy" @bind="_model.KycPolicyVersionId">
+                                    <option value="">انتخاب کنید</option>
+                                    @foreach (var policy in _kycPolicyVersions)
+                                    {
+                                        <option value="@policy.Id">@policy.PolicyName — نسخه @policy.Version</option>
+                                    }
+                                </select>
+                                <div class="vz-help">این انتخاب همراه سفارش ثبت می‌شود و تغییرهای آینده روی خریدهای قبلی اثر ندارد.</div>
+                            </div>
+                        }
                         <label class="vz-switch"><input type="checkbox" @bind="_model.RequiresSupportMessage" /><span class="vz-switch__track"></span><span class="vz-switch__label">نیازمند پیام پشتیبانی</span></label>
                     </div>
                 </div>
@@ -444,6 +469,7 @@ else
     private List<AdminCategoryModel> _categories = new();
     private List<AdminBrandModel> _brands = new();
     private List<AdminProductTagModel> _tags = new();
+    private List<KycPolicyVersionOptionModel> _kycPolicyVersions = new();
     private List<AdminProductVariantModel> _variants = new();
     private int _variantPage = 1, _variantTotal;
     private const int _variantPageSize = 25;
@@ -466,6 +492,12 @@ else
         ? _model.DiscountPrice.Value : _model.BasePrice;
 
     private record DeliveryOption(byte Key, string Label);
+    private sealed class KycPolicyVersionOptionModel
+    {
+        public Guid Id { get; set; }
+        public string PolicyName { get; set; } = string.Empty;
+        public int Version { get; set; }
+    }
     private static readonly DeliveryOption[] DeliveryOptions =
     {
         new(1, "تحویل آنی"), new(2, "تحویل دستی"), new(3, "نیازمند پشتیبانی"),
@@ -480,11 +512,13 @@ else
         var catTask = Api.GetAsync<List<AdminCategoryModel>>("admin/categories");
         var brandTask = Api.GetAsync<List<AdminBrandModel>>("admin/brands");
         var tagTask = Api.GetAsync<List<AdminProductTagModel>>("admin/product-tags");
-        await Task.WhenAll(catTask, brandTask, tagTask);
+        var kycTask = Api.GetAsync<List<KycPolicyVersionOptionModel>>("admin/kyc/policy-versions");
+        await Task.WhenAll(catTask, brandTask, tagTask, kycTask);
 
         _categories = catTask.Result.Data ?? new();
         _brands = brandTask.Result.Data ?? new();
         _tags = tagTask.Result.Data ?? new();
+        _kycPolicyVersions = kycTask.Result.Data ?? new();
 
         if (IsEdit)
         {
@@ -501,7 +535,9 @@ else
                 ShortDescription = p.ShortDescription, FullDescription = p.FullDescription,
                 ThumbnailImagePath = p.ThumbnailImagePath, ThumbnailAltText = p.ThumbnailAltText, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
                 CurrencyType = p.CurrencyType, BasePrice = p.BasePrice, DiscountPrice = p.DiscountPrice,
-                RequiresVerification = p.RequiresVerification, RequiresSupportMessage = p.RequiresSupportMessage,
+                RequiresVerification = p.RequiresVerification, KycRequirementMode = p.KycRequirementMode,
+                KycThresholdAmount = p.KycThresholdAmount, KycPolicyVersionId = p.KycPolicyVersionId,
+                RequiresSupportMessage = p.RequiresSupportMessage,
                 MinOrderQuantity = p.MinOrderQuantity, MaxOrderQuantity = p.MaxOrderQuantity,
                 IsFeatured = p.IsFeatured, IsActive = p.IsActive, SeoTitle = p.SeoTitle,
                 SeoDescription = p.SeoDescription, FocusKeyword = p.FocusKeyword, TagIds = p.TagIds ?? new(), SortOrder = p.SortOrder,
@@ -513,7 +549,7 @@ else
         }
         else
         {
-            _model = new CreateProductRequestModel { IsActive = true, CurrencyType = 2, ProductType = 1, DeliveryType = 1, MinOrderQuantity = 1 };
+            _model = new CreateProductRequestModel { IsActive = true, CurrencyType = 2, ProductType = 1, DeliveryType = 1, MinOrderQuantity = 1, KycRequirementMode = 0 };
         }
 
         _loading = false;

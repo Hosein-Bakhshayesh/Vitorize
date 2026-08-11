@@ -114,10 +114,6 @@ namespace Vitorize.Infrastructure.Services
                     if (item.Quantity < Math.Max(1, product.MinOrderQuantity) ||
                         (product.MaxOrderQuantity.HasValue && item.Quantity > product.MaxOrderQuantity.Value))
                         throw new BusinessException($"تعداد سفارش محصول «{product.Title}» خارج از محدوده مجاز است.");
-                    if (product.RequiresVerification &&
-                        (!user.IsMobileConfirmed || user.VerificationStatus != (byte)VerificationStatus.Verified))
-                        throw new BusinessException("برای خرید این محصول، تأیید موبایل و احراز هویت کامل الزامی است.");
-
                     if (item.ProductVariantId.HasValue)
                     {
                         var variant = item.ProductVariant;
@@ -141,6 +137,11 @@ namespace Vitorize.Infrastructure.Services
                     if (item.UnitPrice < 0)
                         throw new BusinessException($"قیمت محصول «{product.Title}» معتبر نیست.");
                     item.CurrencyType = product.CurrencyType;
+
+                    var kyc = EvaluateProductKyc(product, item.UnitPrice, item.Quantity);
+                    if (kyc.RequiresKyc &&
+                        (!user.IsMobileConfirmed || user.VerificationStatus != (byte)VerificationStatus.Verified))
+                        throw new BusinessException("برای خرید این محصول، تأیید موبایل و احراز هویت کامل الزامی است.");
                 }
 
                 var currencies = cart.CartItems.Select(x => x.CurrencyType).Distinct().ToList();
@@ -202,6 +203,7 @@ namespace Vitorize.Infrastructure.Services
 
                 foreach (var cartItem in cart.CartItems)
                 {
+                    var kyc = EvaluateProductKyc(cartItem.Product, cartItem.UnitPrice, cartItem.Quantity);
                     var suppliedValues = cartItem.InputValues.ToDictionary(
                         x => x.FieldKey,
                         x => x.IsSensitive && x.EncryptedValue is not null
@@ -227,7 +229,11 @@ namespace Vitorize.Infrastructure.Services
                         CurrencyType = currencyType,
                         DeliveryType = cartItem.Product.DeliveryType,
                         DeliveryStatus = (byte)DeliveryStatus.Pending,
-                        RequiresVerification = cartItem.Product.RequiresVerification,
+                        RequiresVerification = kyc.RequiresKyc,
+                        KycRequirementMode = (byte)kyc.Mode,
+                        KycThresholdAmount = kyc.ThresholdAmount,
+                        KycEvaluatedAmount = kyc.EvaluatedAmount,
+                        KycPolicyVersionId = kyc.PolicyVersionId,
                         CreatedAt = now
                     };
 
@@ -382,6 +388,12 @@ namespace Vitorize.Infrastructure.Services
                 _dbContext.ChangeTracker.Clear();
                 throw;
             }
+        }
+
+        private static KycRequirementEvaluation EvaluateProductKyc(Product product, decimal unitPrice, int quantity)
+        {
+            return KycRequirementEvaluator.Evaluate(product.RequiresVerification, product.KycRequirementMode,
+                product.KycThresholdAmount, product.KycPolicyVersionId, unitPrice, quantity);
         }
 
         private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>

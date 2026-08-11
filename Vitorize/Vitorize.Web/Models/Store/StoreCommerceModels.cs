@@ -20,6 +20,11 @@ namespace Vitorize.Web.Models.Store
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public bool RequiresKyc { get; set; }
+        public byte KycRequirementMode { get; set; }
+        public decimal? KycThresholdAmount { get; set; }
+        public decimal KycEvaluatedAmount { get; set; }
+        public Guid? KycPolicyVersionId { get; set; }
         public List<StoreProductInputValueModel> InputValues { get; set; } = new();
         public List<StoreProductInputFieldModel> InputFields { get; set; } = new();
     }

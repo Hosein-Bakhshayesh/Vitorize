@@ -319,21 +319,34 @@ public class CartService : ICartService
 
     private static CartDto MapToDto(Cart cart)
     {
-        var items = cart.CartItems.OrderBy(x => x.CreatedAt).Select(x => new CartItemDto
+        var items = cart.CartItems.OrderBy(x => x.CreatedAt).Select(x =>
         {
-            Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,
-            ProductTitle = x.Product.Title, VariantTitle = x.ProductVariant?.Title,
-            ThumbnailImagePath = x.Product.ThumbnailImagePath, Quantity = x.Quantity,
-            UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity, CurrencyType = x.CurrencyType,
-            InputFields = x.Product.ProductInputFields.Where(f => f.IsActive).OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
-                .Select(ToDefinitionDto).ToList(),
-            InputValues = x.InputValues.OrderBy(v => v.FieldKey).Select(v => new ProductInputValueDto
+            var kyc = KycRequirementEvaluator.Evaluate(
+                x.Product.RequiresVerification,
+                x.Product.KycRequirementMode,
+                x.Product.KycThresholdAmount,
+                x.Product.KycPolicyVersionId,
+                x.UnitPrice,
+                x.Quantity);
+            return new CartItemDto
             {
-                Id = v.Id, ProductInputFieldId = v.ProductInputFieldId, FieldKey = v.FieldKey,
-                FieldLabel = v.FieldLabel, FieldType = v.FieldType,
-                Value = v.IsSensitive ? ProductInputRules.Mask(null) : v.Value,
-                IsSensitive = v.IsSensitive, IsMasked = v.IsSensitive
-            }).ToList()
+                Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,
+                ProductTitle = x.Product.Title, VariantTitle = x.ProductVariant?.Title,
+                ThumbnailImagePath = x.Product.ThumbnailImagePath, Quantity = x.Quantity,
+                UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity, CurrencyType = x.CurrencyType,
+                RequiresKyc = kyc.RequiresKyc, KycRequirementMode = (byte)kyc.Mode,
+                KycThresholdAmount = kyc.ThresholdAmount, KycEvaluatedAmount = kyc.EvaluatedAmount,
+                KycPolicyVersionId = kyc.PolicyVersionId,
+                InputFields = x.Product.ProductInputFields.Where(f => f.IsActive).OrderBy(f => f.SortOrder).ThenBy(f => f.Id)
+                    .Select(ToDefinitionDto).ToList(),
+                InputValues = x.InputValues.OrderBy(v => v.FieldKey).Select(v => new ProductInputValueDto
+                {
+                    Id = v.Id, ProductInputFieldId = v.ProductInputFieldId, FieldKey = v.FieldKey,
+                    FieldLabel = v.FieldLabel, FieldType = v.FieldType,
+                    Value = v.IsSensitive ? ProductInputRules.Mask(null) : v.Value,
+                    IsSensitive = v.IsSensitive, IsMasked = v.IsSensitive
+                }).ToList()
+            };
         }).ToList();
         return new CartDto
         {

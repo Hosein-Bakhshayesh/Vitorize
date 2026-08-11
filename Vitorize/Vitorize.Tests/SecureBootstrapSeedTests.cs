@@ -37,7 +37,7 @@ public sealed class SecureBootstrapSeedTests
         await fixture.Service.SeedReferenceDataAsync();
 
         var roleNames = await fixture.Db.Roles.OrderBy(x => x.Name).Select(x => x.Name).ToListAsync();
-        Assert.Equal(new[] { "Admin", "Customer", "SuperAdmin", "Support" }, roleNames);
+        Assert.Equal(new[] { "Admin", "Customer", "KycViewer", "SuperAdmin", "Support" }, roleNames);
         Assert.Empty(await fixture.Db.Users.ToListAsync());
     }
 

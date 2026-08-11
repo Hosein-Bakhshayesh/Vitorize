@@ -80,7 +80,7 @@ export class AdminProductPage extends BasePage {
 
   async saveEdit(): Promise<void> {
     await this.page.getByTestId('product-save').click();
-    await expect(this.page.locator('.vz-toast.success, .vz-toast--success')).toBeVisible();
+    await expect(this.page.locator('.vz-toast.success, .vz-toast--success').last()).toBeVisible();
   }
 
   async saveExpectingError(): Promise<void> {

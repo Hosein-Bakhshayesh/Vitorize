@@ -227,7 +227,7 @@ else
                     <div class="st-trustbar__track"><div class="st-trustbar__fill" style="width:@(TrustScore)%"></div></div>
                 </div>
 
-                @if (_p.RequiresVerification)
+                @if (RequiresKycForSelection)
                 {
                     <div class="st-alert st-alert--info" style="margin-bottom:12px"><Icon Name="shield" Size="16" /> <span>خرید این محصول نیازمند احراز هویت است.</span></div>
                 }
@@ -349,6 +349,12 @@ else
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
+    private bool RequiresKycForSelection => _p is not null && _p.KycRequirementMode switch
+    {
+        1 => true,
+        2 => _p.KycThresholdAmount is > 0 && CurrentPrice * _qty >= _p.KycThresholdAmount.Value,
+        _ => _p.RequiresVerification
+    };
     private bool CurrentDiscounted => CurrentPrice < CurrentBase;
     private int DiscountPercent => CurrentBase > 0 && CurrentDiscounted ? (int)Math.Round((CurrentBase - CurrentPrice) / CurrentBase * 100) : 0;
     private string Unit => (_p?.CurrencyType ?? 2) == (byte)CurrencyType.Rial ? "ریال" : "تومان";

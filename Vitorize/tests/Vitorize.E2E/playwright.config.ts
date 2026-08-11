@@ -44,6 +44,7 @@ export default defineConfig({
   projects: [
     { name: 'desktop-light', use: { ...devices['Desktop Chrome'], channel: 'chrome', colorScheme: 'light' } },
     { name: 'desktop-dark', use: { ...devices['Desktop Chrome'], channel: 'chrome', colorScheme: 'dark' } },
+    { name: 'mobile-light', use: { ...devices['Pixel 7'], channel: 'chrome', colorScheme: 'light' } },
     { name: 'mobile-dark', use: { ...devices['Pixel 7'], channel: 'chrome', colorScheme: 'dark' } }
   ],
   webServer: manageStack ? {

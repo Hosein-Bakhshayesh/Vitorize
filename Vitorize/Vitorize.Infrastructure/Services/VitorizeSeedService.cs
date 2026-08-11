@@ -227,6 +227,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 ("SuperAdmin", "مدیر کل"),
                 ("Admin", "مدیر فروشگاه"),
+                ("KycViewer", "ناظر احراز هویت"),
                 ("Support", "پشتیبان"),
                 ("Customer", "مشتری")
             };
