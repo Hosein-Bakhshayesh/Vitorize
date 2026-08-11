@@ -6,6 +6,8 @@ namespace Vitorize.Application.Interfaces
     {
         Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId);
 
+        Task<PaymentRetryEligibilityDto> GetRetryEligibilityAsync(Guid userId, Guid orderId);
+
         Task<PaymentVerifyResultDto> VerifyMockPaymentAsync(Guid userId, Guid paymentId);
 
         Task<PaymentVerifyResultDto> PayWithWalletAsync(Guid userId, Guid orderId);

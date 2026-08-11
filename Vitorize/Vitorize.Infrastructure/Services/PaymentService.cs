@@ -11,8 +11,10 @@ using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using Vitorize.Shared.Logging;
+using Vitorize.Application.Common;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -28,6 +30,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly IZarinpalGatewayService _zarinpalGatewayService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
         private readonly ILogger<PaymentService> _logger;
+        private readonly PaymentTimingOptions _paymentTiming;
 
         public PaymentService(
             VitorizeDbContext dbContext,
@@ -37,7 +40,8 @@ namespace Vitorize.Infrastructure.Services
             INotificationService notificationService,
             IZarinpalGatewayService zarinpalGatewayService,
             ISmsOutboxEnqueuer smsOutbox,
-            ILogger<PaymentService>? logger = null)
+            ILogger<PaymentService>? logger = null,
+            IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
@@ -47,6 +51,7 @@ namespace Vitorize.Infrastructure.Services
             _zarinpalGatewayService = zarinpalGatewayService;
             _smsOutbox = smsOutbox;
             _logger = logger ?? NullLogger<PaymentService>.Instance;
+            _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
@@ -58,122 +63,301 @@ namespace Vitorize.Infrastructure.Services
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-start:order:{orderId:N}");
-
-            var order = await _dbContext.Orders
-                .Include(x => x.User)
-                .Include(x => x.Payments)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == orderId &&
-                    x.UserId == userId);
-
-            if (order == null)
-                throw new NotFoundException("سفارش یافت نشد.");
-
-            if (order.PaymentStatus == (byte)PaymentStatus.Paid)
-                throw new BusinessException("این سفارش قبلاً پرداخت شده است.");
-
-            if (order.FinalAmount <= 0)
-                throw new BusinessException("مبلغ سفارش معتبر نیست.");
-
-            var payment = order.Payments
-                .Where(x => x.Status == (byte)PaymentStatus.Pending)
-                .OrderByDescending(x => x.RequestedAt)
-                .FirstOrDefault();
-
-            if (payment == null)
-                throw new BusinessException("پرداخت معلق برای این سفارش یافت نشد.");
-
-            if (payment.Amount != order.FinalAmount)
-                throw new BusinessException("مبلغ پرداخت با مبلغ سفارش همخوانی ندارد.");
-            if (payment.CurrencyType != order.CurrencyType ||
-                !Enum.IsDefined(typeof(CurrencyType), order.CurrencyType))
-                throw new BusinessException("واحد پول پرداخت با سفارش همخوانی ندارد.");
-
-            if (payment.Gateway == ZarinpalGatewayName &&
-                !string.IsNullOrWhiteSpace(payment.Authority))
+            var prepared = await PrepareGatewayAttemptAsync(userId, orderId);
+            if (prepared.ExistingAuthority is not null)
             {
-                var existingPaymentUrl =
-                    await _zarinpalGatewayService.BuildPaymentUrlAsync(payment.Authority);
-
-                await transaction.CommitAsync();
-                _logger.LogInformation(
-                    "Existing payment authority reused for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
-                    order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentStarted);
-                return new PaymentStartResultDto
-                {
-                    PaymentId = payment.Id,
-                    OrderId = order.Id,
-                    Amount = payment.Amount,
-                    Gateway = payment.Gateway,
-                    Authority = payment.Authority,
-                    PaymentUrl = existingPaymentUrl
-                };
+                // Configuration lookup is deliberately outside the serializable attempt transaction.
+                var url = await _zarinpalGatewayService.BuildPaymentUrlAsync(prepared.ExistingAuthority);
+                return ToStartResult(prepared, prepared.ExistingAuthority, url);
             }
 
-            var description =
-                $"پرداخت سفارش {order.OrderNumber} در Vitorize";
-
+            // The external request must never run inside a database transaction. The attempt was
+            // committed as INITIALIZING above, so a process failure leaves an auditable, recoverable
+            // local record rather than an untracked redirect.
             var gatewayResult = await _zarinpalGatewayService.CreatePaymentAsync(
-                payment.Amount,
-                (CurrencyType)payment.CurrencyType,
-                description,
-                order.User?.Mobile,
-                order.User?.Email,
-                order.OrderNumber);
+                prepared.Amount,
+                prepared.Currency,
+                $"پرداخت سفارش {prepared.OrderNumber} در Vitorize",
+                prepared.Mobile,
+                prepared.Email,
+                prepared.OrderNumber);
 
-            if (!gatewayResult.Success)
+            if (!gatewayResult.Success || string.IsNullOrWhiteSpace(gatewayResult.Authority))
             {
-                payment.Status = (byte)PaymentStatus.Failed;
-                payment.ErrorMessage = "خطا در ایجاد درخواست پرداخت زرین‌پال.";
-                payment.UpdatedAt = DateTime.UtcNow;
-
-                await _dbContext.SaveChangesAsync();
-                await transaction.CommitAsync();
-
+                await MarkGatewayAttemptFailedAsync(prepared.PaymentId, "REQUEST_FAILED",
+                    "خطا در ایجاد درخواست پرداخت زرین‌پال.");
                 _logger.LogWarning(
                     "Payment provider request failed for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
-                    order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
-
+                    prepared.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
                 throw new BusinessException("امکان اتصال به درگاه پرداخت وجود ندارد.");
             }
 
-            payment.Gateway = ZarinpalGatewayName;
-            payment.Authority = gatewayResult.Authority;
-            payment.RawRequestData = JsonSerializer.Serialize(new
-            {
-                order.Id,
-                order.OrderNumber,
-                payment.Amount,
-                description,
-                mobile = order.User?.Mobile,
-                email = order.User?.Email
-            });
-
-            payment.RawResponseData = JsonSerializer.Serialize(gatewayResult);
-            payment.UpdatedAt = DateTime.UtcNow;
-
-            await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
-
+            var persisted = await PersistGatewayAuthorityAsync(prepared, gatewayResult.Authority, gatewayResult.PaymentUrl);
             _logger.LogInformation(
                 "Payment provider request created for order {OrderNumber}. Provider={Provider} Authority={Authority} ElapsedMs={ElapsedMs} EventType={EventType}",
-                order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(gatewayResult.Authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentStarted);
+                prepared.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(gatewayResult.Authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentStarted);
+            return persisted;
+        }
 
-            return new PaymentStartResultDto
+        public async Task<PaymentRetryEligibilityDto> GetRetryEligibilityAsync(Guid userId, Guid orderId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            var order = await _dbContext.Orders.AsNoTracking()
+                .Include(x => x.Payments)
+                .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
+                ?? throw new NotFoundException("سفارش یافت نشد.");
+            var reason = PaymentAttemptPolicy.GetIneligibilityReason(order, order.Payments);
+            return new PaymentRetryEligibilityDto { OrderId = orderId, CanRetry = reason is null, Reason = reason };
+        }
+
+        private async Task<GatewayAttemptPreparation> PrepareGatewayAttemptAsync(Guid userId, Guid orderId)
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
             {
-                PaymentId = payment.Id,
-                OrderId = order.Id,
-                Amount = payment.Amount,
-                Gateway = payment.Gateway,
-                Authority = payment.Authority,
-                PaymentUrl = gatewayResult.PaymentUrl
-            };
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-start:order:{orderId:N}");
+                var now = DateTime.UtcNow;
+                var order = await _dbContext.Orders
+                    .Include(x => x.User)
+                    .Include(x => x.Payments)
+                    .Include(x => x.OrderItems)
+                    .Include(x => x.GiftCodeReservations).ThenInclude(x => x.GiftCode)
+                    .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
+                    ?? throw new NotFoundException("سفارش یافت نشد.");
+
+                var reason = PaymentAttemptPolicy.GetIneligibilityReason(order, order.Payments);
+                if (reason is not null)
+                    throw new BusinessException(reason);
+                if (!Enum.IsDefined(typeof(CurrencyType), order.CurrencyType))
+                    throw new BusinessException("واحد پول پرداخت با سفارش همخوانی ندارد.");
+
+                var current = order.Payments
+                    .Where(x => x.Status == (byte)PaymentStatus.Pending &&
+                                (x.Gateway == ZarinpalGatewayName || x.Gateway == "Mock"))
+                    .OrderByDescending(x => x.RequestedAt)
+                    .FirstOrDefault();
+
+                if (current is not null && current.Amount != order.FinalAmount)
+                    throw new BusinessException("مبلغ پرداخت با مبلغ سفارش همخوانی ندارد.");
+                if (current is not null && current.CurrencyType != order.CurrencyType)
+                    throw new BusinessException("واحد پول پرداخت با سفارش همخوانی ندارد.");
+
+                if (current is not null && !IsAttemptStale(current, now))
+                {
+                    if (!string.IsNullOrWhiteSpace(current.Authority))
+                    {
+                        await transaction.CommitAsync();
+                        return GatewayAttemptPreparation.Existing(order, current);
+                    }
+
+                    // Checkout stages a READY attempt. A second browser click after it was claimed
+                    // sees INITIALIZING and cannot create a competing authority.
+                    if (string.Equals(current.ProviderStatusCode, "INITIALIZING", StringComparison.Ordinal))
+                        throw new BusinessException("درخواست پرداخت در حال آماده‌سازی است. چند لحظه دیگر دوباره تلاش کنید.");
+
+                    current.Gateway = ZarinpalGatewayName;
+                }
+                else
+                {
+                    if (current is not null)
+                    {
+                        current.Status = (byte)PaymentStatus.Failed;
+                        current.ProviderStatusCode = "ATTEMPT_EXPIRED";
+                        current.ErrorMessage = "مهلت اقدام برای این تلاش پرداخت به پایان رسید.";
+                        current.UpdatedAt = now;
+                    }
+
+                    current = new Payment
+                    {
+                        Id = Guid.NewGuid(), OrderId = order.Id, UserId = userId,
+                        Amount = order.FinalAmount, CurrencyType = order.CurrencyType,
+                        Gateway = ZarinpalGatewayName, Status = (byte)PaymentStatus.Pending,
+                        CallbackVerified = false, RequestedAt = now
+                    };
+                    await _dbContext.Payments.AddAsync(current);
+                }
+
+                await EnsureInstantReservationsAsync(order, now);
+                current.ProviderStatusCode = "INITIALIZING";
+                current.RawRequestData = JsonSerializer.Serialize(new
+                {
+                    Type = "ZarinpalRequestPrepared", order.Id, order.OrderNumber,
+                    current.Amount, PreparedAt = now
+                });
+                current.UpdatedAt = now;
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return GatewayAttemptPreparation.New(order, current);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                _dbContext.ChangeTracker.Clear();
+                throw;
+            }
+        }
+
+        private async Task<PaymentStartResultDto> PersistGatewayAuthorityAsync(
+            GatewayAttemptPreparation prepared, string authority, string paymentUrl)
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-start:order:{prepared.OrderId:N}");
+                var payment = await _dbContext.Payments.Include(x => x.Order)
+                    .FirstOrDefaultAsync(x => x.Id == prepared.PaymentId && x.UserId == prepared.UserId)
+                    ?? throw new NotFoundException("تلاش پرداخت یافت نشد.");
+                if (payment.Status != (byte)PaymentStatus.Pending ||
+                    payment.Order.PaymentStatus == (byte)PaymentStatus.Paid ||
+                    payment.Order.Status != (byte)OrderStatus.PendingPayment)
+                {
+                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.ProviderStatusCode = "SUPERSEDED_BEFORE_REDIRECT";
+                    payment.ErrorMessage = "سفارش پیش از انتقال به درگاه با روش دیگری تعیین تکلیف شد.";
+                    payment.UpdatedAt = DateTime.UtcNow;
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    throw new BusinessException("وضعیت سفارش تغییر کرده است؛ پرداخت مجدد ممکن نیست.");
+                }
+
+                payment.Authority = authority;
+                payment.ProviderStatusCode = "REQUESTED";
+                payment.RawResponseData = JsonSerializer.Serialize(new
+                {
+                    Type = "ZarinpalRequest", Authority = authority, PersistedAt = DateTime.UtcNow
+                });
+                payment.UpdatedAt = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return ToStartResult(prepared, authority, paymentUrl);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                _dbContext.ChangeTracker.Clear();
+                throw;
+            }
+        }
+
+        private async Task MarkGatewayAttemptFailedAsync(Guid paymentId, string providerStatus, string error)
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                var payment = await _dbContext.Payments.FirstOrDefaultAsync(x => x.Id == paymentId);
+                if (payment is not null && payment.Status == (byte)PaymentStatus.Pending)
+                {
+                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.ProviderStatusCode = providerStatus;
+                    payment.ErrorMessage = error;
+                    payment.UpdatedAt = DateTime.UtcNow;
+                    await _dbContext.SaveChangesAsync();
+                }
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                _dbContext.ChangeTracker.Clear();
+                throw;
+            }
+        }
+
+        private async Task EnsureInstantReservationsAsync(Order order, DateTime now)
+        {
+            var instantItems = order.OrderItems.Where(x => x.DeliveryType == (byte)DeliveryType.Instant).ToList();
+            if (instantItems.Count == 0) return;
+
+            foreach (var key in instantItems
+                .Select(x => $"gift-reservation:{x.ProductId:N}:{x.ProductVariantId?.ToString("N") ?? "none"}")
+                .Distinct().OrderBy(x => x, StringComparer.Ordinal))
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, key);
+
+            var expired = order.GiftCodeReservations.Where(x =>
+                x.Status == (byte)GiftCodeReservationStatus.Active && x.ExpiresAt <= now).ToList();
+            foreach (var reservation in expired)
+            {
+                reservation.Status = (byte)GiftCodeReservationStatus.Expired;
+                reservation.ReleasedAt = now;
+                if (reservation.GiftCode is not null)
+                {
+                    reservation.GiftCode.Status = (byte)GiftCodeStatus.Available;
+                    reservation.GiftCode.ReservedByUserId = null;
+                    reservation.GiftCode.ReservedAt = null;
+                    reservation.GiftCode.ReservationExpiresAt = null;
+                    reservation.GiftCode.UpdatedAt = now;
+                }
+            }
+            if (expired.Count > 0) await _dbContext.SaveChangesAsync();
+
+            var expiresAt = now.AddMinutes(_paymentTiming.InstantCodeReservationLifetimeMinutes);
+            foreach (var item in instantItems)
+            {
+                var activeCount = order.GiftCodeReservations.Count(x =>
+                    x.OrderItemId == item.Id && x.Status == (byte)GiftCodeReservationStatus.Active && x.ExpiresAt > now);
+                for (var i = activeCount; i < item.Quantity; i++)
+                {
+                    var code = (await _dbContext.GiftCodes.FromSqlInterpolated($@"
+                        SELECT TOP(1) * FROM GiftCodes WITH (UPDLOCK, ROWLOCK)
+                        WHERE ProductId = {item.ProductId}
+                          AND ((ProductVariantId IS NULL AND {item.ProductVariantId} IS NULL)
+                               OR ProductVariantId = {item.ProductVariantId})
+                          AND Status = {(byte)GiftCodeStatus.Available}
+                        ORDER BY CreatedAt").AsTracking().ToListAsync()).FirstOrDefault()
+                        ?? throw new BusinessException("موجودی کد آنی برای تلاش مجدد پرداخت کافی نیست.");
+
+                    code.Status = (byte)GiftCodeStatus.Reserved;
+                    code.ReservedByUserId = order.UserId;
+                    code.ReservedAt = now;
+                    code.ReservationExpiresAt = expiresAt;
+                    code.OrderItemId = item.Id;
+                    code.UpdatedAt = now;
+                    var reservation = new GiftCodeReservation
+                    {
+                        Id = Guid.NewGuid(), UserId = order.UserId, OrderId = order.Id,
+                        OrderItemId = item.Id, ProductId = item.ProductId,
+                        ProductVariantId = item.ProductVariantId, GiftCodeId = code.Id,
+                        Status = (byte)GiftCodeReservationStatus.Active, ReservedAt = now, ExpiresAt = expiresAt
+                    };
+                    order.GiftCodeReservations.Add(reservation);
+                    await _dbContext.GiftCodeReservations.AddAsync(reservation);
+                }
+            }
+        }
+
+        private bool IsAttemptStale(Payment payment, DateTime now) =>
+            payment.RequestedAt <= now.AddMinutes(-_paymentTiming.GatewayAttemptLifetimeMinutes);
+
+        private static PaymentStartResultDto ToStartResult(GatewayAttemptPreparation prepared, string authority, string paymentUrl) => new()
+        {
+            PaymentId = prepared.PaymentId, OrderId = prepared.OrderId, Amount = prepared.Amount,
+            Gateway = ZarinpalGatewayName, Authority = authority, PaymentUrl = paymentUrl
+        };
+
+        private sealed record GatewayAttemptPreparation(Guid PaymentId, Guid OrderId, Guid UserId,
+            string OrderNumber, decimal Amount, CurrencyType Currency, string? Mobile, string? Email,
+            string? ExistingAuthority)
+        {
+            public static GatewayAttemptPreparation New(Order order, Payment payment) =>
+                new(payment.Id, order.Id, order.UserId, order.OrderNumber, payment.Amount,
+                    (CurrencyType)payment.CurrencyType, order.User?.Mobile, order.User?.Email, null);
+
+            public static GatewayAttemptPreparation Existing(Order order, Payment payment) =>
+                New(order, payment) with { ExistingAuthority = payment.Authority };
         }
         public async Task<PaymentVerifyResultDto> VerifyZarinpalPaymentAsync(
             string authority,
             string status)
+        {
+            return await VerifyZarinpalPaymentCoreAsync(authority, status, isReconciliation: false);
+        }
+
+        private async Task<PaymentVerifyResultDto> VerifyZarinpalPaymentCoreAsync(
+            string authority,
+            string status,
+            bool isReconciliation)
         {
             var stopwatch = Stopwatch.StartNew();
             if (string.IsNullOrWhiteSpace(authority))
@@ -183,8 +367,9 @@ namespace Vitorize.Infrastructure.Services
                 ? "NOK"
                 : status.Trim();
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-
+            Guid paymentId = Guid.Empty;
+            decimal amount = 0m;
+            await using (var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable))
             try
             {
                 await SqlServerTransactionLock.AcquireAsync(
@@ -205,7 +390,8 @@ namespace Vitorize.Infrastructure.Services
 
                 var order = payment.Order;
 
-                await AddCallbackIfNotExistsAsync(payment, authority, normalizedStatus);
+                if (!isReconciliation)
+                    await AddCallbackIfNotExistsAsync(payment, authority, normalizedStatus);
 
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
@@ -237,78 +423,166 @@ namespace Vitorize.Infrastructure.Services
                     return CreateFailedVerifyResult(payment, order);
                 }
 
-                if (payment.Status != (byte)PaymentStatus.Pending)
-                    throw new BusinessException("وضعیت پرداخت قابل تایید نیست.");
+                var lateTerminalAttempt = payment.Status is (byte)PaymentStatus.Cancelled or (byte)PaymentStatus.Failed;
+                if (payment.Status != (byte)PaymentStatus.Pending &&
+                    !(lateTerminalAttempt && string.Equals(normalizedStatus, "OK", StringComparison.OrdinalIgnoreCase)))
+                {
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return CreateFailedVerifyResult(payment, order);
+                }
 
                 if (payment.Amount != order.FinalAmount)
                     throw new BusinessException("مبلغ پرداخت معتبر نیست.");
                 if (payment.CurrencyType != order.CurrencyType)
                     throw new BusinessException("واحد پول پرداخت معتبر نیست.");
 
-                var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
-                    authority,
-                    payment.Amount);
+                var verificationLease = TimeSpan.FromSeconds(Math.Max(60, _paymentTiming.ReconciliationIntervalSeconds * 2));
+                if ((string.Equals(payment.ProviderStatusCode, "VERIFYING", StringComparison.Ordinal) ||
+                     string.Equals(payment.ProviderStatusCode, "VERIFYING_LATE", StringComparison.Ordinal)) &&
+                    payment.UpdatedAt >= DateTime.UtcNow.Subtract(verificationLease))
+                {
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return CreateFailedVerifyResult(payment, order);
+                }
+                payment.ProviderStatusCode = lateTerminalAttempt ? "VERIFYING_LATE" : "VERIFYING";
+                payment.UpdatedAt = DateTime.UtcNow;
+                paymentId = payment.Id;
+                amount = payment.Amount;
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            // Provider verification is intentionally outside any SQL transaction. The temporary
+            // VERIFYING marker serializes duplicate callbacks without keeping database locks while
+            // a network request is in flight; reconciliation can reclaim a stale marker.
+            var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(authority, amount);
+            string? verifiedProviderReference = verifyResult.Success ? verifyResult.RefId.ToString() : null;
+
+            await using var finalizeTransaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-callback:{authority.Trim().ToUpperInvariant()}");
+                var payment = await _dbContext.Payments
+                    .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations)
+                    .Include(x => x.Order).ThenInclude(x => x.OrderItems)
+                    .FirstOrDefaultAsync(x => x.Id == paymentId)
+                    ?? throw new NotFoundException("پرداخت یافت نشد.");
+                var order = payment.Order;
+
+                if (payment.Status == (byte)PaymentStatus.Paid)
+                {
+                    await finalizeTransaction.CommitAsync();
+                    return CreateVerifyResult(payment, order);
+                }
+                var lateTerminalAttempt = payment.Status is (byte)PaymentStatus.Cancelled or (byte)PaymentStatus.Failed;
+                if (payment.Status != (byte)PaymentStatus.Pending && !lateTerminalAttempt)
+                {
+                    await finalizeTransaction.CommitAsync();
+                    return CreateFailedVerifyResult(payment, order);
+                }
 
                 payment.RawResponseData = JsonSerializer.Serialize(new
                 {
-                    Type = "ZarinpalVerify",
-                    Authority = authority,
-                    Amount = payment.Amount,
-                    Result = verifyResult,
+                    Type = isReconciliation ? "ZarinpalReconcile" : "ZarinpalVerify",
+                    Authority = authority, Amount = payment.Amount, Result = verifyResult,
                     VerifiedAt = DateTime.UtcNow
                 });
 
                 if (!verifyResult.Success)
                 {
+                    if (lateTerminalAttempt)
+                    {
+                        payment.ErrorMessage = "نتیجهٔ موفق دیرهنگام برای این تلاش از سوی درگاه تایید نشد.";
+                        payment.UpdatedAt = DateTime.UtcNow;
+                        await _dbContext.SaveChangesAsync();
+                        await finalizeTransaction.CommitAsync();
+                        return CreateFailedVerifyResult(payment, order);
+                    }
                     payment.Status = (byte)PaymentStatus.Failed;
                     payment.CallbackVerified = false;
-                    payment.ProviderStatusCode = "VERIFY_FAILED";
+                    payment.ProviderStatusCode = isReconciliation ? "RECONCILE_FAILED" : "VERIFY_FAILED";
                     payment.ErrorMessage = "تایید پرداخت زرین‌پال ناموفق بود.";
                     payment.UpdatedAt = DateTime.UtcNow;
-
                     await _dbContext.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
+                    await finalizeTransaction.CommitAsync();
                     _logger.LogWarning(
                         "Payment verification failed for order {OrderNumber}. Provider={Provider} ElapsedMs={ElapsedMs} EventType={EventType}",
                         order.OrderNumber, ZarinpalGatewayName, stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerificationFailed);
+                    return CreateFailedVerifyResult(payment, order);
+                }
 
+                if (order.PaymentStatus == (byte)PaymentStatus.Paid)
+                {
+                    // A late success for an older attempt must never overwrite the authoritative
+                    // payment. There is no automatic provider refund in Phase 0, so preserve the
+                    // gateway proof and create an explicit finance-resolution audit record.
+                    payment.Status = (byte)PaymentStatus.Failed;
+                    payment.CallbackVerified = true;
+                    payment.ProviderStatusCode = "LATE_SUCCESS_REQUIRES_FINANCE";
+                    payment.ErrorMessage = "پرداخت موفق دیرهنگام پس از تعیین تکلیف سفارش؛ نیازمند بررسی مالی.";
+                    payment.ReferenceNumber = verifiedProviderReference;
+                    payment.TransactionId = authority;
+                    payment.GatewayTrackingCode = verifiedProviderReference;
+                    payment.VerifiedAt = DateTime.UtcNow;
+                    payment.UpdatedAt = DateTime.UtcNow;
+                    await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                    {
+                        EventType = "LateGatewayPaymentRequiresFinanceResolution", EntityType = "Payment",
+                        EntityId = payment.Id, UserId = payment.UserId, Amount = payment.Amount,
+                        CorrelationId = order.Id, Detail = $"order:{order.OrderNumber}", CreatedAt = DateTime.UtcNow
+                    });
+                    await _dbContext.SaveChangesAsync();
+                    await finalizeTransaction.CommitAsync();
                     return CreateFailedVerifyResult(payment, order);
                 }
 
                 var now = DateTime.UtcNow;
-
                 payment.Status = (byte)PaymentStatus.Paid;
                 payment.CallbackVerified = true;
                 payment.VerifiedAt = now;
                 payment.UpdatedAt = now;
-                payment.ReferenceNumber = verifyResult.RefId.ToString();
+                payment.ReferenceNumber = verifiedProviderReference;
                 payment.TransactionId = authority;
-                payment.GatewayTrackingCode = verifyResult.RefId.ToString();
+                payment.GatewayTrackingCode = verifiedProviderReference;
                 payment.ProviderStatusCode = "100";
-
                 try
                 {
+                    // A late successful attempt becomes financially authoritative if no other
+                    // attempt has paid yet. Disable any still-pending sibling before fulfillment
+                    // so it cannot remain a second active charge path.
+                    var pendingSiblings = await _dbContext.Payments.Where(x =>
+                        x.OrderId == order.Id && x.Id != payment.Id &&
+                        x.Status == (byte)PaymentStatus.Pending).ToListAsync();
+                    foreach (var sibling in pendingSiblings)
+                    {
+                        sibling.Status = (byte)PaymentStatus.Failed;
+                        sibling.ProviderStatusCode = "SUPERSEDED_AFTER_OTHER_ATTEMPT_PAID";
+                        sibling.ErrorMessage = "تلاش دیگری برای این سفارش با موفقیت تعیین تکلیف شد.";
+                        sibling.UpdatedAt = now;
+                    }
                     await CompletePaidOrderAsync(order, payment.UserId, now);
                 }
                 catch (BusinessException ex)
                 {
-                    await transaction.RollbackAsync();
-                    return await CompensateVerifiedPaymentAsync(
-                        payment.Id, verifyResult.RefId.ToString(), ex.Message);
+                    await finalizeTransaction.RollbackAsync();
+                    return await CompensateVerifiedPaymentAsync(payment.Id, verifiedProviderReference!, ex.Message);
                 }
-
-                await transaction.CommitAsync();
-
+                await finalizeTransaction.CommitAsync();
                 _logger.LogInformation(
                     "Payment verified for order {OrderNumber}. Provider={Provider} Authority={Authority} ElapsedMs={ElapsedMs} EventType={EventType}",
                     order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerified);
-
                 return CreateVerifyResult(payment, order);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await finalizeTransaction.RollbackAsync();
                 throw;
             }
         }
@@ -319,7 +593,7 @@ namespace Vitorize.Infrastructure.Services
             _logger.LogInformation(
                 "Payment reconciliation started. Provider={Provider} EventType={EventType}",
                 ZarinpalGatewayName, OperationalEventNames.PaymentReconciliationStarted);
-            var threshold = DateTime.UtcNow.AddMinutes(-30);
+            var threshold = DateTime.UtcNow.AddMinutes(-_paymentTiming.PendingPaymentReconciliationAgeMinutes);
 
             var paymentIds = await _dbContext.Payments
                 .Where(x =>
@@ -336,98 +610,22 @@ namespace Vitorize.Infrastructure.Services
 
             foreach (var paymentId in paymentIds)
             {
-                // هر پرداخت به‌صورت تازه و در تراکنش خودش پردازش می‌شود تا شکست تکمیل سفارش،
-                // وضعیت Paid ناقص یا تغییرات پرداخت‌های بعدی را آلوده نکند.
                 _dbContext.ChangeTracker.Clear();
-
-                var payment = await _dbContext.Payments
-                    .Include(x => x.Order)
-                        .ThenInclude(x => x.GiftCodeReservations)
-                    .Include(x => x.Order)
-                        .ThenInclude(x => x.OrderItems)
-                    .FirstOrDefaultAsync(x => x.Id == paymentId);
-
-                if (payment == null || payment.Status != (byte)PaymentStatus.Pending)
+                var authority = await _dbContext.Payments.AsNoTracking()
+                    .Where(x => x.Id == paymentId && x.Status == (byte)PaymentStatus.Pending)
+                    .Select(x => x.Authority).FirstOrDefaultAsync();
+                if (string.IsNullOrWhiteSpace(authority))
                     continue;
-
-                await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-                string? verifiedProviderReference = null;
-
                 try
                 {
-                    await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment:{paymentId:N}");
-                    _dbContext.ChangeTracker.Clear();
-                    payment = await _dbContext.Payments
-                        .Include(x => x.Order).ThenInclude(x => x.GiftCodeReservations)
-                        .Include(x => x.Order).ThenInclude(x => x.OrderItems)
-                        .FirstOrDefaultAsync(x => x.Id == paymentId);
-                    if (payment == null || payment.Status != (byte)PaymentStatus.Pending)
-                    {
-                        await transaction.CommitAsync();
-                        continue;
-                    }
-
-                    var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(
-                        payment.Authority!,
-                        payment.Amount);
-
-                    payment.RawResponseData = JsonSerializer.Serialize(new
-                    {
-                        Type = "ZarinpalReconcile",
-                        payment.Authority,
-                        payment.Amount,
-                        Result = verifyResult,
-                        CheckedAt = DateTime.UtcNow
-                    });
-
-                    if (verifyResult.Success)
-                    {
-                        var now = DateTime.UtcNow;
-                        verifiedProviderReference = verifyResult.RefId.ToString();
-
-                        payment.Status = (byte)PaymentStatus.Paid;
-                        payment.CallbackVerified = true;
-                        payment.VerifiedAt = now;
-                        payment.UpdatedAt = now;
-                        payment.ReferenceNumber = verifiedProviderReference;
-                        payment.TransactionId = payment.Authority;
-                        payment.GatewayTrackingCode = verifiedProviderReference;
-                        payment.ProviderStatusCode = "100";
-
-                        await CompletePaidOrderAsync(payment.Order, payment.UserId, now);
-                    }
-                    else
-                    {
-                        payment.Status = (byte)PaymentStatus.Failed;
-                        payment.CallbackVerified = false;
-                        payment.ProviderStatusCode = "RECONCILE_FAILED";
-                        payment.ErrorMessage = "پرداخت معلق پس از بررسی مجدد تایید نشد.";
-                        payment.UpdatedAt = DateTime.UtcNow;
-
-                        await _dbContext.SaveChangesAsync();
-                    }
-
-                    await transaction.CommitAsync();
-
-                    processed++;
-                }
-                catch (BusinessException ex) when (verifiedProviderReference != null)
-                {
-                    await transaction.RollbackAsync();
-                    await CompensateVerifiedPaymentAsync(
-                        paymentId, verifiedProviderReference, ex.Message);
+                    await VerifyZarinpalPaymentCoreAsync(authority, "OK", isReconciliation: true);
                     processed++;
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
-
-                    // تغییرات ردیابی‌شده‌ی ناموفق (مثلاً Paid ناقص) نباید در ذخیره‌ی بعدی نشت کنند.
                     _dbContext.ChangeTracker.Clear();
-
                     var failedPayment = await _dbContext.Payments
                         .FirstOrDefaultAsync(x => x.Id == paymentId);
-
                     if (failedPayment != null)
                     {
                         failedPayment.ErrorMessage = $"Reconcile error: {SensitiveLogData.SafeExceptionMessage(ex)}";

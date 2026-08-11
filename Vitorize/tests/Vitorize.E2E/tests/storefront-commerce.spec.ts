@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectRtlAndNoOverflow, loginAdmin, monitorBrowser, registerCustomer, uniqueCustomer } from './support/app';
+import { apiBaseUrl, expectRtlAndNoOverflow, loginAdmin, monitorBrowser, registerCustomer, uniqueCustomer } from './support/app';
 
 const productUrl = '/product/e2e-seo-product';
 const instantProductId = '31000000-0000-0000-0000-000000000011';
@@ -148,6 +148,40 @@ test('failed payment result keeps recovery actions available', async ({ page }) 
   await expect(page.locator('.st-state__ic')).toBeVisible();
   await expect(page.locator('a.st-btn--primary[href="/cart"]')).toBeVisible();
   await expect(page.locator(`a[href="/customer/orders/${orderId}"]`)).toBeVisible();
+});
+
+test('cancelled gateway attempt retries the same order and completes through the test gateway', async ({ page }) => {
+  await registerCustomer(page, uniqueCustomer('Retry Payment Customer'));
+  const accountEmail = `retry-${Date.now()}@example.test`;
+  await addConfiguredProduct(page, accountEmail);
+
+  const faultEnabled = await page.request.post(`${apiBaseUrl}/testing/payment-fault?mode=MockVerifyFail`);
+  expect(faultEnabled.ok()).toBeTruthy();
+  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  await page.locator('button.st-btn--accent').click();
+  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=0/);
+  const orderId = new URL(page.url()).searchParams.get('orderId');
+  expect(orderId).toMatch(/^[0-9a-f-]{36}$/i);
+  if (!orderId) throw new Error('Expected an order id after the failed mock verification.');
+  const state = await page.request.get(`${apiBaseUrl}/testing/payment-state?orderId=${orderId}`);
+  expect(state.ok()).toBeTruthy();
+  const initialAttempt = await state.json() as { attempts: Array<{ authority: string | null }> };
+  const authority = initialAttempt.attempts[0]?.authority;
+  expect(authority).toBeTruthy();
+
+  const cancelled = await page.request.get(
+    `${apiBaseUrl}/payments/zarinpal/callback?Authority=${encodeURIComponent(authority!)}&Status=NOK`);
+  expect(cancelled.ok()).toBeTruthy();
+  await page.goto(`/payment/result?orderId=${orderId}&paid=0`, { waitUntil: 'networkidle' });
+  const retry = page.getByRole('button', { name: 'تلاش مجدد پرداخت' });
+  await expect(retry).toBeVisible();
+
+  const faultDisabled = await page.request.post(`${apiBaseUrl}/testing/payment-fault?mode=Off`);
+  expect(faultDisabled.ok()).toBeTruthy();
+  await retry.click();
+  await expect(page).toHaveURL(new RegExp(`/payment/result\\?orderId=${orderId}&paid=1`, 'i'));
+  await page.goto(`/customer/orders/${orderId}`, { waitUntil: 'networkidle' });
+  await expect(page.locator('main')).toContainText(accountEmail);
 });
 
 test('admin manually delivers a paid item and the customer sees the audited content', async ({ page, browser }) => {

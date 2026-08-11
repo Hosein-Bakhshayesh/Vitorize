@@ -364,11 +364,19 @@ namespace Vitorize.Api
                     faults.FailNextCartRead();
                     return Results.NoContent();
                 });
+
             }
 
             if (app.Environment.IsEnvironment("Testing") &&
                 app.Configuration.GetValue<bool>("Testing:UseFakeSms"))
             {
+                app.MapPost("/api/testing/payment-fault", (string? mode,
+                    Vitorize.Infrastructure.Services.Testing.TestingPaymentFaultService faults) =>
+                {
+                    faults.Set(mode);
+                    return Results.NoContent();
+                });
+
                 app.MapGet("/api/testing/sms/latest-otp", (
                     string mobile,
                     Vitorize.Infrastructure.Services.Sms.TestingSmsSender sender) =>
@@ -431,6 +439,22 @@ namespace Vitorize.Api
                         ticketUserId = await db.Tickets.Where(x => x.OrderId == orderId)
                             .Select(x => (Guid?)x.UserId).FirstOrDefaultAsync(cancellationToken)
                     });
+                });
+
+                // Isolated-browser-test-only payment attempt projection. Authorities are exposed
+                // solely to let the fake gateway cancellation/late-callback scenarios exercise the
+                // real callback endpoint; this route is never mapped outside Testing.
+                app.MapGet("/api/testing/payment-state", async (
+                    Guid orderId,
+                    VitorizeDbContext db,
+                    CancellationToken cancellationToken) =>
+                {
+                    var attempts = await db.Payments.AsNoTracking()
+                        .Where(x => x.OrderId == orderId)
+                        .OrderBy(x => x.RequestedAt)
+                        .Select(x => new { x.Id, x.Gateway, x.Authority, x.Status, x.ProviderStatusCode })
+                        .ToListAsync(cancellationToken);
+                    return attempts.Count == 0 ? Results.NotFound() : Results.Ok(new { attempts });
                 });
 
                 // Testing-only catalog projection used by browser tests to verify that Admin UI

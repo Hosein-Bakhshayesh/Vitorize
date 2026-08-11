@@ -6,16 +6,21 @@ using Vitorize.Domain.Entities;
 using Vitorize.Shared.Enums;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Microsoft.Extensions.Options;
+using Vitorize.Application.Common;
 
 namespace Vitorize.Infrastructure.Services
 {
     public class GiftCodeReservationService : IGiftCodeReservationService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly PaymentTimingOptions _paymentTiming;
 
-        public GiftCodeReservationService(VitorizeDbContext dbContext)
+        public GiftCodeReservationService(VitorizeDbContext dbContext,
+            IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
             _dbContext = dbContext;
+            _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
 
         public async Task<GiftCodeReservationDto> ReserveAsync(
@@ -29,7 +34,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("محصول الزامی است.");
 
             if (request.ReservationMinutes <= 0)
-                request.ReservationMinutes = 15;
+                request.ReservationMinutes = _paymentTiming.InstantCodeReservationLifetimeMinutes;
 
             var now = DateTime.UtcNow;
             var expiresAt = now.AddMinutes(request.ReservationMinutes);

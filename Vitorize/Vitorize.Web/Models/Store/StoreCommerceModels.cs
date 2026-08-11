@@ -66,6 +66,13 @@ namespace Vitorize.Web.Models.Store
         public byte OrderStatus { get; set; }
     }
 
+    public class PaymentRetryEligibilityModel
+    {
+        public Guid OrderId { get; set; }
+        public bool CanRetry { get; set; }
+        public string? Reason { get; set; }
+    }
+
     public class StoreOrderModel
     {
         public Guid Id { get; set; }

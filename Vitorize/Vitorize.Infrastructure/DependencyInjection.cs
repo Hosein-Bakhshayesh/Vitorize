@@ -68,6 +68,7 @@ namespace Vitorize.Infrastructure
             // Testing-environment-only fault injection (Off by default; guarded by IHostEnvironment).
             services.Configure<Services.Testing.TestingFaultInjectionOptions>(
                 configuration.GetSection(Services.Testing.TestingFaultInjectionOptions.SectionName));
+            services.AddSingleton<Services.Testing.TestingPaymentFaultService>();
 
             // ───────────── SMS (SMS.ir) ─────────────
             // Sender و SettingsProvider به‌صورت Singleton ثبت می‌شوند تا HttpClient داخلی SDK
@@ -118,6 +119,11 @@ namespace Vitorize.Infrastructure
 
             services.Configure<MonitoringOptions>(
                 configuration.GetSection("Monitoring"));
+
+            services.AddOptions<PaymentTimingOptions>()
+                .Bind(configuration.GetSection(PaymentTimingOptions.SectionName))
+                .ValidateOnStart();
+            services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<PaymentTimingOptions>, PaymentTimingOptionsValidator>();
 
 
             // Framework Services

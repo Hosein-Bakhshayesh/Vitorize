@@ -1,5 +1,8 @@
 @page "/payment/result"
 @inject CartState Cart
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject ToastService Toasts
 
 <PageTitle>نتیجه پرداخت | ویتورایز</PageTitle>
 
@@ -24,6 +27,10 @@
         <h1 style="font-size:24px">پرداخت ناموفق بود</h1>
         <p class="st-muted" style="max-width:440px">متأسفانه پرداخت شما تکمیل نشد. در صورت کسر وجه، مبلغ طی ۷۲ ساعت بازگردانده می‌شود.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            @if (_canRetry && OrderId is not null)
+            {
+                <button class="st-btn st-btn--primary" disabled="@_retrying" @onclick="RetryPayment"><Icon Name="refresh" Size="17" /> @(_retrying ? "در حال آماده‌سازی..." : "تلاش مجدد پرداخت")</button>
+            }
             <a class="st-btn st-btn--primary" href="/cart">بازگشت به سبد خرید</a>
             @if (OrderId is not null)
             {
@@ -36,9 +43,44 @@
 @code {
     [SupplyParameterFromQuery] public string? OrderId { get; set; }
     [SupplyParameterFromQuery] public string? Paid { get; set; }
+    private bool _canRetry;
+    private bool _retrying;
 
     protected override void OnInitialized()
     {
         if (Paid == "1") Cart.Clear();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _canRetry = false;
+        if (Paid == "1" || !Guid.TryParse(OrderId, out var orderId)) return;
+        var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{orderId}");
+        _canRetry = eligibility.IsSuccess && eligibility.Data?.CanRetry == true;
+    }
+
+    private async Task RetryPayment()
+    {
+        if (!Guid.TryParse(OrderId, out var orderId)) return;
+        _retrying = true;
+        var start = await Api.PostAsync<PaymentStartResultModel>($"payments/retry/{orderId}");
+        if (!start.IsSuccess || start.Data is null)
+        {
+            _retrying = false;
+            _canRetry = false;
+            Toasts.Error(start.Message);
+            return;
+        }
+        if (!string.IsNullOrWhiteSpace(start.Data.PaymentUrl) && start.Data.PaymentUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo(start.Data.PaymentUrl, forceLoad: true);
+            return;
+        }
+        var verify = await Api.PostAsync<PaymentVerifyResultModel>($"payments/mock/verify/{start.Data.PaymentId}");
+        _retrying = false;
+        if (verify.IsSuccess && verify.Data?.IsPaid == true)
+            Nav.NavigateTo($"/payment/result?orderId={orderId}&paid=1");
+        else
+            Toasts.Error(verify.Message);
     }
 }

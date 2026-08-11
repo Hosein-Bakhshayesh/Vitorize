@@ -79,6 +79,210 @@ public sealed class PaymentDeliveryIntegrationTests
     }
 
     [Fact]
+    public async Task Failed_attempt_is_preserved_and_retry_creates_one_new_paid_attempt_for_the_same_order()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var failed = NewPayment(user.Id, order.Id, $"FAILED-{Guid.NewGuid():N}");
+        failed.Status = (byte)PaymentStatus.Failed;
+        failed.ProviderStatusCode = "REQUEST_FAILED";
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(failed); await seed.SaveChangesAsync();
+        }
+
+        PaymentStartResultDto started;
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var service = NewPaymentService(db, new SuccessfulGateway(), new NullWallet());
+            started = await service.StartPaymentAsync(user.Id, order.Id);
+            started.PaymentId.Should().NotBe(failed.Id);
+            await service.VerifyMockPaymentAsync(user.Id, started.PaymentId);
+        }
+
+        await using var verify = _fixture.CreateDbContext();
+        var attempts = await verify.Payments.Where(x => x.OrderId == order.Id).OrderBy(x => x.RequestedAt).ToListAsync();
+        attempts.Should().HaveCount(2);
+        attempts.Single(x => x.Id == failed.Id).Status.Should().Be((byte)PaymentStatus.Failed);
+        attempts.Single(x => x.Id == started.PaymentId).Status.Should().Be((byte)PaymentStatus.Paid);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
+    }
+
+    [Fact]
+    public async Task Provider_request_failure_keeps_order_retryable_and_a_later_attempt_succeeds()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var ready = NewPayment(user.Id, order.Id, string.Empty);
+        ready.Authority = null; ready.ProviderStatusCode = "READY";
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(ready); await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var failing = NewPaymentService(db, new FailingGateway(), new NullWallet());
+            Func<Task> start = () => failing.StartPaymentAsync(user.Id, order.Id);
+            await start.Should().ThrowAsync<BusinessException>();
+        }
+        await using (var check = _fixture.CreateDbContext())
+        {
+            (await check.Payments.SingleAsync(x => x.Id == ready.Id)).Status.Should().Be((byte)PaymentStatus.Failed);
+            var eligibility = await NewPaymentService(check, new SuccessfulGateway(), new NullWallet())
+                .GetRetryEligibilityAsync(user.Id, order.Id);
+            eligibility.CanRetry.Should().BeTrue();
+        }
+        await using (var retryDb = _fixture.CreateDbContext())
+        {
+            var service = NewPaymentService(retryDb, new SuccessfulGateway(), new NullWallet());
+            var retry = await service.StartPaymentAsync(user.Id, order.Id);
+            await service.VerifyMockPaymentAsync(user.Id, retry.PaymentId);
+        }
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
+        (await verify.Payments.CountAsync(x => x.OrderId == order.Id)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Cancelled_or_verify_failed_gateway_attempt_can_be_retried_without_creating_another_order()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var cancelled = NewPayment(user.Id, order.Id, $"CANCEL-{Guid.NewGuid():N}");
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(cancelled); await seed.SaveChangesAsync();
+        }
+        await using (var callbackDb = _fixture.CreateDbContext())
+            await NewPaymentService(callbackDb, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(cancelled.Authority!, "NOK");
+        await using (var retryDb = _fixture.CreateDbContext())
+        {
+            var service = NewPaymentService(retryDb, new SuccessfulGateway(), new NullWallet());
+            var retry = await service.StartPaymentAsync(user.Id, order.Id);
+            await service.VerifyMockPaymentAsync(user.Id, retry.PaymentId);
+        }
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(1);
+        (await verify.Payments.SingleAsync(x => x.Id == cancelled.Id)).Status.Should().Be((byte)PaymentStatus.Cancelled);
+        (await verify.Payments.CountAsync(x => x.OrderId == order.Id && x.Status == (byte)PaymentStatus.Paid)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Stale_pending_attempt_is_preserved_as_expired_and_replaced()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var stale = NewPayment(user.Id, order.Id, $"STALE-{Guid.NewGuid():N}");
+        stale.RequestedAt = DateTime.UtcNow.AddMinutes(-31);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(stale); await seed.SaveChangesAsync();
+        }
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var retry = await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .StartPaymentAsync(user.Id, order.Id);
+            retry.PaymentId.Should().NotBe(stale.Id);
+        }
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Payments.SingleAsync(x => x.Id == stale.Id)).ProviderStatusCode.Should().Be("ATTEMPT_EXPIRED");
+        (await verify.Payments.SingleAsync(x => x.Id == stale.Id)).Status.Should().Be((byte)PaymentStatus.Failed);
+        (await verify.Payments.CountAsync(x => x.OrderId == order.Id && x.Status == (byte)PaymentStatus.Pending)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Concurrent_payment_starts_create_only_one_external_authority()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        var ready = NewPayment(user.Id, order.Id, string.Empty);
+        ready.Authority = null; ready.ProviderStatusCode = "READY";
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(ready); await seed.SaveChangesAsync();
+        }
+        var gateway = new SlowSuccessfulGateway();
+        async Task<bool> StartAsync()
+        {
+            await using var db = _fixture.CreateDbContext();
+            try
+            {
+                await NewPaymentService(db, gateway, new NullWallet()).StartPaymentAsync(user.Id, order.Id);
+                return true;
+            }
+            catch (BusinessException)
+            {
+                return false;
+            }
+        }
+
+        var results = await Task.WhenAll(StartAsync(), StartAsync());
+        results.Count(x => x).Should().Be(1);
+        gateway.CreateCount.Should().Be(1);
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.Payments.CountAsync(x => x.OrderId == order.Id)).Should().Be(1);
+        (await verify.Payments.SingleAsync(x => x.Id == ready.Id)).Authority.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task Retry_denies_other_customer_and_is_forbidden_after_a_successful_payment()
+    {
+        var (owner, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (other, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(owner.Id);
+        var failed = NewPayment(owner.Id, order.Id, $"FAILED-{Guid.NewGuid():N}");
+        failed.Status = (byte)PaymentStatus.Failed;
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.Add(failed); await seed.SaveChangesAsync();
+        }
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var service = NewPaymentService(db, new SuccessfulGateway(), new NullWallet());
+            Func<Task> idor = () => service.StartPaymentAsync(other.Id, order.Id);
+            await idor.Should().ThrowAsync<NotFoundException>();
+            var started = await service.StartPaymentAsync(owner.Id, order.Id);
+            await service.VerifyMockPaymentAsync(owner.Id, started.PaymentId);
+        }
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var service = NewPaymentService(db, new SuccessfulGateway(), new NullWallet());
+            Func<Task> retryPaid = () => service.StartPaymentAsync(owner.Id, order.Id);
+            await retryPaid.Should().ThrowAsync<BusinessException>();
+        }
+    }
+
+    [Fact]
+    public async Task Late_successful_cancelled_attempt_is_financially_flagged_after_a_newer_attempt_paid()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var order = NewOrder(user.Id);
+        order.Status = (byte)OrderStatus.Processing;
+        order.PaymentStatus = (byte)PaymentStatus.Paid;
+        var old = NewPayment(user.Id, order.Id, $"OLD-{Guid.NewGuid():N}");
+        old.Status = (byte)PaymentStatus.Cancelled;
+        var current = NewPayment(user.Id, order.Id, $"NEW-{Guid.NewGuid():N}");
+        current.Status = (byte)PaymentStatus.Paid;
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.Orders.Add(order); seed.Payments.AddRange(old, current); await seed.SaveChangesAsync();
+        }
+
+        await using (var db = _fixture.CreateDbContext())
+            await NewPaymentService(db, new SuccessfulGateway(), new NullWallet())
+                .VerifyZarinpalPaymentAsync(old.Authority!, "OK");
+
+        await using var verify = _fixture.CreateDbContext();
+        var late = await verify.Payments.SingleAsync(x => x.Id == old.Id);
+        late.Status.Should().Be((byte)PaymentStatus.Failed);
+        late.ProviderStatusCode.Should().Be("LATE_SUCCESS_REQUIRES_FINANCE");
+        (await verify.FinancialAuditLogs.CountAsync(x => x.EntityId == old.Id &&
+            x.EventType == "LateGatewayPaymentRequiresFinanceResolution")).Should().Be(1);
+    }
+
+    [Fact]
     public async Task Wallet_refund_is_atomic_idempotent_and_financially_audited()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
@@ -532,13 +736,13 @@ public sealed class PaymentDeliveryIntegrationTests
     {
         Id = Guid.NewGuid(), UserId = userId, OrderNumber = $"VT-PAY-{Guid.NewGuid():N}",
         Status = (byte)OrderStatus.PendingPayment, PaymentStatus = (byte)PaymentStatus.Pending,
-        SubtotalAmount = 100m, FinalAmount = 100m, CreatedAt = DateTime.UtcNow
+        SubtotalAmount = 100m, FinalAmount = 100m, CurrencyType = (byte)CurrencyType.Toman, CreatedAt = DateTime.UtcNow
     };
     private static Payment NewPayment(Guid userId, Guid orderId, string authority) => new()
     {
         Id = Guid.NewGuid(), UserId = userId, OrderId = orderId, Amount = 100m,
         Gateway = "Zarinpal", Authority = authority, Status = (byte)PaymentStatus.Pending,
-        RequestedAt = DateTime.UtcNow
+        CurrencyType = (byte)CurrencyType.Toman, RequestedAt = DateTime.UtcNow
     };
     private static Category NewCategory() => new()
     {
@@ -573,6 +777,19 @@ public sealed class PaymentDeliveryIntegrationTests
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
             Task.FromResult((false, 0L));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult(string.Empty);
+    }
+    private sealed class SlowSuccessfulGateway : IZarinpalGatewayService
+    {
+        private int _createCount;
+        public int CreateCount => _createCount;
+        public async Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null)
+        {
+            Interlocked.Increment(ref _createCount);
+            await Task.Delay(250);
+            return (true, $"SLOW-{Guid.NewGuid():N}", "https://payment.test");
+        }
+        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) => Task.FromResult((true, 1L));
+        public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
     }
     private sealed class NullGiftDelivery : IGiftCodeDeliveryService { public Task DeliverOrderAsync(Guid orderId, Guid? deliveredByUserId = null) => Task.CompletedTask; }
     private sealed class NullCoupon : ICouponService

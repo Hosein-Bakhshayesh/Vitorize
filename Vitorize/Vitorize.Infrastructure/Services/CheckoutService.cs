@@ -8,7 +8,9 @@ using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using Vitorize.Application.Common;
 using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
@@ -20,19 +22,22 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
         private readonly ILogger<CheckoutService> _logger;
+        private readonly PaymentTimingOptions _paymentTiming;
 
         public CheckoutService(
             VitorizeDbContext dbContext,
             ICouponService couponService,
             INotificationService notificationService,
             IEncryptionService encryptionService,
-            ILogger<CheckoutService>? logger = null)
+            ILogger<CheckoutService>? logger = null,
+            IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
             _dbContext = dbContext;
             _couponService = couponService;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
             _logger = logger ?? NullLogger<CheckoutService>.Instance;
+            _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
 
         public async Task<CheckoutResultDto> CheckoutAsync(
@@ -251,7 +256,7 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.OrderItems.AddRangeAsync(orderItems);
 
                 var reservationIds = new List<Guid>();
-                var reservationExpiresAt = now.AddMinutes(15);
+                var reservationExpiresAt = now.AddMinutes(_paymentTiming.InstantCodeReservationLifetimeMinutes);
 
                 // قفل انحصاری و به‌ازای هر محصول/تنوع پیش از انتخاب کد. کلید هم‌راستا با
                 // GiftCodeReservationService است تا تخصیص کد در همهٔ مسیرها سریالی شود.
@@ -319,7 +324,9 @@ namespace Vitorize.Infrastructure.Services
                     UserId = userId,
                     Amount = finalAmount,
                     CurrencyType = currencyType,
-                    Gateway = "Mock",
+                    // The row is the durable first external-payment attempt. In Development and
+                    // Testing it is still completed only through the guarded mock verifier.
+                    Gateway = "Zarinpal",
                     Status = (byte)PaymentStatus.Pending,
                     CallbackVerified = false,
                     RequestedAt = now

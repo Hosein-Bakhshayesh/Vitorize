@@ -9,6 +9,8 @@ using System.Text;
 using System.Text.Json;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Logging;
+using Microsoft.Extensions.Options;
+using Vitorize.Application.Common;
 
 namespace Vitorize.Api.BackgroundServices
 {
@@ -17,15 +19,18 @@ namespace Vitorize.Api.BackgroundServices
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BackgroundJobProcessor> _logger;
         private readonly IWorkerHeartbeatRegistry _heartbeatRegistry;
+        private readonly PaymentTimingOptions _paymentTiming;
 
         public BackgroundJobProcessor(
             IServiceProvider serviceProvider,
             ILogger<BackgroundJobProcessor> logger,
-            IWorkerHeartbeatRegistry heartbeatRegistry)
+            IWorkerHeartbeatRegistry heartbeatRegistry,
+            IOptions<PaymentTimingOptions> paymentTiming)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
             _heartbeatRegistry = heartbeatRegistry;
+            _paymentTiming = paymentTiming.Value;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,10 +47,12 @@ namespace Vitorize.Api.BackgroundServices
                     using var scope = _serviceProvider.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<VitorizeDbContext>();
 
-                    await scope.ServiceProvider.GetRequiredService<IGiftCodeReservationService>()
-                        .ReleaseExpiredReservationsAsync();
                     var reconciliationCount = await scope.ServiceProvider.GetRequiredService<IPaymentService>()
                         .ReconcilePendingZarinpalPaymentsAsync();
+                    // Verify before releasing reservations. The validated timing policy ensures
+                    // reconciliation is eligible materially before reservation expiry.
+                    await scope.ServiceProvider.GetRequiredService<IGiftCodeReservationService>()
+                        .ReleaseExpiredReservationsAsync();
                     var processed = reconciliationCount;
                     processed += await CleanupOtp(db, stoppingToken);
                     processed += await CleanupRefreshTokens(db, stoppingToken);
@@ -84,7 +91,7 @@ namespace Vitorize.Api.BackgroundServices
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(_paymentTiming.ReconciliationIntervalSeconds), stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

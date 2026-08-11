@@ -8,6 +8,7 @@ using Vitorize.Infrastructure.Helpers;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
 using Vitorize.Shared.Logging;
+using Vitorize.Infrastructure.Services.Testing;
 
 namespace Vitorize.Api.Controllers
 {
@@ -22,19 +23,22 @@ namespace Vitorize.Api.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdempotencyService _idempotencyService;
         private readonly IWebHostEnvironment _environment;
+        private readonly TestingPaymentFaultService _testingPaymentFaults;
 
         public PaymentsController(
             IPaymentService paymentService,
             IWalletTopUpService walletTopUpService,
             ICurrentUserService currentUserService,
             IIdempotencyService idempotencyService,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            TestingPaymentFaultService testingPaymentFaults)
         {
             _paymentService = paymentService;
             _walletTopUpService = walletTopUpService;
             _currentUserService = currentUserService;
             _idempotencyService = idempotencyService;
             _environment = environment;
+            _testingPaymentFaults = testingPaymentFaults;
         }
 
         [HttpPost("start/{orderId:guid}")]
@@ -56,6 +60,24 @@ namespace Vitorize.Api.Controllers
                 "پرداخت با موفقیت آماده شد."));
         }
 
+        [HttpPost("retry/{orderId:guid}")]
+        [SwaggerOperation(
+            Summary = "تلاش مجدد پرداخت سفارش",
+            Description = "ایجاد یا استفادهٔ امن از تلاش فعال برای همان سفارش PendingPayment.")]
+        public async Task<ActionResult<ApiResult<PaymentStartResultDto>>> Retry(Guid orderId)
+        {
+            var result = await _paymentService.StartPaymentAsync(GetUserId(), orderId);
+            return Ok(ApiResult<PaymentStartResultDto>.Success(result, "پرداخت مجدد آماده شد."));
+        }
+
+        [HttpGet("retry-eligibility/{orderId:guid}")]
+        [SwaggerOperation(Summary = "وضعیت امکان تلاش مجدد پرداخت")]
+        public async Task<ActionResult<ApiResult<PaymentRetryEligibilityDto>>> RetryEligibility(Guid orderId)
+        {
+            var result = await _paymentService.GetRetryEligibilityAsync(GetUserId(), orderId);
+            return Ok(ApiResult<PaymentRetryEligibilityDto>.Success(result));
+        }
+
         [HttpPost("mock/verify/{paymentId:guid}")]
         [SwaggerOperation(
             Summary = "تایید پرداخت تستی",
@@ -71,6 +93,8 @@ namespace Vitorize.Api.Controllers
             // own order for free); real payments are confirmed via the Zarinpal callback instead.
             if (!_environment.IsDevelopment() && !_environment.IsEnvironment("Testing"))
                 throw new NotFoundException("مسیر مورد نظر یافت نشد.");
+            if (_environment.IsEnvironment("Testing") && _testingPaymentFaults.BlockMockVerification)
+                throw new BusinessException("تایید آزمایشی پرداخت عمداً ناموفق شد.");
 
             var userId = GetUserId();
 
