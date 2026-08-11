@@ -1,7 +1,7 @@
 @inherits LayoutComponentBase
 @using Vitorize.Web.Components.Storefront
 @using Vitorize.Web.Helpers
-@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject Vitorize.Web.Services.UI.StorefrontMaintenanceService Maintenance
 
 @if (_maintenance)
 {
@@ -37,22 +37,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var b = await Branding.GetAsync();
-        if (!b.MaintenanceMode) return;
-
-        var isAdmin = false;
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            isAdmin = state.User.IsInRole("Admin") || state.User.IsInRole("SuperAdmin");
-        }
-
-        if (!isAdmin)
+        var user = AuthState is null ? null : (await AuthState).User;
+        var state = await Maintenance.GetStateAsync(user);
+        if (state is not null)
         {
             _maintenance = true;
-            _info = ErrorStates.Resolve("503", b) with
+            _info = ErrorStates.Resolve("503", state.Branding) with
             {
-                Message = b.Get("MaintenanceMessage", b.Get("Error503Text", "سایت موقتاً در دسترس نیست."))
+                Message = state.Branding.Get("MaintenanceMessage", state.Branding.Get("Error503Text", "سایت موقتاً در دسترس نیست."))
             };
         }
     }

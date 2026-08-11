@@ -163,6 +163,7 @@ builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
 builder.Services.AddScoped<MediaUrlResolver>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<StoreBrandingService>();
+builder.Services.AddScoped<StorefrontMaintenanceService>();
 builder.Services.AddSingleton<EditorAssetManifest>();
 builder.Services.AddScoped<PrerenderApiState>();
 builder.Services.AddScoped<CartState>();
@@ -249,6 +250,7 @@ app.UseMiddleware<LegacyRedirectMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<GuestCartCookieMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<StorefrontMaintenanceStatusMiddleware>();
 
 app.UseAntiforgery();
 
@@ -289,3 +291,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Exposes the real Web pipeline to the focused integration host.
+public partial class Program { }
