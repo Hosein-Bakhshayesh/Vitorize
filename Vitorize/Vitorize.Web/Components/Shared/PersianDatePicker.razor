@@ -1,24 +1,51 @@
-<div class="vz-datepicker">
-    <div class="vz-input vz-datepicker__field" @onclick="Toggle" tabindex="0">
-        <span class="ico"><Icon Name="calendar" Size="17" /></span>
-        <span style="flex:1">@(HasValue ? PersianDateHelper.ToShortDate(Value) : Placeholder)</span>
+@using System.Globalization
+@using Vitorize.Application.Common
+
+<div class="vz-datepicker @((ReadOnly ? "is-readonly" : ""))">
+    <div class="vz-datepicker__entry">
+        <input class="vz-input" type="text" inputmode="numeric" autocomplete="bday"
+               aria-label="تاریخ تولد به تقویم شمسی"
+               placeholder="مثلاً ۱۳۷۵/۰۶/۱۵" value="@_entry"
+               @oninput="OnEntryInputAsync" @onchange="CommitEntryAsync" disabled="@ReadOnly" />
+        <button type="button" class="vz-iconaction vz-datepicker__toggle" @onclick="Toggle" disabled="@ReadOnly"
+                aria-label="باز کردن تقویم تاریخ تولد" aria-expanded="@_open">
+            <Icon Name="calendar" Size="17" />
+        </button>
         @if (HasValue)
         {
-            <button type="button" class="vz-iconaction" style="width:26px;height:26px;border:none;background:none"
-                    @onclick="ClearAsync" @onclick:stopPropagation="true" title="پاک کردن">
+            <button type="button" class="vz-iconaction vz-datepicker__clear" @onclick="ClearAsync" disabled="@ReadOnly" title="پاک کردن" aria-label="پاک کردن تاریخ تولد">
                 <Icon Name="x" Size="14" />
             </button>
         }
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="vz-datepicker__error" role="alert">@_error</div>
+    }
+
     @if (_open)
     {
         <div style="position:fixed;inset:0;z-index:115" @onclick="Close"></div>
-        <div class="vz-cal" @onclick:stopPropagation="true">
+        <div class="vz-cal" @onclick:stopPropagation="true" role="dialog" aria-label="انتخاب تاریخ تولد">
+            <div class="vz-cal__head vz-cal__head--selectors">
+                <select class="vz-input" aria-label="سال" value="@_viewYear" @onchange="ChangeYearAsync" disabled="@ReadOnly">
+                    @foreach (var year in Enumerable.Range(_minYear, _maxYear - _minYear + 1).Reverse())
+                    {
+                        <option value="@year">@PersianDateHelper.ToPersianDigits(year.ToString(CultureInfo.InvariantCulture))</option>
+                    }
+                </select>
+                <select class="vz-input" aria-label="ماه" value="@_viewMonth" @onchange="ChangeMonthAsync" disabled="@ReadOnly">
+                    @for (var month = 1; month <= 12; month++)
+                    {
+                        <option value="@month">@PersianDateHelper.MonthNames[month - 1]</option>
+                    }
+                </select>
+            </div>
             <div class="vz-cal__head">
-                <button type="button" class="vz-cal__nav" @onclick="PrevMonth"><Icon Name="chevron-right" Size="16" /></button>
+                <button type="button" class="vz-cal__nav" @onclick="PrevMonth" disabled="@(ReadOnly || !CanMove(-1))" aria-label="ماه قبل"><Icon Name="chevron-right" Size="16" /></button>
                 <div class="vz-cal__title">@MonthTitle</div>
-                <button type="button" class="vz-cal__nav" @onclick="NextMonth"><Icon Name="chevron-left" Size="16" /></button>
+                <button type="button" class="vz-cal__nav" @onclick="NextMonth" disabled="@(ReadOnly || !CanMove(1))" aria-label="ماه بعد"><Icon Name="chevron-left" Size="16" /></button>
             </div>
 
             <div class="vz-cal__grid">
@@ -33,16 +60,17 @@
                 @for (var day = 1; day <= _daysInMonth; day++)
                 {
                     var d = day;
+                    var selectable = IsSelectable(d);
                     <button type="button" class="vz-cal__day @(IsSelected(d) ? "selected" : "") @(IsToday(d) ? "today" : "")"
-                            @onclick="() => SelectDay(d)">
-                        @PersianDateHelper.ToPersianDigits(d.ToString())
+                            @onclick="() => SelectDay(d)" disabled="@(ReadOnly || !selectable)">
+                        @PersianDateHelper.ToPersianDigits(d.ToString(CultureInfo.InvariantCulture))
                     </button>
                 }
             </div>
 
             <div class="vz-cal__foot">
-                <button type="button" @onclick="SelectToday">امروز</button>
-                <button type="button" class="clear" @onclick="ClearAsync">پاک کردن</button>
+                <button type="button" @onclick="SelectToday" disabled="@ReadOnly">امروز</button>
+                <button type="button" class="clear" @onclick="ClearAsync" disabled="@ReadOnly">پاک کردن</button>
             </div>
         </div>
     }
@@ -51,35 +79,69 @@
 @code {
     [Parameter] public DateTime? Value { get; set; }
     [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<string?> ValidationChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public string Placeholder { get; set; } = "انتخاب تاریخ";
 
+    private readonly DateTime _minimum = VerificationBirthDateRules.Minimum.ToDateTime(TimeOnly.MinValue);
     private bool _open;
     private int _viewYear;
     private int _viewMonth;
     private int _firstDow;
     private int _daysInMonth;
+    private int _minYear;
+    private int _maxYear;
+    private string _entry = "";
+    private string? _error;
+    private DateTime? _lastValue;
 
+    private DateTime Today => DateTime.Today;
     private bool HasValue => PersianDateHelper.IsValid(Value);
-    private string MonthTitle =>
-        $"{PersianDateHelper.MonthNames[_viewMonth - 1]} {PersianDateHelper.ToPersianDigits(_viewYear.ToString())}";
+    private string MonthTitle => $"{PersianDateHelper.MonthNames[_viewMonth - 1]} {PersianDateHelper.ToPersianDigits(_viewYear.ToString(CultureInfo.InvariantCulture))}";
 
-    protected override void OnInitialized() => InitView();
+    protected override void OnInitialized()
+    {
+        var min = PersianDateHelper.ToJalaliParts(_minimum)!.Value;
+        var max = PersianDateHelper.ToJalaliParts(Today)!.Value;
+        _minYear = min.Year;
+        _maxYear = max.Year;
+        SyncEntry();
+        InitView();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Value != _lastValue)
+        {
+            _lastValue = Value;
+            SyncEntry();
+            if (!_open) InitView();
+        }
+    }
+
+    private void SyncEntry() => _entry = HasValue ? PersianDateHelper.ToShortDate(Value) : "";
 
     private void InitView()
     {
-        var parts = PersianDateHelper.ToJalaliParts(Value);
-        if (parts is { } p)
-        {
-            _viewYear = p.Year;
-            _viewMonth = p.Month;
-        }
-        else
-        {
-            var today = PersianDateHelper.Today();
-            _viewYear = today.Year;
-            _viewMonth = today.Month;
-        }
+        var parts = PersianDateHelper.ToJalaliParts(Value) ?? PersianDateHelper.ToJalaliParts(Today)!.Value;
+        _viewYear = Math.Clamp(parts.Year, _minYear, _maxYear);
+        _viewMonth = parts.Month;
+        ClampView();
         RecomputeMonth();
+    }
+
+    private void ClampView()
+    {
+        if (_viewYear == _minYear)
+        {
+            var minMonth = PersianDateHelper.ToJalaliParts(_minimum)!.Value.Month;
+            _viewMonth = Math.Max(_viewMonth, minMonth);
+        }
+        if (_viewYear == _maxYear)
+        {
+            var maxMonth = PersianDateHelper.ToJalaliParts(Today)!.Value.Month;
+            _viewMonth = Math.Min(_viewMonth, maxMonth);
+        }
     }
 
     private void RecomputeMonth()
@@ -90,14 +152,35 @@
 
     private void Toggle()
     {
+        if (ReadOnly) return;
         _open = !_open;
         if (_open) InitView();
     }
 
     private void Close() => _open = false;
 
+    private bool CanMove(int offset)
+    {
+        var year = _viewYear;
+        var month = _viewMonth + offset;
+        if (month < 1) { month = 12; year--; }
+        if (month > 12) { month = 1; year++; }
+        return year >= _minYear && year <= _maxYear && MonthHasSelectableDate(year, month);
+    }
+
+    private bool MonthHasSelectableDate(int year, int month)
+    {
+        for (var day = 1; day <= PersianDateHelper.DaysInMonth(year, month); day++)
+        {
+            var date = PersianDateHelper.ToGregorian(year, month, day);
+            if (date.HasValue && date.Value >= _minimum && date.Value.Date <= Today) return true;
+        }
+        return false;
+    }
+
     private void PrevMonth()
     {
+        if (!CanMove(-1)) return;
         _viewMonth--;
         if (_viewMonth < 1) { _viewMonth = 12; _viewYear--; }
         RecomputeMonth();
@@ -105,9 +188,26 @@
 
     private void NextMonth()
     {
+        if (!CanMove(1)) return;
         _viewMonth++;
         if (_viewMonth > 12) { _viewMonth = 1; _viewYear++; }
         RecomputeMonth();
+    }
+
+    private async Task ChangeYearAsync(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var year)) return;
+        _viewYear = Math.Clamp(year, _minYear, _maxYear);
+        ClampView(); RecomputeMonth();
+        await Task.CompletedTask;
+    }
+
+    private async Task ChangeMonthAsync(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var month)) return;
+        _viewMonth = Math.Clamp(month, 1, 12);
+        ClampView(); RecomputeMonth();
+        await Task.CompletedTask;
     }
 
     private bool IsSelected(int day)
@@ -122,27 +222,98 @@
         return today.Year == _viewYear && today.Month == _viewMonth && today.Day == day;
     }
 
-    private async Task SelectDay(int day)
+    private bool IsSelectable(int day)
     {
         var date = PersianDateHelper.ToGregorian(_viewYear, _viewMonth, day);
-        Value = date;
+        return date.HasValue && date.Value >= _minimum && date.Value.Date <= Today;
+    }
+
+    private async Task SelectDay(int day)
+    {
+        if (!IsSelectable(day)) return;
+        await SetValueAsync(PersianDateHelper.ToGregorian(_viewYear, _viewMonth, day));
         _open = false;
-        await ValueChanged.InvokeAsync(date);
     }
 
     private async Task SelectToday()
     {
-        var today = PersianDateHelper.Today();
-        _viewYear = today.Year;
-        _viewMonth = today.Month;
-        RecomputeMonth();
-        await SelectDay(today.Day);
+        if (ReadOnly) return;
+        await SetValueAsync(Today);
+        _open = false;
     }
 
     private async Task ClearAsync()
     {
+        if (ReadOnly) return;
+        _entry = "";
+        await SetErrorAsync(null);
         Value = null;
+        _lastValue = null;
         _open = false;
         await ValueChanged.InvokeAsync(null);
     }
+
+    private async Task OnEntryInputAsync(ChangeEventArgs args)
+    {
+        _entry = args.Value?.ToString() ?? "";
+        var normalized = NormalizeDigits(_entry);
+        if (normalized.Length == 10)
+            await CommitEntryAsync();
+        else if (normalized.Length == 0)
+            await SetErrorAsync(null);
+    }
+
+    private async Task CommitEntryAsync()
+    {
+        if (ReadOnly) return;
+        var normalized = NormalizeDigits(_entry);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            await ClearAsync();
+            return;
+        }
+        if (!TryParseJalali(normalized, out var date) || date < _minimum || date.Date > Today)
+        {
+            await SetErrorAsync("تاریخ تولد واردشده معتبر نیست.");
+            return;
+        }
+        await SetValueAsync(date);
+    }
+
+    private async Task SetValueAsync(DateTime? date)
+    {
+        Value = date;
+        _lastValue = date;
+        SyncEntry();
+        await SetErrorAsync(null);
+        await ValueChanged.InvokeAsync(date);
+    }
+
+    private async Task SetErrorAsync(string? value)
+    {
+        if (_error == value) return;
+        _error = value;
+        if (ValidationChanged.HasDelegate) await ValidationChanged.InvokeAsync(value);
+    }
+
+    private static bool TryParseJalali(string input, out DateTime date)
+    {
+        date = default;
+        var parts = input.Split('/');
+        if (parts.Length != 3 || parts.Any(x => x.Length is < 1 or > 4) ||
+            !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year) ||
+            !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day)) return false;
+        var converted = PersianDateHelper.ToGregorian(year, month, day);
+        if (!converted.HasValue) return false;
+        date = converted.Value;
+        return true;
+    }
+
+    private static string NormalizeDigits(string value) => new(value.Trim().Select(ch => ch switch
+    {
+        >= '۰' and <= '۹' => (char)('0' + ch - '۰'),
+        >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
+        _ => ch
+    }).ToArray());
 }

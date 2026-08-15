@@ -60,6 +60,10 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
 
+    public virtual DbSet<OrderItemKycState> OrderItemKycStates { get; set; }
+
+    public virtual DbSet<OrderItemKycFinanceResolution> OrderItemKycFinanceResolutions { get; set; }
+
     public virtual DbSet<OrderItemDelivery> OrderItemDeliveries { get; set; }
 
     public virtual DbSet<OrderItemInputValue> OrderItemInputValues { get; set; }
@@ -561,6 +565,8 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.KycEvaluatedAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.VariantTitle).HasMaxLength(200);
+            entity.ToTable(table => table.HasCheckConstraint("CK_OrderItems_KycCustomerActionDeadlineHours",
+                "[KycCustomerActionDeadlineHours] IS NULL OR [KycCustomerActionDeadlineHours] > 0"));
 
             entity.HasIndex(e => e.KycPolicyVersionId, "IX_OrderItems_KycPolicyVersionId")
                 .HasFilter("([KycPolicyVersionId] IS NOT NULL)");
@@ -587,6 +593,31 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.KycPolicyVersionId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_OrderItems_KycPolicyVersions");
+
+            entity.HasOne(d => d.KycLifecycleState).WithOne(p => p.OrderItem)
+                .HasForeignKey<OrderItemKycState>(d => d.OrderItemId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_OrderItemKycStates_OrderItems");
+        });
+
+        modelBuilder.Entity<OrderItemKycState>(entity =>
+        {
+            entity.HasIndex(e => e.OrderItemId, "UX_OrderItemKycStates_OrderItemId").IsUnique();
+            entity.HasIndex(e => e.SatisfiedByVerificationProfileId, "IX_OrderItemKycStates_SatisfiedByVerificationProfileId")
+                .HasFilter("([SatisfiedByVerificationProfileId] IS NOT NULL)");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.RowVersion).IsRowVersion().IsConcurrencyToken();
+            entity.ToTable(table => table.HasCheckConstraint("CK_OrderItemKycStates_Status",
+                "[Status] IN (1,2,3,4,5,6,7)"));
+
+            entity.HasOne(d => d.SatisfiedByVerificationProfile)
+                .WithMany(p => p.SatisfiedOrderItemKycStates)
+                .HasForeignKey(d => d.SatisfiedByVerificationProfileId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_OrderItemKycStates_SatisfiedByVerificationProfile");
         });
 
         modelBuilder.Entity<OrderItemDelivery>(entity =>
@@ -793,6 +824,8 @@ public partial class VitorizeDbContext : DbContext
             entity.HasIndex(x => new { x.KycPolicyId, x.Version }, "UX_KycPolicyVersions_Policy_Version").IsUnique();
             entity.Property(x => x.CustomerTitle).HasMaxLength(250);
             entity.Property(x => x.CustomerInstructions).HasMaxLength(4000);
+            entity.ToTable(table => table.HasCheckConstraint("CK_KycPolicyVersions_CustomerActionDeadlineHours",
+                "[CustomerActionDeadlineHours] IS NULL OR [CustomerActionDeadlineHours] > 0"));
             entity.HasOne(x => x.KycPolicy).WithMany(x => x.Versions).HasForeignKey(x => x.KycPolicyId).OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<KycDocumentType>(entity =>
@@ -811,6 +844,8 @@ public partial class VitorizeDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.KycPolicyVersionId, x.KycDocumentTypeId }, "UX_KycPolicyDocumentRequirements_Version_Document").IsUnique();
             entity.Property(x => x.Instructions).HasMaxLength(1000);
+            entity.Property(x => x.RedactionMode).HasDefaultValue((byte)0);
+            entity.Property(x => x.RedactionInstructions).HasMaxLength(1000);
             entity.HasOne(x => x.KycPolicyVersion).WithMany(x => x.DocumentRequirements).HasForeignKey(x => x.KycPolicyVersionId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.KycDocumentType).WithMany(x => x.PolicyRequirements).HasForeignKey(x => x.KycDocumentTypeId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -1277,6 +1312,8 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<VerificationDocument>(entity =>
         {
             entity.HasIndex(e => e.UserVerificationProfileId, "IX_VerificationDocuments_ProfileId");
+            entity.HasIndex(e => e.KycDocumentTypeId, "IX_VerificationDocuments_KycDocumentTypeId")
+                .HasFilter("([KycDocumentTypeId] IS NOT NULL)");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.AdminNote).HasMaxLength(1000);
@@ -1291,6 +1328,23 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.UserVerificationProfileId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_VerificationDocuments_UserVerificationProfiles");
+
+            entity.HasOne(d => d.KycDocumentType).WithMany(p => p.VerificationDocuments)
+                .HasForeignKey(d => d.KycDocumentTypeId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_VerificationDocuments_KycDocumentTypes");
+        });
+
+        modelBuilder.Entity<OrderItemKycFinanceResolution>(entity =>
+        {
+            entity.HasIndex(e => e.OrderItemId, "UX_OrderItemKycFinanceResolutions_OrderItem").IsUnique();
+            entity.HasIndex(e => new { e.Status, e.CreatedAt }, "IX_OrderItemKycFinanceResolutions_Status_CreatedAt");
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.Property(e => e.ExternalReference).HasMaxLength(200);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(e => e.OrderItem).WithOne(e => e.KycFinanceResolution).HasForeignKey<OrderItemKycFinanceResolution>(e => e.OrderItemId).OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasOne(e => e.ResolvedByUser).WithMany().HasForeignKey(e => e.ResolvedByUserId);
         });
 
         modelBuilder.Entity<Wallet>(entity =>

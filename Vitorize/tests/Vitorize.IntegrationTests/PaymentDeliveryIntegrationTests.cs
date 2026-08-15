@@ -399,7 +399,7 @@ public sealed class PaymentDeliveryIntegrationTests
     }
 
     [Fact]
-    public async Task Fulfillment_failure_after_verified_payment_compensates_to_wallet()
+    public async Task Fulfillment_failure_after_verified_payment_keeps_financial_payment_authoritative()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var category = NewCategory();
@@ -418,14 +418,14 @@ public sealed class PaymentDeliveryIntegrationTests
             var wallet = new WalletService(db, new NullNotifications());
             var result = await NewPaymentService(db, new SuccessfulGateway(), wallet)
                 .VerifyZarinpalPaymentAsync(payment.Authority!, "OK");
-            result.IsPaid.Should().BeFalse();
-            result.PaymentStatus.Should().Be((byte)PaymentStatus.Refunded);
+            result.IsPaid.Should().BeTrue();
+            result.PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
         }
 
         await using var verify = _fixture.CreateDbContext();
-        (await verify.Wallets.Where(x => x.UserId == user.Id).Select(x => x.Balance).SingleAsync()).Should().Be(100m);
-        (await verify.PaymentRefunds.CountAsync(x => x.PaymentId == payment.Id)).Should().Be(1);
-        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Refunded);
+        (await verify.Wallets.Where(x => x.UserId == user.Id).Select(x => x.Balance).SingleOrDefaultAsync()).Should().Be(0m);
+        (await verify.PaymentRefunds.CountAsync(x => x.PaymentId == payment.Id)).Should().Be(0);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
     }
 
     [Fact]
@@ -726,8 +726,15 @@ public sealed class PaymentDeliveryIntegrationTests
     }
 
     private PaymentService NewPaymentService(Vitorize.Infrastructure.Persistence.VitorizeDbContext db,
-        IZarinpalGatewayService gateway, IWalletService wallet) =>
-        new(db, new NullGiftDelivery(), new NullCoupon(), wallet, new NullNotifications(), gateway, new NullSmsOutbox());
+        IZarinpalGatewayService gateway, IWalletService wallet)
+    {
+        var notifications = new NullNotifications();
+        var giftDelivery = new GiftCodeDeliveryService(db, Crypto());
+        var processor = new PostPaymentOrderProcessor(
+            db, new PaidGiftCodeAllocationService(db), giftDelivery, notifications);
+        return new PaymentService(db, giftDelivery, new NullCoupon(), wallet, notifications, gateway,
+            new NullSmsOutbox(), postPaymentOrderProcessor: processor);
+    }
 
     private static AesEncryptionService Crypto() => new(Options.Create(new Vitorize.Application.Common.EncryptionSettings
         { Key = "0123456789abcdef0123456789abcdef" }));
@@ -791,7 +798,11 @@ public sealed class PaymentDeliveryIntegrationTests
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) => Task.FromResult((true, 1L));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
     }
-    private sealed class NullGiftDelivery : IGiftCodeDeliveryService { public Task DeliverOrderAsync(Guid orderId, Guid? deliveredByUserId = null) => Task.CompletedTask; }
+    private sealed class NullGiftDelivery : IGiftCodeDeliveryService
+    {
+        public Task DeliverOrderAsync(Guid orderId, Guid? deliveredByUserId = null) => Task.CompletedTask;
+        public Task<bool> DeliverSatisfiedOrderItemAsync(Guid orderItemId, Guid? deliveredByUserId = null, CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
     private sealed class NullCoupon : ICouponService
     {
         public Task<ValidateCouponResultDto> ValidateAsync(Guid userId, ValidateCouponRequestDto request) => throw new NotSupportedException();

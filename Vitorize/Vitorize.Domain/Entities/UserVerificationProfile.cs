@@ -48,4 +48,6 @@ public partial class UserVerificationProfile
     public virtual User User { get; set; } = null!;
 
     public virtual ICollection<VerificationDocument> VerificationDocuments { get; set; } = new List<VerificationDocument>();
+
+    public virtual ICollection<OrderItemKycState> SatisfiedOrderItemKycStates { get; set; } = new List<OrderItemKycState>();
 }

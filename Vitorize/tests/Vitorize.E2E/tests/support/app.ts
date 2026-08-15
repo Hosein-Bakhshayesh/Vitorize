@@ -52,8 +52,25 @@ export async function loginCustomer(page: Page, customer: CustomerIdentity, retu
 }
 
 export async function logoutCustomer(page: Page): Promise<void> {
-  const form = page.locator('form[action="/auth/customer/logout"]').first();
-  await Promise.all([page.waitForURL(/\/$/), form.locator('button[type="submit"]').click()]);
+  const forms = page.locator('form[action="/auth/customer/logout"]');
+  for (let index = 0; index < await forms.count(); index += 1) {
+    const form = forms.nth(index);
+    if (await form.isVisible()) {
+      await Promise.all([page.waitForURL(/\/$/), form.locator('button[type="submit"]').click()]);
+      return;
+    }
+  }
+
+  const mobileToggle = page.locator('button.st-acc__mobile-toggle');
+  if (await mobileToggle.isVisible()) {
+    await mobileToggle.click();
+    const mobileForm = page.locator('#customer-account-nav form[action="/auth/customer/logout"]');
+    await mobileForm.waitFor({ state: 'visible' });
+    await Promise.all([page.waitForURL(/\/$/), mobileForm.locator('button[type="submit"]').click()]);
+    return;
+  }
+
+  throw new Error('No visible customer logout control is available.');
 }
 
 export async function loginAdmin(page: Page): Promise<void> {

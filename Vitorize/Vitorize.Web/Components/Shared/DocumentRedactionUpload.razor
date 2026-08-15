@@ -1,0 +1,111 @@
+@using Vitorize.Web.Models.Admin.Common
+@inject ApiClient Api
+@inject ToastService Toasts
+@inject IJSRuntime JS
+
+<div class="vz-redaction-upload" data-testid="document-redaction-upload-@TestId">
+    @if (RedactionMode == 0 || (RedactionMode == 1 && _directUpload))
+    {
+        <UploadBox Value="@Value" ValueChanged="OnValueChanged" Label="@Label" Endpoint="@UploadEndpoint" />
+        @if (RedactionMode == 1 && string.IsNullOrWhiteSpace(Value))
+        {
+            <button type="button" class="st-btn st-btn--outline vz-redaction-upload__choice" data-testid="redaction-open-@TestId" @onclick="OpenEditor">پوشاندن اطلاعات حساس</button>
+        }
+    }
+    else if (string.IsNullOrWhiteSpace(Value))
+    {
+        @if (!string.IsNullOrWhiteSpace(RedactionInstructions))
+        {
+            <p class="vz-redaction-upload__instructions">@RedactionInstructions</p>
+        }
+        @if (RedactionMode == 1)
+        {
+            <button type="button" class="st-btn st-btn--outline vz-redaction-upload__choice" data-testid="redaction-direct-@TestId" @onclick="UseDirectUpload">آپلود بدون پوشاندن</button>
+        }
+        <button type="button" class="st-btn st-btn--primary vz-redaction-upload__choice" data-testid="redaction-open-@TestId" @onclick="OpenEditor">انتخاب تصویر و پوشاندن اطلاعات</button>
+    }
+    @if (RedactionMode != 0 && !_directUpload && string.IsNullOrWhiteSpace(Value))
+    {
+        <input id="@_sourceInputId" data-testid="redaction-source-@TestId" class="vz-redaction-upload__source" type="file" accept="image/png,image/jpeg,image/webp" aria-hidden="true" tabindex="-1" />
+        <InputFile id="@_flattenedInputId" data-testid="@($"redaction-flattened-{TestId}")" class="vz-redaction-upload__flattened" OnChange="UploadFlattened" accept="image/png" />
+    }
+</div>
+
+<style>
+    .vz-redaction-upload { display:grid; gap:10px; }
+    .vz-redaction-upload__choice { width:100%; justify-content:center; min-height:42px; }
+    .vz-redaction-upload__instructions { margin:0; color:var(--st-text-2); font-size:13px; line-height:1.9; }
+    .vz-redaction-upload__source, .vz-redaction-upload__flattened { display:none; }
+</style>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<string?> RedactedValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "آپلود تصویر";
+    [Parameter] public string Endpoint { get; set; } = "uploads/verification-document";
+    [Parameter] public Guid? OrderItemId { get; set; }
+    [Parameter] public byte RedactionMode { get; set; }
+    [Parameter] public string? RedactionInstructions { get; set; }
+    [Parameter] public string TestId { get; set; } = Guid.NewGuid().ToString("N");
+
+    private readonly string _sourceInputId = $"redaction-source-{Guid.NewGuid():N}";
+    private readonly string _flattenedInputId = $"redaction-flattened-{Guid.NewGuid():N}";
+    private bool _directUpload;
+    private bool _busy;
+    private const long MaxSize = 5 * 1024 * 1024;
+    private string UploadEndpoint => OrderItemId.HasValue
+        ? $"{Endpoint}{(Endpoint.Contains('?') ? "&" : "?")}orderItemId={OrderItemId.Value:D}"
+        : Endpoint;
+
+    private Task UseDirectUpload()
+    {
+        _directUpload = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task OpenEditor()
+    {
+        await JS.InvokeVoidAsync("vzDocumentRedaction.choose", _sourceInputId, _flattenedInputId, RedactionInstructions);
+    }
+
+    private async Task UploadFlattened(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null || _busy) return;
+        if (file.Size == 0 || file.Size > MaxSize)
+        {
+            Toasts.Error("نسخه نهایی تصویر معتبر نیست یا از حداکثر حجم مجاز بیشتر است.");
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxSize);
+            var result = await Api.UploadAsync<UploadResultModel>(UploadEndpoint, stream, "redacted-document.png", "image/png");
+            if (result.IsSuccess && result.Data is not null)
+            {
+                if (RedactedValueChanged.HasDelegate)
+                    await RedactedValueChanged.InvokeAsync(result.Data.FilePath);
+                else
+                    await ValueChanged.InvokeAsync(result.Data.FilePath);
+                Toasts.Success("نسخه پوشانده‌شده با موفقیت آپلود شد.");
+            }
+            else
+            {
+                Toasts.Error(string.IsNullOrWhiteSpace(result.Message) ? "آپلود نسخه نهایی ناموفق بود." : result.Message);
+            }
+        }
+        catch
+        {
+            Toasts.Error("آپلود نسخه نهایی با خطا مواجه شد. فایل اصلی ارسال نشده است؛ دوباره تلاش کنید.");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnValueChanged(string? value) => await ValueChanged.InvokeAsync(value);
+}

@@ -51,7 +51,7 @@ public sealed class DatabaseContractIntegrationTests
     {
         await using var db = _fixture.CreateDbContext();
         (await db.Roles.OrderBy(x => x.Name).Select(x => x.Name).ToListAsync())
-            .Should().BeEquivalentTo("Admin", "Customer", "SuperAdmin", "Support");
+            .Should().BeEquivalentTo("Admin", "Customer", "KycViewer", "SuperAdmin", "Support");
         _fixture.InitialPrivilegedUserCount.Should().Be(0);
     }
 

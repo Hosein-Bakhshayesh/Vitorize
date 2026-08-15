@@ -18,7 +18,8 @@ INSERT @RequiredTables (Name) VALUES
     (N'SmsMessages'), (N'SmsMessageAttempts'),
     (N'ProductFeatures'), (N'ProductInputFields'),
     (N'CartItemInputValues'), (N'OrderItemInputValues'), (N'FontAssets'),
-    (N'DatabaseScriptHistory'), (N'PaymentRefunds'), (N'FinancialAuditLogs');
+    (N'DatabaseScriptHistory'), (N'PaymentRefunds'), (N'FinancialAuditLogs'),
+    (N'OrderItemKycStates');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required table', N'dbo.' + expected.Name + N' is missing.'
@@ -32,8 +33,11 @@ INSERT @RequiredColumns VALUES
     (N'SmsMessages', N'IdempotencyKey'), (N'SmsMessages', N'InternalNote'),
     (N'ProductFeatures', N'ProductId'), (N'ProductInputFields', N'Key'),
     (N'CartItems', N'InputFingerprint'), (N'FontAssets', N'FamilyName'),
-    (N'PaymentCallbacks', N'CallbackKey'), (N'UserVerificationProfiles', N'EncryptedPayload'),
-    (N'OrderItemDeliveries', N'EncryptionVersion'), (N'OutboxMessages', N'LockedAt');
+    (N'PaymentCallbacks', N'CallbackKey'), (N'UserVerificationProfiles', N'EncryptedPayload'), (N'VerificationDocuments', N'KycDocumentTypeId'),
+    (N'OrderItemDeliveries', N'EncryptionVersion'), (N'OutboxMessages', N'LockedAt'),
+    (N'OrderItemKycStates', N'RowVersion'), (N'OrderItemKycStates', N'Status'), (N'OrderItemKycStates', N'CustomerActionDeadlineAt'),
+    (N'OrderItems', N'KycCustomerActionDeadlineHours'), (N'KycPolicyVersions', N'CustomerActionDeadlineHours'),
+    (N'KycPolicyDocumentRequirements', N'RedactionMode'), (N'KycPolicyDocumentRequirements', N'RedactionInstructions');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required column', N'dbo.' + TableName + N'.' + ColumnName + N' is missing.'
@@ -60,6 +64,12 @@ BEGIN
         (N'V0007', N'V0007__support_fulfillment_ticket_uniqueness.sql', 'b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10'),
         (N'V0008', N'V0008__seed_storefront_typography_settings.sql', 'fff9d2f0f22c6ac51629f3edee38c30a3e90dc7433d3914e10fbf2035eaade15'),
         (N'V0009', N'V0009__persistent_guest_carts.sql', '3763a5b6236065f47b6b461f42188672bbb5584408a495eb7f1bd30c327ab438'),
+        (N'V0010', N'V0010__kyc_policy_and_order_item_snapshot.sql', '029bf21945b4d1f19c14b3620955a64cbcf37512767e92b482ac8b7d5c5557f0'),
+        (N'V0011', N'V0011__order_item_kyc_lifecycle_state.sql', '0f838bdbe7d783d7e28f93a06d7c2f7aefd39e244ba00e11881cd903d6315181'),
+        (N'V0012', N'V0012__verification_document_kyc_document_type.sql', '73d8c8b043c8f610fd8896762fedaf8e7cd56b2333994722478bd9d4d5add73a'),
+        (N'V0013', N'V0013__kyc_document_redaction_configuration.sql', '714524653dbbb8a03e304ad10de1bd7664d643e4f0f9b5904c122c0653e87e98'),
+        (N'V0014', N'V0014__kyc_customer_action_deadline.sql', '10f71bfaea811724ed1a7008ceaf80ba70a0c3b077377dee354d2dc66e23468f'),
+        (N'V0015', N'V0015__kyc_finance_resolution.sql', '29a1af41c42b655785f6c90b419921992bb3029d41f943ebe3a721dc2ed9241a'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -175,6 +185,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Walle
     INSERT @Issues VALUES ('ERROR', N'Wallet idempotency', N'Unique financial reference index is missing.');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PaymentCallbacks') AND name = N'UX_PaymentCallbacks_PaymentId_CallbackKey' AND is_unique = 1)
     INSERT @Issues VALUES ('ERROR', N'Callback idempotency', N'Unique callback key index is missing.');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.OrderItemKycStates') AND name = N'UX_OrderItemKycStates_OrderItemId' AND is_unique = 1)
+    INSERT @Issues VALUES ('ERROR', N'Order-item KYC lifecycle uniqueness', N'Unique OrderItemId constraint is missing.');
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.OrderItemKycStates') AND name = N'CK_OrderItemKycStates_Status' AND is_disabled = 0 AND is_not_trusted = 0)
+    INSERT @Issues VALUES ('ERROR', N'Order-item KYC lifecycle status constraint', N'CK_OrderItemKycStates_Status is missing or untrusted.');
 
 IF OBJECT_ID(N'dbo.UserRoles', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.Roles', N'U') IS NOT NULL
 AND EXISTS

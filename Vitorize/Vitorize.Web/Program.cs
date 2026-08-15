@@ -258,6 +258,7 @@ app.MapAdminAuthEndpoints();
 app.MapCustomerAuthEndpoints();
 app.MapAuthSessionEndpoints();
 app.MapAdminEditorUploadEndpoints();
+app.MapProtectedMediaEndpoints();
 app.MapSeoEndpoints();
 
 app.MapRazorComponents<App>()

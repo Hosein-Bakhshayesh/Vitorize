@@ -11,6 +11,7 @@
         PaymentFailed = 11,
 
         GiftCodeDelivered = 20,
+        ManualDeliveryCompleted = 21,
 
         WalletCharged = 30,
         WalletDebited = 31,

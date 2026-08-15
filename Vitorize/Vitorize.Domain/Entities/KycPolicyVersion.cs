@@ -8,6 +8,7 @@ public sealed class KycPolicyVersion
     public byte Status { get; set; }
     public string CustomerTitle { get; set; } = null!;
     public string? CustomerInstructions { get; set; }
+    public int? CustomerActionDeadlineHours { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? PublishedAt { get; set; }
     public KycPolicy KycPolicy { get; set; } = null!;

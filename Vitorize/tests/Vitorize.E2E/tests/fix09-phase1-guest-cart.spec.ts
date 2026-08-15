@@ -36,11 +36,17 @@ async function runGuestJourney(page: import('@playwright/test').Page, context: i
   expect((await context.cookies()).some(cookie => cookie.name === guestCookie)).toBe(false);
   await page.goto(`/product/${product.slug}`, { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await expect(page.locator('.vz-toast.success, .vz-toast--success').last()).toBeVisible();
+  await expect.poll(async () => {
+    const capability = (await context.cookies()).find(cookie => cookie.name === guestCookie)?.value;
+    if (!capability) return 0;
+    const response = await page.request.get(`${apiBaseUrl}/cart`, { headers: { 'X-Vitorize-Guest-Cart': capability } });
+    return response.ok() ? ((await response.json() as { data: Cart }).data.totalQuantity) : 0;
+  }).toBe(1);
   await page.goto('/cart', { waitUntil: 'networkidle' });
   const item = page.locator('.st-cart-item').filter({ hasText: product.title });
   await expect(item).toHaveCount(1);
   await item.locator('.st-qty button').last().click();
+  await expect(item.locator('.st-qty span')).toHaveText('۲');
 
   const capability = await guestCapability(context);
   await expectGuestCookie(context);
@@ -82,19 +88,18 @@ async function runGuestJourney(page: import('@playwright/test').Page, context: i
   const ordersBefore = await ordersFor(request, customerToken);
   await page.locator('.st-cart-sum button.st-btn--accent').click();
   await expect(page).toHaveURL(/\/checkout/);
-  const gate = page.getByTestId('checkout-kyc-gate');
-  await expect(gate).toBeVisible();
-  await expect(gate.locator('a[href="/customer/verification"]')).toBeVisible();
+  const information = page.getByTestId('checkout-kyc-information');
+  await expect(information).toBeVisible();
+  await expect(information.getByTestId('checkout-kyc-post-payment-copy')).toContainText('پس از پرداخت');
   await page.locator('button.st-btn--accent').last().click();
-  await expect(page.locator('.vz-toast.error, .vz-toast--error').last()).toBeVisible();
-  expect((await ordersFor(request, customerToken)).length).toBe(ordersBefore.length);
-  await expect(page).toHaveURL(/\/checkout/);
+  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+  expect((await ordersFor(request, customerToken)).length).toBe(ordersBefore.length + 1);
 
-  await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: product.title })).toHaveCount(1);
-  await expectCustomerCart(request, customerToken, 2, true);
-  await page.reload({ waitUntil: 'networkidle' });
-  await expectCustomerCart(request, customerToken, 2, true);
+  const paymentResultOrderId = new URL(page.url()).searchParams.get('orderId');
+  expect(paymentResultOrderId).toBeTruthy();
+  const kycCta = page.getByRole('link', { name: 'تکمیل احراز هویت', exact: true });
+  await expect(kycCta).toBeVisible();
+  await expect(kycCta).toHaveAttribute('href', `/customer/orders/${paymentResultOrderId}`);
 }
 
 async function guestCapability(context: import('@playwright/test').BrowserContext): Promise<string> {

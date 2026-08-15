@@ -13,7 +13,10 @@ namespace Vitorize.Application.Interfaces
         Task<VerificationDocumentDto> AddDocumentAsync(
             Guid userId,
             byte documentType,
-            string filePath);
+            string filePath,
+            Guid? kycDocumentTypeId = null,
+            Guid? orderItemId = null,
+            bool isRedacted = false);
 
         /// <summary>
         /// حذف مدرک احراز هویتِ خودِ کاربر، فقط زمانی که پرونده هنوز در وضعیت در انتظار بررسی است.

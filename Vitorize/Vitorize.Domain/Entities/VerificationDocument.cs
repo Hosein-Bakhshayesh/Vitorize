@@ -11,6 +11,12 @@ public partial class VerificationDocument
 
     public byte DocumentType { get; set; }
 
+    /// <summary>
+    /// Explicit Phase-1 policy document type. Legacy byte-only documents remain
+    /// intentionally unmapped rather than being guessed into a policy type.
+    /// </summary>
+    public Guid? KycDocumentTypeId { get; set; }
+
     public string FilePath { get; set; } = null!;
 
     public byte Status { get; set; }
@@ -26,4 +32,6 @@ public partial class VerificationDocument
     public virtual User? ReviewedByAdmin { get; set; }
 
     public virtual UserVerificationProfile UserVerificationProfile { get; set; } = null!;
+
+    public virtual KycDocumentType? KycDocumentType { get; set; }
 }

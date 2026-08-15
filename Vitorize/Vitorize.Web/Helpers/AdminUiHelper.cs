@@ -365,6 +365,7 @@ namespace Vitorize.Web.Helpers
                 (byte)Vitorize.Shared.Enums.NotificationType.PaymentFailed => "پرداخت ناموفق",
 
                 (byte)Vitorize.Shared.Enums.NotificationType.GiftCodeDelivered => "تحویل کد",
+                (byte)Vitorize.Shared.Enums.NotificationType.ManualDeliveryCompleted => "تحویل دستی",
 
                 (byte)Vitorize.Shared.Enums.NotificationType.WalletCharged => "شارژ کیف پول",
                 (byte)Vitorize.Shared.Enums.NotificationType.WalletDebited => "برداشت کیف پول",

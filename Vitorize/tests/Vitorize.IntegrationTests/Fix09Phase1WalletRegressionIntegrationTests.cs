@@ -113,6 +113,8 @@ public sealed class Fix09Phase1WalletRegressionIntegrationTests
             x.KycRequirementMode == checkoutSnapshot.KycRequirementMode &&
             x.KycThresholdAmount == ProductPrice && x.KycEvaluatedAmount == ProductPrice &&
             x.KycPolicyVersionId == policyVersionId);
+        (await verify.OrderItemKycStates.SingleAsync(x => x.OrderItemId == snapshot.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.Satisfied);
 
         var payments = await verify.Payments.Where(x => x.OrderId == orderId).ToListAsync();
         payments.Should().HaveCount(2, "checkout keeps one pending historical gateway attempt and wallet adds one paid attempt");

@@ -37,6 +37,24 @@
         public bool RequiresVerification { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<AdminOrderInputValueModel> InputValues { get; set; } = new();
+        public AdminOrderItemKycModel? Kyc { get; set; }
+    }
+
+    public class AdminOrderItemKycModel
+    {
+        public byte? LifecycleStatus { get; set; }
+        public string? LifecycleLabel { get; set; }
+        public bool BlocksFulfillment { get; set; }
+        public string? PolicyTitle { get; set; }
+        public Guid? PolicyVersionId { get; set; }
+        public decimal EvaluatedAmount { get; set; }
+        public decimal? ThresholdAmount { get; set; }
+        public int? CustomerActionDeadlineHours { get; set; }
+        public DateTime? CustomerActionDeadlineAt { get; set; }
+        public bool IsCustomerActionOverdue { get; set; }
+        public bool IsFulfilled { get; set; }
+        public bool HasSupportWork { get; set; }
+        public byte? FinanceResolutionStatus { get; set; }
     }
 
     public class AdminOrderInputValueModel

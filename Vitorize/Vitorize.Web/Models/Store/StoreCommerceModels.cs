@@ -110,6 +110,39 @@ namespace Vitorize.Web.Models.Store
         public DateTime? DeliveredAt { get; set; }
         public List<StoreOrderDeliveryModel> Deliveries { get; set; } = new();
         public List<StoreProductInputValueModel> InputValues { get; set; } = new();
+        public StoreOrderItemKycModel? Kyc { get; set; }
+    }
+
+    public class StoreOrderItemKycModel
+    {
+        public byte? LifecycleStatus { get; set; }
+        public string? LifecycleLabel { get; set; }
+        public bool BlocksFulfillment { get; set; }
+        public string CustomerAction { get; set; } = "None";
+        public string CustomerActionLabel { get; set; } = string.Empty;
+        public Guid? PolicyVersionId { get; set; }
+        public string? PolicyTitle { get; set; }
+        public string? PolicyInstructions { get; set; }
+        public decimal EvaluatedAmount { get; set; }
+        public decimal? ThresholdAmount { get; set; }
+        public int? CustomerActionDeadlineHours { get; set; }
+        public DateTime? CustomerActionDeadlineAt { get; set; }
+        public bool IsCustomerActionOverdue { get; set; }
+        public bool IsFulfilled { get; set; }
+        public bool HasSupportWork { get; set; }
+        public byte? FinanceResolutionStatus { get; set; }
+        public List<StoreOrderItemKycDocumentModel> Documents { get; set; } = new();
+    }
+
+    public class StoreOrderItemKycDocumentModel
+    {
+        public Guid DocumentTypeId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Instructions { get; set; }
+        public bool IsRequired { get; set; }
+        public byte RedactionMode { get; set; }
+        public string? RedactionInstructions { get; set; }
+        public string UploadStatus { get; set; } = string.Empty;
     }
 
     public class StoreProductInputValueModel

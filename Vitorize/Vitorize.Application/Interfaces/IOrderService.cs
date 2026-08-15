@@ -9,6 +9,8 @@ namespace Vitorize.Application.Interfaces
 
         Task<OrderDto> GetMyOrderDetailsAsync(Guid userId, Guid orderId);
 
+        Task<OrderItemKycProjectionDto> GetMyOrderItemKycContextAsync(Guid userId, Guid orderItemId);
+
         Task<List<DeliveredCodeDto>> GetMyDeliveredCodesAsync(Guid userId);
 
         Task<List<OrderDto>> GetAdminOrdersAsync();

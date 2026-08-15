@@ -3,6 +3,7 @@
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
+@using Vitorize.Web.Models.Store
 
 <PageTitle>احراز هویت | ویتورایز</PageTitle>
 
@@ -15,6 +16,34 @@
 }
 else
 {
+    @if (_orderItemContext is not null)
+    {
+        <div class="st-alert st-alert--info" style="margin-bottom:18px">
+            <Icon Name="shield" Size="20" />
+            <div>
+                <div style="font-weight:700">احراز هویت برای آیتم سفارش: @_orderItemContext.PolicyTitle</div>
+                @if (!string.IsNullOrWhiteSpace(_orderItemContext.PolicyInstructions)) { <div style="font-size:12.5px;margin-top:3px">@_orderItemContext.PolicyInstructions</div> }
+                @if (_orderItemContext.CustomerActionDeadlineAt.HasValue)
+                {
+                    <div style="font-size:12.5px;margin-top:5px">مهلت اقدام: @_orderItemContext.CustomerActionDeadlineAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
+                }
+                @if (CustomerActionExpired)
+                {
+                    <div style="font-size:12.5px;margin-top:5px">مهلت اقدام این آیتم پایان یافته است. برای راهنمایی با پشتیبانی تماس بگیرید.</div>
+                }
+                @if (_orderItemContext.LifecycleStatus == (byte)OrderItemKycStatus.FinalRejected)
+                {
+                    <div style="font-size:12.5px;margin-top:5px">@(_orderItemContext.FinanceResolutionStatus switch { 1 => "احراز هویت این آیتم تأیید نشد و وضعیت مالی آن در حال بررسی است.", 2 => "بازپرداخت مالی ثبت شده است.", 3 => "تصمیم مالی این آیتم ثبت شده است.", _ => "وضعیت مالی این آیتم در حال بررسی است." })</div>
+                }
+                @if (_orderItemContext.Documents.Count > 0)
+                {
+                    <ul style="font-size:12px;margin:6px 0 0;padding-inline-start:18px">
+                        @foreach (var document in _orderItemContext.Documents) { <li>@document.Title @(document.IsRequired ? "(الزامی)" : "(اختیاری)") — @(document.UploadStatus == "Uploaded" ? "بارگذاری شده" : "ثبت نشده")</li> }
+                    </ul>
+                }
+            </div>
+        </div>
+    }
     @if (_profile is not null)
     {
         var intent = AUI.StatusBadgeIntent(_profile.Status, "verify");
@@ -39,7 +68,9 @@ else
                         <div class="st-field"><label class="st-label">نام</label><input class="st-input" aria-label="نام" @bind="_firstName" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">نام خانوادگی</label><input class="st-input" aria-label="نام خانوادگی" @bind="_lastName" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">کد ملی</label><input class="st-input st-mono" aria-label="کد ملی" @bind="_nationalCode" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">تاریخ تولد</label><PersianDatePicker @bind-Value="_birthDate" /></div>
+                        <div class="st-field"><label class="st-label">تاریخ تولد</label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
+                            @if (!string.IsNullOrWhiteSpace(_birthDateError)) { <div class="st-field__error" role="alert">@_birthDateError</div> }
+                        </div>
                         <div class="st-field"><label class="st-label">شماره کارت بانکی</label><input class="st-input st-mono" aria-label="شماره کارت بانکی" @bind="_bankCard" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">شماره شبا</label><input class="st-input st-mono" aria-label="شماره شبا" @bind="_shaba" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">کد پستی</label><input class="st-input st-mono" aria-label="کد پستی" @bind="_postalCode" disabled="@ReadOnly" /></div>
@@ -58,21 +89,31 @@ else
                 <div class="st-card__head"><Icon Name="image" Size="18" /> مدارک</div>
                 <div class="st-card__pad">
                     <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
-                        @foreach (var dt in DocTypes)
+                        @foreach (var document in DocumentSlots)
                         {
                             <div>
-                                <div class="st-label">@dt.Value</div>
-                                @{ var existing = _profile?.Documents.FirstOrDefault(d => d.DocumentType == dt.Key); }
+                                <div class="st-label">@document.Title</div>
+                                @if (!string.IsNullOrWhiteSpace(document.Instructions))
+                                {
+                                    <div class="st-muted" style="font-size:12px;line-height:1.8;white-space:pre-line;margin:4px 0 8px">@document.Instructions</div>
+                                }
+                                @{ var existing = _profile?.Documents.FirstOrDefault(d =>
+                                    document.KycDocumentTypeId.HasValue
+                                        ? d.KycDocumentTypeId == document.KycDocumentTypeId
+                                        : d.DocumentType == document.DocumentType); }
                                 @if (existing is not null)
                                 {
                                     <div style="position:relative;border:1px solid var(--st-border);border-radius:12px;overflow:hidden">
                                         <img src="@Media.Resolve(existing.FilePath)" style="width:100%;height:130px;object-fit:cover" alt="" />
-                                        <button class="st-btn st-btn--sm st-btn--surface-danger" style="position:absolute;top:8px;inset-inline-start:8px" @onclick="() => DeleteDoc(existing.Id)"><Icon Name="trash" Size="14" /></button>
+                                        @if (!ReadOnly)
+                                        {
+                                            <button class="st-btn st-btn--sm st-btn--surface-danger" style="position:absolute;top:8px;inset-inline-start:8px" @onclick="() => DeleteDoc(existing.Id)"><Icon Name="trash" Size="14" /></button>
+                                        }
                                     </div>
                                 }
-                                else
+                                else if (!ReadOnly)
                                 {
-                                    <UploadBox Value="@((string?)null)" ValueChanged="(p) => AddDoc(dt.Key, p)" Label="آپلود تصویر" Endpoint="uploads/verification-document" />
+                                    <DocumentRedactionUpload Value="@((string?)null)" ValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId)" RedactedValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId, true)" Label="آپلود تصویر" Endpoint="uploads/verification-document" OrderItemId="@OrderItemId" RedactionMode="@document.RedactionMode" RedactionInstructions="@document.RedactionInstructions" TestId="@document.KycDocumentTypeId?.ToString("N")" />
                                 }
                             </div>
                         }
@@ -94,20 +135,40 @@ else
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "orderItem")] public Guid? OrderItemId { get; set; }
     private bool _loading = true, _submitting;
     private CustomerVerificationModel? _profile;
+    private StoreOrderItemKycModel? _orderItemContext;
 
     private string _firstName = "", _lastName = "", _nationalCode = "";
     private DateTime? _birthDate;
     private string? _bankCard, _shaba, _postalCode, _address;
+    private string? _birthDateError;
 
-    private bool ReadOnly => _profile is not null &&
-        (_profile.Status == (byte)VerificationStatus.Verified || _profile.Status == (byte)VerificationStatus.Pending);
+    private bool CustomerActionExpired => _orderItemContext?.CustomerAction == "DeadlineExpired" ||
+        _orderItemContext?.LifecycleStatus == (byte)OrderItemKycStatus.Expired;
+
+    // A profile becomes Pending as soon as the customer supplies identity data or
+    // an individual document.  It must remain actionable while this specific
+    // paid item still requests Customer submission; otherwise a two-document
+    // purchase would lock after its first document.  AwaitingReview has no such
+    // customer action and remains read-only.
+    private bool HasActiveCustomerSubmission => _orderItemContext?.CustomerAction is "SubmitVerification" or "ResubmitVerification";
+
+    private bool ReadOnly => CustomerActionExpired || (_profile is not null &&
+        (_profile.Status == (byte)VerificationStatus.Verified ||
+         (_profile.Status == (byte)VerificationStatus.Pending && !HasActiveCustomerSubmission)));
 
     private static readonly Dictionary<byte, string> DocTypes = new()
     {
         { 1, "روی کارت ملی" }, { 2, "پشت کارت ملی" }, { 3, "سلفی با کارت ملی" }, { 4, "کارت بانکی" }
     };
+
+    private IEnumerable<DocumentSlot> DocumentSlots =>
+        _orderItemContext?.Documents.Count > 0
+            ? _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
+                (byte)(index + 1), document.Title, document.DocumentTypeId, document.Instructions, document.RedactionMode, document.RedactionInstructions))
+            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, null, 0, null));
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -116,6 +177,13 @@ else
         _loading = true;
         var result = await Api.GetAsync<CustomerVerificationModel>("verification/me");
         _profile = result.IsSuccess ? result.Data : null;
+        _orderItemContext = null;
+        if (OrderItemId.HasValue)
+        {
+            var context = await Api.GetAsync<StoreOrderItemKycModel>($"orders/items/{OrderItemId.Value}/kyc-context");
+            if (context.IsSuccess) _orderItemContext = context.Data;
+            else Toasts.Warning("اطلاعات احراز هویت این آیتم در دسترس نیست.");
+        }
         if (_profile is not null)
         {
             _firstName = _profile.FirstName;
@@ -132,6 +200,8 @@ else
 
     private async Task Submit()
     {
+        if (!string.IsNullOrWhiteSpace(_birthDateError))
+        { Toasts.Error(_birthDateError); return; }
         if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode))
         { Toasts.Error("نام، نام خانوادگی و کد ملی الزامی است."); return; }
 
@@ -153,11 +223,11 @@ else
         else Toasts.Error(result.Message);
     }
 
-    private async Task AddDoc(byte docType, string? path)
+    private async Task AddDoc(byte docType, string? path, Guid? kycDocumentTypeId = null, bool isRedacted = false)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
         var result = await Api.PostAsync<CustomerVerificationDocumentModel>("verification/documents",
-            new { DocumentType = docType, FilePath = path });
+            new { DocumentType = docType, KycDocumentTypeId = kycDocumentTypeId, OrderItemId, FilePath = path, IsRedacted = isRedacted });
         if (result.IsSuccess) { Toasts.Success("مدرک ثبت شد."); await Load(); }
         else Toasts.Error(result.Message);
     }
@@ -168,4 +238,12 @@ else
         if (result.IsSuccess) { Toasts.Success("مدرک حذف شد."); await Load(); }
         else Toasts.Error(result.Message);
     }
+
+    private Task OnBirthDateValidationChanged(string? message)
+    {
+        _birthDateError = message;
+        return Task.CompletedTask;
+    }
+
+    private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, string? Instructions, byte RedactionMode, string? RedactionInstructions);
 }

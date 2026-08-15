@@ -154,6 +154,9 @@ namespace Vitorize.Api
             if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
                 builder.Services.AddSingleton<Vitorize.Api.Services.TestingCartFaultService>();
             builder.Services.AddHostedService<Vitorize.Api.BackgroundServices.GuestCartCleanupService>();
+            builder.Services.Configure<Vitorize.Api.BackgroundServices.KycDeadlineProcessingOptions>(
+                builder.Configuration.GetSection(Vitorize.Api.BackgroundServices.KycDeadlineProcessingOptions.SectionName));
+            builder.Services.AddHostedService<Vitorize.Api.BackgroundServices.KycDeadlineExpiryBackgroundService>();
             builder.Services.AddScoped<IReadinessProbe, SqlServerReadinessProbe>();
 
             builder.Services.Configure<JwtSettings>(

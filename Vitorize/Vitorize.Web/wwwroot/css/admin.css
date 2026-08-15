@@ -751,10 +751,16 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
    Persian date picker
    ========================================================================== */
 .vz-datepicker { position: relative; }
-.vz-datepicker__field { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.vz-datepicker__entry { display:flex; align-items:center; gap:6px; }
+.vz-datepicker__entry > input { min-width:0; flex:1; direction:ltr; text-align:center; }
+.vz-datepicker__toggle, .vz-datepicker__clear { width:34px; height:34px; border:1px solid var(--border); background:var(--surface); flex:0 0 auto; }
+.vz-datepicker.is-readonly .vz-datepicker__entry { opacity:.65; }
+.vz-datepicker__error { color:var(--danger,#dc2626); font-size:12px; margin-top:5px; line-height:1.6; }
 .vz-datepicker__field .ico { color: var(--text-3); }
-.vz-cal { position: absolute; top: calc(100% + 8px); inset-inline-start: 0; z-index: 120; background: var(--surface-solid); border: 1px solid var(--border); border-radius: var(--clip-sm); box-shadow: var(--shadow-lg); padding: 14px; width: 290px; animation: vz-pop 0.18s var(--ease); }
+.vz-cal { position: absolute; top: calc(100% + 8px); inset-inline-start: 0; z-index: 120; background: var(--surface-solid); border: 1px solid var(--border); border-radius: var(--clip-sm); box-shadow: var(--shadow-lg); padding: 14px; width: min(290px, calc(100vw - 32px)); animation: vz-pop 0.18s var(--ease); }
 .vz-cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.vz-cal__head--selectors { gap:8px; }
+.vz-cal__head--selectors select { min-width:0; flex:1; padding:7px 8px; }
 .vz-cal__nav { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text-2); }
 .vz-cal__nav:hover { background: var(--surface-2); color: var(--admin-primary); }
 .vz-cal__title { font-weight: 700; font-size: 13.5px; }
@@ -762,12 +768,17 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 .vz-cal__dow { text-align: center; font-size: 11px; color: var(--text-3); font-weight: 700; padding: 4px 0; }
 .vz-cal__day { aspect-ratio: 1; border-radius: 9px; border: none; background: none; color: var(--text); font-size: 12.5px; display: flex; align-items: center; justify-content: center; }
 .vz-cal__day:hover { background: var(--admin-primary-soft); }
+.vz-cal__day:disabled { cursor:not-allowed; opacity:.35; }
 .vz-cal__day.empty { visibility: hidden; }
 .vz-cal__day.today { border: 1px solid var(--admin-primary); }
 .vz-cal__day.selected { background: var(--admin-primary-grad); color: var(--on-primary); font-weight: 700; }
 .vz-cal__foot { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .vz-cal__foot button { background: none; border: none; font-size: 12.5px; font-weight: 700; color: var(--admin-primary); }
 .vz-cal__foot button.clear { color: var(--text-3); }
+
+@media (max-width: 600px) {
+    .vz-cal { position: fixed; top: 12vh; inset-inline: 16px; width: auto; max-width: none; }
+}
 
 /* ==========================================================================
    Tabs

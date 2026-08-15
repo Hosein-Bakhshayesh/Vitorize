@@ -53,7 +53,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $apiDll = Join-Path $repoRoot 'Vitorize.Api\bin\Release\net8.0\Vitorize.Api.dll'
 $webDll = Join-Path $repoRoot 'Vitorize.Web\bin\Release\net8.0\Vitorize.Web.dll'
 $apiUrl = 'http://127.0.0.1:5177'
-$webUrl = 'http://127.0.0.1:5077'
+$webUrl = 'http://localhost:5077'
 
 # Testing-only deterministic credentials for the isolated E2E database.
 $adminMobile = '09120000011'

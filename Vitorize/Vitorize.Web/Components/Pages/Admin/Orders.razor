@@ -5,6 +5,8 @@
 @implements IAsyncDisposable
 @using Vitorize.Web.Helpers
 @using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
+@using System.Globalization
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="مدیریت سفارش‌ها" Subtitle="سفارش‌های مشتریان را پیگیری و مدیریت کنید"
@@ -205,6 +207,42 @@ else
                                         <td>@AUI.DeliveryType(item.DeliveryType)</td>
                                         <td>
                                             <StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" />
+                                            @if (item.Kyc is not null)
+                                            {
+                                                <div class="vz-muted" style="font-size:12px;margin-top:6px">
+                                                    <b>احراز هویت:</b> @item.Kyc.LifecycleLabel
+                                                    @if (!string.IsNullOrWhiteSpace(item.Kyc.PolicyTitle)) { <span> — @item.Kyc.PolicyTitle</span> }
+                                                    <div>انسداد تحویل: @(item.Kyc.BlocksFulfillment ? "بله" : "خیر")</div>
+                                                    @if (item.Kyc.ThresholdAmount.HasValue) { <div>آستانه: @AUI.MoneyFa(item.Kyc.ThresholdAmount.Value) · مبلغ ارزیابی: @AUI.MoneyFa(item.Kyc.EvaluatedAmount)</div> }
+                                                    @if (item.Kyc.CustomerActionDeadlineAt.HasValue) { <div>مهلت اقدام: @item.Kyc.CustomerActionDeadlineAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm") @(item.Kyc.IsCustomerActionOverdue ? "(منقضی)" : "")</div> }
+                                                    @if (item.Kyc.LifecycleStatus == (byte)OrderItemKycStatus.FinalRejected)
+                                                    {
+                                                        <div>وضعیت مالی: @(item.Kyc.FinanceResolutionStatus switch { 1 => "در انتظار بررسی مالی", 2 => "بازپرداخت خارجی ثبت شده", 3 => "بدون بازپرداخت", _ => "در انتظار ایجاد پرونده مالی" })</div>
+                                                        @if (item.Kyc.FinanceResolutionStatus == 1)
+                                                        {
+                                                            <div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">
+                                                                <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => ResolveKycFinance(item, true)">ثبت بازپرداخت خارجی</button>
+                                                                <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => ResolveKycFinance(item, false)">ثبت بدون بازپرداخت</button>
+                                                            </div>
+                                                        }
+                                                    }
+                                                    @if (item.Kyc.LifecycleStatus is (byte)OrderItemKycStatus.AwaitingSubmission or (byte)OrderItemKycStatus.Rejected)
+                                                    {
+                                                        <div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">
+                                                            <input class="vz-input" style="max-width:200px" type="datetime-local" value="@DeadlineInput(item)" @oninput="args => SetDeadlineInput(item.Id, args.Value?.ToString())" aria-label="مهلت اقدام مشتری" />
+                                                            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => ExtendKycDeadline(d.Id, item)">تمدید مهلت</button>
+                                                        </div>
+                                                    }
+                                                    else if (item.Kyc.LifecycleStatus == (byte)OrderItemKycStatus.Expired)
+                                                    {
+                                                        <div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">
+                                                            <input class="vz-input" style="max-width:200px" type="datetime-local" value="@DeadlineInput(item)" @oninput="args => SetDeadlineInput(item.Id, args.Value?.ToString())" aria-label="مهلت جدید اقدام مشتری" />
+                                                            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => ReopenKycDeadline(d.Id, item)">بازگشایی</button>
+                                                            <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="() => FinalRejectKyc(item)">رد نهایی</button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
                                             @if (CanFulfill(d, item))
                                             {
                                                 <button class="vz-btn vz-btn--primary vz-btn--sm vz-manual-delivery" style="margin-top:8px"
@@ -315,6 +353,7 @@ else
     private string _manualDeliveryContent = string.Empty;
     private AdminOrderModel? _manualDeliveryOrder;
     private AdminOrderItemModel? _manualDeliveryItem;
+    private readonly Dictionary<Guid, string> _kycDeadlineInputs = new();
 
     private DotNetObjectReference<Orders>? _selfRef;
 
@@ -361,7 +400,8 @@ else
     private static bool CanFulfill(AdminOrderModel order, AdminOrderItemModel item) =>
         OrderFulfillmentRules.IsPaid(order.PaymentStatus) && CanAct(order.Status) &&
         item.DeliveryStatus != (byte)DeliveryStatus.Delivered &&
-        item.DeliveryType is (byte)DeliveryType.Manual or (byte)DeliveryType.SupportRequired;
+        item.Kyc?.BlocksFulfillment != true &&
+        item.DeliveryType == (byte)DeliveryType.Manual;
 
     private static string FulfillmentSummary(AdminOrderModel order)
     {
@@ -382,6 +422,7 @@ else
 
     private static string FulfillmentGuidance(AdminOrderItemModel item) => item.DeliveryType switch
     {
+        _ when item.Kyc?.BlocksFulfillment == true => "تحویل این آیتم تا تکمیل احراز هویت مسدود است.",
         (byte)DeliveryType.Instant => item.DeliveryStatus == (byte)DeliveryStatus.Failed
             ? "تحویل خودکار ناموفق بوده است. وضعیت تحویل را بررسی کنید."
             : "در انتظار تحویل خودکار است.",
@@ -397,6 +438,87 @@ else
     private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
+
+    private string DeadlineInput(AdminOrderItemModel item)
+    {
+        if (_kycDeadlineInputs.TryGetValue(item.Id, out var input)) return input;
+        var value = item.Kyc?.CustomerActionDeadlineAt ?? DateTime.UtcNow.AddDays(1);
+        return value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private void SetDeadlineInput(Guid itemId, string? value) => _kycDeadlineInputs[itemId] = value ?? string.Empty;
+
+    private bool TryReadDeadline(AdminOrderItemModel item, out DateTime deadlineAt)
+    {
+        deadlineAt = default;
+        if (!DateTime.TryParse(DeadlineInput(item), CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var local))
+        {
+            Toasts.Error("مهلت معتبر وارد کنید.");
+            return false;
+        }
+
+        deadlineAt = DateTime.SpecifyKind(local, DateTimeKind.Local).ToUniversalTime();
+        if (deadlineAt <= DateTime.UtcNow)
+        {
+            Toasts.Error("مهلت باید در آینده باشد.");
+            return false;
+        }
+        return true;
+    }
+
+    private async Task ExtendKycDeadline(Guid orderId, AdminOrderItemModel item)
+    {
+        if (!TryReadDeadline(item, out var deadlineAt)) return;
+        var result = await Api.PutAsync<object>($"admin/verifications/order-items/{item.Id}/deadline", new { NewDeadlineAt = deadlineAt });
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success("مهلت اقدام به‌روزرسانی شد.");
+        await RefreshDetail(orderId);
+    }
+
+    private async Task ReopenKycDeadline(Guid orderId, AdminOrderItemModel item)
+    {
+        if (!TryReadDeadline(item, out var deadlineAt)) return;
+        var result = await Api.PostAsync<object>($"admin/verifications/order-items/{item.Id}/reopen", new { NewDeadlineAt = deadlineAt });
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success("فرصت اقدام مشتری بازگشایی شد.");
+        await RefreshDetail(orderId);
+    }
+
+    private async Task FinalRejectKyc(AdminOrderItemModel item)
+    {
+        var result = await Api.PostAsync<object>($"admin/verifications/order-items/{item.Id}/final-reject", new { });
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success("احراز هویت این آیتم به‌صورت نهایی رد شد.");
+        if (_detail is not null) await RefreshDetail(_detail.Id);
+    }
+
+    private async Task ResolveKycFinance(AdminOrderItemModel item, bool external)
+    {
+        var reason = await JS.InvokeAsync<string?>("prompt", "دلیل تصمیم مالی را وارد کنید:");
+        if (string.IsNullOrWhiteSpace(reason)) return;
+        string? reference = null;
+        if (external)
+        {
+            reference = await JS.InvokeAsync<string?>("prompt", "شماره پیگیری بازپرداخت خارجی را وارد کنید:");
+            if (string.IsNullOrWhiteSpace(reference)) return;
+        }
+        var path = external ? $"admin/kyc-finance/order-items/{item.Id}/external-refund" : $"admin/kyc-finance/order-items/{item.Id}/no-refund";
+        var result = await Api.PostAsync<object>(path, new { Reason = reason, ExternalReference = reference });
+        if (!result.IsSuccess) { Toasts.Error(result.Message); return; }
+        Toasts.Success(external ? "بازپرداخت خارجی ثبت شد." : "تصمیم مالی ثبت شد.");
+        if (_detail is not null) await RefreshDetail(_detail.Id);
+    }
+
+    private async Task RefreshDetail(Guid orderId)
+    {
+        var result = await Api.GetAsync<AdminOrderModel>($"admin/orders/{orderId}");
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _detail = result.Data;
+            await BuildTimeline(_detail);
+        }
+        else Toasts.Error(result.Message);
+    }
 
     private async Task RevealInput(Guid orderId, AdminOrderInputValueModel value)
     {

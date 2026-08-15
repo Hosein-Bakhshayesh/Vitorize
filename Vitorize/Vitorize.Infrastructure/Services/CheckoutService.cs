@@ -92,7 +92,7 @@ namespace Vitorize.Infrastructure.Services
                 // Cart prices are display caches; authoritative catalog state is reloaded and
                 // repriced inside this serializable transaction.
                 var cart = await _dbContext.Carts
-                    .Include(x => x.CartItems).ThenInclude(x => x.Product)
+                    .Include(x => x.CartItems).ThenInclude(x => x.Product).ThenInclude(x => x.KycPolicyVersion)
                     .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
                     .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
                     .Include(x => x.CartItems).ThenInclude(x => x.Product)
@@ -138,10 +138,8 @@ namespace Vitorize.Infrastructure.Services
                         throw new BusinessException($"قیمت محصول «{product.Title}» معتبر نیست.");
                     item.CurrencyType = product.CurrencyType;
 
-                    var kyc = EvaluateProductKyc(product, item.UnitPrice, item.Quantity);
-                    if (kyc.RequiresKyc &&
-                        (!user.IsMobileConfirmed || user.VerificationStatus != (byte)VerificationStatus.Verified))
-                        throw new BusinessException("برای خرید این محصول، تأیید موبایل و احراز هویت کامل الزامی است.");
+                    // The immutable OrderItem KYC snapshot is evaluated below. KYC governs
+                    // post-payment fulfillment, not whether an authenticated customer may pay.
                 }
 
                 var currencies = cart.CartItems.Select(x => x.CurrencyType).Distinct().ToList();
@@ -234,6 +232,7 @@ namespace Vitorize.Infrastructure.Services
                         KycThresholdAmount = kyc.ThresholdAmount,
                         KycEvaluatedAmount = kyc.EvaluatedAmount,
                         KycPolicyVersionId = kyc.PolicyVersionId,
+                        KycCustomerActionDeadlineHours = kyc.CustomerActionDeadlineHours,
                         CreatedAt = now
                     };
 
@@ -392,8 +391,14 @@ namespace Vitorize.Infrastructure.Services
 
         private static KycRequirementEvaluation EvaluateProductKyc(Product product, decimal unitPrice, int quantity)
         {
-            return KycRequirementEvaluator.Evaluate(product.RequiresVerification, product.KycRequirementMode,
+            var evaluation = KycRequirementEvaluator.Evaluate(product.RequiresVerification, product.KycRequirementMode,
                 product.KycThresholdAmount, product.KycPolicyVersionId, unitPrice, quantity);
+            return evaluation with
+            {
+                CustomerActionDeadlineHours = evaluation.RequiresKyc
+                    ? product.KycPolicyVersion?.CustomerActionDeadlineHours
+                    : null
+            };
         }
 
         private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>

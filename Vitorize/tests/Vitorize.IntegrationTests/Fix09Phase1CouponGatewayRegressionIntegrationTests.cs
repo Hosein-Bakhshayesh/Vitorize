@@ -135,6 +135,8 @@ public sealed class Fix09Phase1CouponGatewayRegressionIntegrationTests
         var snapshot = await verify.OrderItems.AsNoTracking().SingleAsync(x => x.OrderId == orderId);
         snapshot.Id.Should().Be(checkoutSnapshot.Id);
         AssertKycSnapshot(snapshot, policyVersionId);
+        (await verify.OrderItemKycStates.SingleAsync(x => x.OrderItemId == snapshot.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.Satisfied);
 
         var attempts = await verify.Payments.Where(x => x.OrderId == orderId).ToListAsync();
         attempts.Should().HaveCount(2);

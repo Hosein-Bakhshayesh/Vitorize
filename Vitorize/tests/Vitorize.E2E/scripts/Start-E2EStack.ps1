@@ -37,7 +37,7 @@ if (-not (Test-Path -LiteralPath $apiPath) -or -not (Test-Path -LiteralPath $web
 $apiContentRoot = Join-Path $root 'Vitorize.Api'
 $webContentRoot = Join-Path $root 'Vitorize.Web'
 $api = Start-Process $apiPath -WorkingDirectory $apiContentRoot -ArgumentList @('--urls','http://127.0.0.1:5177','--contentRoot',$apiContentRoot,'--webroot',(Join-Path $apiContentRoot 'wwwroot')) -PassThru -WindowStyle Hidden -RedirectStandardOutput "$logRoot\api.out.log" -RedirectStandardError "$logRoot\api.err.log"
-$web = Start-Process $webPath -WorkingDirectory $webContentRoot -ArgumentList @('--urls','http://127.0.0.1:5077','--contentRoot',$webContentRoot,'--webroot',(Join-Path $webContentRoot 'wwwroot')) -PassThru -WindowStyle Hidden -RedirectStandardOutput "$logRoot\web.out.log" -RedirectStandardError "$logRoot\web.err.log"
+$web = Start-Process $webPath -WorkingDirectory $webContentRoot -ArgumentList @('--urls','http://localhost:5077','--contentRoot',$webContentRoot,'--webroot',(Join-Path $webContentRoot 'wwwroot')) -PassThru -WindowStyle Hidden -RedirectStandardOutput "$logRoot\web.out.log" -RedirectStandardError "$logRoot\web.err.log"
 @(
     [pscustomobject]@{ Id = $api.Id; ProcessName = $api.ProcessName; Path = $api.Path },
     [pscustomobject]@{ Id = $web.Id; ProcessName = $web.ProcessName; Path = $web.Path }

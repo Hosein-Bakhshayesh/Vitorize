@@ -44,7 +44,10 @@ namespace Vitorize.Infrastructure
             services.AddScoped<ICartService, CartService>();
             services.AddScoped<ICheckoutService, CheckoutService>();
             services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<IPostPaymentOrderProcessor, PostPaymentOrderProcessor>();
+            services.AddScoped<IPaidGiftCodeAllocationService, PaidGiftCodeAllocationService>();
             services.AddScoped<IGiftCodeDeliveryService, GiftCodeDeliveryService>();
+            services.AddScoped<IOrderItemFulfillmentReleaseService, OrderItemFulfillmentReleaseService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IAdminCouponService, AdminCouponService>();
             services.AddScoped<ICouponService, CouponService>();
@@ -54,6 +57,9 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IWalletTopUpService, WalletTopUpService>();
             services.AddScoped<IWishlistService, WishlistService>();
             services.AddScoped<IVerificationService, VerificationService>();
+            services.AddScoped<IOrderItemKycLifecycleCoordinator, OrderItemKycLifecycleCoordinator>();
+            services.AddScoped<IOrderItemKycDeadlineService, OrderItemKycDeadlineService>();
+            services.AddScoped<IOrderItemKycFinanceResolutionService, OrderItemKycFinanceResolutionService>();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IAuditService, AuditService>();

@@ -10,6 +10,7 @@ using Vitorize.Shared.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
+using System.Data;
 using Vitorize.Shared.Logging;
 
 namespace Vitorize.Infrastructure.Services
@@ -41,6 +42,8 @@ namespace Vitorize.Infrastructure.Services
             var order = await _dbContext.Orders
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.OrderItemDeliveries)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycLifecycleState)
                 .Include(x => x.GiftCodeReservations)
                     .ThenInclude(x => x.GiftCode)
                 .FirstOrDefaultAsync(x => x.Id == orderId);
@@ -61,10 +64,10 @@ namespace Vitorize.Infrastructure.Services
                 .ToList();
 
             // سفارش‌های تحویل دستی رزرو کد ندارند؛ فقط وقتی آیتم تحویل آنی وجود دارد نبودِ کد خطاست.
-            var hasInstantItems = order.OrderItems
-                .Any(x => x.DeliveryType == (byte)DeliveryType.Instant);
+            var hasEligibleInstantItems = order.OrderItems
+                .Any(x => x.DeliveryType == (byte)DeliveryType.Instant && OrderItemFulfillmentEligibility.CanFulfill(x));
 
-            if (hasInstantItems && !soldReservations.Any())
+            if (hasEligibleInstantItems && !soldReservations.Any())
             {
                 var instantItemsAlreadyDelivered = order.OrderItems
                     .Where(x => x.DeliveryType == (byte)DeliveryType.Instant)
@@ -88,6 +91,14 @@ namespace Vitorize.Infrastructure.Services
 
                 if (orderItem == null)
                     throw new BusinessException("آیتم سفارش برای کد رزرو شده یافت نشد.");
+
+                if (!OrderItemFulfillmentEligibility.CanFulfill(orderItem))
+                {
+                    _logger.LogInformation(
+                        "Gift-code fulfillment blocked by item KYC lifecycle. OrderId={OrderId} OrderItemId={OrderItemId}",
+                        order.Id, orderItem.Id);
+                    continue;
+                }
 
                 var alreadyDelivered = orderItem.OrderItemDeliveries
                     .Any(x => x.GiftCodeId == reservation.GiftCodeId);
@@ -160,6 +171,131 @@ namespace Vitorize.Infrastructure.Services
             _logger.LogInformation(
                 "Gift-code delivery completed for order {OrderNumber}. DeliveredCount={DeliveredCount} ElapsedMs={ElapsedMs} EventType={EventType}",
                 order.OrderNumber, soldReservations.Count, stopwatch.ElapsedMilliseconds, "GiftCodeDelivered");
+        }
+
+        /// <summary>
+        /// Releases only the immutable paid allocation already owned by a
+        /// satisfied KYC item. It intentionally never selects available stock.
+        /// </summary>
+        public async Task<bool> DeliverSatisfiedOrderItemAsync(
+            Guid orderItemId,
+            Guid? deliveredByUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (orderItemId == Guid.Empty)
+                throw new BusinessException("شناسه آیتم سفارش معتبر نیست.");
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, cancellationToken);
+            try
+            {
+                await SqlServerTransactionLock.AcquireAsync(
+                    _dbContext, $"kyc-release:item:{orderItemId:N}", cancellationToken);
+
+                var item = await _dbContext.OrderItems
+                    .Include(x => x.Order).ThenInclude(x => x.OrderItems)
+                    .Include(x => x.KycLifecycleState)
+                    .Include(x => x.OrderItemDeliveries)
+                    .FirstOrDefaultAsync(x => x.Id == orderItemId, cancellationToken)
+                    ?? throw new NotFoundException("آیتم سفارش یافت نشد.");
+
+                if (item.Order.PaymentStatus != (byte)PaymentStatus.Paid ||
+                    item.DeliveryType != (byte)DeliveryType.Instant ||
+                    item.KycLifecycleState?.Status != (byte)OrderItemKycStatus.Satisfied)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return false;
+                }
+
+                var allocations = await _dbContext.GiftCodeReservations
+                    .Include(x => x.GiftCode)
+                    .Where(x => x.OrderId == item.OrderId && x.OrderItemId == item.Id)
+                    .ToListAsync(cancellationToken);
+                var paidAllocations = allocations.Where(x =>
+                    x.Status == (byte)GiftCodeReservationStatus.Sold &&
+                    x.GiftCode.Status is (byte)GiftCodeStatus.Sold or (byte)GiftCodeStatus.Delivered &&
+                    x.GiftCode.OrderItemId == item.Id).ToList();
+
+                var existingDeliveries = item.OrderItemDeliveries
+                    .Where(x => x.DeliveryType == (byte)DeliveryType.Instant)
+                    .ToList();
+                if (existingDeliveries.Count != 0)
+                {
+                    var exactExistingDelivery = existingDeliveries.Count == item.Quantity &&
+                        existingDeliveries.All(x => x.GiftCodeId.HasValue &&
+                            paidAllocations.Any(a => a.GiftCodeId == x.GiftCodeId));
+                    if (!exactExistingDelivery)
+                        throw new BusinessException("تحویل قبلی آیتم با تخصیص پرداخت‌شده سازگار نیست و نیاز به بررسی دارد.");
+
+                    await transaction.CommitAsync(cancellationToken);
+                    return false;
+                }
+
+                if (paidAllocations.Count != item.Quantity || allocations.Count != item.Quantity)
+                    throw new BusinessException("تخصیص پرداخت‌شده کد برای این آیتم کامل نیست و نیاز به بررسی دارد.");
+
+                var allocationCodeIds = paidAllocations.Select(x => x.GiftCodeId).ToList();
+                if (await _dbContext.OrderItemDeliveries.AnyAsync(x =>
+                        x.GiftCodeId.HasValue && allocationCodeIds.Contains(x.GiftCodeId.Value) &&
+                        x.OrderItemId != item.Id, cancellationToken))
+                    throw new BusinessException("یکی از کدهای تخصیص‌یافته قبلاً به آیتم دیگری تحویل شده است.");
+
+                var now = DateTime.UtcNow;
+                foreach (var allocation in paidAllocations)
+                {
+                    var plaintext = _encryptionService.Decrypt(allocation.GiftCode.EncryptedCode);
+                    await _dbContext.OrderItemDeliveries.AddAsync(new OrderItemDelivery
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderItemId = item.Id,
+                        DeliveryType = (byte)DeliveryType.Instant,
+                        GiftCodeId = allocation.GiftCodeId,
+                        DeliveredContent = _encryptionService.Encrypt(plaintext),
+                        ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(plaintext))),
+                        EncryptionVersion = 2,
+                        IsVisibleToCustomer = true,
+                        DeliveredByUserId = deliveredByUserId,
+                        CreatedAt = now
+                    }, cancellationToken);
+                    allocation.GiftCode.Status = (byte)GiftCodeStatus.Delivered;
+                    allocation.GiftCode.DeliveredAt = now;
+                    allocation.GiftCode.UpdatedAt = now;
+                }
+
+                item.DeliveryStatus = (byte)DeliveryStatus.Delivered;
+                item.DeliveredAt = now;
+                if (OrderFulfillmentRules.CanComplete(item.Order.PaymentStatus,
+                        item.Order.OrderItems.Select(x => x.DeliveryStatus)))
+                {
+                    item.Order.Status = (byte)OrderStatus.Completed;
+                    item.Order.CompletedAt ??= now;
+                }
+                item.Order.UpdatedAt = now;
+                await _dbContext.OrderStatusHistories.AddAsync(new OrderStatusHistory
+                {
+                    Id = Guid.NewGuid(), OrderId = item.OrderId,
+                    FromStatus = (byte)OrderStatus.Processing, ToStatus = item.Order.Status,
+                    ChangedByUserId = deliveredByUserId,
+                    Note = "تحویل کد پس از تکمیل احراز هویت آیتم ثبت شد.", CreatedAt = now
+                }, cancellationToken);
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = "GiftCodeDelivered", EntityType = "OrderItemDelivery",
+                    EntityId = item.Id, UserId = deliveredByUserId, CorrelationId = item.OrderId,
+                    Detail = $"kyc-release:item:{item.Id:N};quantity:{item.Quantity}", CreatedAt = now
+                }, cancellationToken);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                _logger.LogInformation(
+                    "KYC-satisfied instant item released. OrderId={OrderId} OrderItemId={OrderItemId} Quantity={Quantity}",
+                    item.OrderId, item.Id, item.Quantity);
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
     }
 }

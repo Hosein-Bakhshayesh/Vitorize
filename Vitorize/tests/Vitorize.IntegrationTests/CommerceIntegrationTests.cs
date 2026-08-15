@@ -212,7 +212,7 @@ public sealed class CommerceIntegrationTests
     }
 
     [Fact]
-    public async Task Product_threshold_kyc_is_checked_before_payment_and_snapshotted_at_checkout()
+    public async Task Product_threshold_kyc_is_snapshotted_at_checkout_without_pre_payment_rejection()
     {
         var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var product = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 250m);
@@ -235,21 +235,10 @@ public sealed class CommerceIntegrationTests
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
         client.DefaultRequestHeaders.Add("Idempotency-Key", $"kyc-threshold-{Guid.NewGuid():N}");
-        (await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto())).StatusCode.Should().Be(HttpStatusCode.BadRequest,
+        var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
             "the KYC threshold is reached at UnitPrice × Quantity before a payment attempt is created");
 
-        await using (var db = _fixture.CreateDbContext())
-        {
-            var storedUser = await db.Users.SingleAsync(x => x.Id == user.Id);
-            storedUser.IsMobileConfirmed = true;
-            storedUser.VerificationStatus = (byte)VerificationStatus.Verified;
-            await db.SaveChangesAsync();
-        }
-
-        client.DefaultRequestHeaders.Remove("Idempotency-Key");
-        client.DefaultRequestHeaders.Add("Idempotency-Key", $"kyc-threshold-verified-{Guid.NewGuid():N}");
-        var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
         var checkout = (await response.Content.ReadFromJsonAsync<ApiResult<CheckoutResultDto>>())!.Data!;
 
         await using var verify = _fixture.CreateDbContext();

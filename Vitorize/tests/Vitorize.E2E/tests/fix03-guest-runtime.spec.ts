@@ -145,6 +145,7 @@ test('FIX-03 guest Stage-2 edit persists across mobile reload, navigation, and s
   await saveStagedValues(page);
   await expect(page.locator('.vz-dialog')).toBeHidden();
   await item.locator('.st-qty button').last().click();
+  await expect(item.locator('.st-qty span')).toHaveText('۲');
   const expected = await readGuestCart(page, context);
   expect(expected.totalQuantity).toBe(2);
   expect(expected.items).toHaveLength(1);
@@ -243,7 +244,7 @@ test('FIX-03 guest cart survives refresh, navigation, second tab, and persisted-
 
   const storage = await context.storageState();
   await context.close();
-  const reopened = await browser.newContext({ baseURL: 'http://127.0.0.1:5077', storageState: storage });
+  const reopened = await browser.newContext({ baseURL: 'http://localhost:5077', storageState: storage });
   const reopenedPage = await reopened.newPage();
   await reopenedPage.goto('/cart', { waitUntil: 'networkidle' });
   await expect(reopenedPage.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();

@@ -22,17 +22,20 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
         private readonly ILogger<OrderService> _logger;
+        private readonly TimeProvider _timeProvider;
 
         public OrderService(
             VitorizeDbContext dbContext,
             INotificationService notificationService,
             IEncryptionService encryptionService,
-            ILogger<OrderService>? logger = null)
+            ILogger<OrderService>? logger = null,
+            TimeProvider? timeProvider = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
             _logger = logger ?? NullLogger<OrderService>.Instance;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -43,11 +46,12 @@ namespace Vitorize.Infrastructure.Services
             var orders = await _dbContext.Orders
                 .AsNoTracking()
                 .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycLifecycleState)
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            return orders.Select(MapOrderSummary).ToList();
+            return await MapOrdersAsync(orders, userId);
         }
 
         public async Task<OrderDto> GetMyOrderDetailsAsync(Guid userId, Guid orderId)
@@ -61,6 +65,8 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.InputValues)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycLifecycleState)
                 .FirstOrDefaultAsync(x =>
                     x.Id == orderId &&
                     x.UserId == userId);
@@ -68,7 +74,25 @@ namespace Vitorize.Infrastructure.Services
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
 
-            return MapOrderDetails(order);
+            return await MapOrderDetailsAsync(order);
+        }
+
+        public async Task<OrderItemKycProjectionDto> GetMyOrderItemKycContextAsync(Guid userId, Guid orderItemId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+
+            var order = await _dbContext.Orders.AsNoTracking()
+                .Include(x => x.OrderItems).ThenInclude(x => x.KycLifecycleState)
+                .Include(x => x.OrderItems).ThenInclude(x => x.KycFinanceResolution)
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.OrderItems.Any(i => i.Id == orderItemId));
+            if (order is null)
+                throw new NotFoundException("آیتم سفارش یافت نشد.");
+
+            var item = order.OrderItems.Single(x => x.Id == orderItemId);
+            var mapped = await MapOrdersAsync([order], userId);
+            return mapped.Single().Items.Single(x => x.Id == item.Id).Kyc
+                ?? throw new NotFoundException("این آیتم دارای چرخه احراز هویت نیست.");
         }
 
         public async Task<List<DeliveredCodeDto>> GetMyDeliveredCodesAsync(Guid userId)
@@ -110,10 +134,11 @@ namespace Vitorize.Infrastructure.Services
             var orders = await _dbContext.Orders
                 .AsNoTracking()
                 .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycLifecycleState)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            return orders.Select(MapOrderSummary).ToList();
+            return await MapOrdersAsync(orders, null);
         }
 
         public async Task<OrderDto> GetAdminOrderDetailsAsync(Guid orderId)
@@ -124,12 +149,16 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.InputValues)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycLifecycleState)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.KycFinanceResolution)
                 .FirstOrDefaultAsync(x => x.Id == orderId);
 
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
 
-            return MapOrderDetails(order);
+            return await MapOrderDetailsAsync(order);
         }
 
         public async Task<List<OrderDto>> SearchAdminOrdersAsync(AdminOrderFilterDto filter)
@@ -399,6 +428,7 @@ namespace Vitorize.Infrastructure.Services
 
             var order = await _dbContext.Orders
                 .Include(x => x.OrderItems).ThenInclude(x => x.OrderItemDeliveries)
+                .Include(x => x.OrderItems).ThenInclude(x => x.KycLifecycleState)
                 .FirstOrDefaultAsync(x => x.Id == orderId)
                 ?? throw new NotFoundException("سفارش یافت نشد.");
             if (order.PaymentStatus != (byte)PaymentStatus.Paid ||
@@ -407,9 +437,10 @@ namespace Vitorize.Infrastructure.Services
 
             var item = order.OrderItems.FirstOrDefault(x => x.Id == request.OrderItemId)
                 ?? throw new NotFoundException("آیتم سفارش یافت نشد.");
-            if (item.DeliveryType != (byte)DeliveryType.Manual &&
-                item.DeliveryType != (byte)DeliveryType.SupportRequired)
+            if (item.DeliveryType != (byte)DeliveryType.Manual)
                 throw new BusinessException("این آیتم برای تحویل دستی تعریف نشده است.");
+            if (!OrderItemFulfillmentEligibility.CanFulfill(item))
+                throw new BusinessException("این آیتم تا تکمیل احراز هویت قابل تحویل نیست.");
             if (item.OrderItemDeliveries.Any(x =>
                     x.DeliveryType is (byte)DeliveryType.Manual or (byte)DeliveryType.SupportRequired))
                 throw new BusinessException("این آیتم قبلاً تحویل شده است.");
@@ -453,14 +484,115 @@ namespace Vitorize.Infrastructure.Services
                 Detail = $"order:{order.OrderNumber};item:{item.Id:N};encrypted:true",
                 CreatedAt = now
             });
-            await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.GiftCodeDelivered,
-                "تحویل سفارش", $"محتوای سفارش {order.OrderNumber} در حساب کاربری شما ثبت شد.");
+            await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.ManualDeliveryCompleted,
+                "تحویل دستی سفارش", $"تحویل دستی آیتم سفارش {order.OrderNumber} با موفقیت ثبت شد.");
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
             _logger.LogInformation(
                 "Manual order delivery completed. EventType={EventType} OrderId={OrderId} OrderItemId={OrderItemId} OrderNumber={OrderNumber} VisibleToCustomer={VisibleToCustomer}",
                 "ManualDeliveryCompleted", order.Id, item.Id, order.OrderNumber, request.IsVisibleToCustomer);
+        }
+
+        private async Task<List<OrderDto>> MapOrdersAsync(IReadOnlyCollection<Order> orders, Guid? customerUserId, bool includeDetails = false)
+        {
+            var policyIds = orders.SelectMany(x => x.OrderItems).Where(x => x.KycPolicyVersionId.HasValue)
+                .Select(x => x.KycPolicyVersionId!.Value).Distinct().ToList();
+            var policies = policyIds.Count == 0 ? new List<KycPolicyVersion>() : await _dbContext.KycPolicyVersions
+                .AsNoTracking().Include(x => x.DocumentRequirements).ThenInclude(x => x.KycDocumentType)
+                .Where(x => policyIds.Contains(x.Id)).ToListAsync();
+            var policyMap = policies.ToDictionary(x => x.Id);
+            var userIds = orders.Select(x => x.UserId).Distinct().ToList();
+            var uploadedDocumentTypeIds = userIds.Count == 0 ? new Dictionary<Guid, HashSet<Guid>>() : (await _dbContext.VerificationDocuments.AsNoTracking()
+                .Where(x => userIds.Contains(x.UserVerificationProfile.UserId) && x.KycDocumentTypeId.HasValue)
+                .Select(x => new { UserId = x.UserVerificationProfile.UserId, DocumentTypeId = x.KycDocumentTypeId!.Value })
+                .ToListAsync()).GroupBy(x => x.UserId).ToDictionary(x => x.Key, x => x.Select(v => v.DocumentTypeId).ToHashSet());
+
+            var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+            return orders.Select(order =>
+            {
+                var dto = includeDetails ? MapOrderDetails(order) : MapOrderSummary(order);
+                foreach (var item in dto.Items)
+                {
+                    var entity = order.OrderItems.Single(x => x.Id == item.Id);
+                    item.Kyc = BuildKycProjection(entity, policyMap.GetValueOrDefault(entity.KycPolicyVersionId ?? Guid.Empty),
+                        uploadedDocumentTypeIds.GetValueOrDefault(order.UserId) ?? [], utcNow);
+                }
+                return dto;
+            }).ToList();
+        }
+
+        private async Task<OrderDto> MapOrderDetailsAsync(Order order) =>
+            (await MapOrdersAsync([order], null, includeDetails: true)).Single();
+
+        private static OrderItemKycProjectionDto? BuildKycProjection(OrderItem item, KycPolicyVersion? policy,
+            HashSet<Guid> uploadedDocumentTypeIds, DateTime utcNow)
+        {
+            if (item.KycLifecycleState is null)
+                return null; // Historical/non-managed items deliberately remain unset.
+
+            var status = (OrderItemKycStatus)item.KycLifecycleState.Status;
+            var fulfilled = item.DeliveryStatus == (byte)DeliveryStatus.Delivered;
+            var isOverdue = KycCustomerActionDeadlineRules.IsOverdue(status,
+                item.KycLifecycleState.CustomerActionDeadlineAt, utcNow);
+            var action = isOverdue ? "DeadlineExpired" : status switch
+            {
+                OrderItemKycStatus.AwaitingSubmission => "SubmitVerification",
+                OrderItemKycStatus.AwaitingReview => "AwaitReview",
+                OrderItemKycStatus.Rejected => "ResubmitVerification",
+                OrderItemKycStatus.FinalRejected => "NoFurtherSubmission",
+                OrderItemKycStatus.Expired => "None",
+                OrderItemKycStatus.Satisfied when !fulfilled && item.DeliveryType == (byte)DeliveryType.Manual => "AwaitManualDelivery",
+                OrderItemKycStatus.Satisfied when !fulfilled && item.DeliveryType == (byte)DeliveryType.SupportRequired => "AwaitSupportFulfillment",
+                OrderItemKycStatus.Satisfied when !fulfilled => "AwaitFulfillment",
+                _ => "None"
+            };
+            var labels = new Dictionary<OrderItemKycStatus, string>
+            {
+                [OrderItemKycStatus.NotRequired] = "احراز هویت لازم نیست",
+                [OrderItemKycStatus.AwaitingSubmission] = "در انتظار ارسال مدارک",
+                [OrderItemKycStatus.AwaitingReview] = "در انتظار بررسی",
+                [OrderItemKycStatus.Rejected] = "نیازمند اصلاح و ارسال مجدد",
+                [OrderItemKycStatus.Satisfied] = "تأیید شده",
+                [OrderItemKycStatus.FinalRejected] = "رد نهایی",
+                [OrderItemKycStatus.Expired] = "مهلت اقدام کاربر پایان یافته است"
+            };
+            var actionLabels = new Dictionary<string, string>
+            {
+                ["SubmitVerification"] = "تکمیل احراز هویت", ["AwaitReview"] = "در انتظار بررسی احراز هویت",
+                ["ResubmitVerification"] = "ارسال مجدد مدارک", ["NoFurtherSubmission"] = "ارسال مجدد مدارک امکان‌پذیر نیست",
+                ["AwaitManualDelivery"] = "احراز هویت کامل است؛ تحویل دستی در حال انجام است",
+                ["AwaitSupportFulfillment"] = "احراز هویت کامل است؛ پشتیبانی در حال پیگیری است",
+                ["AwaitFulfillment"] = "احراز هویت کامل است؛ تحویل در حال انجام است",
+                ["DeadlineExpired"] = "مهلت تکمیل احراز هویت این خرید پایان یافته است و باید توسط مدیریت بررسی شود.",
+                ["None"] = string.Empty
+            };
+            return new OrderItemKycProjectionDto
+            {
+                RequiresKyc = item.RequiresVerification,
+                LifecycleStatus = item.KycLifecycleState.Status,
+                LifecycleLabel = labels[status],
+                BlocksFulfillment = OrderItemKycStateMachine.BlocksFulfillment(status),
+                CustomerAction = action,
+                CustomerActionLabel = actionLabels[action],
+                PolicyVersionId = item.KycPolicyVersionId,
+                PolicyTitle = policy?.CustomerTitle,
+                PolicyInstructions = policy?.CustomerInstructions,
+                EvaluatedAmount = item.KycEvaluatedAmount,
+                ThresholdAmount = item.KycThresholdAmount,
+                CustomerActionDeadlineHours = item.KycCustomerActionDeadlineHours,
+                CustomerActionDeadlineAt = item.KycLifecycleState.CustomerActionDeadlineAt,
+                IsCustomerActionOverdue = isOverdue,
+                IsFulfilled = fulfilled,
+                HasSupportWork = item.SupportTicketId.HasValue,
+                FinanceResolutionStatus = item.KycFinanceResolution?.Status,
+                Documents = policy?.DocumentRequirements.OrderBy(x => x.SortOrder).Select(x => new OrderItemKycDocumentRequirementDto
+                {
+                    DocumentTypeId = x.KycDocumentTypeId, Title = x.KycDocumentType.Title, Instructions = x.Instructions,
+                    IsRequired = x.IsRequired, RedactionMode = x.RedactionMode, RedactionInstructions = x.RedactionInstructions,
+                    UploadStatus = uploadedDocumentTypeIds.Contains(x.KycDocumentTypeId) ? "Uploaded" : "Missing"
+                }).ToList() ?? []
+            };
         }
 
         private static OrderDto MapOrderSummary(Order order)
@@ -561,7 +693,9 @@ namespace Vitorize.Infrastructure.Services
 
         private string? UnprotectDelivery(string? value, short? encryptionVersion)
         {
-            if (string.IsNullOrEmpty(value) || encryptionVersion is null or 0)
+            // Null is the only pre-hardening plaintext marker. Version 0 is the
+            // legacy AES-CBC format and must be decrypted just like version 2.
+            if (string.IsNullOrEmpty(value) || encryptionVersion is null)
                 return value;
             return _encryptionService.Decrypt(value);
         }

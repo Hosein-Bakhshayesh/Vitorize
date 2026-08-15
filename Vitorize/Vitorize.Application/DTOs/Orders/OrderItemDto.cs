@@ -18,5 +18,6 @@
         public DateTime? DeliveredAt { get; set; }
         public List<OrderDeliveryDto> Deliveries { get; set; } = new();
         public List<Vitorize.Application.DTOs.Products.ProductInputValueDto> InputValues { get; set; } = new();
+        public OrderItemKycProjectionDto? Kyc { get; set; }
     }
 }

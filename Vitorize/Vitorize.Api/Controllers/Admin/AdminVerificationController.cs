@@ -13,14 +13,17 @@ namespace Vitorize.Api.Controllers.Admin
     public class AdminVerificationController : ControllerBase
     {
         private readonly IVerificationService _verificationService;
+        private readonly IOrderItemKycDeadlineService _deadlineService;
         private readonly ICurrentUserService _currentUserService;
 
         public AdminVerificationController(
             IVerificationService verificationService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IOrderItemKycDeadlineService deadlineService)
         {
             _verificationService = verificationService;
             _currentUserService = currentUserService;
+            _deadlineService = deadlineService;
         }
 
         [HttpGet]
@@ -68,6 +71,33 @@ namespace Vitorize.Api.Controllers.Admin
                 request.Approve
                     ? "احراز هویت با موفقیت تایید شد."
                     : "احراز هویت رد شد."));
+        }
+
+        [HttpPut("order-items/{orderItemId:guid}/deadline")]
+        [Authorize(Policy = "KycManage")]
+        public async Task<ActionResult<ApiResult<OrderItemKycDeadlineOperationDto>>> ExtendDeadline(
+            Guid orderItemId, SetOrderItemKycDeadlineRequestDto request, CancellationToken cancellationToken)
+        {
+            var result = await _deadlineService.ExtendDeadlineAsync(orderItemId, request.NewDeadlineAt, GetUserId(), cancellationToken);
+            return Ok(ApiResult<OrderItemKycDeadlineOperationDto>.Success(result, "مهلت اقدام مشتری به‌روزرسانی شد."));
+        }
+
+        [HttpPost("order-items/{orderItemId:guid}/reopen")]
+        [Authorize(Policy = "KycManage")]
+        public async Task<ActionResult<ApiResult<OrderItemKycDeadlineOperationDto>>> Reopen(
+            Guid orderItemId, SetOrderItemKycDeadlineRequestDto request, CancellationToken cancellationToken)
+        {
+            var result = await _deadlineService.ReopenExpiredAsync(orderItemId, request.NewDeadlineAt, GetUserId(), cancellationToken);
+            return Ok(ApiResult<OrderItemKycDeadlineOperationDto>.Success(result, "فرصت اقدام مشتری بازگشایی شد."));
+        }
+
+        [HttpPost("order-items/{orderItemId:guid}/final-reject")]
+        [Authorize(Policy = "KycManage")]
+        public async Task<ActionResult<ApiResult<OrderItemKycDeadlineOperationDto>>> FinalReject(
+            Guid orderItemId, CancellationToken cancellationToken)
+        {
+            var result = await _deadlineService.FinalRejectExpiredAsync(orderItemId, GetUserId(), cancellationToken);
+            return Ok(ApiResult<OrderItemKycDeadlineOperationDto>.Success(result, "چرخه احراز هویت به‌صورت نهایی رد شد."));
         }
 
         private Guid GetUserId()

@@ -70,7 +70,10 @@ namespace Vitorize.Api.Controllers
             var result = await _verificationService.AddDocumentAsync(
                 GetUserId(),
                 request.DocumentType,
-                request.FilePath);
+                request.FilePath,
+                request.KycDocumentTypeId,
+                request.OrderItemId,
+                request.IsRedacted);
 
             return Ok(ApiResult<VerificationDocumentDto>.Success(
                 result,

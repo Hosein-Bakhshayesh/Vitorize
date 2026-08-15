@@ -147,7 +147,7 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
     }
 
     [Fact]
-    public async Task Unverified_customer_is_blocked_only_when_the_current_cart_requires_kyc()
+    public async Task Unverified_customer_can_checkout_when_the_current_cart_requires_kyc()
     {
         var version = await CreatePublishedPolicyVersionAsync("unverified");
         var none = await CreateProductAsync("unverified-none", 100m, KycRequirementMode.None, null, null);
@@ -166,11 +166,11 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
 
         (await AttemptAsync(none.Id, 1)).Should().Be(HttpStatusCode.OK);
         (await AttemptAsync(below.Id, 1)).Should().Be(HttpStatusCode.OK);
-        (await AttemptAsync(triggered.Id, 1)).Should().Be(HttpStatusCode.BadRequest);
-        (await AttemptAsync(always.Id, 1)).Should().Be(HttpStatusCode.BadRequest);
+        (await AttemptAsync(triggered.Id, 1)).Should().Be(HttpStatusCode.OK);
+        (await AttemptAsync(always.Id, 1)).Should().Be(HttpStatusCode.OK);
         var coupon = new Coupon { Id = Guid.NewGuid(), Code = $"UNV{Guid.NewGuid():N}", Title = "Unverified KYC", DiscountType = (byte)DiscountType.Percentage, DiscountValue = 10, IsActive = true, CreatedAt = DateTime.UtcNow };
         await using (var db = _fixture.CreateDbContext()) { db.Coupons.Add(coupon); await db.SaveChangesAsync(); }
-        (await AttemptAsync(triggered.Id, 1, coupon.Code)).Should().Be(HttpStatusCode.BadRequest);
+        (await AttemptAsync(triggered.Id, 1, coupon.Code)).Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -211,6 +211,9 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
         await using var verify = _fixture.CreateDbContext();
         (await verify.Orders.SingleAsync(x => x.Id == orderId)).PaymentStatus.Should().Be((byte)PaymentStatus.Paid);
         (await verify.Payments.CountAsync(x => x.OrderId == orderId)).Should().Be(2);
+        (await verify.OrderItemKycStates.SingleAsync(x => x.OrderItemId == initial.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.Satisfied,
+                "the retry payment must initialize from the original paid order-item snapshot, not the changed product");
     }
 
     private async Task<Guid> CheckoutAsync(HttpClient client, IReadOnlyList<(Guid ProductId, int Quantity)> items, string? couponCode = null)

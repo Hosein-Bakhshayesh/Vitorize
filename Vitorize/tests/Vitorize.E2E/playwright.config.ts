@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5077';
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:5077';
 const manageStack = process.env.E2E_MANAGE_STACK === 'true';
 if (manageStack) {
   process.env.E2E_ADMIN_MOBILE ??= '09120000011';

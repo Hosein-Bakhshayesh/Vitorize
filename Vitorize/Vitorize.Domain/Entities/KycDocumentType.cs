@@ -13,4 +13,5 @@ public sealed class KycDocumentType
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public ICollection<KycPolicyDocumentRequirement> PolicyRequirements { get; set; } = new List<KycPolicyDocumentRequirement>();
+    public ICollection<VerificationDocument> VerificationDocuments { get; set; } = new List<VerificationDocument>();
 }

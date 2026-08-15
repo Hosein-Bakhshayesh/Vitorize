@@ -24,6 +24,7 @@ namespace Vitorize.Infrastructure.Services
 
         private readonly VitorizeDbContext _dbContext;
         private readonly IGiftCodeDeliveryService _giftCodeDeliveryService;
+        private readonly IPostPaymentOrderProcessor? _postPaymentOrderProcessor;
         private readonly ICouponService _couponService;
         private readonly IWalletService _walletService;
         private readonly INotificationService _notificationService;
@@ -41,7 +42,8 @@ namespace Vitorize.Infrastructure.Services
             IZarinpalGatewayService zarinpalGatewayService,
             ISmsOutboxEnqueuer smsOutbox,
             ILogger<PaymentService>? logger = null,
-            IOptions<PaymentTimingOptions>? paymentTiming = null)
+            IOptions<PaymentTimingOptions>? paymentTiming = null,
+            IPostPaymentOrderProcessor? postPaymentOrderProcessor = null)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
@@ -52,6 +54,7 @@ namespace Vitorize.Infrastructure.Services
             _smsOutbox = smsOutbox;
             _logger = logger ?? NullLogger<PaymentService>.Instance;
             _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
+            _postPaymentOrderProcessor = postPaymentOrderProcessor;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
@@ -402,6 +405,8 @@ namespace Vitorize.Infrastructure.Services
                         "Duplicate payment callback ignored for order {OrderNumber}. Provider={Provider} Authority={Authority} EventType={EventType}",
                         order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(authority, 100), OperationalEventNames.PaymentCallbackDuplicate);
 
+                    await transaction.DisposeAsync();
+                    await ProcessPaidOrderSafelyAsync(order.Id);
                     return CreateVerifyResult(payment, order);
                 }
 
@@ -479,6 +484,8 @@ namespace Vitorize.Infrastructure.Services
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
                     await finalizeTransaction.CommitAsync();
+                    await finalizeTransaction.DisposeAsync();
+                    await ProcessPaidOrderSafelyAsync(order.Id);
                     return CreateVerifyResult(payment, order);
                 }
                 var lateTerminalAttempt = payment.Status is (byte)PaymentStatus.Cancelled or (byte)PaymentStatus.Failed;
@@ -575,6 +582,8 @@ namespace Vitorize.Infrastructure.Services
                     return await CompensateVerifiedPaymentAsync(payment.Id, verifiedProviderReference!, ex.Message);
                 }
                 await finalizeTransaction.CommitAsync();
+                await finalizeTransaction.DisposeAsync();
+                await ProcessPaidOrderSafelyAsync(order.Id);
                 _logger.LogInformation(
                     "Payment verified for order {OrderNumber}. Provider={Provider} Authority={Authority} ElapsedMs={ElapsedMs} EventType={EventType}",
                     order.OrderNumber, ZarinpalGatewayName, SensitiveLogData.Sanitize(authority, 100), stopwatch.ElapsedMilliseconds, OperationalEventNames.PaymentVerified);
@@ -672,6 +681,8 @@ namespace Vitorize.Infrastructure.Services
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
                     await transaction.CommitAsync();
+                    await transaction.DisposeAsync();
+                    await ProcessPaidOrderSafelyAsync(order.Id);
                     return CreateVerifyResult(payment, order);
                 }
 
@@ -692,6 +703,8 @@ namespace Vitorize.Infrastructure.Services
                 await CompletePaidOrderAsync(order, userId, now);
 
                 await transaction.CommitAsync();
+                await transaction.DisposeAsync();
+                await ProcessPaidOrderSafelyAsync(order.Id);
 
                 return CreateVerifyResult(payment, order);
             }
@@ -761,6 +774,9 @@ namespace Vitorize.Infrastructure.Services
                 await CompletePaidOrderAsync(order, userId, now);
 
                 await transaction.CommitAsync();
+                await transaction.DisposeAsync();
+
+                await ProcessPaidOrderSafelyAsync(order.Id);
 
                 return CreateVerifyResult(payment, order);
             }
@@ -1063,34 +1079,6 @@ namespace Vitorize.Infrastructure.Services
                     order.CouponId.Value);
             }
 
-            var activeReservations = order.GiftCodeReservations
-                .Where(x => x.Status == (byte)GiftCodeReservationStatus.Active)
-                .ToList();
-
-            // فقط آیتم‌های تحویل آنی رزرو کد دارند؛ سفارش کاملاً دستی رزرو ندارد و نباید خطا بدهد.
-            var hasInstantItems = order.OrderItems
-                .Any(x => x.DeliveryType == (byte)DeliveryType.Instant);
-
-            if (hasInstantItems && !activeReservations.Any())
-                throw new BusinessException("رزرو فعالی برای این سفارش یافت نشد.");
-
-            foreach (var reservation in activeReservations)
-            {
-                reservation.Status = (byte)GiftCodeReservationStatus.Sold;
-                reservation.SoldAt = now;
-
-                var giftCode = await _dbContext.GiftCodes
-                    .FirstOrDefaultAsync(x => x.Id == reservation.GiftCodeId);
-
-                if (giftCode == null)
-                    throw new BusinessException("کد رزرو شده یافت نشد.");
-
-                giftCode.Status = (byte)GiftCodeStatus.Sold;
-                giftCode.SoldAt = now;
-                giftCode.ReservationExpiresAt = null;
-                giftCode.UpdatedAt = now;
-            }
-
             var mobile = await _dbContext.Users
                 .Where(x => x.Id == userId)
                 .Select(x => x.Mobile)
@@ -1116,119 +1104,24 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
-            if (activeReservations.Any())
-            {
-                await _giftCodeDeliveryService.DeliverOrderAsync(order.Id, userId);
-
-                await _notificationService.CreateAsync(
-                    userId,
-                    (byte)NotificationType.GiftCodeDelivered,
-                    "تحویل سفارش",
-                    $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
-
-                await _smsOutbox.EnqueueTemplateAsync(
-                    mobile,
-                    Vitorize.Application.Common.SmsTemplateKeys.GiftCodeDelivered,
-                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.GiftCodeDelivered(
-                        order.OrderNumber),
-                    purpose: "GiftCodeDelivered",
-                    aggregateId: order.Id,
-                    userId: userId,
-                    relatedEntityType: "Order",
-                    relatedEntityReference: order.OrderNumber);
-
-                await _dbContext.SaveChangesAsync();
-            }
-
-            // Support-delivery products that opt in (Product.RequiresSupportMessage)
-            // get exactly one auto-created support ticket per order.
-            await CreateSupportTicketIfRequiredAsync(order, now);
         }
 
-        /// <summary>
-        /// Creates exactly one support ticket for a paid order that contains a
-        /// SupportRequired item whose product opted in via
-        /// <see cref="Product.RequiresSupportMessage"/>. Runs inside the same
-        /// Serializable transaction / per-order lock as payment capture and only
-        /// after the Paid-guard, so it is idempotent across payment retries,
-        /// gateway callbacks and order reprocessing; the explicit existing-ticket
-        /// check is defence in depth. Products that do not opt in (the default)
-        /// never get an automatic ticket, preserving the customer-initiated flow.
-        /// </summary>
-        private async Task CreateSupportTicketIfRequiredAsync(Order order, DateTime now)
+        private async Task ProcessPaidOrderSafelyAsync(Guid orderId)
         {
-            var supportItems = order.OrderItems
-                .Where(x => x.DeliveryType == (byte)DeliveryType.SupportRequired)
-                .ToList();
-            if (supportItems.Count == 0)
+            if (_postPaymentOrderProcessor is null)
                 return;
 
-            var productIds = supportItems.Select(x => x.ProductId).Distinct().ToList();
-            var optInProductIds = await _dbContext.Products
-                .Where(p => productIds.Contains(p.Id) && p.RequiresSupportMessage)
-                .Select(p => p.Id)
-                .ToListAsync();
-            if (optInProductIds.Count == 0)
-                return;
-
-            var qualifyingItems = supportItems.Where(x => optInProductIds.Contains(x.ProductId)).ToList();
-            var existing = await _dbContext.Tickets
-                .FirstOrDefaultAsync(t => t.OrderId == order.Id && t.IsFulfillmentTicket);
-            if (existing is not null)
+            try
             {
-                foreach (var item in qualifyingItems.Where(x => x.SupportTicketId != existing.Id))
-                    item.SupportTicketId = existing.Id;
-                await _dbContext.SaveChangesAsync();
-                return;
+                await _postPaymentOrderProcessor.ProcessPaidOrderAsync(orderId);
             }
-
-            var ticketId = Guid.NewGuid();
-
-            var ticket = new Ticket
+            catch (Exception ex)
             {
-                Id = ticketId,
-                UserId = order.UserId,
-                OrderId = order.Id,
-                Subject = $"پیگیری تحویل پشتیبانی - سفارش {order.OrderNumber}",
-                Department = (byte)TicketDepartment.Orders,
-                Priority = (byte)TicketPriority.Normal,
-                Status = (byte)TicketStatus.WaitingForAdmin,
-                IsFulfillmentTicket = true,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            ticket.TicketMessages.Add(new TicketMessage
-            {
-                Id = Guid.NewGuid(),
-                TicketId = ticketId,
-                SenderUserId = order.UserId,
-                Message = BuildSupportFulfillmentMessage(order.OrderNumber, qualifyingItems),
-                IsInternalNote = false,
-                CreatedAt = now
-            });
-            await _dbContext.Tickets.AddAsync(ticket);
-            foreach (var item in qualifyingItems)
-                item.SupportTicketId = ticketId;
-
-            // The notification announces the ticket only — never account credentials.
-            await _notificationService.CreateAsync(
-                order.UserId,
-                (byte)NotificationType.TicketCreated,
-                "تیکت پشتیبانی ایجاد شد",
-                $"برای سفارش {order.OrderNumber} یک تیکت پشتیبانی جهت تحویل محصول ایجاد شد.");
-
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation(
-                "Support delivery ticket auto-created. EventType={EventType} OrderId={OrderId} OrderNumber={OrderNumber} TicketId={TicketId}",
-                "SupportTicketAutoCreated", order.Id, order.OrderNumber, ticketId);
-        }
-
-        private static string BuildSupportFulfillmentMessage(string orderNumber, IReadOnlyCollection<OrderItem> items)
-        {
-            var summary = string.Join("\n", items.Select(item =>
-                $"• {item.ProductTitle} | نسخه: {(string.IsNullOrWhiteSpace(item.VariantTitle) ? "—" : item.VariantTitle)} | تعداد: {item.Quantity} | آیتم: {item.Id}"));
-            return $"سفارش {orderNumber} با موفقیت ثبت شد و موارد زیر نیازمند آماده‌سازی پشتیبانی هستند:\n{summary}\nاطلاعات تحویل پس از آماده‌سازی از طریق همین تیکت ارسال خواهد شد.";
+                // Provider/wallet financial finalization is already committed. A
+                // later operational failure must be retried, not reverse payment.
+                _logger.LogError(ex,
+                    "Post-payment processing failed after payment capture. OrderId={OrderId}", orderId);
+            }
         }
 
         private static PaymentVerifyResultDto CreateVerifyResult(Payment payment, Order order)

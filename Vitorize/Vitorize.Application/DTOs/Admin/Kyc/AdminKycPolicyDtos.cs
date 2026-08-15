@@ -10,6 +10,7 @@ namespace Vitorize.Application.DTOs.Admin.Kyc
         public byte Status { get; set; }
         public string CustomerTitle { get; set; } = string.Empty;
         public string? CustomerInstructions { get; set; }
+        public int? CustomerActionDeadlineHours { get; set; }
         public List<AdminKycPolicyDocumentRequirementDto> DocumentRequirements { get; set; } = new();
     }
 
@@ -29,12 +30,14 @@ namespace Vitorize.Application.DTOs.Admin.Kyc
         public bool IsActive { get; set; } = true;
         public string CustomerTitle { get; set; } = string.Empty;
         public string? CustomerInstructions { get; set; }
+        public int? CustomerActionDeadlineHours { get; set; }
     }
 
     public class CreateKycPolicyVersionRequestDto
     {
         public string CustomerTitle { get; set; } = string.Empty;
         public string? CustomerInstructions { get; set; }
+        public int? CustomerActionDeadlineHours { get; set; }
     }
 
     public class UpdateKycPolicyVersionRequestDto : CreateKycPolicyVersionRequestDto { }
@@ -47,6 +50,8 @@ namespace Vitorize.Application.DTOs.Admin.Kyc
         public bool IsRequired { get; set; }
         public int SortOrder { get; set; }
         public string? CustomerInstructions { get; set; }
+        public byte RedactionMode { get; set; }
+        public string? RedactionInstructions { get; set; }
     }
 
     public class AdminKycDocumentTypeDto
@@ -74,5 +79,7 @@ namespace Vitorize.Application.DTOs.Admin.Kyc
         public bool IsRequired { get; set; } = true;
         public int SortOrder { get; set; }
         public string? CustomerInstructions { get; set; }
+        public byte RedactionMode { get; set; }
+        public string? RedactionInstructions { get; set; }
     }
 }

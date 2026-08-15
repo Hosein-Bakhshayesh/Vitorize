@@ -35,8 +35,10 @@ public class CartService : ICartService
             ? await GetOrCreateCartAsync(identity)
             : await LoadCartOrDefaultAsync(identity);
         if (cart is null) return new CartDto { UserId = identity.UserId };
-        TouchGuestCart(cart, identity);
-        if (identity.IsGuest) await _dbContext.SaveChangesAsync();
+        // A guest-cart read must remain read-only. Touching LastActivityAt here turned an
+        // otherwise concurrent GET into a write that could deadlock with the serializable,
+        // application-lock-protected cart mutation path. Guest activity is updated by the
+        // actual add/update/remove/clear mutations instead.
         return MapToDto(cart);
     }
 

@@ -12,8 +12,22 @@
         <div class="st-state__ic" style="background:var(--st-success-soft);color:var(--st-success)"><Icon Name="check-circle" Size="40" /></div>
         <h1 style="font-size:24px">پرداخت با موفقیت انجام شد</h1>
         <p class="st-muted" style="max-width:440px">سفارش شما ثبت و در صورت تحویل آنی، کدها در جزئیات سفارش قابل مشاهده هستند.</p>
+        @if (_kycActionRequired && OrderId is not null)
+        {
+            <div class="st-alert st-alert--warning" style="max-width:560px;margin:0 auto 18px;text-align:right">
+                <Icon Name="shield" Size="20" />
+                <div>
+                    <div style="font-weight:700">پرداخت موفق بوده است، اما احراز هویت این سفارش هنوز نیاز به اقدام دارد.</div>
+                    <div>پس از تکمیل احراز هویت، تحویل هر آیتم مطابق وضعیت همان آیتم انجام می‌شود.</div>
+                </div>
+            </div>
+        }
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-            @if (OrderId is not null)
+            @if (_kycActionRequired && OrderId is not null)
+            {
+                <a class="st-btn st-btn--primary" href="@($"/customer/orders/{OrderId}")"><Icon Name="shield" Size="17" /> تکمیل احراز هویت</a>
+            }
+            else if (OrderId is not null)
             {
                 <a class="st-btn st-btn--primary" href="@($"/customer/orders/{OrderId}")"><Icon Name="package-check" Size="17" /> مشاهده سفارش و کدها</a>
             }
@@ -45,6 +59,7 @@
     [SupplyParameterFromQuery] public string? Paid { get; set; }
     private bool _canRetry;
     private bool _retrying;
+    private bool _kycActionRequired;
 
     protected override void OnInitialized()
     {
@@ -54,7 +69,15 @@
     protected override async Task OnParametersSetAsync()
     {
         _canRetry = false;
-        if (Paid == "1" || !Guid.TryParse(OrderId, out var orderId)) return;
+        _kycActionRequired = false;
+        if (!Guid.TryParse(OrderId, out var orderId)) return;
+        if (Paid == "1")
+        {
+            var order = await Api.GetAsync<StoreOrderModel>($"orders/{orderId}");
+            _kycActionRequired = order.IsSuccess && order.Data?.Items.Any(x =>
+                x.Kyc?.CustomerAction is "SubmitVerification" or "ResubmitVerification") == true;
+            return;
+        }
         var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{orderId}");
         _canRetry = eligibility.IsSuccess && eligibility.Data?.CanRetry == true;
     }

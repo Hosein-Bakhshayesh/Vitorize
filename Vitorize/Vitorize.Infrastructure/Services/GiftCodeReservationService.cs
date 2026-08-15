@@ -158,7 +158,9 @@ namespace Vitorize.Infrastructure.Services
                 .Include(x => x.GiftCode)
                 .Where(x =>
                     x.Status == (byte)GiftCodeReservationStatus.Active &&
-                    x.ExpiresAt <= now)
+                    x.ExpiresAt <= now &&
+                    (!x.OrderId.HasValue || x.Order == null ||
+                     x.Order.PaymentStatus != (byte)PaymentStatus.Paid))
                 .ToListAsync();
 
             if (!expiredReservations.Any())

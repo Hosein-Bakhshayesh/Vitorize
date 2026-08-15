@@ -126,6 +126,56 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 95,
+      "version": "V0011",
+      "name": "V0011__order_item_kyc_lifecycle_state.sql",
+      "path": "Versioned/V0011__order_item_kyc_lifecycle_state.sql",
+      "sha256": "0f838bdbe7d783d7e28f93a06d7c2f7aefd39e244ba00e11881cd903d6315181",
+      "classification": "required",
+      "dependencies": ["V0010", "dbo.OrderItems", "dbo.UserVerificationProfiles"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 96,
+      "version": "V0012",
+      "name": "V0012__verification_document_kyc_document_type.sql",
+      "path": "Versioned/V0012__verification_document_kyc_document_type.sql",
+      "sha256": "73d8c8b043c8f610fd8896762fedaf8e7cd56b2333994722478bd9d4d5add73a",
+      "classification": "required",
+      "dependencies": ["V0011", "dbo.VerificationDocuments", "dbo.KycDocumentTypes"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 97,
+      "version": "V0013",
+      "name": "V0013__kyc_document_redaction_configuration.sql",
+      "path": "Versioned/V0013__kyc_document_redaction_configuration.sql",
+      "sha256": "714524653dbbb8a03e304ad10de1bd7664d643e4f0f9b5904c122c0653e87e98",
+      "classification": "required",
+      "dependencies": ["V0012", "dbo.KycPolicyDocumentRequirements"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 98,
+      "version": "V0014",
+      "name": "V0014__kyc_customer_action_deadline.sql",
+      "path": "Versioned/V0014__kyc_customer_action_deadline.sql",
+      "sha256": "10f71bfaea811724ed1a7008ceaf80ba70a0c3b077377dee354d2dc66e23468f",
+      "classification": "required",
+      "dependencies": ["V0013", "dbo.KycPolicyVersions", "dbo.OrderItems", "dbo.OrderItemKycStates"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
+      "order": 99,
+      "version": "V0015",
+      "name": "V0015__kyc_finance_resolution.sql",
+      "path": "Versioned/V0015__kyc_finance_resolution.sql",
+      "sha256": "29a1af41c42b655785f6c90b419921992bb3029d41f943ebe3a721dc2ed9241a",
+      "classification": "required",
+      "dependencies": ["V0014", "dbo.OrderItems", "dbo.Users"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

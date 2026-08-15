@@ -80,6 +80,13 @@ namespace Vitorize.Api.Controllers
                 "جزئیات سفارش با موفقیت دریافت شد."));
         }
 
+        [HttpGet("items/{orderItemId:guid}/kyc-context")]
+        public async Task<ActionResult<ApiResult<OrderItemKycProjectionDto>>> GetMyOrderItemKycContext(Guid orderItemId)
+        {
+            var result = await _orderService.GetMyOrderItemKycContextAsync(GetUserId(), orderItemId);
+            return Ok(ApiResult<OrderItemKycProjectionDto>.Success(result, "اطلاعات احراز هویت آیتم دریافت شد."));
+        }
+
         private Guid GetUserId()
         {
             if (!_currentUserService.UserId.HasValue)

@@ -3,7 +3,8 @@ using Vitorize.Shared.Enums;
 namespace Vitorize.Application.Common;
 
 public sealed record KycRequirementEvaluation(bool RequiresKyc, KycRequirementMode Mode,
-    decimal? ThresholdAmount, decimal EvaluatedAmount, Guid? PolicyVersionId);
+    decimal? ThresholdAmount, decimal EvaluatedAmount, Guid? PolicyVersionId,
+    int? CustomerActionDeadlineHours = null);
 
 public static class KycRequirementEvaluator
 {

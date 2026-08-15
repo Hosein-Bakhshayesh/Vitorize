@@ -45,6 +45,7 @@ namespace Vitorize.Api.Middlewares
             var statusCode = exception switch
             {
                 BusinessException => HttpStatusCode.BadRequest,
+                ConcurrencyConflictException => HttpStatusCode.Conflict,
                 NotFoundException => HttpStatusCode.NotFound,
                 UnauthorizedException => HttpStatusCode.Unauthorized,
                 _ => HttpStatusCode.InternalServerError

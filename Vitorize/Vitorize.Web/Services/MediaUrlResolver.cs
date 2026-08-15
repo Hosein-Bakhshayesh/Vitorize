@@ -31,6 +31,20 @@ namespace Vitorize.Web.Services
 
             var relative = "/" + path.TrimStart('~', '/');
 
+            // Verification documents are private API resources. Browser image
+            // requests cannot attach the server-held bearer token, so route them
+            // through the authenticated Web proxy rather than exposing them as
+            // direct API media URLs.
+            const string verificationDocumentPrefix = "/api/verification/documents/";
+            const string verificationDocumentSuffix = "/content";
+            if (relative.StartsWith(verificationDocumentPrefix, StringComparison.OrdinalIgnoreCase) &&
+                relative.EndsWith(verificationDocumentSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                var identifier = relative[verificationDocumentPrefix.Length..^verificationDocumentSuffix.Length];
+                if (Guid.TryParse(identifier, out var documentId))
+                    return $"/media/verification-documents/{documentId:D}";
+            }
+
             return string.IsNullOrEmpty(_mediaBaseUrl)
                 ? relative
                 : _mediaBaseUrl + relative;

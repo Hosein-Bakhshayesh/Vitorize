@@ -13,6 +13,8 @@ Run `Deploy-Database.ps1`; do not execute the following list by hand in Producti
 | Order | Version | File | Purpose | Transaction/rerun behavior |
 |---:|---|---|---|---|
 | 10 | V0001 | `Versioned/V0001__create_database_script_history.sql` | Create immutable deployment ledger and indexes | Atomic table/index setup; trigger created with `CREATE OR ALTER`; safe rerun |
+| 98 | V0014 | `Versioned/V0014__kyc_customer_action_deadline.sql` | Add versioned/snapshotted KYC customer-action deadlines and the inert Expired lifecycle value | Additive; historical values remain NULL; replaces the lifecycle check atomically |
+| 99 | V0015 | `Versioned/V0015__kyc_finance_resolution.sql` | Add one explicit item-level finance resolution for terminal KYC rejection | Additive; records a manual financial decision and never moves money automatically |
 | 20 | V0002 | `Versioned/V0002__normalize_gift_code_reservation_status_constraint.sql` | Replace the unsafe 2026-07-07 constraint patch | Validates rows/conflicts first; atomic; safe rerun |
 | 30 | H20260713-SMS-SCHEMA | `2026-07-13_create_sms_history.sql` | SMS history tables, indexes and purge procedure | Object-idempotent; no outer transaction; runner records only after success |
 | 40 | H20260714-PRODUCT-SCHEMA | `2026-07-14_product_experience_schema.sql` | Product features/input/font schema | Transactional and object-idempotent; requires core commerce tables |

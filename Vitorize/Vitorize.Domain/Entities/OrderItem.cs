@@ -34,6 +34,7 @@ public partial class OrderItem
     public decimal? KycThresholdAmount { get; set; }
     public decimal KycEvaluatedAmount { get; set; }
     public Guid? KycPolicyVersionId { get; set; }
+    public int? KycCustomerActionDeadlineHours { get; set; }
 
     public Guid? SupportTicketId { get; set; }
 
@@ -57,4 +58,9 @@ public partial class OrderItem
 
     public virtual Ticket? SupportTicket { get; set; }
     public virtual KycPolicyVersion? KycPolicyVersion { get; set; }
+
+    // Optional by design: absent means this historical/current item has not been
+    // enrolled in the Phase-2 post-payment KYC fulfillment lifecycle.
+    public virtual OrderItemKycState? KycLifecycleState { get; set; }
+    public virtual OrderItemKycFinanceResolution? KycFinanceResolution { get; set; }
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Verification;
+using Vitorize.Application.Common;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
@@ -18,6 +20,10 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
         private readonly IEncryptionService _encryptionService;
+        private readonly IOrderItemKycLifecycleCoordinator? _lifecycleCoordinator;
+        private readonly IOrderItemFulfillmentReleaseService? _fulfillmentReleaseService;
+        private readonly IOrderItemKycDeadlineService? _deadlineService;
+        private readonly TimeProvider _timeProvider;
         private readonly ILogger<VerificationService> _logger;
 
         public VerificationService(
@@ -25,13 +31,21 @@ namespace Vitorize.Infrastructure.Services
             INotificationService notificationService,
             ISmsOutboxEnqueuer smsOutbox,
             IEncryptionService encryptionService,
-            ILogger<VerificationService>? logger = null)
+            ILogger<VerificationService>? logger = null,
+            IOrderItemKycLifecycleCoordinator? lifecycleCoordinator = null,
+            IOrderItemFulfillmentReleaseService? fulfillmentReleaseService = null,
+            IOrderItemKycDeadlineService? deadlineService = null,
+            TimeProvider? timeProvider = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _smsOutbox = smsOutbox;
             _encryptionService = encryptionService;
             _logger = logger ?? NullLogger<VerificationService>.Instance;
+            _lifecycleCoordinator = lifecycleCoordinator;
+            _fulfillmentReleaseService = fulfillmentReleaseService;
+            _deadlineService = deadlineService;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
@@ -60,11 +74,34 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(request.NationalCode))
                 throw new BusinessException("کد ملی الزامی است.");
 
+            if (request.BirthDate.HasValue)
+            {
+                var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().Date);
+                if (!VerificationBirthDateRules.IsWithinRange(request.BirthDate.Value, today))
+                    throw new BusinessException("تاریخ تولد واردشده معتبر نیست.");
+            }
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:user:{userId:N}");
+            var committed = false;
+            try
+            {
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x => x.Id == userId);
 
             if (user == null)
                 throw new NotFoundException("کاربر یافت نشد.");
+
+            var enforcement = _deadlineService is null
+                ? new CustomerDeadlineEnforcementResult(0, 1)
+                : await _deadlineService.EnforceCustomerActionsWithinTransactionAsync(userId);
+            if (enforcement.ExpiredCount > 0)
+            {
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+                committed = true;
+                throw new ConcurrencyConflictException("مهلت تکمیل احراز هویت این خرید پایان یافته است و باید توسط مدیریت بررسی شود.");
+            }
 
             var now = DateTime.UtcNow;
 
@@ -83,6 +120,7 @@ namespace Vitorize.Infrastructure.Services
 
                 await _dbContext.UserVerificationProfiles.AddAsync(profile);
             }
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
 
             var protectedData = new ProtectedVerificationData(
                 request.FirstName.Trim(), request.LastName.Trim(), request.NationalCode.Trim(),
@@ -107,25 +145,41 @@ namespace Vitorize.Infrastructure.Services
             user.NationalCode = null;
             user.UpdatedAt = now;
 
-            await _notificationService.CreateAsync(
-                userId,
-                (byte)NotificationType.VerificationSubmitted,
-                "درخواست احراز هویت ثبت شد",
-                "درخواست احراز هویت شما ثبت شد و در انتظار بررسی ادمین است.");
+            var transitioned = _lifecycleCoordinator is null || profile.Id == Guid.Empty
+                ? 0
+                : await _lifecycleCoordinator.SynchronizeSubmissionAsync(userId, profile.Id);
+
+            if (transitioned > 0 || profile.VerificationDocuments.Count == 0)
+                await _notificationService.CreateAsync(
+                    userId,
+                    (byte)NotificationType.VerificationSubmitted,
+                    "درخواست احراز هویت ثبت شد",
+                    "درخواست احراز هویت شما ثبت شد و در انتظار بررسی ادمین است.");
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+            committed = true;
 
             _logger.LogInformation(
                 "KYC profile submitted. UserId={UserId} ProfileId={ProfileId} DocumentCount={DocumentCount} EventType={EventType}",
                 userId, profile.Id, profile.VerificationDocuments.Count, OperationalEventNames.KycUploaded);
 
             return MapProfile(profile);
+            }
+            catch
+            {
+                if (!committed) await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<VerificationDocumentDto> AddDocumentAsync(
             Guid userId,
             byte documentType,
-            string filePath)
+            string filePath,
+            Guid? kycDocumentTypeId = null,
+            Guid? orderItemId = null,
+            bool isRedacted = false)
         {
             if (userId == Guid.Empty)
                 throw new UnauthorizedException("کاربر احراز هویت نشده است.");
@@ -137,19 +191,62 @@ namespace Vitorize.Infrastructure.Services
                 filePath.Contains("..", StringComparison.Ordinal) || filePath.Length > 500)
                 throw new BusinessException("توکن فایل احراز هویت معتبر نیست.");
 
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:user:{userId:N}");
+            var committed = false;
+            try
+            {
             var profile = await _dbContext.UserVerificationProfiles
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (profile == null)
                 throw new BusinessException("ابتدا اطلاعات احراز هویت را ثبت کنید.");
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
+
+            if (orderItemId.HasValue && _deadlineService is not null)
+            {
+                var enforcement = await _deadlineService.EnforceCustomerActionsWithinTransactionAsync(userId, orderItemId);
+                if (enforcement.ExpiredCount > 0)
+                {
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    committed = true;
+                    throw new ConcurrencyConflictException("مهلت تکمیل احراز هویت این خرید پایان یافته است و امکان بارگذاری مدرک وجود ندارد.");
+                }
+            }
 
             var now = DateTime.UtcNow;
+            // A versioned document must be bound to the exact paid order item
+            // selected by the Customer. Looking up only the document type would
+            // let a caller reuse a valid type from an unrelated policy/version.
+            if (kycDocumentTypeId.HasValue)
+            {
+                if (!orderItemId.HasValue)
+                    throw new BusinessException("آیتم سفارش برای مدرک سیاست احراز هویت الزامی است.");
+
+                var requirement = await _dbContext.OrderItems
+                    .Where(x => x.Id == orderItemId.Value && x.Order.UserId == userId && x.KycPolicyVersionId != null)
+                    .Join(_dbContext.KycPolicyDocumentRequirements,
+                        item => item.KycPolicyVersionId,
+                        policyRequirement => (Guid?)policyRequirement.KycPolicyVersionId,
+                        (item, policyRequirement) => policyRequirement)
+                    .FirstOrDefaultAsync(x => x.KycDocumentTypeId == kycDocumentTypeId.Value);
+                if (requirement is null)
+                    throw new BusinessException("این نوع مدرک در سیاست آیتم سفارش انتخاب‌شده وجود ندارد.");
+
+                // A required redaction is part of the immutable policy version
+                // captured on that paid order item. Normal uploads cannot
+                // satisfy that slot through the Customer UI.
+                if (requirement.RedactionMode == (byte)KycDocumentRedactionMode.Required && !isRedacted)
+                    throw new BusinessException("این مدرک باید از طریق ابزار پوشاندن اطلاعات ارسال شود.");
+            }
 
             var document = new VerificationDocument
             {
                 Id = Guid.NewGuid(),
                 UserVerificationProfileId = profile.Id,
                 DocumentType = documentType,
+                KycDocumentTypeId = kycDocumentTypeId,
                 FilePath = filePath.Trim(),
                 Status = (byte)VerificationStatus.Pending,
                 CreatedAt = now
@@ -165,11 +262,29 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.VerificationDocuments.AddAsync(document);
             await _dbContext.SaveChangesAsync();
 
+            // The Customer UI persists identity details before it can upload the
+            // policy documents. Once the final required document is present,
+            // advance the paid item from AwaitingSubmission without requiring a
+            // redundant second identity submission.
+            if (_lifecycleCoordinator is not null)
+            {
+                await _lifecycleCoordinator.SynchronizeSubmissionAsync(userId, profile.Id);
+                await _dbContext.SaveChangesAsync();
+            }
+            await transaction.CommitAsync();
+            committed = true;
+
             _logger.LogInformation(
                 "KYC document registered. UserId={UserId} ProfileId={ProfileId} FileId={FileId} DocumentType={DocumentType} EventType={EventType}",
                 userId, profile.Id, document.Id, documentType, OperationalEventNames.KycUploaded);
 
             return MapDocument(document);
+            }
+            catch
+            {
+                if (!committed) await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task DeleteDocumentAsync(Guid userId, Guid documentId)
@@ -190,8 +305,8 @@ namespace Vitorize.Infrastructure.Services
             if (document.UserVerificationProfile.Status == (byte)VerificationStatus.Verified)
                 throw new BusinessException("پرونده شما تأیید شده است و مدارک قابل حذف نیستند.");
 
-            if (document.Status != (byte)VerificationStatus.Pending)
-                throw new BusinessException("فقط مدارک در انتظار بررسی قابل حذف هستند.");
+            if (document.Status is not ((byte)VerificationStatus.Pending or (byte)VerificationStatus.Rejected))
+                throw new BusinessException("فقط مدارک در انتظار بررسی یا ردشده قابل حذف هستند.");
 
             _dbContext.VerificationDocuments.Remove(document);
 
@@ -257,12 +372,29 @@ namespace Vitorize.Infrastructure.Services
             Guid adminUserId,
             ReviewVerificationRequestDto request)
         {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profileId:N}");
+            try
+            {
             var profile = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments)
                 .FirstOrDefaultAsync(x => x.Id == profileId);
 
             if (profile == null)
                 throw new NotFoundException("پرونده احراز هویت یافت نشد.");
+
+            var requestedStatus = request.Approve
+                ? (byte)VerificationStatus.Verified
+                : (byte)VerificationStatus.Rejected;
+            if (profile.Status != (byte)VerificationStatus.Pending)
+            {
+                if (profile.Status == requestedStatus)
+                {
+                    await transaction.CommitAsync();
+                    return MapProfile(profile);
+                }
+                throw new ConcurrencyConflictException("وضعیت احراز هویت در همین فاصله تغییر کرده است. اطلاعات را تازه‌سازی کنید.");
+            }
 
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x => x.Id == profile.UserId);
@@ -271,9 +403,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new NotFoundException("کاربر یافت نشد.");
 
             var now = DateTime.UtcNow;
-            var status = request.Approve
-                ? (byte)VerificationStatus.Verified
-                : (byte)VerificationStatus.Rejected;
+            var status = requestedStatus;
 
             profile.Status = status;
             profile.AdminNote = request.AdminNote;
@@ -291,6 +421,9 @@ namespace Vitorize.Infrastructure.Services
                 document.ReviewedAt = now;
                 document.AdminNote = request.AdminNote;
             }
+
+            if (_lifecycleCoordinator is not null)
+                await _lifecycleCoordinator.SynchronizeReviewAsync(user.Id, profile.Id, request.Approve);
 
             if (request.Approve)
             {
@@ -336,13 +469,26 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation(
                 "KYC review completed. UserId={UserId} ProfileId={ProfileId} AdminUserId={AdminUserId} DocumentCount={DocumentCount} Approved={Approved} EventType={EventType}",
                 user.Id, profile.Id, adminUserId, profile.VerificationDocuments.Count, request.Approve,
                 request.Approve ? OperationalEventNames.KycApproved : OperationalEventNames.KycRejected);
 
+            // Fulfillment is intentionally after the durable verification
+            // commit. A release failure remains operationally retryable and
+            // must never turn a completed approval into a failed KYC decision.
+            if (request.Approve && _fulfillmentReleaseService is not null)
+                await _fulfillmentReleaseService.ReleaseSatisfiedItemsForVerificationAsync(profile.Id);
+
             return MapProfile(profile);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         private VerificationProfileDto MapProfile(UserVerificationProfile profile)
@@ -388,6 +534,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = document.Id,
                 DocumentType = document.DocumentType,
+                KycDocumentTypeId = document.KycDocumentTypeId,
                 FilePath = $"/api/verification/documents/{document.Id}/content",
                 Status = document.Status,
                 AdminNote = document.AdminNote

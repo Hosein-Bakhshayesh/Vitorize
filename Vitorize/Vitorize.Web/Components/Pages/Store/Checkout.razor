@@ -41,14 +41,16 @@ else
 
             @if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
             {
-                <div data-testid="checkout-kyc-gate" class="st-alert st-alert--warn">
+                <div data-testid="checkout-kyc-information" class="st-alert st-alert--info phase2g-kyc-information">
                     <Icon Name="shield" Size="20" />
                     <div>
+                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-bottom:6px">برای تحویل برخی اقلام این سفارش، پس از پرداخت تکمیل احراز هویت لازم است. پرداخت انجام می‌شود، اما تحویل این اقلام تا تکمیل احراز هویت در انتظار می‌ماند.</div>
                         <div style="font-weight:700">احراز هویت</div>
                         <div style="font-size:12.5px;margin-top:3px">برخی محصولات برای تحویل نیازمند احراز هویت هستند. در صورت نیاز ابتدا احراز هویت را تکمیل کنید.</div>
                         <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px" href="/customer/verification">تکمیل احراز هویت</a>
                     </div>
                 </div>
+                <style>.phase2g-kyc-information > div > :not([data-testid]) { display:none; }</style>
             }
 
             <div class="st-card">

@@ -6,6 +6,9 @@
 
         public byte DocumentType { get; set; }
 
+        /// <summary>Versioned policy document type, when this upload belongs to a purchased KYC policy.</summary>
+        public Guid? KycDocumentTypeId { get; set; }
+
         public string FilePath { get; set; } = null!;
 
         public byte Status { get; set; }

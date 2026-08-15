@@ -16,7 +16,7 @@ type Order = {
 test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
   test.describe.configure({ timeout: 180_000 });
 
-  test('desktop light applies the current pre-payment KYC gate without coupon bypass', async ({ page, request, loginAs, consoleGuard }, testInfo) => {
+  test('desktop light informs about post-payment KYC without bypassing the KYC snapshot', async ({ page, request, loginAs, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-light', 'The complete Checkout/KYC lifecycle is exercised once in desktop light.');
     await page.setViewportSize({ width: 1440, height: 900 });
     await assertFixtureActors(request);
@@ -47,21 +47,16 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await goToCheckoutFromCart(page);
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
     await expect(checkoutKycAlert(page).locator('a[href="/customer/verification"]')).toBeVisible();
-    const beforeBlockedThreshold = await ordersFor(request, 'Customer');
     await placeOrder(page);
-    await expect(page.locator('.vz-toast.error, .vz-toast--error').last()).toContainText('احراز هویت');
-    await expect(page).toHaveURL(/\/checkout/);
-    expect((await ordersFor(request, 'Customer')).length).toBe(beforeBlockedThreshold.length);
-    await expect(page.locator('.st-card').filter({ hasText: 'E2E FIX09 Quantity' })).toContainText('۲');
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page.locator('main')).toContainText('تکمیل احراز هویت');
 
     await clearCustomerCart(page);
     await addProduct(page, products.always);
     await goToCheckoutFromCart(page);
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
-    const beforeBlockedAlways = await ordersFor(request, 'Customer');
     await placeOrder(page);
-    await expect(page.locator('.vz-toast.error, .vz-toast--error').last()).toContainText('احراز هویت');
-    expect((await ordersFor(request, 'Customer')).length).toBe(beforeBlockedAlways.length);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
     await clearCustomerCart(page);
     await addProduct(page, products.couponThreshold);
@@ -73,10 +68,8 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await goToCheckoutFromCart(page, false);
     await expect(page.locator('.st-sumrow[style*="success"]')).toBeVisible();
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
-    const beforeBlockedCoupon = await ordersFor(request, 'Customer');
     await placeOrder(page);
-    await expect(page.locator('.vz-toast.error, .vz-toast--error').last()).toContainText('احراز هویت');
-    expect((await ordersFor(request, 'Customer')).length).toBe(beforeBlockedCoupon.length);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
     await loginAs('CustomerVIP');
     await clearCustomerCart(page);
@@ -115,7 +108,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     consoleGuard.assertClean();
   });
 
-  test('mobile keeps the triggered KYC block readable and reachable', async ({ page, consoleGuard }, testInfo) => {
+  test('mobile keeps the triggered post-payment KYC information readable', async ({ page, consoleGuard }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile representative check only.');
     await page.setViewportSize({ width: 390, height: 844 });
     await loginStoreCustomer(page, '09120000013');
@@ -123,7 +116,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await addProduct(page, products.always);
     await goToCheckoutFromCart(page);
     await expect(checkoutKycAlert(page)).toBeVisible();
-    await expect(checkoutKycAlert(page).locator('a[href="/customer/verification"]')).toBeVisible();
+    await expect(checkoutKycAlert(page)).toContainText('پس از پرداخت');
     await expectNoOverflow(page);
     consoleGuard.assertClean();
   });
@@ -161,7 +154,7 @@ async function placeOrder(page: import('@playwright/test').Page) {
 }
 
 function checkoutKycAlert(page: import('@playwright/test').Page) {
-  return page.getByTestId('checkout-kyc-gate');
+  return page.getByTestId('checkout-kyc-information');
 }
 
 async function assertFixtureActors(request: import('@playwright/test').APIRequestContext) {

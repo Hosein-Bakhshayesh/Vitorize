@@ -417,7 +417,11 @@ public sealed class SqlServerFinancialConcurrencyTests
         public Task<(bool Success, long RefId)> VerifyPaymentAsync(string a, decimal amount) { VerifyCount++; return Task.FromResult((true, 12345L)); }
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://example.invalid");
     }
-    private sealed class NullGiftDelivery : IGiftCodeDeliveryService { public Task DeliverOrderAsync(Guid o, Guid? u = null) => Task.CompletedTask; }
+    private sealed class NullGiftDelivery : IGiftCodeDeliveryService
+    {
+        public Task DeliverOrderAsync(Guid o, Guid? u = null) => Task.CompletedTask;
+        public Task<bool> DeliverSatisfiedOrderItemAsync(Guid o, Guid? u = null, CancellationToken c = default) => Task.FromResult(false);
+    }
     private sealed class NullCoupon : ICouponService
     {
         public Task<ValidateCouponResultDto> ValidateAsync(Guid u, ValidateCouponRequestDto r) => throw new NotSupportedException();
