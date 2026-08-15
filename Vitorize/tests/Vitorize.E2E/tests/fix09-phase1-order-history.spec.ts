@@ -192,7 +192,12 @@ async function openCustomerOrder(page: import('@playwright/test').Page, order: O
   await page.goto(`/customer/orders/${order.id}`, { waitUntil: 'networkidle' });
   await expect(page.locator('h1 .st-mono')).toHaveText(order.number);
   await expect(page.locator('.st-card').filter({ hasText: order.title }).first()).toBeVisible();
-  await expect(page.locator('.st-sumrow')).toHaveCount(5);
+  // Base summary rows: subtotal, discount, final, created, paid. FIX-13 adds one VAT row, and only
+  // when the order's own purchase-time snapshot recorded VAT — these orders are created VAT-free,
+  // so the count must still be exactly 5 with no VAT row present.
+  const vatRows = await page.getByTestId('order-vat-row').count();
+  expect(vatRows).toBe(0);
+  await expect(page.locator('.st-sumrow')).toHaveCount(5 + vatRows);
   if (order.delivery) await expect(page.locator('main')).toContainText(order.delivery);
   await expect(page).not.toHaveURL(/error|exception/i);
 }

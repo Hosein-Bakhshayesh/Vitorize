@@ -31,6 +31,16 @@ namespace Vitorize.Web.Helpers
             return PersianDateHelper.ToPersianDigits(value.ToString("#,0"));
         }
 
+        /// <summary>
+        /// Persian rate for display, e.g. 10.00 renders as ۱۰ and 12.50 as ۱۲٫۵.
+        /// Trailing zeros are trimmed so a whole rate never reads as "۱۰٫۰۰".
+        /// </summary>
+        public static string Percent(decimal value)
+        {
+            var text = value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            return PersianDateHelper.ToPersianDigits(text.Replace(".", "٫"));
+        }
+
         public static string Date(DateTime? value)
         {
             return value.HasValue
@@ -223,6 +233,15 @@ namespace Vitorize.Web.Helpers
                 _ => "نامشخص"
             };
         }
+
+        /// <summary>
+        /// Persian label for the snapshotted VAT calculation basis. The enum name is never shown.
+        /// </summary>
+        public static string VatCalculationMode(byte value) => value switch
+        {
+            (byte)Vitorize.Shared.Enums.VatCalculationMode.AfterDiscount => "بعد از اعمال تخفیف",
+            _ => "قبل از اعمال تخفیف"
+        };
 
         public static string PaymentStatus(byte value)
         {

@@ -27,6 +27,8 @@ namespace Vitorize.Infrastructure.Services
                     x.PaidAt < to);
 
             var totalRevenue = await paidOrders.SumAsync(x => (decimal?)x.FinalAmount) ?? 0;
+            // Reported separately so VAT never becomes indistinguishable from product revenue.
+            var totalVatAmount = await paidOrders.SumAsync(x => (decimal?)x.VatAmount) ?? 0;
             var paidOrdersCount = await paidOrders.CountAsync();
 
             var dailyRaw = await paidOrders
@@ -64,6 +66,7 @@ namespace Vitorize.Infrastructure.Services
             return new SalesReportDto
             {
                 TotalRevenue = totalRevenue,
+                TotalVatAmount = totalVatAmount,
                 TotalOrders = await _dbContext.Orders
                     .AsNoTracking()
                     .CountAsync(x => x.CreatedAt >= from && x.CreatedAt < to),

@@ -1,6 +1,8 @@
 @page "/admin/settings"
 @using Vitorize.Web.Helpers
 @using Vitorize.Web.Models.Admin.Settings
+@using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
 @inject ApiClient Api
 @inject ToastService Toasts
 @using Microsoft.AspNetCore.Components.Forms
@@ -158,7 +160,7 @@ else
         new("contact",  "تماس و پشتیبانی",  "headphones",   "ایمیل، تلفن، آدرس و ساعات کاری", new[] { "Contact", "Support" }),
         new("texts",    "متن‌ها و پیام‌ها", "message",      "متن حالت‌های خالی و صفحات خطا", new[] { "Empty", "Errors" }),
         new("email",    "ایمیل",            "mail",         "پیکربندی SMTP", new[] { "Email" }),
-        new("payment",  "پرداخت",           "credit-card",  "درگاه پرداخت زرین‌پال", new[] { "Payment" }),
+        new("payment",  "پرداخت",           "credit-card",  "درگاه پرداخت زرین‌پال و مالیات بر ارزش افزوده", new[] { "Payment", "Tax" }),
         new("security", "امنیت",            "shield",       "قوانین ورود و رمز عبور", new[] { "Security" }),
         new("uploads",  "آپلودها",          "upload",       "محدودیت حجم و فرمت تصاویر", new[] { "Uploads" }),
         new("notif",    "اعلان‌ها",          "bell",         "پیامک و اعلان‌ها", new[] { "SMS" }),
@@ -171,6 +173,7 @@ else
         ["Empty"] = "متن حالت‌های خالی", ["Errors"] = "متن صفحات خطا",
         ["Contact"] = "اطلاعات تماس", ["Support"] = "پشتیبانی",
         ["Scripts"] = "اسکریپت سفارشی", ["Wallet"] = "کیف پول",
+        ["Payment"] = "درگاه پرداخت", ["Tax"] = "مالیات بر ارزش افزوده",
     };
 
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
@@ -379,7 +382,29 @@ else
                         <div class="vz-setfield__row">
                             <input class="vz-input" type="number" value="@s.Value"
                                    aria-label="@SettingLabel(s)"
+                                   min="@(s.Key == VatSettings.Keys.RatePercent ? "0" : null)"
+                                   max="@(s.Key == VatSettings.Keys.RatePercent ? "100" : null)"
+                                   step="@(s.Key == VatSettings.Keys.RatePercent ? "0.01" : null)"
                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                            @if (s.Key == VatSettings.Keys.RatePercent) { <span class="vz-hint">٪</span> }
+                            @SaveInline(s)
+                        </div>
+                        @if (s.Key == VatSettings.Keys.RatePercent)
+                        {
+                            <div class="vz-hint" style="margin-top:4px">عددی بین ۰ تا ۱۰۰. فقط روی سفارش‌های جدید اثر دارد؛ سفارش‌های ثبت‌شده تغییر نمی‌کنند.</div>
+                        }
+                        break;
+
+                    // Two-option VAT calculation basis. The stored value stays the invariant
+                    // string (BeforeDiscount / AfterDiscount); only Persian labels are shown.
+                    case "vatmode":
+                        <div class="vz-setfield__row">
+                            <select class="vz-select" value="@s.Value" aria-label="@SettingLabel(s)"
+                                    data-testid="setting-vat-calculation-mode"
+                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }">
+                                <option value="@nameof(VatCalculationMode.BeforeDiscount)">محاسبه مالیات قبل از اعمال تخفیف</option>
+                                <option value="@nameof(VatCalculationMode.AfterDiscount)">محاسبه مالیات بعد از اعمال تخفیف</option>
+                            </select>
                             @SaveInline(s)
                         </div>
                         break;

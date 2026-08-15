@@ -21,6 +21,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly ICouponService _couponService;
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
+        private readonly IVatSettingsProvider _vatSettingsProvider;
         private readonly ILogger<CheckoutService> _logger;
         private readonly PaymentTimingOptions _paymentTiming;
 
@@ -29,6 +30,7 @@ namespace Vitorize.Infrastructure.Services
             ICouponService couponService,
             INotificationService notificationService,
             IEncryptionService encryptionService,
+            IVatSettingsProvider vatSettingsProvider,
             ILogger<CheckoutService>? logger = null,
             IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
@@ -36,6 +38,7 @@ namespace Vitorize.Infrastructure.Services
             _couponService = couponService;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
+            _vatSettingsProvider = vatSettingsProvider;
             _logger = logger ?? NullLogger<CheckoutService>.Instance;
             _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
@@ -167,15 +170,20 @@ namespace Vitorize.Infrastructure.Services
                     discountAmount = couponResult.DiscountAmount;
                 }
 
-                var finalAmount = subtotalAmount - discountAmount;
+                // VAT settings are read exactly once, here, inside the authoritative transaction.
+                // The resulting snapshot is persisted on the order and is never re-read afterwards,
+                // so later administrative changes cannot alter an existing order or its retries.
+                var vatSettings = await _vatSettingsProvider.GetAsync();
+                var pricing = OrderPricingCalculator.Calculate(subtotalAmount, discountAmount, vatSettings);
+                subtotalAmount = pricing.SubtotalAmount;
+                discountAmount = pricing.DiscountAmount;
+                var finalAmount = pricing.FinalAmount;
 
-                if (finalAmount < 0)
-                    finalAmount = 0;
-
-                // There is no zero-value payment/fulfilment workflow.  Reject
-                // this before creating an order or reserving stock, rather than
-                // stranding a pending order that no payment path can settle.
-                if (finalAmount <= 0)
+                // There is no zero-value payment/fulfilment workflow.  Reject this before creating an
+                // order or reserving stock, rather than stranding a pending order that no payment path
+                // can settle. The guard deliberately uses the product amount after discount and BEFORE
+                // VAT, in both calculation modes, so a 100% coupon can never become a tax-only order.
+                if (pricing.IsZeroPayable)
                     throw new BusinessException("پرداخت سفارش رایگان پشتیبانی نمی‌شود. قیمت کالا یا تخفیف را اصلاح کنید.");
 
                 var order = new Order
@@ -189,6 +197,11 @@ namespace Vitorize.Infrastructure.Services
                     SubtotalAmount = subtotalAmount,
                     DiscountAmount = discountAmount,
                     FinalAmount = finalAmount,
+                    VatEnabled = pricing.VatEnabled,
+                    VatRatePercent = pricing.VatRatePercent,
+                    VatCalculationMode = (byte)pricing.VatCalculationMode,
+                    VatTaxableAmount = pricing.VatTaxableAmount,
+                    VatAmount = pricing.VatAmount,
                     CurrencyType = currencyType,
                     CouponId = couponId,
                     Description = request.Description,
@@ -363,6 +376,11 @@ namespace Vitorize.Infrastructure.Services
                     SubtotalAmount = order.SubtotalAmount,
                     DiscountAmount = order.DiscountAmount,
                     FinalAmount = order.FinalAmount,
+                    VatEnabled = order.VatEnabled,
+                    VatRatePercent = order.VatRatePercent,
+                    VatCalculationMode = order.VatCalculationMode,
+                    VatTaxableAmount = order.VatTaxableAmount,
+                    VatAmount = order.VatAmount,
                     CurrencyType = order.CurrencyType,
                     OrderStatus = order.Status,
                     PaymentStatus = order.PaymentStatus,

@@ -168,6 +168,11 @@ else
                         <dl class="vz-deflist">
                             <dt>جمع کل</dt><dd><MoneyDisplay Amount="d.SubtotalAmount" /></dd>
                             <dt>تخفیف</dt><dd><MoneyDisplay Amount="d.DiscountAmount" /></dd>
+                            @if (d.VatEnabled)
+                            {
+                                <dt>مالیات (@AUI.Percent(d.VatRatePercent)٪)</dt><dd data-testid="admin-order-vat"><MoneyDisplay Amount="d.VatAmount" /></dd>
+                                <dt>مبنای محاسبه</dt><dd data-testid="admin-order-vat-basis">@AUI.VatCalculationMode(d.VatCalculationMode)</dd>
+                            }
                             <dt>مبلغ نهایی</dt><dd style="font-weight:800"><MoneyDisplay Amount="d.FinalAmount" /></dd>
                         </dl>
                     </div>
@@ -772,11 +777,13 @@ else
         var rows = source.Select(o => new[]
         {
             AdminCsv.Field(o.OrderNumber), AdminCsv.Field(o.UserFullName), AdminCsv.Field(o.UserMobile),
+            // Snapshotted values; VAT is never recomputed during export.
+            AdminCsv.Num(o.SubtotalAmount), AdminCsv.Num(o.DiscountAmount), AdminCsv.Num(o.VatAmount),
             AdminCsv.Num(o.FinalAmount), AdminCsv.Field(AUI.PaymentStatus(o.PaymentStatus)),
             AdminCsv.Field(AUI.OrderStatus(o.Status)), AdminCsv.Field(PersianDateHelper.ToDateTime(o.CreatedAt))
         });
         var csv = AdminCsv.Build(
-            new[] { "OrderNumber", "Customer", "Mobile", "Final", "Payment", "Status", "Date" }, rows);
+            new[] { "OrderNumber", "Customer", "Mobile", "Subtotal", "Discount", "Vat", "Final", "Payment", "Status", "Date" }, rows);
         await JS.InvokeVoidAsync("vzAdmin.downloadText", $"orders-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv, "text/csv");
         Toasts.Success($"{AUI.Number(source.Count)} سفارش در فایل CSV ذخیره شد.");
     }

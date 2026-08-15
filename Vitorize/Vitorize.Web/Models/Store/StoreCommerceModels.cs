@@ -7,6 +7,14 @@ namespace Vitorize.Web.Models.Store
         public List<CartItemModel> Items { get; set; } = new();
         public int TotalQuantity { get; set; }
         public decimal SubtotalAmount { get; set; }
+        // Server-computed. The storefront renders these and never does its own money arithmetic.
+        public decimal DiscountAmount { get; set; }
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
+        public decimal FinalAmount { get; set; }
     }
 
     public class CartItemModel
@@ -36,6 +44,11 @@ namespace Vitorize.Web.Models.Store
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
         public byte OrderStatus { get; set; }
         public byte PaymentStatus { get; set; }
         public List<Guid> ReservationIds { get; set; } = new();
@@ -48,6 +61,12 @@ namespace Vitorize.Web.Models.Store
         public string? Code { get; set; }
         public decimal OrderAmount { get; set; }
         public decimal DiscountAmount { get; set; }
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
+        /// <summary>Authoritative VAT-inclusive payable. Rendered as-is; never recomputed in Razor.</summary>
         public decimal FinalAmount { get; set; }
     }
 
@@ -87,6 +106,12 @@ namespace Vitorize.Web.Models.Store
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+        // Purchase-time snapshot. Pre-FIX-13 orders report VatEnabled = false and show no VAT row.
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }

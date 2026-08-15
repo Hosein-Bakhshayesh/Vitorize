@@ -12,6 +12,17 @@
 
         public decimal FinalAmount { get; set; }
 
+        // Purchase-time VAT snapshot as persisted on the order.
+        public bool VatEnabled { get; set; }
+
+        public decimal VatRatePercent { get; set; }
+
+        public byte VatCalculationMode { get; set; }
+
+        public decimal VatTaxableAmount { get; set; }
+
+        public decimal VatAmount { get; set; }
+
         public byte CurrencyType { get; set; }
 
         public byte OrderStatus { get; set; }

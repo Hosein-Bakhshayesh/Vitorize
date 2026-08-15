@@ -11,6 +11,13 @@
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+        // Purchase-time VAT snapshot. Historical orders created before FIX-13 report
+        // VatEnabled = false with zero amounts, so no fictional VAT row is ever shown.
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
         public byte CurrencyType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }

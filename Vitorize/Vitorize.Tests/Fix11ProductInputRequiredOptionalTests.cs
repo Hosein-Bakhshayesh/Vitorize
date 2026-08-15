@@ -27,7 +27,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("player_id", "شناسه بازیکن"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var userId = Guid.NewGuid();
 
         var missing = await Record.ExceptionAsync(() => service.AddItemAsync(userId, Add(product.Id)));
@@ -49,7 +49,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Optional("note", "یادداشت"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         var cart = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id));
 
@@ -66,7 +66,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("field_a", "الزامی الف"), Optional("field_b", "اختیاری ب"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         var accepted = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("field_a", "A-VALUE")));
         accepted.Items.Should().ContainSingle();
@@ -86,7 +86,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
             Required("accept_terms", "پذیرش قوانین", ProductInputFieldType.Checkbox),
             Optional("newsletter", "خبرنامه", ProductInputFieldType.Checkbox));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         var unchecked_ = await Record.ExceptionAsync(() =>
             service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("accept_terms", "false"))));
@@ -109,7 +109,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
             Required("region", "منطقه", ProductInputFieldType.Select, "EU", "NA"),
             Optional("platform", "پلتفرم", ProductInputFieldType.Radio, "PC", "PS5"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         var invalidRequired = await Record.ExceptionAsync(() =>
             service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("region", "MARS"))));
@@ -130,7 +130,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("player_id", "شناسه بازیکن"), Optional("note", "یادداشت"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var guest = CartIdentity.ForGuest(GuestCartToken.Hash(GuestCartToken.Create()));
 
         var blocked = await Record.ExceptionAsync(() => service.AddItemAsync(guest, Add(product.Id, ("note", "N"))));
@@ -150,7 +150,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("player_id", "شناسه بازیکن"), Optional("note", "یادداشت"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var token = GuestCartToken.Create();
         var guest = CartIdentity.ForGuest(GuestCartToken.Hash(token));
         var userId = Guid.NewGuid();
@@ -171,7 +171,7 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("player_id", "شناسه بازیکن"), Optional("note", "یادداشت"));
         await db.SaveChangesAsync();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var userId = Guid.NewGuid();
 
         await service.AddItemAsync(userId, Add(product.Id, ("player_id", "P1"), ("note", "first")));

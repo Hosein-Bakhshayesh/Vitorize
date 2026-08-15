@@ -115,7 +115,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
             try
             {
                 await using var db = _fixture.CreateDbContext();
-                await new CouponService(db).MarkCouponAsUsedAsync(user.Id, order.Id, coupon.Id);
+                await new CouponService(db, new VatSettingsProvider(db)).MarkCouponAsUsedAsync(user.Id, order.Id, coupon.Id);
                 return true;
             }
             catch
@@ -139,7 +139,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
         await Task.WhenAll(Enumerable.Range(0, 8).Select(async _ =>
         {
             await using var db = _fixture.CreateDbContext();
-            await new CartService(db, encryption).GetAsync(user.Id);
+            await new CartService(db, encryption, new VatSettingsProvider(db)).GetAsync(user.Id);
         }));
 
         await using var verify = _fixture.CreateDbContext();
@@ -158,7 +158,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
         await Task.WhenAll(Enumerable.Range(0, 6).Select(async _ =>
         {
             await using var db = _fixture.CreateDbContext();
-            await new CartService(db, encryption).AddItemAsync(user.Id,
+            await new CartService(db, encryption, new VatSettingsProvider(db)).AddItemAsync(user.Id,
                 new AddToCartRequestDto { ProductId = product.Id, Quantity = 1 });
         }));
 

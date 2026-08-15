@@ -64,7 +64,7 @@ public sealed class FinancialConcurrencyIntegrationTests
             try
             {
                 await using var db = _fixture.CreateDbContext();
-                await new CouponService(db).MarkCouponAsUsedAsync(users[index].Id, order.Id, coupon.Id);
+                await new CouponService(db, new VatSettingsProvider(db)).MarkCouponAsUsedAsync(users[index].Id, order.Id, coupon.Id);
                 return true;
             }
             catch { return false; }

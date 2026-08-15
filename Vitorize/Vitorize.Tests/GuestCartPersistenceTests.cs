@@ -33,7 +33,7 @@ public sealed class GuestCartPersistenceTests
         var product = await SeedProductAsync(db, "guest");
         var token = GuestCartToken.Create();
         var identity = CartIdentity.ForGuest(GuestCartToken.Hash(token));
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         var result = await service.AddItemAsync(identity, new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 });
         var stored = await db.Carts.SingleAsync();
@@ -54,7 +54,7 @@ public sealed class GuestCartPersistenceTests
         var guestToken = GuestCartToken.Create();
         var guest = CartIdentity.ForGuest(GuestCartToken.Hash(guestToken));
         var userId = Guid.NewGuid();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         await service.AddItemAsync(guest, new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 });
         await service.AddItemAsync(CartIdentity.ForUser(userId), new AddToCartRequestDto { ProductId = product.Id, Quantity = 1 });
@@ -73,7 +73,7 @@ public sealed class GuestCartPersistenceTests
         var product = await SeedProductAsync(db, "transfer");
         var guestToken = GuestCartToken.Create();
         var guest = CartIdentity.ForGuest(GuestCartToken.Hash(guestToken));
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         await service.AddItemAsync(guest, new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 });
         var originalCartId = await db.Carts.Select(x => x.Id).SingleAsync();
 

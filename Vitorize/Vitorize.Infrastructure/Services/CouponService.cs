@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Data;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Coupons;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
@@ -11,10 +12,12 @@ namespace Vitorize.Infrastructure.Services
     public class CouponService : ICouponService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IVatSettingsProvider _vatSettingsProvider;
 
-        public CouponService(VitorizeDbContext dbContext)
+        public CouponService(VitorizeDbContext dbContext, IVatSettingsProvider vatSettingsProvider)
         {
             _dbContext = dbContext;
+            _vatSettingsProvider = vatSettingsProvider;
         }
 
         public async Task<ValidateCouponResultDto> ValidateAsync(
@@ -54,18 +57,28 @@ namespace Vitorize.Infrastructure.Services
                 coupon.DiscountType,
                 coupon.DiscountValue);
 
-            var finalAmount = request.OrderAmount - discountAmount;
+            // The preview runs through the same calculator Checkout uses, so the payable amount the
+            // customer sees before paying is identical to the one the order is created with.
+            var vatSettings = await _vatSettingsProvider.GetAsync();
+            var pricing = OrderPricingCalculator.Calculate(request.OrderAmount, discountAmount, vatSettings);
 
-            if (finalAmount < 0)
-                finalAmount = 0;
+            // Free orders are unsupported, with or without VAT. Reject here too so the storefront
+            // reports the problem while applying the coupon instead of failing at checkout.
+            if (pricing.IsZeroPayable)
+                throw new BusinessException("پرداخت سفارش رایگان پشتیبانی نمی‌شود. قیمت کالا یا تخفیف را اصلاح کنید.");
 
             return new ValidateCouponResultDto
             {
                 CouponId = coupon.Id,
                 Code = coupon.Code,
-                OrderAmount = request.OrderAmount,
-                DiscountAmount = discountAmount,
-                FinalAmount = finalAmount
+                OrderAmount = pricing.SubtotalAmount,
+                DiscountAmount = pricing.DiscountAmount,
+                VatEnabled = pricing.VatEnabled,
+                VatRatePercent = pricing.VatRatePercent,
+                VatCalculationMode = (byte)pricing.VatCalculationMode,
+                VatTaxableAmount = pricing.VatTaxableAmount,
+                VatAmount = pricing.VatAmount,
+                FinalAmount = pricing.FinalAmount
             };
         }
 

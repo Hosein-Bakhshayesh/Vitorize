@@ -17,11 +17,14 @@ public class CartService : ICartService
 {
     private readonly VitorizeDbContext _dbContext;
     private readonly IEncryptionService _encryptionService;
+    private readonly IVatSettingsProvider _vatSettingsProvider;
 
-    public CartService(VitorizeDbContext dbContext, IEncryptionService encryptionService)
+    public CartService(VitorizeDbContext dbContext, IEncryptionService encryptionService,
+        IVatSettingsProvider vatSettingsProvider)
     {
         _dbContext = dbContext;
         _encryptionService = encryptionService;
+        _vatSettingsProvider = vatSettingsProvider;
     }
 
     public Task<CartDto> GetAsync(Guid userId) => GetAsync(CartIdentity.ForUser(userId));
@@ -39,7 +42,7 @@ public class CartService : ICartService
         // otherwise concurrent GET into a write that could deadlock with the serializable,
         // application-lock-protected cart mutation path. Guest activity is updated by the
         // actual add/update/remove/clear mutations instead.
-        return MapToDto(cart);
+        return MapToDto(cart, await _vatSettingsProvider.GetAsync());
     }
 
     public Task<CartDto> AddItemAsync(Guid userId, AddToCartRequestDto request) =>
@@ -116,7 +119,7 @@ public class CartService : ICartService
             await _dbContext.SaveChangesAsync();
             if (transaction is not null)
                 await transaction.CommitAsync();
-            return MapToDto(await LoadCartAsync(identity));
+            return MapToDto(await LoadCartAsync(identity), await _vatSettingsProvider.GetAsync());
         }
         catch
         {
@@ -163,7 +166,7 @@ public class CartService : ICartService
         TouchGuestCart(item.Cart, identity);
         await _dbContext.SaveChangesAsync();
         if (transaction is not null) await transaction.CommitAsync();
-        return MapToDto(await LoadCartAsync(identity));
+        return MapToDto(await LoadCartAsync(identity), await _vatSettingsProvider.GetAsync());
         }
         catch
         {
@@ -186,7 +189,7 @@ public class CartService : ICartService
         TouchGuestCart(item.Cart, identity);
         _dbContext.CartItems.Remove(item);
         await _dbContext.SaveChangesAsync();
-        return MapToDto(await LoadCartAsync(identity));
+        return MapToDto(await LoadCartAsync(identity), await _vatSettingsProvider.GetAsync());
     }
 
     public Task ClearAsync(Guid userId) => ClearAsync(CartIdentity.ForUser(userId));
@@ -269,7 +272,7 @@ public class CartService : ICartService
                 guestCart.UpdatedAt = DateTime.UtcNow;
                 await _dbContext.SaveChangesAsync();
                 if (transaction is not null) await transaction.CommitAsync();
-                return MapToDto(await LoadCartAsync(user));
+                return MapToDto(await LoadCartAsync(user), await _vatSettingsProvider.GetAsync());
             }
 
             foreach (var guestItem in guestCart.CartItems.ToList())
@@ -292,7 +295,7 @@ public class CartService : ICartService
             _dbContext.Carts.Remove(guestCart);
             await _dbContext.SaveChangesAsync();
             if (transaction is not null) await transaction.CommitAsync();
-            return MapToDto(await LoadCartAsync(user));
+            return MapToDto(await LoadCartAsync(user), await _vatSettingsProvider.GetAsync());
         }
         catch
         {
@@ -319,7 +322,7 @@ public class CartService : ICartService
     private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
         discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
 
-    private static CartDto MapToDto(Cart cart)
+    private static CartDto MapToDto(Cart cart, VatSettingsSnapshot vat)
     {
         var items = cart.CartItems.OrderBy(x => x.CreatedAt).Select(x =>
         {
@@ -350,10 +353,17 @@ public class CartService : ICartService
                 }).ToList()
             };
         }).ToList();
+        // Preview only. The cart carries no coupon, so the discount is zero here and the
+        // authoritative decomposition is recalculated by CheckoutService at order creation.
+        var pricing = OrderPricingCalculator.Calculate(items.Sum(x => x.TotalPrice), 0m, vat);
         return new CartDto
         {
             Id = cart.Id, UserId = cart.UserId, Items = items,
-            TotalQuantity = items.Sum(x => x.Quantity), SubtotalAmount = items.Sum(x => x.TotalPrice),
+            TotalQuantity = items.Sum(x => x.Quantity), SubtotalAmount = pricing.SubtotalAmount,
+            DiscountAmount = pricing.DiscountAmount, VatEnabled = pricing.VatEnabled,
+            VatRatePercent = pricing.VatRatePercent, VatCalculationMode = (byte)pricing.VatCalculationMode,
+            VatTaxableAmount = pricing.VatTaxableAmount, VatAmount = pricing.VatAmount,
+            FinalAmount = pricing.FinalAmount,
             CurrencyType = items.Select(x => (byte?)x.CurrencyType).Distinct().SingleOrDefault()
         };
     }

@@ -270,7 +270,7 @@ public sealed class InstantMultiQuantityCheckoutTests
     }
 
     private static CheckoutService NewCheckout(VitorizeDbContext db) =>
-        new(db, new NullCoupon(), new NullNotifications(), Crypto);
+        new(db, new NullCoupon(), new NullNotifications(), Crypto, new VatSettingsProvider(db));
 
     private static PaymentService NewPayment(VitorizeDbContext db) =>
         new(db, new GiftCodeDeliveryService(db, Crypto), new NullCoupon(), new NullWallet(),

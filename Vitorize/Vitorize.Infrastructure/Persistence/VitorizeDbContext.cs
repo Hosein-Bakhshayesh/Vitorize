@@ -538,6 +538,13 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.CurrencyType).HasDefaultValue((byte)2);
             entity.Property(e => e.OrderNumber).HasMaxLength(50);
             entity.Property(e => e.SubtotalAmount).HasColumnType("decimal(18, 2)");
+            // Purchase-time VAT snapshot (V0016). Defaults keep pre-FIX-13 orders VAT-free.
+            entity.Property(e => e.VatEnabled).HasDefaultValue(false);
+            entity.Property(e => e.VatRatePercent).HasColumnType("decimal(5, 2)").HasDefaultValue(0m);
+            entity.Property(e => e.VatCalculationMode)
+                .HasDefaultValue((byte)Vitorize.Shared.Enums.VatCalculationMode.BeforeDiscount);
+            entity.Property(e => e.VatTaxableAmount).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
+            entity.Property(e => e.VatAmount).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
 
             entity.HasOne(d => d.Coupon).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CouponId)

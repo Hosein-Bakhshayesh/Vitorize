@@ -110,6 +110,11 @@ else
             <h3 style="font-size:15px;margin-bottom:12px">خلاصه پرداخت</h3>
             <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_order.SubtotalAmount)</span></div>
             <div class="st-sumrow"><span class="st-muted">تخفیف</span><span>@AUI.MoneyFa(_order.DiscountAmount)</span></div>
+            @* Purchase-time snapshot only. Orders placed before VAT existed show no VAT row. *@
+            @if (_order.VatEnabled)
+            {
+                <div class="st-sumrow" data-testid="order-vat-row"><span class="st-muted">مالیات بر ارزش افزوده (@AUI.Percent(_order.VatRatePercent)٪)</span><span>@AUI.MoneyFa(_order.VatAmount)</span></div>
+            }
             <div class="st-sumrow total"><span>مبلغ نهایی</span><span>@AUI.MoneyFa(_order.FinalAmount)</span></div>
             <div class="st-divider"></div>
             <div class="st-sumrow"><span class="st-muted">تاریخ ثبت</span><span><PersianDateDisplay Value="_order.CreatedAt" WithTime="true" /></span></div>

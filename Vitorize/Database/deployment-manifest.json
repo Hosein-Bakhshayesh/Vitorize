@@ -176,6 +176,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 100,
+      "version": "V0016",
+      "name": "V0016__order_vat_snapshot.sql",
+      "path": "Versioned/V0016__order_vat_snapshot.sql",
+      "sha256": "e44e9af54422816c603c87ef1812e54a2bd817f2ea815cbf20ae30959f21b16e",
+      "classification": "required",
+      "dependencies": ["V0015", "dbo.Orders", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

@@ -120,7 +120,8 @@ public sealed class SqlServerFinancialConcurrencyTests
         }
         await using var db = Db();
         var service = new CheckoutService(db, new NullCoupon(), new NullNotifications(),
-            new AesEncryptionService(Options.Create(new EncryptionSettings { Key = "0123456789abcdef0123456789abcdef" })));
+            new AesEncryptionService(Options.Create(new EncryptionSettings { Key = "0123456789abcdef0123456789abcdef" })),
+            new VatSettingsProvider(db));
         var result = await service.CheckoutAsync(user.Id, new Vitorize.Application.DTOs.Checkout.CheckoutRequestDto());
         Assert.Equal(350, result.SubtotalAmount);
         var persisted = await db.OrderItems.SingleAsync(x => x.OrderId == result.OrderId);
@@ -149,7 +150,7 @@ public sealed class SqlServerFinancialConcurrencyTests
             try
             {
                 await using var db = Db();
-                await new CouponService(db).MarkCouponAsUsedAsync(users[i].Id, order.Id, coupon.Id);
+                await new CouponService(db, new VatSettingsProvider(db)).MarkCouponAsUsedAsync(users[i].Id, order.Id, coupon.Id);
                 return true;
             }
             catch { return false; }

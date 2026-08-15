@@ -120,7 +120,11 @@ else
             {
                 <div class="st-sumrow" style="color:var(--st-success)"><span>تخفیف کد @_appliedCode</span><span>−@AUI.MoneyFa(_discount)</span></div>
             }
-            <div class="st-sumrow total"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
+            @if (VatEnabled)
+            {
+                <div class="st-sumrow" data-testid="checkout-vat-row"><span class="st-muted">مالیات بر ارزش افزوده (@AUI.Percent(VatRatePercent)٪)</span><span>@AUI.MoneyFa(VatAmount)</span></div>
+            }
+            <div class="st-sumrow total" data-testid="checkout-payable"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
 
             <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="PlaceOrder" disabled="@_placing">
                 @if (_placing) { <span class="st-spinner sm"></span> <span>در حال پردازش ...</span> }
@@ -149,7 +153,14 @@ else
     private string? _couponMsg;
     private string _method = "gateway";
 
-    private decimal Payable => _cart is null ? 0 : Math.Max(0, _cart.SubtotalAmount - _discount);
+    // Server-computed pricing only. VAT and the payable total are never derived in Razor, so the
+    // amount shown before payment is exactly the amount the order will be created with.
+    private ValidateCouponResultModel? _couponPricing;
+
+    private bool VatEnabled => _couponPricing?.VatEnabled ?? _cart?.VatEnabled ?? false;
+    private decimal VatRatePercent => _couponPricing?.VatRatePercent ?? _cart?.VatRatePercent ?? 0m;
+    private decimal VatAmount => _couponPricing?.VatAmount ?? _cart?.VatAmount ?? 0m;
+    private decimal Payable => _couponPricing?.FinalAmount ?? _cart?.FinalAmount ?? 0m;
     private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
     private bool RequiresKyc => _cart?.Items.Any(x => x.RequiresKyc) == true;
 
@@ -182,12 +193,14 @@ else
         _couponBusy = false;
         if (r.IsSuccess && r.Data is { CouponId: not null })
         {
+            _couponPricing = r.Data;
             _discount = r.Data.DiscountAmount;
             _appliedCode = r.Data.Code ?? _coupon.Trim();
             _couponMsg = $"کد تخفیف اعمال شد: {AUI.MoneyFa(_discount)} تخفیف";
         }
         else
         {
+            _couponPricing = null;
             _discount = 0; _appliedCode = string.Empty;
             _couponMsg = string.IsNullOrWhiteSpace(r.Message) ? "کد تخفیف نامعتبر است." : r.Message;
         }
@@ -195,6 +208,7 @@ else
 
     private void ClearCoupon()
     {
+        _couponPricing = null;
         _discount = 0; _appliedCode = string.Empty; _coupon = string.Empty; _couponMsg = null;
     }
 

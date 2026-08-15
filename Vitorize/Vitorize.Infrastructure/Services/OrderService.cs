@@ -248,6 +248,8 @@ namespace Vitorize.Infrastructure.Services
                 Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
                 Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
                 DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
+                VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
+                VatTaxableAmount = x.VatTaxableAmount, VatAmount = x.VatAmount,
                 CreatedAt = x.CreatedAt, PaidAt = x.PaidAt, CompletedAt = x.CompletedAt
             }).ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<OrderDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
@@ -265,7 +267,10 @@ namespace Vitorize.Infrastructure.Services
             return await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new OrderDto
             {
                 Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
-                Status = x.Status, PaymentStatus = x.PaymentStatus, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType, CreatedAt = x.CreatedAt
+                Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
+                DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
+                VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
+                VatTaxableAmount = x.VatTaxableAmount, VatAmount = x.VatAmount, CreatedAt = x.CreatedAt
             }).ToListAsync(cancellationToken);
         }
 
@@ -606,6 +611,11 @@ namespace Vitorize.Infrastructure.Services
                 SubtotalAmount = order.SubtotalAmount,
                 DiscountAmount = order.DiscountAmount,
                 FinalAmount = order.FinalAmount,
+                VatEnabled = order.VatEnabled,
+                VatRatePercent = order.VatRatePercent,
+                VatCalculationMode = order.VatCalculationMode,
+                VatTaxableAmount = order.VatTaxableAmount,
+                VatAmount = order.VatAmount,
                 CurrencyType = order.CurrencyType,
                 CreatedAt = order.CreatedAt,
                 PaidAt = order.PaidAt,
@@ -641,6 +651,11 @@ namespace Vitorize.Infrastructure.Services
                 SubtotalAmount = order.SubtotalAmount,
                 DiscountAmount = order.DiscountAmount,
                 FinalAmount = order.FinalAmount,
+                VatEnabled = order.VatEnabled,
+                VatRatePercent = order.VatRatePercent,
+                VatCalculationMode = order.VatCalculationMode,
+                VatTaxableAmount = order.VatTaxableAmount,
+                VatAmount = order.VatAmount,
                 CurrencyType = order.CurrencyType,
                 CreatedAt = order.CreatedAt,
                 PaidAt = order.PaidAt,

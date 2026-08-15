@@ -15,13 +15,19 @@ namespace Vitorize.Infrastructure.Services
 
         private readonly VitorizeDbContext _dbContext;
         private readonly ISmsSettingsProvider _smsSettingsProvider;
+        private readonly IAuditService _auditService;
+        private readonly ICurrentUserService _currentUser;
 
         public SettingService(
             VitorizeDbContext dbContext,
-            ISmsSettingsProvider smsSettingsProvider)
+            ISmsSettingsProvider smsSettingsProvider,
+            IAuditService auditService,
+            ICurrentUserService currentUser)
         {
             _dbContext = dbContext;
             _smsSettingsProvider = smsSettingsProvider;
+            _auditService = auditService;
+            _currentUser = currentUser;
         }
 
         private static bool IsSecret(string key) =>
@@ -90,6 +96,7 @@ namespace Vitorize.Infrastructure.Services
 
             var key = request.Key.Trim();
             TrustSealRules.ValidateSetting(key, request.Value);
+            VatSettings.ValidateSetting(key, request.Value);
             if (key is "TrustBadgesJson" or "HomeFeaturesJson")
                 request.Value = LucideIconRules.NormalizeConfigurableBlocksJson(request.Value);
 
@@ -98,6 +105,7 @@ namespace Vitorize.Infrastructure.Services
 
             var setting = await _dbContext.Settings
                 .FirstOrDefaultAsync(x => x.Key == key);
+            var previousValue = setting?.Value;
 
             if (string.Equals(request.ValueType, "icon", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(setting?.ValueType, "icon", StringComparison.OrdinalIgnoreCase))
@@ -132,6 +140,18 @@ namespace Vitorize.Infrastructure.Services
             setting.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
+
+            // VAT settings drive money calculations, so a change is recorded through the existing
+            // audit service. Scoped deliberately to VAT keys only; no broader settings-audit refactor.
+            if (VatSettings.IsVatKey(key))
+                await _auditService.LogAsync(
+                    _currentUser.UserId,
+                    "SettingUpdated",
+                    nameof(Setting),
+                    key,
+                    $"old={previousValue ?? string.Empty}; new={setting.Value ?? string.Empty}",
+                    _currentUser.IpAddress,
+                    _currentUser.UserAgent);
 
             if (string.Equals(setting.GroupName, "Logos", StringComparison.OrdinalIgnoreCase))
                 await BumpBrandAssetVersionAsync();

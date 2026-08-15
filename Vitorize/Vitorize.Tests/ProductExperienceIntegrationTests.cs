@@ -51,7 +51,7 @@ public sealed class ProductExperienceIntegrationTests
         });
         await db.SaveChangesAsync();
         var userId = Guid.NewGuid();
-        var service = new CartService(db, new TestEncryption());
+        var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
         await service.AddItemAsync(userId, new AddToCartRequestDto { ProductId = product.Id, Quantity = 1, InputValues = new() { ["account_token"] = "secret-A" } });
         var cart = await service.AddItemAsync(userId, new AddToCartRequestDto { ProductId = product.Id, Quantity = 1, InputValues = new() { ["account_token"] = "secret-B" } });

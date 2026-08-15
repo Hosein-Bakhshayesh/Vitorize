@@ -96,7 +96,7 @@ public sealed class GuestCartSqlIntegrationTests
         var crypto = _fixture.Factory.Services.GetRequiredService<Vitorize.Application.Interfaces.IEncryptionService>();
         await using (var failing = new Vitorize.Infrastructure.Persistence.VitorizeDbContext(options))
         {
-            var act = () => new Vitorize.Infrastructure.Services.CartService(failing, crypto).MergeGuestCartAsync(user.Id, guestToken);
+            var act = () => new Vitorize.Infrastructure.Services.CartService(failing, crypto, new Vitorize.Infrastructure.Services.VatSettingsProvider(failing)).MergeGuestCartAsync(user.Id, guestToken);
             await act.Should().ThrowAsync<InvalidOperationException>();
         }
 
@@ -109,7 +109,7 @@ public sealed class GuestCartSqlIntegrationTests
         }
 
         await using (var retry = _fixture.CreateDbContext())
-            (await new Vitorize.Infrastructure.Services.CartService(retry, crypto).MergeGuestCartAsync(user.Id, guestToken)).TotalQuantity.Should().Be(4);
+            (await new Vitorize.Infrastructure.Services.CartService(retry, crypto, new Vitorize.Infrastructure.Services.VatSettingsProvider(retry)).MergeGuestCartAsync(user.Id, guestToken)).TotalQuantity.Should().Be(4);
 
         await using var final = _fixture.CreateDbContext();
         (await final.Carts.AnyAsync(x => x.Id == guestCartId)).Should().BeFalse();

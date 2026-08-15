@@ -69,6 +69,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
+            services.AddScoped<IVatSettingsProvider, VatSettingsProvider>();
             services.AddScoped<IZarinpalPaymentConfigurationProvider, ZarinpalPaymentConfigurationProvider>();
 
             // Testing-environment-only fault injection (Off by default; guarded by IHostEnvironment).

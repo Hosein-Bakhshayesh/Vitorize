@@ -21,6 +21,19 @@ public partial class Order
 
     public decimal FinalAmount { get; set; }
 
+    // Purchase-time VAT snapshot. Written once at order creation and never recalculated:
+    // later administrative changes to the VAT rate, mode or enabled flag must not alter this order.
+    public bool VatEnabled { get; set; }
+
+    public decimal VatRatePercent { get; set; }
+
+    /// <summary>Persisted <c>VatCalculationMode</c>: 1 = BeforeDiscount, 2 = AfterDiscount.</summary>
+    public byte VatCalculationMode { get; set; } = 1;
+
+    public decimal VatTaxableAmount { get; set; }
+
+    public decimal VatAmount { get; set; }
+
     public byte CurrencyType { get; set; }
 
     public Guid? CouponId { get; set; }

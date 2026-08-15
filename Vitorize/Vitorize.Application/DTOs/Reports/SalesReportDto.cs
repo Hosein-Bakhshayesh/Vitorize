@@ -2,7 +2,11 @@
 {
     public class SalesReportDto
     {
+        /// <summary>Gross money collected, i.e. SUM(Order.FinalAmount). VAT-inclusive once VAT is enabled.</summary>
         public decimal TotalRevenue { get; set; }
+
+        /// <summary>SUM(Order.VatAmount) over the same paid orders, so net revenue stays derivable.</summary>
+        public decimal TotalVatAmount { get; set; }
 
         public int TotalOrders { get; set; }
 

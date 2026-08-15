@@ -13,6 +13,12 @@
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+        // Purchase-time VAT snapshot, displayed and exported as recorded on the order.
+        public bool VatEnabled { get; set; }
+        public decimal VatRatePercent { get; set; }
+        public byte VatCalculationMode { get; set; }
+        public decimal VatTaxableAmount { get; set; }
+        public decimal VatAmount { get; set; }
         public string? Description { get; set; }
         public string? AdminNote { get; set; }
         public DateTime CreatedAt { get; set; }
