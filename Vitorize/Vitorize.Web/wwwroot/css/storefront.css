@@ -1588,6 +1588,9 @@ body { background: var(--st-bg, #fff); }
 .st-rich-content :is(p,h2,h3,h4,li)[style*="text-align"] { /* honour inline alignment */ }
 .st-required-info { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; padding: 10px; border-radius: var(--st-clip-btn); background: var(--st-info-soft); color: var(--st-info); font-size: 12.5px; }
 .st-dynamic-form { display: grid; gap: 14px; }.st-field { display: grid; gap: 6px; }.st-help { color: var(--st-muted); font-size: 12px; }
+/* Required vs optional product-input markers. The optional chip is informational, never an error state. */
+.st-label .req { color: var(--st-danger); font-weight: 700; }
+.st-label .st-optional { color: var(--st-muted); font-weight: 600; font-size: 11px; background: var(--st-surface-2); border: 1px solid var(--st-border); border-radius: 999px; padding: 1px 7px; margin-inline-start: 4px; white-space: nowrap; }
 .st-input.is-invalid, .st-select.is-invalid, .st-textarea.is-invalid { border-color: var(--st-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-danger) 18%, transparent); }
 .st-check.is-invalid { color: var(--st-danger); }
 .st-field__error { color: var(--st-danger); font-size: 12px; font-weight: 650; }

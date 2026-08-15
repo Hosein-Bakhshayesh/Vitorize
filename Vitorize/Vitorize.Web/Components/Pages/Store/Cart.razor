@@ -141,7 +141,7 @@ else
                 @foreach (var field in _editingItem.InputFields.OrderBy(x => x.SortOrder))
                 {
                     <div class="st-field">
-                        <label class="st-label" for="@InputId(_editingItem, field.Key)">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                        <label class="st-label" for="@InputId(_editingItem, field.Key)">@field.Label @if (field.IsRequired) { <span class="req" data-testid="@($"cart-input-required-{field.Key}")" aria-label="الزامی">*</span> } else { <span class="st-optional" data-testid="@($"cart-input-optional-{field.Key}")">اختیاری</span> }</label>
                         @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
                         @if (field.FieldType is 6 or 7)
                         { <select id="@InputId(_editingItem, field.Key)" class="st-select @(EditError(field.Key) is null ? null : "is-invalid")" value="@EditValue(field.Key)" @onchange="e => SetEditValue(field.Key, e.Value?.ToString())" aria-invalid="@(EditError(field.Key) is null ? "false" : "true")" aria-describedby="@(EditError(field.Key) is null ? null : ErrorId(_editingItem, field.Key))"><option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }</select> }

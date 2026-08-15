@@ -23,9 +23,9 @@ else
 {
     <div class="vz-stats">
         <StatCard Label="کل سفارش‌ها" Value="@AUI.Number(_items.Count)" Icon="cart" Accent="teal" />
-        <StatCard Label="در انتظار پرداخت" Value="@AUI.Number(CountStatus((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
-        <StatCard Label="در حال پردازش" Value="@AUI.Number(CountStatus((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
-        <StatCard Label="تکمیل شده" Value="@AUI.Number(CountStatus((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.PendingPayment)" Value="@AUI.Number(CountStatus((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Processing)" Value="@AUI.Number(CountStatus((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Completed)" Value="@AUI.Number(CountStatus((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
     </div>
 
     <div class="vz-pills" style="margin-bottom:16px">
@@ -357,10 +357,16 @@ else
 
     private DotNetObjectReference<Orders>? _selfRef;
 
+    // Chip keys stay the existing numeric OrderStatus values sent to the API; only the labels come
+    // from the central display mapping so every surface reads the same terminology.
     private static readonly (string Key, string Label)[] StatusChips =
     {
-        ("all", "همه"), ("1", "در انتظار پرداخت"), ("2", "در حال پردازش"),
-        ("3", "تکمیل شده"), ("4", "لغو شده"), ("6", "بازگشت وجه"),
+        ("all", "همه"),
+        ("1", AUI.OrderStatus((byte)OrderStatus.PendingPayment)),
+        ("2", AUI.OrderStatus((byte)OrderStatus.Processing)),
+        ("3", AUI.OrderStatus((byte)OrderStatus.Completed)),
+        ("4", AUI.OrderStatus((byte)OrderStatus.Cancelled)),
+        ("6", AUI.OrderStatus((byte)OrderStatus.Refunded)),
     };
 
     protected override Task OnInitializedAsync() => Load();
@@ -577,7 +583,7 @@ else
         {
             new("ثبت سفارش", Stepper.StepState.Done, PersianDateHelper.ToShortDate(d.CreatedAt)),
             new("پرداخت", Pay, PersianDateHelper.ToShortDate(d.PaidAt)),
-            new("پردازش", Proc),
+            new("آماده‌سازی", Proc),
             new("تکمیل", Done, PersianDateHelper.ToShortDate(d.CompletedAt)),
         };
     }

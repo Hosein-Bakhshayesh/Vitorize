@@ -204,12 +204,18 @@ namespace Vitorize.Web.Helpers
             };
         }
 
+        /// <summary>
+        /// The single Persian display mapping for <see cref="Vitorize.Shared.Enums.OrderStatus"/>, shared by
+        /// every Admin and Customer surface. Display terminology only — the persisted enum values are unchanged.
+        /// </summary>
         public static string OrderStatus(byte value)
         {
             return value switch
             {
                 (byte)Vitorize.Shared.Enums.OrderStatus.PendingPayment => "در انتظار پرداخت",
-                (byte)Vitorize.Shared.Enums.OrderStatus.Processing => "در حال پردازش",
+                // The order is paid and being prepared for delivery; per-item delivery/KYC state is
+                // shown separately and is not implied by this order-level label.
+                (byte)Vitorize.Shared.Enums.OrderStatus.Processing => "در حال آماده‌سازی",
                 (byte)Vitorize.Shared.Enums.OrderStatus.Completed => "تکمیل شده",
                 (byte)Vitorize.Shared.Enums.OrderStatus.Cancelled => "لغو شده",
                 (byte)Vitorize.Shared.Enums.OrderStatus.Failed => "ناموفق",

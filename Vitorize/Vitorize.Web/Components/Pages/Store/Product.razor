@@ -247,9 +247,9 @@ else
                         <Icon Name="package" Size="16" /> <span>این محصول در حال حاضر ناموجود است.</span>
                     </div>
                 }
-                @if (_p.InputFields.Any(x => x.IsActive))
+                @if (ActiveInputFieldCount > 0)
                 {
-                    <div class="st-required-info"><Icon Name="file-text" Size="15" /><span>این محصول برای تکمیل سفارش به @AUI.Number(_p.InputFields.Count(x => x.IsActive)) مورد اطلاعات نیاز دارد.</span></div>
+                    <div class="st-required-info" data-testid="product-input-summary"><Icon Name="file-text" Size="15" /><span>@InputFieldsSummary</span></div>
                 }
                 <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => BeginAddToCart(false)" disabled="@(_busy || OutOfStock)">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>@(OutOfStock ? "ناموجود" : "افزودن به سبد خرید")</span> }
@@ -282,7 +282,7 @@ else
             @foreach (var field in ProductStageFields)
             {
                 <div class="st-field">
-                    <label class="st-label" for="@ProductInputId(field.Key)">@field.Label @if (field.IsRequired) { <span class="req">*</span> }</label>
+                    <label class="st-label" for="@ProductInputId(field.Key)">@field.Label @if (field.IsRequired) { <span class="req" data-testid="@($"product-input-required-{field.Key}")" aria-label="الزامی">*</span> } else { <span class="st-optional" data-testid="@($"product-input-optional-{field.Key}")">اختیاری</span> }</label>
                     @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
                     @if (field.FieldType is 6 or 7)
                     {
@@ -346,6 +346,26 @@ else
     private readonly Dictionary<string, string> _inputFieldErrors = new(StringComparer.OrdinalIgnoreCase);
     private string? _focusTargetId;
     private IEnumerable<StoreProductInputFieldModel> ProductStageFields => _p?.InputFields.Where(x => x.IsActive && x.DisplayStage == 1).OrderBy(x => x.SortOrder) ?? Enumerable.Empty<StoreProductInputFieldModel>();
+
+    // Only active fields count, and required/optional are reported separately: the previous copy
+    // implied every field was mandatory even when the product defined optional ones.
+    private IEnumerable<StoreProductInputFieldModel> ActiveInputFields =>
+        _p?.InputFields.Where(x => x.IsActive) ?? Enumerable.Empty<StoreProductInputFieldModel>();
+    private int ActiveInputFieldCount => ActiveInputFields.Count();
+    private int RequiredInputFieldCount => ActiveInputFields.Count(x => x.IsRequired);
+    private int OptionalInputFieldCount => ActiveInputFieldCount - RequiredInputFieldCount;
+    private string InputFieldsSummary
+    {
+        get
+        {
+            var required = RequiredInputFieldCount;
+            var optional = OptionalInputFieldCount;
+            if (required == 0)
+                return $"تکمیل {AUI.Number(optional)} مورد اطلاعات برای این محصول اختیاری است.";
+            var text = $"این محصول برای تکمیل سفارش به {AUI.Number(required)} مورد اطلاعات الزامی نیاز دارد";
+            return optional == 0 ? $"{text}." : $"{text} و {AUI.Number(optional)} مورد اختیاری است.";
+        }
+    }
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
