@@ -1,0 +1,222 @@
+@page "/admin/pages"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using Vitorize.Web.Models.Admin.Content
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="مدیریت صفحه‌ها" Subtitle="صفحه‌های سیستمی و صفحه‌های سفارشی فروشگاه"
+            Icon="file-text" Breadcrumbs="@(new(){ ("صفحه‌ها", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" data-testid="page-create" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> صفحه جدید</button>
+    </Actions>
+</PageHeader>
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (_items.Count == 0)
+        {
+            <EmptyState Title="صفحه‌ای ثبت نشده است" Icon="file-text">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن صفحه</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr><th>عنوان</th><th>نشانی</th><th>نوع</th><th>وضعیت</th><th>آخرین بروزرسانی</th><th class="col-actions">عملیات</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in _items)
+                        {
+                            <tr data-testid="@($"page-row-{p.Slug}")">
+                                <td><span class="vz-cell-title">@p.Title</span></td>
+                                <td class="vz-mono" style="font-size:12px">@PublicPath(p)</td>
+                                <td>
+                                    @if (p.IsSystem)
+                                    {
+                                        <span class="vz-chip" data-testid="page-system-badge">سیستمی</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="vz-muted">سفارشی</span>
+                                    }
+                                </td>
+                                <td><StatusBadge Text="@(p.IsPublished ? "منتشر شده" : "پیش‌نویس")" Intent="@(p.IsPublished ? "success" : "muted")" /></td>
+                                <td class="vz-mono" style="font-size:12px"><PersianDateDisplay Value="p.UpdatedAt" WithTime="true" /></td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" data-testid="@($"page-edit-{p.Slug}")" @onclick="() => OpenEdit(p)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction" title="@(p.IsPublished ? "خروج از انتشار" : "انتشار")"
+                                            data-testid="@($"page-publish-{p.Slug}")" @onclick="() => TogglePublish(p)">
+                                        <Icon Name="@(p.IsPublished ? "eye-off" : "eye")" Size="16" />
+                                    </button>
+                                    @* System pages are never deletable; the server enforces this too. *@
+                                    @if (!p.IsSystem)
+                                    {
+                                        <button class="vz-iconaction danger" title="حذف" data-testid="@($"page-delete-{p.Slug}")" @onclick="() => AskDelete(p)"><Icon Name="trash" Size="16" /></button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن صفحه" : "ویرایش صفحه")"
+       Icon="file-text" Size="lg" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="page-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field span-2">
+                    <label class="vz-label">عنوان <span class="req">*</span></label>
+                    <InputText class="vz-input" data-testid="page-title" @bind-Value="_model.Title" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">نشانی صفحه (Slug) <span class="req">*</span></label>
+                    <InputText class="vz-input" data-testid="page-slug" @bind-Value="_model.Slug" disabled="@_model.IsSystem" dir="ltr" />
+                    @if (_model.IsSystem)
+                    {
+                        <div class="vz-hint">نشانی صفحه‌های سیستمی ثابت است و قابل تغییر نیست.</div>
+                    }
+                    else
+                    {
+                        <div class="vz-hint">نشانی عمومی: <span class="vz-mono">/page/@_model.Slug</span></div>
+                    }
+                    <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">محتوا</label>
+                    <RichTextEditor @bind-Value="_model.ContentHtml" TestId="page-content-editor"
+                                    Placeholder="محتوای صفحه را وارد کنید…" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">عنوان سئو</label>
+                    <InputText class="vz-input" data-testid="page-seo-title" @bind-Value="_model.SeoTitle" />
+                    <div class="vz-hint">در صورت خالی بودن، از عنوان صفحه استفاده می‌شود.</div>
+                    <ValidationMessage For="() => _model.SeoTitle" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">توضیحات سئو</label>
+                    <InputTextArea class="vz-textarea" rows="3" data-testid="page-seo-description" @bind-Value="_model.SeoDescription" />
+                    <ValidationMessage For="() => _model.SeoDescription" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <InputCheckbox @bind-Value="_model.IsPublished" data-testid="page-published" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">منتشر شده</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="page-form" data-testid="page-save" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف صفحه"
+               Message="@($"آیا از حذف صفحه «{_target?.Title}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminPageListItemModel> _items = new();
+
+    private bool _formOpen, _saving;
+    private AdminPageInputModel _model = new();
+
+    private bool _confirmDelete, _deleting;
+    private AdminPageListItemModel? _target;
+
+    private static string PublicPath(AdminPageListItemModel p) => p.IsSystem ? $"/{p.Slug}" : $"/page/{p.Slug}";
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminPageListItemModel>>("admin/pages");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        _model = new AdminPageInputModel();
+        _formOpen = true;
+    }
+
+    private async Task OpenEdit(AdminPageListItemModel item)
+    {
+        var result = await Api.GetAsync<AdminPageModel>($"admin/pages/{item.Id}");
+        if (!result.IsSuccess || result.Data is null) { Toasts.Error(result.Message); return; }
+        var page = result.Data;
+        _model = new AdminPageInputModel
+        {
+            Id = page.Id, IsSystem = page.IsSystem, Title = page.Title, Slug = page.Slug,
+            ContentHtml = page.ContentHtml, SeoTitle = page.SeoTitle,
+            SeoDescription = page.SeoDescription, IsPublished = page.IsPublished
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new
+        {
+            _model.Title, _model.Slug, _model.ContentHtml,
+            _model.SeoTitle, _model.SeoDescription, _model.IsPublished
+        };
+
+        var result = _model.Id is null
+            ? await Api.PostAsync<AdminPageModel>("admin/pages", payload)
+            : await Api.PutAsync<AdminPageModel>($"admin/pages/{_model.Id}", payload);
+
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(result.Message);
+            _formOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task TogglePublish(AdminPageListItemModel p)
+    {
+        var action = p.IsPublished ? "unpublish" : "publish";
+        var result = await Api.PostAsync<AdminPageModel>($"admin/pages/{p.Id}/{action}");
+        if (result.IsSuccess) { Toasts.Success(result.Message); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminPageListItemModel p) { _target = p; _confirmDelete = true; }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/pages/{_target.Id}");
+        _deleting = false; _confirmDelete = false;
+        if (result.IsSuccess) { Toasts.Success(result.Message); await Load(); }
+        else Toasts.Error(result.Message);
+    }
+}

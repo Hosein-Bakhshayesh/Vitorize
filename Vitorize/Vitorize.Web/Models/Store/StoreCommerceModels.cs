@@ -201,6 +201,8 @@ namespace Vitorize.Web.Models.Store
         public string ContentHtml { get; set; } = string.Empty;
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
+        /// <summary>About/Terms/Privacy/Contact — canonical at their short route.</summary>
+        public bool IsSystem { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

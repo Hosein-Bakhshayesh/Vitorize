@@ -155,6 +155,9 @@ namespace Vitorize.Infrastructure.Interceptors
                    name.Contains("postal") ||
                    name.Contains("birthdate") ||
                    name.Contains("deliveredcontent") ||
+                   // Page/BlogPost rich bodies: bulky administrator-authored HTML. The audit trail
+                   // records the action and identity; the content itself is not duplicated here.
+                   name.Contains("contenthtml") ||
                    name.Contains("rawrequest") ||
                    name.Contains("rawresponse") ||
                    name.Contains("callbackdata") ||

@@ -1,0 +1,110 @@
+@page "/contact"
+@inject ApiClient Api
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject IHttpContextAccessor HttpContext
+
+@* Contact is information only: the CMS intro comes from the seeded "contact" system page and the
+   contact details come from existing Settings. There is deliberately no submission form. *@
+
+@if (_page is not null)
+{
+    <SeoHead Title="@(_page.SeoTitle ?? _page.Title)" Description="@_page.SeoDescription"
+             CanonicalPath="/contact" LastModified="@(_page.UpdatedAt ?? _page.CreatedAt)" />
+}
+else if (!_loading)
+{
+    <SeoHead Title="صفحه یافت نشد" Description="این صفحه در دسترس نیست." Index="false" Follow="false" />
+}
+
+@if (_loading)
+{
+    <div class="st-state"><div class="st-spinner"></div></div>
+}
+else if (_page is null)
+{
+    <div class="st-state"><div class="st-state__ic"><Icon Name="headphones" Size="30" /></div><div style="font-weight:700">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
+}
+else
+{
+    <CmsPageContent Title="@_page.Title" ContentHtml="@_page.ContentHtml">
+        <Extra>
+            <div class="st-card st-card__pad" style="margin-top:22px" data-testid="contact-details">
+                <h2 style="font-size:16px;margin-bottom:14px">راه‌های ارتباطی</h2>
+                <div class="st-stack" style="gap:10px;font-size:13.5px">
+                    @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
+                    {
+                        <div data-testid="contact-phone" style="display:flex;align-items:center;gap:8px">
+                            <Icon Name="phone" Size="16" /> <span class="st-muted">تلفن پشتیبانی:</span>
+                            <a class="st-mono" href="tel:@_b.SupportPhone">@_b.SupportPhone</a>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
+                    {
+                        <div data-testid="contact-email" style="display:flex;align-items:center;gap:8px">
+                            <Icon Name="mail" Size="16" /> <span class="st-muted">ایمیل:</span>
+                            <a href="mailto:@_b.SupportEmail">@_b.SupportEmail</a>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.ContactAddress))
+                    {
+                        <div data-testid="contact-address" style="display:flex;align-items:flex-start;gap:8px">
+                            <Icon Name="map-pin" Size="16" /> <span class="st-muted">نشانی:</span> <span>@_b.ContactAddress</span>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_b.WorkingHours))
+                    {
+                        <div data-testid="contact-hours" style="display:flex;align-items:center;gap:8px">
+                            <Icon Name="clock" Size="16" /> <span class="st-muted">ساعات پاسخگویی:</span> <span>@_b.WorkingHours</span>
+                        </div>
+                    }
+                </div>
+
+                @if (Socials.Any())
+                {
+                    <div class="st-divider"></div>
+                    <div class="st-label">شبکه‌های اجتماعی</div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px" data-testid="contact-socials">
+                        @foreach (var social in Socials)
+                        {
+                            <a href="@social.Url" target="_blank" rel="noopener noreferrer" title="@social.Title"
+                               aria-label="@social.Title" style="display:flex;align-items:center;gap:6px">
+                                <Icon Name="@social.Icon" Size="17" /> <span>@social.Title</span>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </Extra>
+    </CmsPageContent>
+}
+
+@code {
+    private bool _loading = true;
+    private StorePageModel? _page;
+    private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
+
+    private sealed record SocialLink(string Url, string Icon, string Title);
+
+    private List<SocialLink> Socials => new List<SocialLink>
+    {
+        new(_b.InstagramUrl, "instagram", "اینستاگرام"),
+        new(_b.TelegramUrl, "send", "تلگرام"),
+        new(_b.WhatsAppUrl, "message-circle", "واتساپ"),
+        new(_b.XUrl, "twitter", "X"),
+        new(_b.LinkedInUrl, "linkedin", "لینکدین"),
+        new(_b.YouTubeUrl, "youtube", "یوتیوب"),
+        new(_b.FacebookUrl, "facebook", "فیسبوک"),
+    }.Where(x => !string.IsNullOrWhiteSpace(x.Url)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _b = await Branding.GetAsync();
+        // Contact follows the same publication rule as the other system pages: until an
+        // administrator publishes it, the public route is a clean 404.
+        var result = await Api.GetAsync<StorePageModel>("pages/contact");
+        _page = result.IsSuccess ? result.Data : null;
+        if (_page is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+        _loading = false;
+    }
+}

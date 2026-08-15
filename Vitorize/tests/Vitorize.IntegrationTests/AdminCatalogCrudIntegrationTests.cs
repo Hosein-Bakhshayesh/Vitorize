@@ -310,7 +310,12 @@ public sealed class AdminCatalogCrudIntegrationTests
         valid.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await valid.Content.ReadFromJsonAsync<ApiResult<List<OrderDto>>>();
         body!.Data!.Select(x => x.Id).Should().Equal(newer.Id, older.Id);
-        body.Data.Should().OnlyContain(x => x.Items.Count == 0 && x.SubtotalAmount == 0 && x.DiscountAmount == 0);
+        // The export projection stays lightweight (no order items), but since FIX-13 it carries the
+        // financial summary the Admin CSV exports: subtotal, discount and the VAT snapshot.
+        body.Data.Should().OnlyContain(x => x.Items.Count == 0);
+        body.Data.Select(x => x.SubtotalAmount).Should().Equal(20m, 10m);
+        body.Data.Should().OnlyContain(x => x.DiscountAmount == 0m);
+        body.Data.Should().OnlyContain(x => !x.VatEnabled && x.VatAmount == 0m);
 
         (await customer.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = new[] { older.Id } })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await admin.PostAsJsonAsync("/api/admin/orders/export-selection", new { Ids = Array.Empty<Guid>() })).StatusCode.Should().Be(HttpStatusCode.BadRequest);

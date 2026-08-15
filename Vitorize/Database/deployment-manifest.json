@@ -186,6 +186,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 101,
+      "version": "V0017",
+      "name": "V0017__cms_system_pages_seed.sql",
+      "path": "Versioned/V0017__cms_system_pages_seed.sql",
+      "sha256": "7929e2007087f635eed95ecaa1b75b205e5cc34a45621e4a5f999d8b2eb538a1",
+      "classification": "required",
+      "dependencies": ["V0016", "dbo.Pages"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

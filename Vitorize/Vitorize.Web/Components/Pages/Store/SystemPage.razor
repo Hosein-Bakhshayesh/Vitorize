@@ -1,15 +1,17 @@
-@page "/page/{Slug}"
+@page "/about"
+@page "/terms"
+@page "/privacy"
 @inject ApiClient Api
 @inject NavigationManager Nav
 @inject IHttpContextAccessor HttpContext
 
-@* Custom CMS pages. A system slug reached through this generic route is redirected to its canonical
-   short route (/about, /terms, …) so the two URLs never claim independent canonical identities. *@
+@* Canonical routes for the seeded system pages. Content, SEO and 404 behaviour come from the same
+   CMS pipeline as custom pages; only the slug is fixed and the canonical URL is the short route. *@
 
 @if (_page is not null)
 {
     <SeoHead Title="@(_page.SeoTitle ?? _page.Title)" Description="@_page.SeoDescription"
-             CanonicalPath="@($"/page/{Uri.EscapeDataString(_page.Slug)}")" LastModified="@(_page.UpdatedAt ?? _page.CreatedAt)" />
+             CanonicalPath="@($"/{_slug}")" LastModified="@(_page.UpdatedAt ?? _page.CreatedAt)" />
 }
 else if (!_loading)
 {
@@ -30,26 +32,21 @@ else
 }
 
 @code {
-    [Parameter] public string Slug { get; set; } = string.Empty;
     private bool _loading = true;
     private StorePageModel? _page;
+    private string _slug = string.Empty;
     private string? _loadedSlug;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Slug == _loadedSlug) return;
-        _loadedSlug = Slug;
+        _slug = new Uri(Nav.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        if (_slug == _loadedSlug) return;
+        _loadedSlug = _slug;
         _loading = true;
-        var result = await Api.GetAsync<StorePageModel>($"pages/{Uri.EscapeDataString(Slug)}");
+
+        var result = await Api.GetAsync<StorePageModel>($"pages/{Uri.EscapeDataString(_slug)}");
+        // An unpublished system page is indistinguishable from a missing one for the public.
         _page = result.IsSuccess ? result.Data : null;
-
-        if (_page is { IsSystem: true })
-        {
-            // Canonical redirect; the system route renders the same content.
-            Nav.NavigateTo($"/{_page.Slug}", forceLoad: false, replace: true);
-            return;
-        }
-
         if (_page is null && HttpContext.HttpContext is { Response.HasStarted: false } context)
             context.Response.StatusCode = StatusCodes.Status404NotFound;
         _loading = false;

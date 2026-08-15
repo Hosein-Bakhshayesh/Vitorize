@@ -21,6 +21,12 @@ public partial class Page
 
     public bool IsPublished { get; set; }
 
+    /// <summary>
+    /// True for the seeded About/Terms/Privacy/Contact identities. System pages are editable and
+    /// publishable but their slug is immutable and they cannot be deleted.
+    /// </summary>
+    public bool IsSystem { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

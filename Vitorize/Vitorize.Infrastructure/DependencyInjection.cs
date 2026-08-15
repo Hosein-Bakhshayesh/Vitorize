@@ -99,6 +99,8 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IStorefrontService, StorefrontService>();
             services.AddScoped<ISeoService, SeoService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();
+            services.AddScoped<IAdminPageService, AdminPageService>();
+            services.AddScoped<IAdminFaqService, AdminFaqService>();
             services.AddScoped<IProductReviewService, ProductReviewService>();
             services.AddScoped<IAdminProductReviewService, AdminProductReviewService>();
             services.AddScoped<AuditSaveChangesInterceptor>();

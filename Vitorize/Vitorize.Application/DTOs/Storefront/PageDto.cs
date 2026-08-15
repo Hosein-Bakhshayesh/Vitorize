@@ -14,6 +14,9 @@
 
         public string? SeoDescription { get; set; }
 
+        /// <summary>True for About/Terms/Privacy/Contact, which are canonical at their short route.</summary>
+        public bool IsSystem { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }

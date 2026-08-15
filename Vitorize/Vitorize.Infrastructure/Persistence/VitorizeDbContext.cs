@@ -767,6 +767,8 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.IsPublished).HasDefaultValue(true);
+            // V0017: system page identity (About/Terms/Privacy/Contact).
+            entity.Property(e => e.IsSystem).HasDefaultValue(false);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
             entity.Property(e => e.FocusKeyword).HasMaxLength(200);

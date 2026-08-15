@@ -26,8 +26,14 @@ public sealed class SeoService(VitorizeDbContext db) : ISeoService
                 .Select(x => new SitemapItemDto { Path = "/brand/" + x.Slug, LastModified = x.UpdatedAt ?? x.CreatedAt }),
             "blog" => db.BlogPosts.AsNoTracking().Where(x => x.IsPublished)
                 .Select(x => new SitemapItemDto { Path = "/blog/" + x.Slug, LastModified = x.UpdatedAt ?? x.PublishedAt ?? x.CreatedAt }),
+            // System pages are canonical at their short route (/about, /terms, …); custom pages
+            // stay under /page/{slug}. Emitting one URL per page keeps the sitemap duplicate-free.
             "pages" => db.Pages.AsNoTracking().Where(x => x.IsPublished)
-                .Select(x => new SitemapItemDto { Path = "/page/" + x.Slug, LastModified = x.UpdatedAt ?? x.CreatedAt }),
+                .Select(x => new SitemapItemDto
+                {
+                    Path = (x.IsSystem ? "/" : "/page/") + x.Slug,
+                    LastModified = x.UpdatedAt ?? x.CreatedAt
+                }),
             _ => throw new BusinessException("نوع نقشه سایت معتبر نیست.")
         };
 

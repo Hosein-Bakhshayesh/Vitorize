@@ -9,10 +9,12 @@ namespace Vitorize.Infrastructure.Services
     public class StorefrontService : IStorefrontService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IHtmlContentSanitizer _htmlSanitizer;
 
-        public StorefrontService(VitorizeDbContext dbContext)
+        public StorefrontService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
         {
             _dbContext = dbContext;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<HomeDto> GetHomeAsync()
@@ -210,6 +212,7 @@ namespace Vitorize.Infrastructure.Services
                     ContentHtml = x.ContentHtml,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
+                    IsSystem = x.IsSystem,
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
                 })
@@ -218,6 +221,9 @@ namespace Vitorize.Infrastructure.Services
             if (page == null)
                 throw new NotFoundException("صفحه یافت نشد.");
 
+            // Defence in depth: the storefront renders this as MarkupString, so it is sanitised again
+            // on read. This also covers rows written before FIX-14 or imported directly through SQL.
+            page.ContentHtml = _htmlSanitizer.Sanitize(page.ContentHtml) ?? string.Empty;
             return page;
         }
 
