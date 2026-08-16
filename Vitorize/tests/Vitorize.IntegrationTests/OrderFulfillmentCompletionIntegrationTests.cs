@@ -107,6 +107,7 @@ public sealed class OrderFulfillmentCompletionIntegrationTests
     {
         public Task CreateAsync(Guid userId, byte type, string title, string message) => Task.CompletedTask;
         public Task SendSystemNotificationAsync(Guid userId, string title, string message) => Task.CompletedTask;
+        public Task<int> CreateBulkAsync(Guid broadcastId, IReadOnlyCollection<Guid> recipientUserIds, string title, string message, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task MarkAsReadAsync(Guid userId, Guid notificationId) => Task.CompletedTask;
         public Task MarkAllAsReadAsync(Guid userId) => Task.CompletedTask;
         public Task<int> GetUnreadCountAsync(Guid userId) => Task.FromResult(0);

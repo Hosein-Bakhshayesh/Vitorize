@@ -25,6 +25,12 @@
         TicketReply = 51,
         TicketClosed = 52,
 
-        SystemMessage = 90
+        SystemMessage = 90,
+
+        /// <summary>
+        /// Admin group/broadcast announcement (FIX-15). Distinct from <see cref="SystemMessage"/>,
+        /// which remains the direct one-user admin message.
+        /// </summary>
+        Announcement = 91
     }
 }

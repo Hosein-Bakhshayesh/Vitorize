@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Notifications;
 using Vitorize.Application.DTOs.Outbox;
 using Vitorize.Application.Interfaces;
@@ -95,6 +96,50 @@ namespace Vitorize.Infrastructure.Services
                 message.Trim());
         }
 
+        public async Task<int> CreateBulkAsync(
+            Guid broadcastId,
+            IReadOnlyCollection<Guid> recipientUserIds,
+            string title,
+            string message,
+            CancellationToken cancellationToken = default)
+        {
+            if (broadcastId == Guid.Empty)
+                throw new BusinessException("شناسه ارسال گروهی معتبر نیست.");
+            if (recipientUserIds is null || recipientUserIds.Count == 0)
+                return 0;
+
+            var now = DateTime.UtcNow;
+            var created = 0;
+
+            // Bounded batches keep the change tracker and the SQL round trip small. The caller owns
+            // the surrounding transaction, so a failure in any batch rolls the whole send back.
+            foreach (var batch in recipientUserIds.Chunk(BroadcastRecipientRules.BatchSize))
+            {
+                var notifications = batch.Select(userId => new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    BroadcastId = broadcastId,
+                    Type = (byte)NotificationType.Announcement,
+                    Title = title,
+                    Message = message,
+                    IsRead = false,
+                    CreatedAt = now
+                }).ToList();
+
+                await _dbContext.Notifications.AddRangeAsync(notifications, cancellationToken);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                // Keep the tracker from growing across batches on a 5,000-recipient send.
+                foreach (var notification in notifications)
+                    _dbContext.Entry(notification).State = EntityState.Detached;
+
+                created += notifications.Count;
+            }
+
+            return created;
+        }
+
         public async Task<List<NotificationDto>> GetMyNotificationsAsync(
             Guid userId)
         {
@@ -110,7 +155,9 @@ namespace Vitorize.Infrastructure.Services
                     Type = x.Type,
                     IsRead = x.IsRead,
                     CreatedAt = x.CreatedAt,
-                    ReadAt = x.ReadAt
+                    ReadAt = x.ReadAt,
+                    // Announcement call-to-action, joined from the broadcast header (no N+1).
+                    ActionUrl = x.Broadcast != null ? x.Broadcast.ActionUrl : null
                 })
                 .ToListAsync();
         }

@@ -26,14 +26,22 @@ else
     <div class="st-stack">
         @foreach (var n in _items)
         {
-            <div class="st-card st-card__pad" style="@(n.IsRead ? "" : "border-inline-start:3px solid var(--st-brand-2)")">
+            <div class="st-card st-card__pad" data-testid="@(IsAnnouncement(n) ? "customer-announcement" : "customer-notification")" style="@(n.IsRead ? "" : "border-inline-start:3px solid var(--st-brand-2)")">
                 <div class="st-spread">
                     <div style="display:flex;gap:12px;align-items:flex-start">
-                        <span style="width:38px;height:38px;border-radius:11px;background:var(--st-chip);color:var(--st-brand-2);display:flex;align-items:center;justify-content:center;flex:0 0 38px"><Icon Name="bell" Size="18" /></span>
+                        @* Announcements get a neutral informational icon; transactional types keep the bell. *@
+                        <span style="width:38px;height:38px;border-radius:11px;background:var(--st-chip);color:var(--st-brand-2);display:flex;align-items:center;justify-content:center;flex:0 0 38px"><Icon Name="@(IsAnnouncement(n) ? "megaphone" : "bell")" Size="18" /></span>
                         <div>
                             <div style="font-weight:700;font-size:14px">@n.Title</div>
+                            @* Plain text by design: never rendered as markup. *@
                             <div class="st-muted" style="font-size:13px;line-height:1.9;margin-top:2px">@n.Message</div>
                             <div class="st-muted" style="font-size:11.5px;margin-top:6px"><PersianDateDisplay Value="n.CreatedAt" WithTime="true" /></div>
+                            @if (!string.IsNullOrWhiteSpace(n.ActionUrl))
+                            {
+                                <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:10px" href="@n.ActionUrl" data-testid="notification-action">
+                                    <Icon Name="arrow-left" Size="14" /> مشاهده
+                                </a>
+                            }
                         </div>
                     </div>
                     @if (!n.IsRead)
@@ -49,6 +57,9 @@ else
 @code {
     private bool _loading = true;
     private List<CustomerNotificationModel> _items = new();
+
+    private static bool IsAnnouncement(CustomerNotificationModel n) =>
+        n.Type == (byte)Vitorize.Shared.Enums.NotificationType.Announcement;
 
     protected override Task OnInitializedAsync() => Load();
 

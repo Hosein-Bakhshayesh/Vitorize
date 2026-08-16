@@ -45,6 +45,11 @@ namespace Vitorize.Infrastructure.Interceptors
                     x.Entity is not IdempotencyKey &&
                     x.Entity is not PaymentCallback &&
                     x.Entity is not FinancialAuditLog &&
+                    // FIX-15: a broadcast fans out to thousands of Notification rows. Those are
+                    // covered by one explicit NotificationBroadcastSent audit record, so they must
+                    // not each produce an automatic row. Transactional notifications (BroadcastId
+                    // null) keep their existing audit behaviour.
+                    !(x.Entity is Notification notification && notification.BroadcastId != null) &&
                     x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
                 .ToList();
 

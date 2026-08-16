@@ -1,12 +1,14 @@
 @page "/admin/notifications"
 @inject ApiClient Api
 @inject ToastService Toasts
+@using Vitorize.Web.Models.Admin.Notifications
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="اعلان‌ها" Subtitle="اعلان‌های سیستمی و ارسال پیام به کاربران"
             Icon="bell" Breadcrumbs="@(new(){ ("اعلان‌ها", null) })">
     <Actions>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--outline" data-testid="broadcast-open" @onclick="OpenBroadcast"><Icon Name="megaphone" Size="17" /> ارسال گروهی</button>
         <button class="vz-btn vz-btn--primary" @onclick="OpenSend"><Icon Name="send" Size="17" /> ارسال اعلان</button>
     </Actions>
 </PageHeader>
@@ -100,6 +102,145 @@
     </Footer>
 </SlidePanel>
 
+@* ── FIX-15 broadcast history ──────────────────────────────────────────────────── *@
+@if (_broadcasts.Count > 0)
+{
+    <div class="vz-card" style="margin-top:18px">
+        <div class="vz-card__head"><Icon Name="megaphone" Size="18" /><div><div class="vz-card__title">تاریخچه ارسال‌های گروهی</div></div></div>
+        <div class="vz-card__body flush">
+            <div class="vz-table-wrap">
+                <table class="vz-table" data-testid="broadcast-history">
+                    <thead>
+                        <tr><th>عنوان</th><th>مخاطبان</th><th>گیرندگان</th><th>زمان ارسال</th><th>فرستنده</th><th>وضعیت</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in _broadcasts)
+                        {
+                            <tr data-testid="@($"broadcast-row-{b.Id}")">
+                                <td><span class="vz-cell-title">@b.Title</span></td>
+                                <td><span class="vz-chip">@AudienceTitle(b.AudienceType)</span></td>
+                                <td class="num" data-testid="broadcast-recipient-count">@AUI.Number(b.RecipientCount)</td>
+                                <td class="vz-mono" style="font-size:12px"><PersianDateDisplay Value="b.SentAt" WithTime="true" /></td>
+                                <td>@b.CreatedByFullName</td>
+                                <td><StatusBadge Text="@BroadcastStatusTitle(b.Status)" Intent="@(b.Status == 2 ? "success" : b.Status == 3 ? "danger" : "warning")" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── FIX-15 group announcements ────────────────────────────────────────────────── *@
+<SlidePanel Visible="_broadcastOpen" Title="ارسال گروهی اعلان" Subtitle="ارسال یک اطلاعیه به مشتریان"
+            Icon="megaphone" OnClose="CloseBroadcast">
+    <ChildContent>
+        <div class="vz-form-grid one">
+            <div class="vz-field">
+                <label class="vz-label">مخاطبان <span class="req">*</span></label>
+                <div style="display:flex;gap:16px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                        <input type="radio" name="bc-audience" checked="@(_bcAudience == AudienceAll)"
+                               data-testid="broadcast-audience-all" @onchange="() => SetAudience(AudienceAll)" />
+                        <span>همه مشتریان</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                        <input type="radio" name="bc-audience" checked="@(_bcAudience == AudienceSelected)"
+                               data-testid="broadcast-audience-selected" @onchange="() => SetAudience(AudienceSelected)" />
+                        <span>مشتریان انتخاب‌شده</span>
+                    </label>
+                </div>
+            </div>
+
+            @if (_bcAudience == AudienceSelected)
+            {
+                <div class="vz-field">
+                    <label class="vz-label">جستجوی مشتری</label>
+                    <input class="vz-input" placeholder="نام یا شماره موبایل" data-testid="broadcast-user-search"
+                           value="@_bcSearch" @oninput="OnSearchInput" />
+                    @if (_bcSearchResults.Count > 0)
+                    {
+                        <div class="vz-card" style="margin-top:8px;max-height:220px;overflow-y:auto" data-testid="broadcast-search-results">
+                            @foreach (var u in _bcSearchResults)
+                            {
+                                <button type="button" class="vz-ctx__item" style="width:100%;text-align:start"
+                                        data-testid="@($"broadcast-pick-{u.Id}")" @onclick="() => AddRecipient(u)">
+                                    @u.FullName <span class="vz-muted vz-mono">@u.Mobile</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                    @if (_bcSelected.Count > 0)
+                    {
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px" data-testid="broadcast-selected-chips">
+                            @foreach (var chip in _bcSelected)
+                            {
+                                <span class="vz-chip" style="display:inline-flex;align-items:center;gap:6px">
+                                    @chip.FullName
+                                    <button type="button" class="vz-iconaction" title="حذف"
+                                            @onclick="() => RemoveRecipient(chip)"><Icon Name="x" Size="13" /></button>
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="vz-field">
+                <label class="vz-label">عنوان <span class="req">*</span></label>
+                <input class="vz-input" maxlength="250" data-testid="broadcast-title" @bind="_bcTitle" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">متن اعلان <span class="req">*</span></label>
+                @* Plain text only: notifications are never rendered as HTML. *@
+                <textarea class="vz-textarea" rows="5" data-testid="broadcast-message" @bind="_bcMessage"></textarea>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">لینک داخلی</label>
+                <input class="vz-input" dir="ltr" placeholder="/page/summer-sale" data-testid="broadcast-action-url" @bind="_bcActionUrl" />
+                <div class="vz-hint">اختیاری. فقط مسیرهای داخلی سایت مجاز هستند.</div>
+            </div>
+
+            <div class="vz-field">
+                @if (_bcPreview is not null)
+                {
+                    <div class="@(_bcPreview.ExceedsLimit ? "vz-alert vz-alert--danger" : "vz-alert vz-alert--info")"
+                         data-testid="broadcast-preview">
+                        <Icon Name="users" Size="16" />
+                        <span>تعداد گیرندگان: @AUI.Number(_bcPreview.RecipientCount) نفر</span>
+                        @if (_bcPreview.IneligibleCount > 0)
+                        {
+                            <span class="vz-muted"> (@AUI.Number(_bcPreview.IneligibleCount) کاربر واجد شرایط نیست)</span>
+                        }
+                        @if (_bcPreview.ExceedsLimit)
+                        {
+                            <span> — بیشتر از سقف مجاز @AUI.Number(_bcPreview.MaximumRecipients) کاربر است.</span>
+                        }
+                    </div>
+                }
+                <button type="button" class="vz-btn vz-btn--outline vz-btn--sm" style="margin-top:8px"
+                        data-testid="broadcast-preview-refresh" @onclick="RefreshPreview" disabled="@_bcPreviewing">
+                    @if (_bcPreviewing) { <span class="vz-spinner sm"></span> } else { <Icon Name="refresh" Size="15" /> }
+                    <span>محاسبه تعداد گیرندگان</span>
+                </button>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseBroadcast" disabled="@_bcSending">انصراف</button>
+        <button class="vz-btn vz-btn--primary" data-testid="broadcast-send" @onclick="AskSendBroadcast"
+                disabled="@(_bcSending || CannotSendBroadcast)">
+            @if (_bcSending) { <span class="vz-spinner sm"></span> } else { <Icon Name="megaphone" Size="16" /> <span>ارسال</span> }
+        </button>
+    </Footer>
+</SlidePanel>
+
+<ConfirmDialog Visible="_bcConfirm" Title="ارسال گروهی اعلان" Intent="primary" Icon="megaphone"
+               Message="@($"این اعلان برای {AUI.Number(_bcPreview?.RecipientCount ?? 0)} کاربر ارسال می‌شود. ادامه می‌دهید؟")"
+               ConfirmText="ارسال" Busy="_bcSending"
+               OnConfirm="SendBroadcast" OnCancel="() => _bcConfirm = false" />
+
 @code {
     private bool _loading = true;
     private string? _error;
@@ -126,11 +267,164 @@
     private Guid _sendUserId;
     private string _sendTitle = string.Empty, _sendMessage = string.Empty;
 
+    // ── FIX-15 broadcast state ────────────────────────────────────────────────
+    private const byte AudienceAll = 1;
+    private const byte AudienceSelected = 2;
+
+    private bool _broadcastOpen, _bcSending, _bcPreviewing, _bcConfirm;
+    private byte _bcAudience = AudienceAll;
+    private string _bcTitle = string.Empty, _bcMessage = string.Empty, _bcActionUrl = string.Empty;
+    private string _bcSearch = string.Empty;
+    private CancellationTokenSource? _bcSearchCts;
+    private List<AdminUserModel> _bcSearchResults = new();
+    private readonly List<BroadcastRecipientChip> _bcSelected = new();
+    private BroadcastPreviewResultModel? _bcPreview;
+    private List<AdminBroadcastModel> _broadcasts = new();
+
+    private static string AudienceTitle(byte audience) =>
+        audience == AudienceSelected ? "مشتریان انتخاب‌شده" : "همه مشتریان";
+
+    private static string BroadcastStatusTitle(byte status) => status switch
+    {
+        2 => "ارسال شد",
+        3 => "ناموفق",
+        _ => "در حال ارسال"
+    };
+
+    private bool CannotSendBroadcast =>
+        string.IsNullOrWhiteSpace(_bcTitle) || string.IsNullOrWhiteSpace(_bcMessage) ||
+        (_bcAudience == AudienceSelected && _bcSelected.Count == 0) ||
+        (_bcPreview?.ExceedsLimit ?? false);
+
     protected override async Task OnInitializedAsync()
     {
         await Load();
         var u = await Api.GetAsync<PagedResult<AdminUserModel>>("admin/users?page=1&pageSize=300");
         _users = u.Data?.Items.ToList() ?? new();
+        await LoadBroadcasts();
+    }
+
+    private async Task LoadBroadcasts()
+    {
+        var r = await Api.GetAsync<PagedResult<AdminBroadcastModel>>("admin/notification-broadcasts?page=1&pageSize=20");
+        _broadcasts = r.Data?.Items.ToList() ?? new();
+    }
+
+    private void OpenBroadcast()
+    {
+        _bcAudience = AudienceAll;
+        _bcTitle = _bcMessage = _bcActionUrl = _bcSearch = string.Empty;
+        _bcSelected.Clear();
+        _bcSearchResults.Clear();
+        _bcPreview = null;
+        _broadcastOpen = true;
+        _ = RefreshPreview();
+    }
+
+    private void CloseBroadcast() => _broadcastOpen = false;
+
+    private async Task SetAudience(byte audience)
+    {
+        _bcAudience = audience;
+        _bcPreview = null;
+        await RefreshPreview();
+    }
+
+    /// <summary>Debounced server-side search; the picker never loads the whole user table.</summary>
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _bcSearch = e.Value?.ToString() ?? string.Empty;
+        _bcSearchCts?.Cancel();
+        _bcSearchCts = new CancellationTokenSource();
+        var token = _bcSearchCts.Token;
+
+        if (_bcSearch.Trim().Length < 2) { _bcSearchResults = new(); return; }
+
+        try
+        {
+            await Task.Delay(300, token);
+            var query = $"admin/users?page=1&pageSize=10&role=Customer&status=1&search={Uri.EscapeDataString(_bcSearch.Trim())}";
+            var r = await Api.GetAsync<PagedResult<AdminUserModel>>(query);
+            if (token.IsCancellationRequested) return;
+            _bcSearchResults = (r.Data?.Items ?? new List<AdminUserModel>())
+                .Where(x => _bcSelected.All(c => c.Id != x.Id)).ToList();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { /* superseded by a newer keystroke */ }
+    }
+
+    private async Task AddRecipient(AdminUserModel user)
+    {
+        if (_bcSelected.All(x => x.Id != user.Id))
+            _bcSelected.Add(new BroadcastRecipientChip { Id = user.Id, FullName = user.FullName, Mobile = user.Mobile });
+        _bcSearchResults.RemoveAll(x => x.Id == user.Id);
+        await RefreshPreview();
+    }
+
+    private async Task RemoveRecipient(BroadcastRecipientChip chip)
+    {
+        _bcSelected.RemoveAll(x => x.Id == chip.Id);
+        await RefreshPreview();
+    }
+
+    private async Task RefreshPreview()
+    {
+        if (_bcAudience == AudienceSelected && _bcSelected.Count == 0) { _bcPreview = null; StateHasChanged(); return; }
+
+        _bcPreviewing = true;
+        var r = await Api.PostAsync<BroadcastPreviewResultModel>("admin/notification-broadcasts/preview", new
+        {
+            Audience = _bcAudience,
+            SelectedCustomerIds = _bcSelected.Select(x => x.Id).ToList()
+        });
+        _bcPreviewing = false;
+        _bcPreview = r.IsSuccess ? r.Data : null;
+        if (!r.IsSuccess) Toasts.Error(r.Message);
+        StateHasChanged();
+    }
+
+    private async Task AskSendBroadcast()
+    {
+        // Always confirm against a fresh count so the number the admin approves is current.
+        await RefreshPreview();
+        if (_bcPreview is null || _bcPreview.RecipientCount == 0)
+        {
+            Toasts.Warning("گیرنده‌ای برای این ارسال یافت نشد.");
+            return;
+        }
+        if (_bcPreview.ExceedsLimit)
+        {
+            Toasts.Error($"تعداد گیرندگان بیشتر از سقف مجاز {_bcPreview.MaximumRecipients} کاربر است.");
+            return;
+        }
+        _bcConfirm = true;
+    }
+
+    private async Task SendBroadcast()
+    {
+        _bcSending = true;
+        var payload = new
+        {
+            Audience = _bcAudience,
+            SelectedCustomerIds = _bcSelected.Select(x => x.Id).ToList(),
+            Title = _bcTitle.Trim(),
+            Message = _bcMessage.Trim(),
+            ActionUrl = string.IsNullOrWhiteSpace(_bcActionUrl) ? null : _bcActionUrl.Trim()
+        };
+        var headers = new Dictionary<string, string> { ["Idempotency-Key"] = $"broadcast-{Guid.NewGuid():N}" };
+        var r = await Api.PostAsync<AdminBroadcastModel>("admin/notification-broadcasts", payload, headers);
+        _bcSending = false;
+        _bcConfirm = false;
+
+        if (r.IsSuccess && r.Data is not null)
+        {
+            // Report the server's actual delivered count, never the preview estimate.
+            Toasts.Success($"اعلان برای {AUI.Number(r.Data.RecipientCount)} کاربر ارسال شد.");
+            _broadcastOpen = false;
+            await LoadBroadcasts();
+            await Load();
+        }
+        else Toasts.Error(r.Message);
     }
 
     private async Task Load()

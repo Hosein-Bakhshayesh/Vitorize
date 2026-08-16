@@ -62,6 +62,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IOrderItemKycFinanceResolutionService, OrderItemKycFinanceResolutionService>();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IAdminNotificationBroadcastService, AdminNotificationBroadcastService>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<ISecurityLogService, SecurityLogService>();
             services.AddScoped<IErrorLogService, ErrorLogService>();

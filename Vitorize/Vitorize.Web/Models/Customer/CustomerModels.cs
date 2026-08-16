@@ -168,6 +168,8 @@ namespace Vitorize.Web.Models.Customer
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? ReadAt { get; set; }
+        /// <summary>Internal call-to-action path for an announcement; null for other notifications.</summary>
+        public string? ActionUrl { get; set; }
     }
 
     public class CustomerReviewModel

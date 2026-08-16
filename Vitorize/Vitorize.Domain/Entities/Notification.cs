@@ -21,5 +21,13 @@ public partial class Notification
 
     public DateTime? ReadAt { get; set; }
 
+    /// <summary>
+    /// Set only for rows produced by an admin broadcast (FIX-15). Transactional notifications
+    /// leave this null.
+    /// </summary>
+    public Guid? BroadcastId { get; set; }
+
     public virtual User User { get; set; } = null!;
+
+    public virtual NotificationBroadcast? Broadcast { get; set; }
 }

@@ -56,6 +56,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<Notification> Notifications { get; set; }
 
+    public virtual DbSet<NotificationBroadcast> NotificationBroadcasts { get; set; }
+
     public virtual DbSet<Order> Orders { get; set; }
 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
@@ -511,6 +513,14 @@ public partial class VitorizeDbContext : DbContext
         {
             entity.HasIndex(e => new { e.UserId, e.IsRead }, "IX_Notifications_UserId_IsRead");
 
+            // V0018: broadcast delivery. The filtered unique index structurally prevents a customer
+            // receiving the same announcement twice, independently of request idempotency.
+            entity.HasIndex(e => e.BroadcastId, "IX_Notifications_BroadcastId")
+                .HasFilter("[BroadcastId] IS NOT NULL");
+            entity.HasIndex(e => new { e.BroadcastId, e.UserId }, "UX_Notifications_Broadcast_User")
+                .IsUnique()
+                .HasFilter("[BroadcastId] IS NOT NULL");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Title).HasMaxLength(250);
@@ -519,6 +529,27 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Notifications_Users");
+
+            // Delivered notifications must survive independently of the broadcast header row.
+            entity.HasOne(d => d.Broadcast).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.BroadcastId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Notifications_NotificationBroadcasts");
+        });
+
+        modelBuilder.Entity<NotificationBroadcast>(entity =>
+        {
+            entity.HasIndex(e => e.CreatedAt, "IX_NotificationBroadcasts_CreatedAt");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.Title).HasMaxLength(250);
+            entity.Property(e => e.ActionUrl).HasMaxLength(500);
+
+            entity.HasOne(d => d.CreatedByUser).WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_NotificationBroadcasts_Users");
         });
 
         modelBuilder.Entity<Order>(entity =>

@@ -313,7 +313,7 @@ public sealed class AdminCatalogCrudIntegrationTests
         // The export projection stays lightweight (no order items), but since FIX-13 it carries the
         // financial summary the Admin CSV exports: subtotal, discount and the VAT snapshot.
         body.Data.Should().OnlyContain(x => x.Items.Count == 0);
-        body.Data.Select(x => x.SubtotalAmount).Should().Equal(20m, 10m);
+        body.Data!.Select(x => x.SubtotalAmount).Should().Equal(20m, 10m);
         body.Data.Should().OnlyContain(x => x.DiscountAmount == 0m);
         body.Data.Should().OnlyContain(x => !x.VatEnabled && x.VatAmount == 0m);
 

@@ -196,6 +196,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 102,
+      "version": "V0018",
+      "name": "V0018__notification_broadcasts.sql",
+      "path": "Versioned/V0018__notification_broadcasts.sql",
+      "sha256": "4e331e3b0475f07b4af8f623fcdf49b98cf21a04b62890148ca04916605b1473",
+      "classification": "required",
+      "dependencies": ["V0017", "dbo.Notifications", "dbo.Users"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

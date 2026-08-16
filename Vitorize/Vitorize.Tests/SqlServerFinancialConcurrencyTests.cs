@@ -406,6 +406,7 @@ public sealed class SqlServerFinancialConcurrencyTests
     {
         public Task CreateAsync(Guid u, byte t, string title, string message) => Task.CompletedTask;
         public Task SendSystemNotificationAsync(Guid u, string t, string m) => Task.CompletedTask;
+        public Task<int> CreateBulkAsync(Guid b, IReadOnlyCollection<Guid> r, string t, string m, CancellationToken c = default) => Task.FromResult(0);
         public Task<List<NotificationDto>> GetMyNotificationsAsync(Guid u) => Task.FromResult(new List<NotificationDto>());
         public Task<int> GetUnreadCountAsync(Guid u) => Task.FromResult(0);
         public Task MarkAsReadAsync(Guid u, Guid n) => Task.CompletedTask;
