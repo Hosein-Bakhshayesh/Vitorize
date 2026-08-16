@@ -79,6 +79,26 @@ async function addPrimaryItem(page: Page, email: string) {
   await page.locator('#product-input-account_email').fill(email);
   await page.locator('.vz-dialog button.st-btn--accent').click();
   await expect(page.locator('.vz-dialog')).toBeHidden();
+
+  // The dialog closes as soon as the client-side render completes, which is before the cart
+  // round-trip has been persisted. Reading the cart straight afterwards could therefore observe
+  // the previous state and see one line where two were added. addGuestItem already polls the API
+  // for exactly this reason; do the same here, keyed on the value that makes this line distinct.
+  await expect
+    .poll(async () => {
+      const cookie = (await page.context().cookies()).find(x => x.name === guestCookie);
+      if (!cookie) return -1;
+      const response = await page.request.get('http://127.0.0.1:5177/api/cart', {
+        headers: { 'X-Vitorize-Guest-Cart': cookie.value }
+      });
+      if (response.status() !== 200) return -1;
+      const cart = (await response.json()).data as {
+        items: Array<{ inputValues?: Array<{ fieldKey: string; value: string }> }>;
+      };
+      return cart.items.filter(item =>
+        item.inputValues?.some(value => value.fieldKey === 'account_email' && value.value === email)).length;
+    }, { message: `the guest cart must contain the line added with ${email}` })
+    .toBe(1);
 }
 
 test('FIX-03 browser merge uses a seeded existing cart, persists after refresh, and isolates logout', async ({ page, context }) => {
@@ -126,15 +146,23 @@ test('FIX-03 expired access token refreshes and preserves the authenticated cart
   });
   await loginCustomer(page);
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(2);
+
+  // The earlier merge test in this file commits its merged cart to the same seeded customer, so
+  // the absolute line count depends on execution order. The contract under test is narrower:
+  // an access-token refresh must leave the authenticated cart exactly as it was. Snapshot it.
+  const dynamicLines = page.locator('.st-cart-item').filter({ hasText: 'E2E Dynamic Product' });
+  const dynamicBefore = await dynamicLines.count();
+  const totalBefore = await page.locator('.st-cart-item').count();
+  expect(dynamicBefore, 'the seeded authenticated cart must not be empty').toBeGreaterThan(0);
+
   await page.waitForTimeout(65_000);
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(2);
+  await expect(dynamicLines).toHaveCount(dynamicBefore);
   await page.goto('/shop', { waitUntil: 'networkidle' });
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Related Product' })).toBeVisible();
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item')).toHaveCount(3);
+  await expect(page.locator('.st-cart-item')).toHaveCount(totalBefore);
   expect(routes.filter(x => x.route === '/auth/customer/login' && x.status === 302)).toHaveLength(1);
 });
 

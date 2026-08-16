@@ -48,6 +48,14 @@ $finalBrowserFixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-
 & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $finalBrowserFixture
 if ($LASTEXITCODE -ne 0) { throw 'FIX-09 final browser fixture failed.' }
 
+# FIX-03 guest-cart runtime tests assert against a pre-existing authenticated cart (a
+# fingerprint-matching line, a distinct line, and a second product). The fixture existed but was
+# never applied here, so those tests ran against whatever cart earlier fixtures happened to leave.
+# It rebuilds the customer's cart, so it must run after the fixtures above.
+$fix03ClosureFixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-fix03-closure.sql')).Path
+& sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $fix03ClosureFixture
+if ($LASTEXITCODE -ne 0) { throw 'FIX-03 closure fixture failed.' }
+
 # The browser fixture's instant-code canaries must be valid application ciphertext.
 # Generate legacy-compatible AES-CBC values at seed time with the ephemeral Testing
 # key instead of committing ciphertext bound to one runner key or plaintext in an
