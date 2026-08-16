@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Uploads;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Exceptions;
@@ -32,6 +33,13 @@ namespace Vitorize.Api.Controllers.Admin
         };
         private static readonly string[] SettingsAllowedExtensions = [.. AllowedExtensions, ".ico"];
         private static readonly string[] SettingsAllowedContentTypes = [.. AllowedContentTypes, "image/x-icon", "image/vnd.microsoft.icon"];
+
+        // FIX-17: the initial loading visual is the one settings image that may be animated, so GIF is
+        // allowed here and nowhere else. ICO is excluded — it is a favicon format, not a loader.
+        // The extension list is shared with the renderer: if the two drifted, a file this endpoint
+        // accepted would be silently rejected at boot and the default loader shown instead.
+        private static readonly string[] LoadingMediaExtensions = LoadingMediaRules.AllowedExtensions;
+        private static readonly string[] LoadingMediaContentTypes = [.. AllowedContentTypes, "image/gif"];
 
         // Curated, non-executable attachment set for the rich-text editor.
         private static readonly string[] AttachmentExtensions =
@@ -83,6 +91,14 @@ namespace Vitorize.Api.Controllers.Admin
         [RequestSizeLimit(MaxFileSize)]
         public Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadSettingsImage(IFormFile file)
             => UploadAsync(file, "settings", "تصویر با موفقیت آپلود شد.", SettingsAllowedExtensions, SettingsAllowedContentTypes);
+
+        /// <summary>
+        /// تصویر یا GIF بارگذاری اولیه. تنها نقطه‌ای که فرمت متحرک (GIF) پذیرفته می‌شود.
+        /// </summary>
+        [HttpPost("loading-media")]
+        [RequestSizeLimit(MaxFileSize)]
+        public Task<ActionResult<ApiResult<UploadFileResultDto>>> UploadLoadingMedia(IFormFile file)
+            => UploadAsync(file, "settings", "تصویر بارگذاری با موفقیت آپلود شد.", LoadingMediaExtensions, LoadingMediaContentTypes);
 
         /// <summary>
         /// پیوست فایل ویرایشگر متن (CKEditor). فقط فرمت‌های امن و غیراجرایی
@@ -316,6 +332,12 @@ namespace Vitorize.Api.Controllers.Admin
 
             // ICO: reserved=0, type=1, at least one image
             if (header[0] == 0 && header[1] == 0 && header[2] == 1 && header[3] == 0 && (header[4] != 0 || header[5] != 0))
+                return true;
+
+            // GIF: "GIF87a" or "GIF89a". Only the loading-media endpoint allows the .gif extension and
+            // image/gif content type, so recognising the signature here cannot widen any other upload.
+            if (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 &&
+                header[3] == 0x38 && (header[4] == 0x37 || header[4] == 0x39) && header[5] == 0x61)
                 return true;
 
             return false;

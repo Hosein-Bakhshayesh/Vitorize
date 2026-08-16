@@ -114,6 +114,8 @@ namespace Vitorize.Web.Services.UI
         public string Error500IllustrationPath => FirstNonEmpty("Error500IllustrationPath", "EmptyStateIllustrationPath");
         public string MaintenanceIllustrationPath => FirstNonEmpty("MaintenanceIllustrationPath", "EmptyStateIllustrationPath");
         public string EmptyStateIllustrationPath => Get("EmptyStateIllustrationPath", "");
+        /// <summary>FIX-17: تصویر/GIF بارگذاری اولیه. خالی ⇒ لودر پیش‌فرض ویتورایز.</summary>
+        public string LoadingMediaPath => Get("LoadingMediaPath", "");
         public string AssetVersion => Get("Branding.AssetVersion", "1");
 
         // ── Typography (values are emitted only through a validated CSS declaration) ──

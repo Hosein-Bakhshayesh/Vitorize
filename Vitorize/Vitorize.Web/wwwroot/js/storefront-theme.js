@@ -1,18 +1,7 @@
 // Vitorize storefront theme controller (light/dark, persisted in localStorage)
 (function () {
-    function hideInitialLoader() {
-        var loader = document.getElementById('vz-initial-loader');
-        if (!loader) return;
-        loader.style.opacity = '0';
-        setTimeout(function () {
-            if (loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 250);
-    }
-
-    // Interactive public routes (cart, checkout and authentication) do not load
-    // admin.js, so their SSR splash must be released by the shared bundle.
-    window.addEventListener('load', function () { setTimeout(hideInitialLoader, 500); });
-    document.addEventListener('click', hideInitialLoader, { once: true });
+    // The initial loading overlay is released by js/initial-loader.js (FIX-17), which is emitted
+    // only on the routes that actually render it.
 
     document.addEventListener('click', function (event) {
         var link = event.target.closest && event.target.closest('.st-skip-link');

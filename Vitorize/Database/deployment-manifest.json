@@ -206,6 +206,16 @@
       "environments": ["Development", "Staging", "Production"]
     },
     {
+      "order": 103,
+      "version": "V0019",
+      "name": "V0019__loading_media_setting_seed.sql",
+      "path": "Versioned/V0019__loading_media_setting_seed.sql",
+      "sha256": "2397e2acba47a1af09d214d815118b04db61c557b45bac0f2557ae46add0711e",
+      "classification": "required",
+      "dependencies": ["V0018", "dbo.Settings"],
+      "environments": ["Development", "Staging", "Production"]
+    },
+    {
       "order": 60,
       "version": "H20260708-UI",
       "name": "2026-07-08_seed_settings_ui_customization.sql",

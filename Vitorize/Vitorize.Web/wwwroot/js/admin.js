@@ -1,16 +1,6 @@
 // Vitorize Admin — minimal client helpers (no external dependencies)
 (function () {
-    function hideInitialLoader() {
-        var loader = document.getElementById('vz-initial-loader');
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(function () { if (loader && loader.parentNode) loader.parentNode.removeChild(loader); }, 250);
-        }
-    }
-
-    // Remove the SSR splash once Blazor has started rendering.
-    window.addEventListener('load', function () { setTimeout(hideInitialLoader, 500); });
-    document.addEventListener('click', hideInitialLoader, { once: true });
+    // The initial loading overlay is released by js/initial-loader.js (FIX-17).
 
     // Blazor default error UI handlers
     document.addEventListener('click', function (e) {

@@ -58,6 +58,45 @@
     }
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
 
+    @* FIX-17: the boot loader paints before any stylesheet is guaranteed to have loaded, and
+       admin.css — which previously held the only .vz-splash rules — is not linked on /cart,
+       /checkout, /login, /register, /payment or the password-reset routes. Inlining the loader's
+       critical CSS here makes it correct on every route that renders it, and it deliberately
+       follows the <link> tags so it wins over the older admin.css copy. *@
+    <style>
+        .vz-splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column;
+                     align-items: center; justify-content: center; gap: 20px;
+                     background: var(--st-bg, var(--bg, #ffffff)); transition: opacity .2s ease; }
+        .vz-splash.is-done { opacity: 0; pointer-events: none; }
+        /* The colour/size properties also cover the Authorizing and RedirectToLogin splashes,
+           which render a letter mark rather than the logo image. */
+        .vz-splash-mark { width: 64px; height: 64px; border-radius: 14px; display: flex;
+                          align-items: center; justify-content: center;
+                          background: linear-gradient(135deg, #0D9488, #0891B2);
+                          color: #fff; font-size: 30px; font-weight: 700; }
+        .vz-splash-mark img { width: 40px; height: 40px; object-fit: contain; }
+        .vz-splash__media { max-width: min(240px, 60vw); max-height: min(240px, 40vh);
+                            width: auto; height: auto; object-fit: contain; }
+        .vz-spinner { width: 38px; height: 38px; border-radius: 50%;
+                      border: 3px solid var(--st-chip, rgba(13, 148, 136, .18));
+                      border-top-color: var(--st-primary, #0D9488);
+                      animation: vz-splash-spin .8s linear infinite; }
+        .vz-splash__sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+                         overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+        @@keyframes vz-splash-spin { to { transform: rotate(360deg); } }
+        :root[data-theme="dark"] .vz-splash { background: var(--st-bg, var(--bg, #0A121C)); }
+        @@media (prefers-reduced-motion: reduce) {
+            /* The ring stops rotating; the mark and the hidden status text still convey loading. */
+            .vz-spinner { animation: none; }
+            .vz-splash { transition: none; }
+        }
+        @@media (max-width: 480px) {
+            .vz-splash-mark { width: 52px; height: 52px; }
+            .vz-splash-mark img { width: 32px; height: 32px; }
+            .vz-spinner { width: 30px; height: 30px; }
+        }
+    </style>
+
     @if (!string.IsNullOrWhiteSpace(_b.GoogleAnalyticsId))
     {
         <script async src="https://www.googletagmanager.com/gtag/js?id=@_b.GoogleAnalyticsId"></script>
@@ -77,10 +116,21 @@
 <body>
     @if (!_prerender)
     {
-        <div id="vz-initial-loader" class="vz-splash">
-            <div class="vz-splash-mark"><img src="@_logoSrc" alt="@_b.SiteName" /></div>
-            <div class="vz-spinner"></div>
+        @* FIX-17: an administrator-configured image/GIF replaces the built-in visual; an empty or
+           unsafe setting falls back to the default Vitorize mark + ring. *@
+        <div id="vz-initial-loader" class="vz-splash" role="status">
+            @if (_loadingMediaSrc is not null)
+            {
+                <img class="vz-splash__media" src="@_loadingMediaSrc" alt="" />
+            }
+            else
+            {
+                <div class="vz-splash-mark"><img src="@_logoSrc" alt="" /></div>
+                <div class="vz-spinner"></div>
+            }
+            <span class="vz-splash__sr">در حال بارگذاری</span>
         </div>
+        <script src="js/initial-loader.js?v=@AssetVersion"></script>
     }
 
     <Routes @rendermode="PageRenderMode" />
@@ -110,12 +160,13 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260815-fix10-verification-dob-1.0.1";
+    private const string AssetVersion = "20260816-fix17-loading-media-1.0.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";
     private string _logoSrc = "images/logo.png";
     private string? _appleIcon;
+    private string? _loadingMediaSrc;
     private string? _fontFaceCss;
     private string? _storefrontTypographyCss;
     private bool _prerender, _indexableRoute, _needsAdminAssets, _isStorefront;
@@ -137,6 +188,9 @@
         var logo = _b.LogoPath;
         if (string.IsNullOrWhiteSpace(logo)) logo = _b.SiteLogoPath;
         if (!string.IsNullOrWhiteSpace(logo)) _logoSrc = Versioned(Media.Resolve(logo), _b.AssetVersion);
+        if (IsSafeLoadingMedia(_b.LoadingMediaPath))
+            _loadingMediaSrc = Versioned(Media.Resolve(_b.LoadingMediaPath), _b.AssetVersion);
+
         if (!string.IsNullOrWhiteSpace(_b.FontPath) && IsSafeFont(_b.FontPath, _b.FontFormat))
         {
             var family = CssString(_b.FontFamily);
@@ -161,6 +215,11 @@
         return family.Length is >= 2 and <= 60 ? family : fallback;
     }
     private static bool IsSafeFont(string path, string format) => path.StartsWith("/uploads/fonts/", StringComparison.OrdinalIgnoreCase) && format is "woff2" or "woff" or "ttf";
+
+    // FIX-17: the loader src is written straight into the boot HTML, so the shared rule decides
+    // whether the configured value is a safe uploaded medium; anything else falls back to default.
+    private static bool IsSafeLoadingMedia(string? path) =>
+        Vitorize.Application.Common.LoadingMediaRules.IsSafePath(path);
 
     private static bool IsPrerenderedPublicPath(string path) =>
         !path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) &&

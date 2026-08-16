@@ -187,6 +187,7 @@ else
         "LogoPath", "LogoDarkPath", "LogoSmallPath", "HeaderLogoPath", "FooterLogoPath",
         "FaviconPath", "AppleTouchIconPath", "OgImagePath", "TwitterImagePath", "SocialPreviewImagePath",
         "HeroBackgroundPath", "Error404IllustrationPath", "Error500IllustrationPath", "MaintenanceIllustrationPath", "EmptyStateIllustrationPath",
+        "LoadingMediaPath",
     };
 
     private static readonly HashSet<string> Assigned = new(
@@ -302,6 +303,29 @@ else
 
     private Task Discard() => Load();
 
+    // FIX-17: the loading visual is the only settings image that may be animated, so it uses the
+    // dedicated GIF-capable endpoint. Favicons keep their ICO-specific rules; everything else is
+    // the standard still-image set.
+    private const string LoadingMediaKey = "LoadingMediaPath";
+    private const string FaviconKey = "FaviconPath";
+
+    private static string UploadEndpointFor(string key) =>
+        key == LoadingMediaKey ? "admin/uploads/loading-media" : "admin/uploads/settings-image";
+
+    private static string UploadAcceptFor(string key) => key switch
+    {
+        LoadingMediaKey => "image/png,image/jpeg,image/webp,image/gif",
+        FaviconKey => "image/png,image/x-icon,image/vnd.microsoft.icon,.ico",
+        _ => "image/png,image/jpeg,image/webp"
+    };
+
+    private static string UploadGuidanceFor(string key) => key switch
+    {
+        LoadingMediaKey => "PNG، JPG، WEBP یا GIF متحرک — حداکثر ۲ مگابایت — خالی بگذارید تا لودر پیش‌فرض نمایش داده شود",
+        FaviconKey => "PNG یا ICO — پیشنهاد ۳۲×۳۲ یا ۴۸×۴۸ — حداکثر ۲ مگابایت",
+        _ => "PNG، JPG یا WEBP — حداکثر ۲ مگابایت"
+    };
+
     private async Task OnImageChanged(SettingModel s, string? path)
     {
         s.Value = path;
@@ -325,7 +349,7 @@ else
     }
 
     private RenderFragment Field(SettingModel s) =>
-        @<div class="vz-setfield" @key="s.Key">
+        @<div class="vz-setfield" @key="s.Key" data-testid="@($"setting-{s.Key}")">
             <div class="vz-setfield__meta">
                 <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
                 <div class="vz-setfield__key">@s.Key</div>
@@ -358,9 +382,9 @@ else
                         break;
 
                     case "image":
-                        <UploadBox Value="@s.Value" Endpoint="admin/uploads/settings-image"
-                                   Accept="@(s.Key == "FaviconPath" ? "image/png,image/x-icon,image/vnd.microsoft.icon,.ico" : "image/png,image/jpeg,image/webp")"
-                                   Guidance="@(s.Key == "FaviconPath" ? "PNG یا ICO — پیشنهاد ۳۲×۳۲ یا ۴۸×۴۸ — حداکثر ۲ مگابایت" : "PNG، JPG یا WEBP — حداکثر ۲ مگابایت")"
+                        <UploadBox Value="@s.Value" Endpoint="@UploadEndpointFor(s.Key)"
+                                   Accept="@UploadAcceptFor(s.Key)"
+                                   Guidance="@UploadGuidanceFor(s.Key)"
                                    ValueChanged="v => OnImageChanged(s, v)" Label="آپلود تصویر" />
                         <ImageGuideline Spec="ImageSpecs.ForKey(s.Key)" />
                         break;

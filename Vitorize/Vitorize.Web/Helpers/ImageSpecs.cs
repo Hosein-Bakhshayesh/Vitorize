@@ -17,6 +17,7 @@ namespace Vitorize.Web.Helpers
         public static readonly ImageSpec OgImage = new("۱۲۰۰×۶۳۰", "۱.۹۱:۱", "JPG یا PNG", "۱ مگابایت", "پیش‌نمایش اشتراک‌گذاری");
         public static readonly ImageSpec HeroBackground = new("۱۹۲۰×۱۰۸۰", "۱۶:۹", "WebP یا JPG", "۲ مگابایت");
         public static readonly ImageSpec Illustration = new("۵۱۲×۵۱۲", "۱:۱", "SVG یا PNG شفاف", "۵۱۲ کیلوبایت", "ماسکات / تصویر حالت");
+        public static readonly ImageSpec LoadingMedia = new("۲۴۰×۲۴۰", "۱:۱", "PNG، WebP یا GIF", "۵۱۲ کیلوبایت", "خالی = لودر پیش‌فرض؛ فایل سبک نگه دارید");
 
         // بخش‌های دیگر پنل (برای استفاده در F5 — آپلود محصول/دسته/برند/بنر)
         public static readonly ImageSpec ProductThumbnail = new("۱۲۰۰×۱۲۰۰", "۱:۱", "WebP", "۲ مگابایت");
@@ -47,6 +48,7 @@ namespace Vitorize.Web.Helpers
             ["Error500IllustrationPath"] = Illustration,
             ["MaintenanceIllustrationPath"] = Illustration,
             ["EmptyStateIllustrationPath"] = Illustration,
+            ["LoadingMediaPath"] = LoadingMedia,
         };
 
         public static ImageSpec? ForKey(string? key) =>
