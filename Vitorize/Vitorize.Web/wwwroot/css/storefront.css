@@ -1646,5 +1646,12 @@ body { background: var(--st-bg, #fff); }
 /* Keyboard accessibility and reduced-motion defaults. */
 .st-skip-link{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:100000;transform:translateY(-150%);padding:10px 16px;border-radius:10px;background:var(--st-accent,#0ea5a8);color:#fff;font-weight:700}
 .st-skip-link:focus{transform:translateY(0);outline:3px solid var(--st-focus,#f59e0b);outline-offset:2px}
-:where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:3px solid var(--st-focus,#f59e0b);outline-offset:2px}
+/* Keyboard focus ring for controls a user can actually reach with Tab. */
+:where(a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])):focus-visible{outline:3px solid var(--st-focus,#f59e0b);outline-offset:2px}
+/* FIX-16: tabindex="-1" marks an element as programmatically focusable only — never reachable by
+   Tab. Blazor's <FocusOnNavigate Selector="h1"/> stamps it on the page heading after every route
+   change, and modals/skip-targets use it for focus management. Suppressing the ring here removes
+   both the amber site ring above and the browser's default `outline:auto`, without touching any
+   control a keyboard user can actually reach. */
+[tabindex="-1"]:focus,[tabindex="-1"]:focus-visible{outline:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
