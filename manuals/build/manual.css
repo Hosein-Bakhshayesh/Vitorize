@@ -18,18 +18,15 @@ body {
   counter-reset: chapter;
 }
 
-/* ---------- paged media ---------- */
-@page {
-  size: A4; margin: 20mm 17mm 18mm 17mm;
-  @bottom-center { content: counter(page, pnum); font-family: 'Vazirmatn'; font-size: 8.5pt; color: var(--muted); }
-  @top-left  { content: string(doctitle); font-family: 'Vazirmatn'; font-size: 8pt; color: var(--muted); }
-  @top-right { content: string(chaptertitle); font-family: 'Vazirmatn'; font-size: 8pt; color: var(--teal); font-weight: 500; }
-}
-@page cover { margin: 0; @bottom-center { content: none; } @top-left { content: none; } @top-right { content: none; } }
-@page :first { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+/* ---------- paged media ----------
+   Rendered with Chromium's native print engine (not Paged.js, which mis-paginates long RTL
+   chapters and clips their overflow). Chromium ignores @page margin boxes, so the running header
+   and the page number are supplied by the renderer's headerTemplate/footerTemplate; the vertical
+   margins below reserve the space they occupy. */
+@page { size: A4; margin: 18mm 17mm 16mm 17mm; }
 
 /* ---------- cover ---------- */
-.cover { page: cover; break-after: page; height: 297mm; position: relative; color: #fff;
+.cover { break-after: page; height: 261mm; position: relative; color: #fff;
   background: linear-gradient(135deg, #0b3b39 0%, #0f766e 55%, #0ea5a4 100%); overflow: hidden; }
 .cover .glow { position: absolute; border-radius: 50%; background: rgba(255,255,255,.08); }
 .cover .g1 { width: 420px; height: 420px; top: -120px; left: -120px; }
@@ -78,8 +75,12 @@ figcaption::before { content: "تصویر " counter(chapter, pnum) "-" counter(f
 .note .lbl, .tip .lbl, .warn .lbl, .scenario .lbl { display: block; font-weight: 800; margin-bottom: 1mm; font-size: 9.6pt; }
 .tip .lbl { color: #16a34a; } .warn .lbl { color: var(--amber); } .scenario .lbl { color: var(--teal); } .note .lbl { color: var(--teal2); }
 
-/* ---------- tables ---------- */
+/* ---------- tables ----------
+   Tables must be free to split across pages; only individual rows are kept whole, and the header
+   row repeats on every page a long table spans. */
 table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.3pt; break-inside: auto; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
 th, td { border: 1px solid var(--line); padding: 1.8mm 2.4mm; text-align: right; vertical-align: top; }
 thead th { background: var(--teal); color: #fff; font-weight: 700; }
 tbody tr:nth-child(even) { background: var(--soft2); }
@@ -98,7 +99,12 @@ table.fields th:first-child { width: 32%; }
 .toc a { text-decoration: none; color: inherit; }
 .toc .dots { flex: 1; border-bottom: 1px dotted var(--line); margin: 0 2mm; transform: translateY(-2px); }
 .toc a.pg { color: var(--teal); font-weight: 700; }
-.tocmark { font-size: 1px; line-height: 0; color: transparent; }
+/* Invisible-but-extractable anchor used by the two-pass TOC. It must actually paint (white on
+   white) — fully transparent, zero-line-height text is dropped from the PDF text layer. */
+.tocmark { font-size: 2px; line-height: 1; color: #fff; letter-spacing: 0;
+  /* Isolated LTR inline-block: inside an RTL paragraph the bidi algorithm otherwise reorders the
+     ASCII run and the extracted text comes back as "##" with the id detached. */
+  direction: ltr; unicode-bidi: isolate; display: inline-block; }
 .section-intro { color: var(--muted); font-size: 10pt; margin-bottom: 4mm; }
 /* flow diagrams */
 .flow { break-inside: avoid; margin: 4mm auto; width: 92%; }
