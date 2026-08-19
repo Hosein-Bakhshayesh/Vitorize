@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -368,6 +368,7 @@ public sealed class Fix13VatCheckoutIntegrationTests
             product.KycThresholdAmount = kycThreshold.Value;
             product.KycPolicyVersionId = policyVersionId;
         }
+        product.WithCanonicalVariant();
         db.Categories.Add(category);
         db.Products.Add(product);
         await db.SaveChangesAsync();

@@ -21,6 +21,13 @@ public partial class ProductVariant
 
     public byte StockMode { get; set; }
 
+    /// <summary>
+    /// Managed inventory for non-Instant delivery (StockMode = Manual). Instant variants ignore this
+    /// value entirely: their availability is derived from eligible gift codes. Never negative —
+    /// sale-time consumption uses a conditional UPDATE guarded by a CHECK constraint.
+    /// </summary>
+    public int StockQuantity { get; set; }
+
     public bool IsDefault { get; set; }
 
     public bool IsActive { get; set; }

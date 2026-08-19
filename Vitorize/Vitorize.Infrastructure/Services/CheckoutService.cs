@@ -280,6 +280,31 @@ namespace Vitorize.Infrastructure.Services
                 // GiftCodeReservationService است تا تخصیص کد در همهٔ مسیرها سریالی شود.
                 // قفل‌ها به ترتیب یکسان (مرتب‌شده) گرفته می‌شوند تا هنگام رزرو چند کد به‌صورت
                 // هم‌زمان، نه بن‌بست ردیفی (deadlock) رخ دهد و نه بن‌بست ناشی از ترتیب قفل‌ها.
+                // Managed inventory is validated here but deliberately NOT reserved: stock is consumed
+                // only on authoritative payment success, so an abandoned checkout never holds units.
+                // This is a pre-payment guard against the obvious case; the atomic decrement at payment
+                // capture remains the real defence, because stock can still change after this point.
+                foreach (var orderItem in orderItems)
+                {
+                    if (orderItem.DeliveryType == (byte)DeliveryType.Instant)
+                        continue;
+                    // Non-Instant cart lines always carry a variant id: AddItemAsync resolves the
+                    // product's canonical SKU when the caller omits one. A null here means a cart
+                    // built before that guarantee existed, and there is no SKU whose stock could be
+                    // checked, so it falls through to the atomic decrement at payment capture.
+                    if (orderItem.ProductVariantId is null)
+                        continue;
+
+                    var available = await _dbContext.ProductVariants
+                        .Where(v => v.Id == orderItem.ProductVariantId)
+                        .Select(v => v.StockQuantity)
+                        .FirstOrDefaultAsync();
+
+                    if (available < orderItem.Quantity)
+                        throw new BusinessException(
+                            $"موجودی محصول {orderItem.ProductTitle} کافی نیست؛ موجودی فعلی: {available}.");
+                }
+
                 foreach (var orderItem in orderItems)
                 {
                     if (orderItem.DeliveryType != (byte)DeliveryType.Instant)

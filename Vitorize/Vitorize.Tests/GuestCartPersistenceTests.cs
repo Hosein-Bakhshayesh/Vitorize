@@ -6,6 +6,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Infrastructure.Services;
+using Vitorize.Shared.Enums;
 using Xunit;
 
 namespace Vitorize.Tests;
@@ -105,6 +106,14 @@ public sealed class GuestCartPersistenceTests
             Slug = $"guest-product-{suffix}-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2,
             BasePrice = 100m, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
         };
+        // Inventory is SKU-scoped, so every purchasable non-Instant product owns a canonical
+        // variant. Seeding one here keeps the fixture in the only shape the system can produce.
+        product.ProductVariants.Add(new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = 100m,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+            IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+        });
         db.AddRange(category, product);
         await db.SaveChangesAsync();
         return product;

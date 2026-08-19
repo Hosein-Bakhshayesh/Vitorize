@@ -1,8 +1,10 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.Cart;
+using Vitorize.Application.Common;
+using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.DTOs.Cart;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -15,14 +17,18 @@ using Xunit;
 namespace Vitorize.Tests;
 
 /// <summary>
-/// FIX-11 (Client Issue #4). The per-field Required/Optional capability already exists through
-/// <c>ProductInputField.IsRequired</c> and <c>ProductInputRules.ValidateValue</c>; these are the
-/// permanent regressions that prove the behaviour end to end across cart, guest cart and merge.
+/// FIX-11 (Client Issue #4). The per-field Required/Optional capability lives in
+/// <c>ProductInputField.IsRequired</c> and <c>ProductInputRules.ValidateValue</c>.
+///
+/// Product information is collected at CHECKOUT, not on the product page and not in the cart, so the
+/// cart deliberately accepts a partially filled set and parks whatever was supplied. Anything the
+/// customer does supply is still format-checked here; the required rule is enforced at order
+/// creation, which is the gate that stands in front of every payment. These tests pin both halves.
 /// </summary>
 public sealed class Fix11ProductInputRequiredOptionalTests
 {
     [Fact]
-    public async Task Required_field_blocks_the_cart_when_missing_and_passes_once_supplied()
+    public async Task A_missing_required_field_never_blocks_the_cart_because_checkout_collects_it()
     {
         await using var db = CreateDb();
         var product = SeedProduct(db, Required("player_id", "شناسه بازیکن"));
@@ -30,17 +36,33 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var userId = Guid.NewGuid();
 
-        var missing = await Record.ExceptionAsync(() => service.AddItemAsync(userId, Add(product.Id)));
-        var empty = await Record.ExceptionAsync(() => service.AddItemAsync(userId, Add(product.Id, ("player_id", "   "))));
+        var cart = await service.AddItemAsync(userId, Add(product.Id));
 
-        missing.Should().BeOfType<BusinessException>();
-        empty.Should().BeOfType<BusinessException>();
-        (await db.CartItems.CountAsync()).Should().Be(0);
+        cart.Items.Should().ContainSingle("the customer has not reached checkout yet");
+        cart.Items[0].InputFields.Should().ContainSingle(x => x.Key == "player_id" && x.IsRequired,
+            "checkout needs the definition in order to render the field");
 
-        var cart = await service.AddItemAsync(userId, Add(product.Id, ("player_id", "PLAYER-1")));
+        // Supplying it later through the cart line is what checkout does before creating the order.
+        var item = await db.CartItems.SingleAsync();
+        var filled = await service.UpdateItemAsync(userId, item.Id,
+            new UpdateCartItemRequestDto { Quantity = 1, InputValues = new Dictionary<string, string?> { ["player_id"] = "PLAYER-1" } });
 
-        cart.Items.Should().ContainSingle();
-        cart.Items[0].InputValues.Should().ContainSingle(x => x.FieldKey == "player_id" && x.Value == "PLAYER-1");
+        filled.Items[0].InputValues.Should().ContainSingle(x => x.FieldKey == "player_id" && x.Value == "PLAYER-1");
+    }
+
+    [Fact]
+    public void Required_enforcement_still_exists_and_is_applied_at_the_order_boundary()
+    {
+        // CheckoutService validates with enforceRequired left at its default before an order — and
+        // therefore before any payment — can be created.
+        var definition = Required("player_id", "شناسه بازیکن");
+        var missing = new Dictionary<string, string?>();
+
+        var lenient = () => ProductInputRules.ValidateValue(Definition(definition), null, enforceRequired: false);
+        var strict = () => ProductInputRules.ValidateValue(Definition(definition), null);
+
+        lenient.Should().NotThrow("the cart parks a partially filled set");
+        strict.Should().Throw<BusinessException>().WithMessage("*شناسه بازیکن*");
     }
 
     [Fact]
@@ -71,11 +93,12 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         var accepted = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("field_a", "A-VALUE")));
         accepted.Items.Should().ContainSingle();
 
-        var rejected = await Record.ExceptionAsync(() =>
-            service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("field_b", "B-VALUE"))));
+        // Optional-only is fine for the cart; the missing required field is caught at the order boundary.
+        var optionalOnly = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("field_b", "B-VALUE")));
+        optionalOnly.Items.Should().ContainSingle();
 
-        rejected.Should().BeOfType<BusinessException>()
-            .Which.Message.Should().Contain("الزامی الف");
+        var strict = () => ProductInputRules.ValidateValue(Definition(Required("field_a", "الزامی الف")), null);
+        strict.Should().Throw<BusinessException>().WithMessage("*الزامی الف*");
     }
 
     [Fact]
@@ -88,14 +111,20 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await db.SaveChangesAsync();
         var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
 
-        var unchecked_ = await Record.ExceptionAsync(() =>
-            service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("accept_terms", "false"))));
-        unchecked_.Should().BeOfType<BusinessException>();
+        // An unticked required checkbox reaches the cart but must not survive the order boundary.
+        var parked = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("accept_terms", "false")));
+        parked.Items.Should().ContainSingle();
+        var strict = () => ProductInputRules.ValidateValue(
+            Definition(Required("accept_terms", "پذیرش قوانین", ProductInputFieldType.Checkbox)), "false");
+        strict.Should().Throw<BusinessException>();
 
         var cart = await service.AddItemAsync(Guid.NewGuid(), Add(product.Id, ("accept_terms", "true")));
 
         cart.Items.Should().ContainSingle();
-        var values = await db.CartItemInputValues.ToDictionaryAsync(x => x.FieldKey, x => x.Value);
+        // Scoped to this cart's line: the parked attempt above belongs to a different cart.
+        var lineId = cart.Items[0].Id;
+        var values = await db.CartItemInputValues.Where(x => x.CartItemId == lineId)
+            .ToDictionaryAsync(x => x.FieldKey, x => x.Value);
         values["accept_terms"].Should().Be("true");
         // An unchecked optional checkbox normalises to "false", which the existing rule accepts.
         values["newsletter"].Should().Be("false");
@@ -132,9 +161,6 @@ public sealed class Fix11ProductInputRequiredOptionalTests
         await db.SaveChangesAsync();
         var service = new CartService(db, new TestEncryption(), new VatSettingsProvider(db));
         var guest = CartIdentity.ForGuest(GuestCartToken.Hash(GuestCartToken.Create()));
-
-        var blocked = await Record.ExceptionAsync(() => service.AddItemAsync(guest, Add(product.Id, ("note", "N"))));
-        blocked.Should().BeOfType<BusinessException>();
 
         await service.AddItemAsync(guest, Add(product.Id, ("player_id", "GUEST-1")));
         var reloaded = await service.GetAsync(guest);
@@ -204,6 +230,20 @@ public sealed class Fix11ProductInputRequiredOptionalTests
             OptionsJson = JsonSerializer.Serialize(options), CreatedAt = DateTime.UtcNow
         };
 
+    /// <summary>Projects a seeded definition onto the public rule DTO the validator consumes.</summary>
+    private static ProductInputFieldDto Definition(ProductInputField field) => new()
+    {
+        Id = field.Id, Key = field.Key, Label = field.Label, FieldType = field.FieldType,
+        IsRequired = field.IsRequired, DefaultValue = field.DefaultValue,
+        MinLength = field.MinLength, MaxLength = field.MaxLength,
+        ValidationPattern = field.ValidationPattern, ValidationMessage = field.ValidationMessage,
+        IsSensitive = field.IsSensitive, RequiresConfirmation = field.RequiresConfirmation,
+        DisplayStage = field.DisplayStage, SortOrder = field.SortOrder, IsActive = field.IsActive,
+        Options = string.IsNullOrWhiteSpace(field.OptionsJson)
+            ? new List<string>()
+            : JsonSerializer.Deserialize<List<string>>(field.OptionsJson) ?? new List<string>()
+    };
+
     private static VitorizeDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<VitorizeDbContext>()
@@ -225,6 +265,13 @@ public sealed class Fix11ProductInputRequiredOptionalTests
             field.ProductId = product.Id;
             product.ProductInputFields.Add(field);
         }
+        // Inventory is SKU-scoped: a purchasable non-Instant product always owns a canonical variant.
+        product.ProductVariants.Add(new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = 1000,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+            IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+        });
         db.Categories.Add(category);
         db.Products.Add(product);
         return product;

@@ -36,13 +36,41 @@ test('responsive catalog controls remain operable at the active viewport', async
   await expectRtlAndNoOverflow(page);
 });
 
-test('dynamic-input dialog exposes dialog semantics, receives focus and closes with Escape', async ({ page }) => {
+// Product information moved from a product-page dialog to an inline checkout section, so the
+// accessible surface to audit is that section: labelled controls, and an invalid field that
+// announces itself and points at its own message.
+test('checkout product-input fields are labelled and announce their validation state', async ({ page }) => {
+  const password = process.env.E2E_QA_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'E2E-Admin-Only-aA1!';
+  await page.goto('/login');
+  await page.locator('#pw-mobile').fill('09120000013');
+  await page.locator('#pw-pass').fill(password);
+  await Promise.all([
+    page.waitForURL(/\/customer\/dashboard/),
+    page.locator('form[action="/auth/customer/login"] button[type="submit"]').click()
+  ]);
+
+  await page.goto('/cart', { waitUntil: 'networkidle' });
+  const clear = page.locator('button', { hasText: 'خالی کردن سبد خرید' });
+  if (await clear.count()) { await clear.first().click(); await page.waitForTimeout(1200); }
+
   await page.goto('/product/e2e-seo-product', { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute('aria-modal', 'true');
-  await expect(dialog).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
+  await expect(page.locator('.vz-toast.success, .vz-toast--success').first()).toBeVisible();
+
+  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  const card = page.getByTestId('checkout-input-card').first();
+  await expect(card).toBeVisible();
+
+  const field = card.locator('input.st-input, textarea, select').first();
+  const id = await field.getAttribute('id');
+  expect(id, 'every control needs an id its label can point at').toBeTruthy();
+  await expect(card.locator(`label[for="${id}"]`)).toHaveCount(1);
+  await expect(field).toHaveAttribute('aria-invalid', 'false');
+
+  // Trying to pay with it empty must mark it invalid and wire it to its own message.
+  await page.locator('button.st-btn--accent').last().click();
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  const describedBy = await field.getAttribute('aria-describedby');
+  expect(describedBy).toBeTruthy();
+  await expect(page.locator(`#${describedBy}`)).toHaveAttribute('role', 'alert');
 });

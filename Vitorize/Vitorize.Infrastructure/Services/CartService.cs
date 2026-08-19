@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.Json;
 using Vitorize.Application.Common;
@@ -48,6 +48,22 @@ public class CartService : ICartService
     public Task<CartDto> AddItemAsync(Guid userId, AddToCartRequestDto request) =>
         AddItemAsync(CartIdentity.ForUser(userId), request);
 
+    /// <summary>
+    /// Managed inventory is validated on cart writes but never reserved — carts must not hold units,
+    /// so stock is consumed only at authoritative payment success. Instant delivery is excluded here:
+    /// its availability is the gift-code pool, reserved under lock during checkout.
+    /// </summary>
+    private static void EnsureManagedStockAllows(Product product, ProductVariant? variant, int resultingQuantity)
+    {
+        if (variant is null) return;
+        if (ProductAvailabilityRules.IsGiftCodeDriven(product.DeliveryType)) return;
+        if (resultingQuantity <= variant.StockQuantity) return;
+
+        throw new BusinessException(variant.StockQuantity == 0
+            ? $"محصول «{product.Title}» در حال حاضر ناموجود است."
+            : $"موجودی «{product.Title}» کافی نیست؛ حداکثر {variant.StockQuantity} عدد قابل سفارش است.");
+    }
+
     public async Task<CartDto> AddItemAsync(CartIdentity identity, AddToCartRequestDto request)
     {
         EnsureIdentity(identity);
@@ -66,13 +82,29 @@ public class CartService : ICartService
             variant = product.ProductVariants.FirstOrDefault(x => x.Id == request.ProductVariantId && x.IsActive)
                 ?? throw new BusinessException("تنوع محصول معتبر نیست.");
         }
+        else if (!ProductAvailabilityRules.IsGiftCodeDriven(product.DeliveryType))
+        {
+            // Managed-stock purchases are SKU-scoped: a request without a variant resolves the
+            // product's single (implicit default) SKU server-side, so stock validation at add,
+            // checkout revalidation and paid-time consumption all see a concrete variant.
+            // Instant products stay variant-optional because their gift codes are product-scoped.
+            var actives = product.ProductVariants.Where(x => x.IsActive).ToList();
+            variant = actives.Count == 1
+                ? actives[0]
+                : throw new BusinessException(actives.Count == 0
+                    ? "این محصول در حال حاضر قابل خرید نیست."
+                    : "لطفاً نسخه محصول را انتخاب کنید.");
+        }
+        var resolvedVariantId = variant?.Id ?? request.ProductVariantId;
 
         var unitPrice = variant is null
             ? ResolveFinalPrice(product.BasePrice, product.DiscountPrice)
             : ResolveFinalPrice(variant.Price, variant.DiscountPrice);
         if (!Enum.IsDefined(typeof(CurrencyType), product.CurrencyType))
             throw new BusinessException("واحد پول محصول معتبر نیست.");
-        var values = ValidateInputs(product.ProductInputFields, request.InputValues, includeAllStages: false);
+        // Adding to the cart never depends on product information: it is collected at Checkout.
+        var values = ValidateInputs(product.ProductInputFields, request.InputValues,
+            includeAllStages: true, enforceRequired: false);
         var fingerprint = ProductInputRules.Fingerprint(values);
 
         // Concurrent identical add-to-cart calls race between reading the existing line and inserting a
@@ -94,7 +126,15 @@ public class CartService : ICartService
             if (cart.CartItems.Any(x => x.CurrencyType != product.CurrencyType))
                 throw new BusinessException("سبد خرید نمی‌تواند شامل کالاهایی با واحد پول متفاوت باشد.");
             var existing = cart.CartItems.FirstOrDefault(x => x.ProductId == request.ProductId &&
-                x.ProductVariantId == request.ProductVariantId && x.InputFingerprint == fingerprint);
+                x.ProductVariantId == resolvedVariantId && x.InputFingerprint == fingerprint);
+
+            // Validate the RESULTING total for this SKU, not just the delta: the same variant can sit
+            // on several lines with different custom-input fingerprints and together they must still
+            // fit within stock.
+            var resultingQuantity = cart.CartItems
+                .Where(x => x.ProductVariantId == resolvedVariantId)
+                .Sum(x => x.Quantity) + request.Quantity;
+            EnsureManagedStockAllows(product, variant, resultingQuantity);
 
             if (existing is not null)
             {
@@ -108,7 +148,7 @@ public class CartService : ICartService
                 var item = new CartItem
                 {
                     Id = Guid.NewGuid(), CartId = cart.Id, ProductId = request.ProductId,
-                    ProductVariantId = request.ProductVariantId, InputFingerprint = fingerprint,
+                    ProductVariantId = resolvedVariantId, InputFingerprint = fingerprint,
                     Quantity = request.Quantity, UnitPrice = unitPrice, CurrencyType = product.CurrencyType,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -155,11 +195,27 @@ public class CartService : ICartService
                  (identity.IsGuest && x.Cart.GuestTokenHash == identity.GuestTokenHash)))
             ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
 
+        if (item.ProductVariantId.HasValue)
+        {
+            var variant = await _dbContext.ProductVariants.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == item.ProductVariantId.Value);
+
+            // Resulting total for this SKU across the cart: the edited line's new quantity plus every
+            // other line that shares the variant.
+            var otherLines = await _dbContext.CartItems
+                .Where(x => x.CartId == item.CartId && x.Id != item.Id &&
+                            x.ProductVariantId == item.ProductVariantId)
+                .SumAsync(x => (int?)x.Quantity) ?? 0;
+
+            EnsureManagedStockAllows(item.Product, variant, otherLines + request.Quantity);
+        }
+
         item.Quantity = request.Quantity;
         item.UpdatedAt = DateTime.UtcNow;
         if (request.InputValues is not null)
         {
-            var values = ValidateInputs(item.Product.ProductInputFields, request.InputValues, includeAllStages: true);
+            var values = ValidateInputs(item.Product.ProductInputFields, request.InputValues,
+                includeAllStages: true, enforceRequired: false);
             item.InputFingerprint = ProductInputRules.Fingerprint(values);
             SyncInputValues(item, item.Product.ProductInputFields, values);
         }
@@ -368,10 +424,15 @@ public class CartService : ICartService
         };
     }
 
+    /// <param name="enforceRequired">
+    /// The cart parks whatever the customer has supplied so far; Checkout is where product
+    /// information is actually collected and where the required rule is enforced.
+    /// </param>
     internal static Dictionary<string, string?> ValidateInputs(
         IEnumerable<ProductInputField> definitions,
         IReadOnlyDictionary<string, string?>? supplied,
-        bool includeAllStages)
+        bool includeAllStages,
+        bool enforceRequired = true)
     {
         var active = definitions.Where(x => x.IsActive && (includeAllStages || x.DisplayStage == 1))
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
@@ -384,7 +445,7 @@ public class CartService : ICartService
         foreach (var definition in active)
         {
             input.TryGetValue(definition.Key, out var value);
-            result[definition.Key] = ProductInputRules.ValidateValue(ToDefinitionDto(definition), value);
+            result[definition.Key] = ProductInputRules.ValidateValue(ToDefinitionDto(definition), value, enforceRequired);
         }
         return result;
     }

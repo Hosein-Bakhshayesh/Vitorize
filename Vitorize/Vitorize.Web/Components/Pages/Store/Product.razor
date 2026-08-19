@@ -1,4 +1,4 @@
-@page "/product/{Slug}"
+﻿@page "/product/{Slug}"
 @implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
@@ -12,6 +12,7 @@
 @using Vitorize.Web.Models.Customer
 @using Vitorize.Web.Models.Store
 @using Vitorize.Web.Services.UI
+@using Vitorize.Application.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 @if (_p is not null)
@@ -200,7 +201,11 @@ else
                     <div class="st-buy__save">@AUI.Number((long)(CurrentBase - CurrentPrice)) @Unit سود شما (@AUI.Number(DiscountPercent)٪)</div>
                 }
 
-                @if (_p.Variants.Count > 0)
+                @* The implicit default SKU exists so inventory has somewhere to live; it is not a
+                   choice, so a one-option picker for it would only expose the internal variant
+                   concept. A single SKU the administrator named and priced still means something
+                   and stays visible. *@
+                @if (OffersVariantChoice)
                 {
                     <div class="st-buy__lbl">انتخاب نسخه</div>
                     <div class="st-vcards">
@@ -220,11 +225,6 @@ else
                     <div class="st-flow__step"><span class="st-flow__dot on"><Icon Name="check" Size="11" /></span><span class="st-flow__t">پرداخت</span></div>
                     <div class="st-flow__line"></div>
                     <div class="st-flow__step"><span class="st-flow__dot off"><Icon Name="zap" Size="12" /></span><span class="st-flow__t">@AUI.DeliveryType(_p.DeliveryType)</span></div>
-                </div>
-
-                <div class="st-trustbar">
-                    <div class="st-trustbar__row"><span><Icon Name="shield-check" Size="13" /> ضمانت فروشنده معتبر</span><span class="ok">@AUI.Number(TrustScore)٪</span></div>
-                    <div class="st-trustbar__track"><div class="st-trustbar__fill" style="width:@(TrustScore)%"></div></div>
                 </div>
 
                 @if (RequiresKycForSelection)
@@ -247,10 +247,8 @@ else
                         <Icon Name="package" Size="16" /> <span>این محصول در حال حاضر ناموجود است.</span>
                     </div>
                 }
-                @if (ActiveInputFieldCount > 0)
-                {
-                    <div class="st-required-info" data-testid="product-input-summary"><Icon Name="file-text" Size="15" /><span>@InputFieldsSummary</span></div>
-                }
+                @* Product-required information is collected at Checkout, so the product page neither
+                   announces it nor blocks adding to the cart on it. *@
                 <button class="st-btn st-btn--accent st-btn--block st-btn--lg" @onclick="() => BeginAddToCart(false)" disabled="@(_busy || OutOfStock)">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="18" /> <span>@(OutOfStock ? "ناموجود" : "افزودن به سبد خرید")</span> }
                 </button>
@@ -276,53 +274,6 @@ else
     }
 }
 
-<Modal Visible="_inputOpen" Title="اطلاعات موردنیاز خرید" Icon="file-text" OnClose="CloseInputForm">
-    <ChildContent>
-        <div class="st-dynamic-form">
-            @foreach (var field in ProductStageFields)
-            {
-                <div class="st-field">
-                    <label class="st-label" for="@ProductInputId(field.Key)">@field.Label @if (field.IsRequired) { <span class="req" data-testid="@($"product-input-required-{field.Key}")" aria-label="الزامی">*</span> } else { <span class="st-optional" data-testid="@($"product-input-optional-{field.Key}")">اختیاری</span> }</label>
-                    @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
-                    @if (field.FieldType is 6 or 7)
-                    {
-                        <select id="@ProductInputId(field.Key)" class="st-select @(InputError(field.Key) is null ? null : "is-invalid")" value="@GetInput(field.Key)" @onchange="e => SetInput(field.Key, e.Value?.ToString())" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))">
-                            <option value="">— انتخاب کنید —</option>@foreach (var option in field.Options) { <option value="@option">@option</option> }
-                        </select>
-                    }
-                    else if (field.FieldType == 8)
-                    {
-                        <label class="st-check @(InputError(field.Key) is null ? null : "is-invalid")"><input id="@ProductInputId(field.Key)" type="checkbox" checked="@IsInputChecked(field.Key)" @onchange="e => SetInputCheckbox(field.Key, e.Value)" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))" /><span>@field.Placeholder</span></label>
-                    }
-                    else if (field.FieldType == 5)
-                    {
-                        <textarea id="@ProductInputId(field.Key)" class="st-textarea @(InputError(field.Key) is null ? null : "is-invalid")" placeholder="@field.Placeholder" value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))"></textarea>
-                    }
-                    else
-                    {
-                        <input id="@ProductInputId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="@InputType(field.FieldType)" inputmode="@InputMode(field.FieldType)" dir="@InputDirection(field.FieldType)"
-                               placeholder="@field.Placeholder" minlength="@field.MinLength" maxlength="@field.MaxLength"
-                               value="@GetInput(field.Key)" @oninput="e => SetInput(field.Key, e.Value?.ToString())" autocomplete="off" aria-invalid="@(InputError(field.Key) is null ? "false" : "true")" aria-describedby="@(InputError(field.Key) is null ? null : ProductErrorId(field.Key))" />
-                    }
-                    @if (field.IsSensitive) { <span class="st-help"><Icon Name="lock" Size="12" /> این مقدار رمزگذاری و در نمایش‌ها مخفی می‌شود.</span> }
-                    @if (field.RequiresConfirmation)
-                    {
-                        <input id="@ProductConfirmationId(field.Key)" class="st-input @(InputError(field.Key) is null ? null : "is-invalid")" type="password" placeholder="تکرار @field.Label" value="@GetConfirmation(field.Key)" @oninput="e => SetConfirmation(field.Key, e.Value?.ToString())" autocomplete="off" />
-                    }
-                    @if (InputError(field.Key) is { } error)
-                    {
-                        <span id="@ProductErrorId(field.Key)" class="st-field__error" role="alert">@error</span>
-                    }
-                </div>
-            }
-        </div>
-    </ChildContent>
-    <Footer>
-        <button class="st-btn st-btn--outline" @onclick="CloseInputForm">انصراف</button>
-        <button class="st-btn st-btn--accent" @onclick="SubmitInputForm" disabled="@_busy">تأیید و افزودن</button>
-    </Footer>
-</Modal>
-
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
@@ -340,32 +291,6 @@ else
     private List<StoreProductModel> _related = new();
     private List<StoreFaqModel> _faqs = new();
     private string? _loadedSlug;
-    private bool _inputOpen, _pendingBuyNow;
-    private readonly Dictionary<string, string?> _inputValues = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string?> _confirmValues = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _inputFieldErrors = new(StringComparer.OrdinalIgnoreCase);
-    private string? _focusTargetId;
-    private IEnumerable<StoreProductInputFieldModel> ProductStageFields => _p?.InputFields.Where(x => x.IsActive && x.DisplayStage == 1).OrderBy(x => x.SortOrder) ?? Enumerable.Empty<StoreProductInputFieldModel>();
-
-    // Only active fields count, and required/optional are reported separately: the previous copy
-    // implied every field was mandatory even when the product defined optional ones.
-    private IEnumerable<StoreProductInputFieldModel> ActiveInputFields =>
-        _p?.InputFields.Where(x => x.IsActive) ?? Enumerable.Empty<StoreProductInputFieldModel>();
-    private int ActiveInputFieldCount => ActiveInputFields.Count();
-    private int RequiredInputFieldCount => ActiveInputFields.Count(x => x.IsRequired);
-    private int OptionalInputFieldCount => ActiveInputFieldCount - RequiredInputFieldCount;
-    private string InputFieldsSummary
-    {
-        get
-        {
-            var required = RequiredInputFieldCount;
-            var optional = OptionalInputFieldCount;
-            if (required == 0)
-                return $"تکمیل {AUI.Number(optional)} مورد اطلاعات برای این محصول اختیاری است.";
-            var text = $"این محصول برای تکمیل سفارش به {AUI.Number(required)} مورد اطلاعات الزامی نیاز دارد";
-            return optional == 0 ? $"{text}." : $"{text} و {AUI.Number(optional)} مورد اختیاری است.";
-        }
-    }
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
@@ -381,14 +306,22 @@ else
     private bool InWishlist => _p is not null && Wishlist.Contains(_p.Id);
 
     // فقط تحویل آنی موجودی واقعی (کد) دارد؛ تحویل دستی/پشتیبانی همیشه قابل سفارش است.
+    // F2: availability gates purchase for EVERY delivery mode. Instant derives from gift codes,
+    // managed modes from the SKU's StockQuantity - both arrive here as AvailableStock, so the
+    // gate is uniform: the selected SKU decides, falling back to "any variant purchasable" and
+    // finally the product aggregate for legacy variantless (Instant-only) products.
     private bool OutOfStock =>
         _p is not null &&
-        _p.DeliveryType == (byte)DeliveryType.Instant &&
         (_variant is not null
             ? _variant.AvailableStock <= 0
             : (_p.Variants.Count > 0
                 ? _p.Variants.All(v => v.AvailableStock <= 0)
                 : _p.AvailableStock <= 0));
+
+    // A lone implicit SKU is inventory plumbing, not an option the customer picks between.
+    private bool OffersVariantChoice =>
+        _p is not null &&
+        ProductAvailabilityRules.OffersVariantChoice(_p.Variants.Select(v => v.Title).ToList());
     // Trust score derived from real review rating; falls back to a guarantee baseline when unrated.
     private int TrustScore => _summary.TotalApprovedReviews > 0 ? (int)Math.Round(_summary.AverageRating / 5 * 100) : 95;
     private string ShareUrl => $"{Nav.BaseUri.TrimEnd('/')}/product/{Slug}";
@@ -531,35 +464,13 @@ else
         _qty = Math.Clamp(q, min, max);
     }
 
-    private async Task BeginAddToCart(bool buyNow)
+    // Product-required information is collected at Checkout, so adding to the cart is never gated
+    // on it here. Buy Now differs only in where it navigates; it still passes through Checkout.
+    private Task BeginAddToCart(bool buyNow)
     {
-        if (_p is null) return;
-        if (_p.Variants.Count > 0 && _variant is null) { Toasts.Error("لطفاً یک نسخه را انتخاب کنید."); return; }
-        if (ProductStageFields.Any())
-        {
-            _pendingBuyNow = buyNow;
-            _inputFieldErrors.Clear();
-            foreach (var field in ProductStageFields)
-                if (!_inputValues.ContainsKey(field.Key)) _inputValues[field.Key] = field.DefaultValue;
-            _inputOpen = true;
-            return;
-        }
-        await AddToCart(buyNow);
-    }
-
-    private async Task SubmitInputForm()
-    {
-        var validation = StorefrontInputValidator.ValidateFields(ProductStageFields, _inputValues, _confirmValues);
-        if (!validation.IsValid)
-        {
-            _inputFieldErrors.Clear();
-            foreach (var error in validation.Errors) _inputFieldErrors[error.Key] = error.Value;
-            var firstInvalidKey = ProductStageFields.Where(x => validation.Errors.ContainsKey(x.Key)).OrderBy(x => x.SortOrder).ThenBy(x => x.Id).Select(x => x.Key).FirstOrDefault();
-            _focusTargetId = firstInvalidKey is null ? null : ProductInputId(firstInvalidKey);
-            return;
-        }
-        _inputOpen = false;
-        await AddToCart(_pendingBuyNow);
+        if (_p is null) return Task.CompletedTask;
+        if (_p.Variants.Count > 0 && _variant is null) { Toasts.Error("لطفاً یک نسخه را انتخاب کنید."); return Task.CompletedTask; }
+        return AddToCart(buyNow);
     }
 
     private async Task AddToCart(bool buyNow)
@@ -568,13 +479,13 @@ else
 
         _busy = true;
         var result = await Api.PostAsync<CartModel>("cart/items",
-            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty, InputValues = _inputValues });
+            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty });
         _busy = false;
 
         if (result.IsSuccess && result.Data is not null)
         {
             Cart.Set(result.Data.TotalQuantity);
-            if (buyNow) { Nav.NavigateTo("/cart"); return; }
+            if (buyNow) { Nav.NavigateTo("/checkout"); return; }
             Toasts.Success("به سبد خرید اضافه شد.");
         }
         else if (result.Message.Contains("احراز") || result.Message.Contains("نشست") || result.Message.Contains("مجاز"))
@@ -583,35 +494,6 @@ else
         }
         else { Toasts.Error(result.Message); }
     }
-
-    private string? GetInput(string key) => _inputValues.GetValueOrDefault(key);
-    private string? InputError(string key) => _inputFieldErrors.GetValueOrDefault(key);
-    private void SetInput(string key, string? value) { _inputValues[key] = value; RefreshInputError(key); }
-    private bool IsInputChecked(string key) => string.Equals(GetInput(key), "true", StringComparison.OrdinalIgnoreCase);
-    private void SetInputCheckbox(string key, object? value) => SetInput(key, value is true ? "true" : "false");
-    private string? GetConfirmation(string key) => _confirmValues.GetValueOrDefault(key);
-    private void SetConfirmation(string key, string? value) { _confirmValues[key] = value; RefreshInputError(key); }
-    private void RefreshInputError(string key)
-    {
-        if (!_inputFieldErrors.ContainsKey(key)) return;
-        var field = ProductStageFields.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-        if (field is null) return;
-        var validation = StorefrontInputValidator.ValidateFields(new[] { field }, _inputValues, _confirmValues);
-        if (validation.IsValid) _inputFieldErrors.Remove(key); else _inputFieldErrors[key] = validation.Errors[key];
-    }
-    private void CloseInputForm() { _inputOpen = false; _inputFieldErrors.Clear(); _focusTargetId = null; }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_focusTargetId is not { } targetId) return;
-        _focusTargetId = null;
-        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
-    }
-    private static string ProductInputId(string key) => $"product-input-{key}";
-    private static string ProductConfirmationId(string key) => $"product-confirm-{key}";
-    private static string ProductErrorId(string key) => $"product-error-{key}";
-    private static string InputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
-    private static string? InputMode(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "decimal", 10 => "url", _ => null };
-    private static string InputDirection(byte type) => type is 2 or 3 or 4 or 10 or 11 ? "ltr" : "rtl";
 
     private async Task ToggleWishlist()
     {

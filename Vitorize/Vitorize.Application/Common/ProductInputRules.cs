@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -58,14 +58,21 @@ public static class ProductInputRules
             throw new BusinessException("فیلد محرمانه باید به‌عنوان داده حساس علامت‌گذاری شود.");
     }
 
-    public static string? ValidateValue(ProductInputFieldDto field, string? raw)
+    /// <param name="enforceRequired">
+    /// False while the value is only being parked on a cart line: product information is collected at
+    /// Checkout, so the cart must accept a partially filled set without rejecting it. Whatever is
+    /// supplied is still format-checked, and the required rule is enforced at order creation, which is
+    /// the authoritative gate before any payment can start.
+    /// </param>
+    public static string? ValidateValue(ProductInputFieldDto field, string? raw, bool enforceRequired = true)
     {
         var value = raw?.Trim();
         var type = (ProductInputFieldType)field.FieldType;
         if (type == ProductInputFieldType.Checkbox)
             value = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1" ? "true" : "false";
 
-        if (field.IsRequired && (string.IsNullOrWhiteSpace(value) || type == ProductInputFieldType.Checkbox && value != "true"))
+        if (enforceRequired && field.IsRequired &&
+            (string.IsNullOrWhiteSpace(value) || type == ProductInputFieldType.Checkbox && value != "true"))
             throw new BusinessException(field.ValidationMessage ?? $"تکمیل «{field.Label}» الزامی است.");
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (value.Length > MaximumValueLength ||

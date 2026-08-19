@@ -1,0 +1,15 @@
+import { chromium } from 'file:///D:/Vitorize/Vitorize/tests/Vitorize.E2E/node_modules/playwright/index.mjs';
+const O='http://localhost:5077';
+const b=await chromium.launch({channel:'chrome'});
+const p=await (await b.newContext({viewport:{width:1280,height:900},locale:'fa-IR'})).newPage();
+p.on('console',m=>{if(m.type()==='error')console.log('console:',m.text().slice(0,120));});
+await p.goto(`${O}/product/e2e-seo-product`,{waitUntil:'networkidle'});
+await p.locator('.st-buy__card button.st-btn--accent').click();
+await p.locator('#product-input-account_email').fill('visual@example.test');
+await p.locator('.vz-dialog button.st-btn--accent').click();
+await p.waitForTimeout(3000);
+const toasts=await p.evaluate(()=>[...document.querySelectorAll('.vz-toast, [class*=toast]')].map(t=>({cls:t.className,txt:(t.textContent||'').trim().slice(0,80)})));
+console.log('toasts:',JSON.stringify(toasts));
+const cart=await p.evaluate(()=>document.querySelector('.st-iconbtn .badge')?.textContent||'0');
+console.log('cart badge:',cart);
+await b.close();

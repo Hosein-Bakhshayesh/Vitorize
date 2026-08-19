@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.ProductVariants;
 using Vitorize.Application.DTOs.Admin.Products;
 using Vitorize.Application.Interfaces;
@@ -11,13 +12,36 @@ namespace Vitorize.Infrastructure.Services
     public class AdminProductVariantService : IAdminProductVariantService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IAuditService _auditService;
+        private readonly ICurrentUserService _currentUser;
 
         private const byte GiftCodeStatusAvailable = 0;
 
-        public AdminProductVariantService(VitorizeDbContext dbContext)
+        public AdminProductVariantService(
+            VitorizeDbContext dbContext,
+            IAuditService auditService,
+            ICurrentUserService currentUser)
         {
             _dbContext = dbContext;
+            _auditService = auditService;
+            _currentUser = currentUser;
         }
+
+        /// <summary>Delivery type of the owning product; decides which inventory regime applies.</summary>
+        private async Task<byte> GetDeliveryTypeAsync(Guid productId) =>
+            await _dbContext.Products
+                .Where(x => x.Id == productId)
+                .Select(x => x.DeliveryType)
+                .FirstOrDefaultAsync();
+
+        /// <summary>
+        /// Server-side floor for managed inventory. The database also carries a CHECK constraint, so a
+        /// negative value cannot reach storage even if a caller bypasses this.
+        /// </summary>
+        private static int NormalizeStockQuantity(int requested) =>
+            requested < 0
+                ? throw new BusinessException("موجودی نمی‌تواند منفی باشد.")
+                : requested;
 
         public async Task<List<AdminProductVariantDto>> GetByProductIdAsync(Guid productId)
         {
@@ -44,6 +68,7 @@ namespace Vitorize.Infrastructure.Services
                     DiscountPrice = x.DiscountPrice,
                     Value = x.Value,
                     StockMode = x.StockMode,
+                    StockQuantity = x.StockQuantity,
                     IsDefault = x.IsDefault,
                     IsActive = x.IsActive,
                     SortOrder = x.SortOrder,
@@ -71,7 +96,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = x.Id, ProductId = x.ProductId, ProductTitle = x.Product.Title, Title = x.Title,
                 Sku = x.Sku, Price = x.Price, DiscountPrice = x.DiscountPrice, Value = x.Value,
-                StockMode = x.StockMode, IsDefault = x.IsDefault, IsActive = x.IsActive, SortOrder = x.SortOrder,
+                StockMode = x.StockMode, StockQuantity = x.StockQuantity, IsDefault = x.IsDefault, IsActive = x.IsActive, SortOrder = x.SortOrder,
                 AvailableStock = _dbContext.GiftCodes.Count(g => g.ProductVariantId == x.Id && g.Status == GiftCodeStatusAvailable)
             }).ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<AdminProductVariantDto>
@@ -115,6 +140,7 @@ namespace Vitorize.Infrastructure.Services
                     DiscountPrice = x.DiscountPrice,
                     Value = x.Value,
                     StockMode = x.StockMode,
+                    StockQuantity = x.StockQuantity,
                     IsDefault = x.IsDefault,
                     IsActive = x.IsActive,
                     SortOrder = x.SortOrder,
@@ -141,6 +167,8 @@ namespace Vitorize.Infrastructure.Services
                 await ClearDefaultVariantsAsync(productId, null);
             }
 
+            var deliveryType = await GetDeliveryTypeAsync(productId);
+
             var variant = new ProductVariant
             {
                 Id = Guid.NewGuid(),
@@ -152,7 +180,13 @@ namespace Vitorize.Infrastructure.Services
                 Price = request.Price,
                 DiscountPrice = request.DiscountPrice,
                 Value = request.Value,
-                StockMode = request.StockMode,
+                // The product's delivery type — not the caller — decides the inventory regime, so an
+                // Instant variant can never be given a manual quantity that claims stock the gift-code
+                // pool cannot deliver.
+                StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(deliveryType),
+                StockQuantity = ProductAvailabilityRules.IsManagedStock(deliveryType)
+                    ? NormalizeStockQuantity(request.StockQuantity)
+                    : 0,
                 IsDefault = request.IsDefault,
                 IsActive = request.IsActive,
                 SortOrder = request.SortOrder,
@@ -189,7 +223,30 @@ namespace Vitorize.Infrastructure.Services
             variant.Price = request.Price;
             variant.DiscountPrice = request.DiscountPrice;
             variant.Value = request.Value;
-            variant.StockMode = request.StockMode;
+
+            var deliveryType = await GetDeliveryTypeAsync(variant.ProductId);
+            var managed = ProductAvailabilityRules.IsManagedStock(deliveryType);
+            variant.StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(deliveryType);
+
+            // Instant delivery draws availability from gift codes and ProductAvailabilityRules never
+            // reads StockQuantity for it, so a dormant value cannot make an Instant variant sellable.
+            // We therefore PRESERVE it rather than zeroing: a product flipped to Instant and back
+            // would otherwise lose real inventory permanently, and the admin form does not even post
+            // a quantity in Instant mode, so "0" here would mean "erase" rather than "unchanged".
+            var newQuantity = managed ? NormalizeStockQuantity(request.StockQuantity) : variant.StockQuantity;
+            if (newQuantity != variant.StockQuantity)
+            {
+                await _auditService.LogAsync(
+                    _currentUser.UserId ?? Guid.Empty,
+                    "ProductVariantStockChanged",
+                    nameof(ProductVariant),
+                    variant.Id.ToString(),
+                    $"variant:{variant.Title}; from:{variant.StockQuantity}; to:{newQuantity}; delta:{newQuantity - variant.StockQuantity}",
+                    _currentUser.IpAddress,
+                    _currentUser.UserAgent);
+            }
+            variant.StockQuantity = newQuantity;
+
             variant.IsDefault = request.IsDefault;
             variant.IsActive = request.IsActive;
             variant.SortOrder = request.SortOrder;

@@ -10,7 +10,7 @@ namespace Vitorize.Infrastructure.Services
     public class WishlistService : IWishlistService
     {
         private const byte GiftCodeStatusAvailable = 0;
-        private const byte DeliveryTypeManualTicket = 2;
+        private const byte DeliveryTypeInstant = 1;
 
         private readonly VitorizeDbContext _dbContext;
 
@@ -46,10 +46,14 @@ namespace Vitorize.Infrastructure.Services
                     CategoryTitle = x.Product.Category.Title,
                     BrandTitle = x.Product.Brand != null ? x.Product.Brand.Title : null,
                     HasVariants = x.Product.ProductVariants.Any(v => v.IsActive),
-                    IsAvailable = x.Product.DeliveryType == DeliveryTypeManualTicket ||
-                        _dbContext.GiftCodes.Any(g =>
+                    // Instant is gift-code driven; every non-Instant mode uses managed variant stock.
+                    // Previously Manual was hard-coded available, so wishlisted Manual products never
+                    // showed as ناموجود.
+                    IsAvailable = x.Product.DeliveryType == DeliveryTypeInstant
+                        ? _dbContext.GiftCodes.Any(g =>
                             g.ProductId == x.ProductId &&
-                            g.Status == GiftCodeStatusAvailable),
+                            g.Status == GiftCodeStatusAvailable)
+                        : x.Product.ProductVariants.Any(v => v.IsActive && v.StockQuantity > 0),
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();

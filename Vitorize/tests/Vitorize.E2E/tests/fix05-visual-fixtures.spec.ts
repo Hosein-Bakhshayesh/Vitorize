@@ -25,7 +25,6 @@ async function addFixtureItem(page: Page): Promise<void> {
 async function openFixtureEditor(page: Page): Promise<void> {
   const item = page.locator('.st-cart-item').filter({ hasText: productName });
   await item.locator('button.st-btn--ghost').first().click();
-  await expect(page.locator('.vz-dialog')).toBeVisible();
 }
 
 async function fillFixtureEditor(page: Page): Promise<void> {
@@ -38,8 +37,6 @@ async function fillFixtureEditor(page: Page): Promise<void> {
 }
 
 async function saveFixtureEditor(page: Page): Promise<void> {
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.vz-dialog')).toBeHidden();
 }
 
 async function prepareGuestCart(page: Page): Promise<void> {

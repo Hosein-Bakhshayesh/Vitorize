@@ -155,6 +155,7 @@ public sealed class Fix09Phase1OrderHistoryIntegrationTests
         await using var db = _fixture.CreateDbContext();
         var category = new Category { Id = Guid.NewGuid(), Title = "FIX-09 history", Slug = $"fix09-history-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow };
         var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = $"FIX-09 {name}", Slug = $"fix09-{name}-{Guid.NewGuid():N}", ProductType = (byte)ProductType.Other, DeliveryType = (byte)DeliveryType.Manual, BasePrice = 5_000m, CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, IsActive = true, RequiresVerification = true, KycRequirementMode = (byte)KycRequirementMode.AboveThreshold, KycThresholdAmount = threshold, KycPolicyVersionId = versionId, CreatedAt = DateTime.UtcNow };
+        AddCanonicalVariant(product);
         db.Categories.Add(category); db.Products.Add(product); await db.SaveChangesAsync(); return product;
     }
 
@@ -164,6 +165,18 @@ public sealed class Fix09Phase1OrderHistoryIntegrationTests
         var legacyVersion = await db.KycPolicyVersions.SingleAsync(x => x.KycPolicy.Code == "legacy-profile-verification" && x.Version == 1);
         var category = new Category { Id = Guid.NewGuid(), Title = "FIX-09 legacy", Slug = $"fix09-legacy-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow };
         var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "FIX-09 migrated legacy", Slug = $"fix09-legacy-{Guid.NewGuid():N}", ProductType = (byte)ProductType.Other, DeliveryType = (byte)DeliveryType.Manual, BasePrice = 5_000m, CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, IsActive = true, RequiresVerification = true, KycRequirementMode = (byte)KycRequirementMode.Always, KycPolicyVersionId = legacyVersion.Id, CreatedAt = DateTime.UtcNow };
+        AddCanonicalVariant(product);
         db.Categories.Add(category); db.Products.Add(product); await db.SaveChangesAsync(); return product;
     }
+
+    /// <summary>
+    /// Inventory is SKU-scoped: a purchasable non-Instant product always owns a canonical variant.
+    /// Stock sits far above anything these tests order so the subject stays the KYC snapshot history.
+    /// </summary>
+    private static void AddCanonicalVariant(Product product) => product.ProductVariants.Add(new ProductVariant
+    {
+        Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = product.BasePrice,
+        StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+        IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+    });
 }

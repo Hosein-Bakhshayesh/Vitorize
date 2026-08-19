@@ -412,6 +412,9 @@ else
         OrderFulfillmentRules.IsPaid(order.PaymentStatus) && CanAct(order.Status) &&
         item.DeliveryStatus != (byte)DeliveryStatus.Delivered &&
         item.Kyc?.BlocksFulfillment != true &&
+        // Manual only, matching the API: Instant comes from the gift-code pool and SupportRequired
+        // is fulfilled through its support ticket, so offering this action for either would invite
+        // an operation the server refuses.
         item.DeliveryType == (byte)DeliveryType.Manual;
 
     private static string FulfillmentSummary(AdminOrderModel order)
@@ -437,7 +440,10 @@ else
         (byte)DeliveryType.Instant => item.DeliveryStatus == (byte)DeliveryStatus.Failed
             ? "تحویل خودکار ناموفق بوده است. وضعیت تحویل را بررسی کنید."
             : "در انتظار تحویل خودکار است.",
-        (byte)DeliveryType.SupportRequired => "پس از انجام خدمت یا بررسی پشتیبانی، تحویل این آیتم را ثبت کنید.",
+        // Delivery of a SupportRequired item happens inside its support ticket, not here, so the
+        // guidance must point at that workflow. Telling the administrator to "record the delivery"
+        // described an action this screen deliberately does not offer and the API refuses.
+        (byte)DeliveryType.SupportRequired => "تحویل این آیتم از طریق تیکت پشتیبانی سفارش انجام می‌شود؛ در بخش تیکت‌ها به مشتری پاسخ دهید و پس از انجام خدمت، تیکت را ببندید.",
         _ => "این آیتم هنوز تحویل نشده است."
     };
 

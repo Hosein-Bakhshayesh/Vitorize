@@ -27,7 +27,13 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     await page.locator('.st-cart-sum button.st-btn--accent').click();
     await expect(page.getByTestId('checkout-kyc-information')).toBeVisible();
     await expect(page.getByTestId('checkout-kyc-post-payment-copy')).not.toBeEmpty();
-    await expect(page.locator('.phase2g-kyc-information a')).not.toBeVisible();
+    // Post-payment KYC is informational, but the customer must still be able to act on it: this
+    // panel previously hid its own call to action behind an inline stylesheet, which left a
+    // customer who needed verification with no way to reach the flow. The exact wording depends on
+    // whether documents are already under review, so assert the reachable route, not one label.
+    const kycPanel = page.getByTestId('checkout-kyc-information');
+    await expect(kycPanel.getByTestId('checkout-kyc-state')).toBeVisible();
+    await expect(kycPanel.locator('a[href="/customer/verification"]')).toBeVisible();
     await expectRtlAndNoOverflow(page);
 
     await page.locator('button.st-btn--accent').last().click();

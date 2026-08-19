@@ -387,6 +387,9 @@ outputs/database-deployment/_certification*.sql
 # configuration file with live credentials. Never commit it.
 outputs/plesk-ready*/
 
+# QA screenshots captured during UI/UX verification runs; regenerate them, don't commit them.
+outputs/ui-ux-evidence/
+
 # Real production configuration holds secrets (connection string, JWT signing key, encryption
 # key, CKEditor licence). It is supplied on the server or via environment variables such as
 # ConnectionStrings__DefaultConnection / Jwt__SecretKey / Encryption__Key.

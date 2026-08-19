@@ -442,6 +442,10 @@ namespace Vitorize.Infrastructure.Services
 
             var item = order.OrderItems.FirstOrDefault(x => x.Id == request.OrderItemId)
                 ?? throw new NotFoundException("آیتم سفارش یافت نشد.");
+            // Manual only. SupportRequired is fulfilled through its own support workflow (the
+            // automatically created fulfilment ticket) and must not acquire manual delivery or
+            // gift-code semantics; Instant is delivered from the gift-code pool. FIX-09 Phase 2E
+            // asserts this boundary at the HTTP layer.
             if (item.DeliveryType != (byte)DeliveryType.Manual)
                 throw new BusinessException("این آیتم برای تحویل دستی تعریف نشده است.");
             if (!OrderItemFulfillmentEligibility.CanFulfill(item))

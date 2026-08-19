@@ -203,11 +203,13 @@ namespace Vitorize.Infrastructure.Services
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
                     HasVariants = x.ProductVariants.Any(v => v.IsActive),
-                    AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
-                        ? 999999
-                        : _dbContext.GiftCodes.Count(g =>
+                    // Availability rule (see ProductAvailabilityRules): Instant is gift-code driven;
+                    // every non-Instant mode uses managed per-variant stock.
+                    AvailableStock = x.DeliveryType == DeliveryTypeInstant
+                        ? _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
-                            g.Status == GiftCodeStatusAvailable),
+                            g.Status == GiftCodeStatusAvailable)
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
                     AverageRating = _dbContext.ProductReviews
                         .Where(r =>
                             r.ProductId == x.Id &&
@@ -332,11 +334,11 @@ namespace Vitorize.Infrastructure.Services
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
                     HasVariants = x.ProductVariants.Any(v => v.IsActive),
-                    AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
-                        ? 999999
-                        : _dbContext.GiftCodes.Count(g =>
+                    AvailableStock = x.DeliveryType == DeliveryTypeInstant
+                        ? _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0
                 })
                 .ToListAsync();
         }
@@ -490,12 +492,13 @@ namespace Vitorize.Infrastructure.Services
                             StockMode = v.StockMode,
                             IsDefault = v.IsDefault,
                             SortOrder = v.SortOrder,
-                            AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
-                                ? 999999
-                                : _dbContext.GiftCodes.Count(g =>
+                            // Per-variant availability: gift codes for Instant, managed stock otherwise.
+                            AvailableStock = x.DeliveryType == DeliveryTypeInstant
+                                ? _dbContext.GiftCodes.Count(g =>
                                     g.ProductId == x.Id &&
                                     g.ProductVariantId == v.Id &&
                                     g.Status == GiftCodeStatusAvailable)
+                                : v.StockQuantity
                         })
                         .ToList(),
 
@@ -521,11 +524,11 @@ namespace Vitorize.Infrastructure.Services
                             SortOrder = f.SortOrder, IsActive = f.IsActive
                         }).ToList(),
 
-                    AvailableStock = x.DeliveryType == DeliveryTypeManualTicket
-                        ? 999999
-                        : _dbContext.GiftCodes.Count(g =>
+                    AvailableStock = x.DeliveryType == DeliveryTypeInstant
+                        ? _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0
                 });
         }
 

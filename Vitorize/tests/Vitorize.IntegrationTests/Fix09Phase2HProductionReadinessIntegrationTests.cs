@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -113,6 +113,7 @@ public sealed class Fix09Phase2HProductionReadinessIntegrationTests
             ProductType = 1, DeliveryType = 2, BasePrice = 100m, CurrencyType = 2,
             MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
         };
+        product.WithCanonicalVariant();
         await using var db = _fixture.CreateDbContext();
         db.AddRange(category, product);
         await db.SaveChangesAsync();

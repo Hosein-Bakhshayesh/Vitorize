@@ -121,7 +121,16 @@
         <div id="vz-initial-loader" class="vz-splash" role="status">
             @if (_loadingMediaSrc is not null)
             {
-                <img class="vz-splash__media" src="@_loadingMediaSrc" alt="" />
+                @* If the configured medium is missing or unreadable on disk the browser would
+                   otherwise paint a broken-image icon over the whole boot screen. Drop it and
+                   reveal the built-in mark instead, so a stale setting can never degrade the
+                   first thing a visitor sees. display:contents keeps the flex centring intact. *@
+                <img class="vz-splash__media" src="@_loadingMediaSrc" alt=""
+                     onerror="this.remove();var f=document.getElementById('vz-splash-fallback');if(f)f.style.display='contents';" />
+                <div id="vz-splash-fallback" style="display:none">
+                    <div class="vz-splash-mark"><img src="@_logoSrc" alt="" /></div>
+                    <div class="vz-spinner"></div>
+                </div>
             }
             else
             {
@@ -160,7 +169,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260816-fix17-loading-media-1.0.0";
+    private const string AssetVersion = "20260817-ui-hardening-1.0.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

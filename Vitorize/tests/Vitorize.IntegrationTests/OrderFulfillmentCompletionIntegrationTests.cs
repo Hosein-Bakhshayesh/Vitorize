@@ -48,24 +48,90 @@ public sealed class OrderFulfillmentCompletionIntegrationTests
         (await verify.OrderStatusHistories.CountAsync(x => x.OrderId == order.Id)).Should().Be(1);
     }
 
+    /// <summary>
+    /// SupportRequired is fulfilled through its own support workflow — the automatically created
+    /// fulfilment ticket, where the administrator delivers the service and closes the thread. It must
+    /// not borrow the Manual evidence route, so the order legitimately stays in Processing and the
+    /// item never gains an OrderItemDelivery. FIX-09 Phase 2E asserts the same boundary over HTTP;
+    /// this test previously asserted the pre-Phase-2E behaviour and contradicted it.
+    /// </summary>
     [Fact]
-    public async Task Support_required_uses_manual_fulfillment_evidence_and_auto_completes()
+    public async Task Support_required_is_refused_by_the_manual_route_and_keeps_its_own_workflow()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
         var (order, support, _) = await SeedOrderAsync(user.Id, DeliveryType.SupportRequired);
+
         await using (var db = _fixture.CreateDbContext())
         {
             var service = new OrderService(db, new NullNotifications(), Crypto());
-            await service.DeliverManualAsync(order.Id, admin.Id, new ManualDeliveryRequestDto
+            var act = () => service.DeliverManualAsync(order.Id, admin.Id, new ManualDeliveryRequestDto
             {
                 OrderItemId = support.Id, Content = "support fulfillment", IsVisibleToCustomer = true
             });
+            (await act.Should().ThrowAsync<BusinessException>()).Which.Message.Should()
+                .Be("این آیتم برای تحویل دستی تعریف نشده است.");
         }
+
         await using var verify = _fixture.CreateDbContext();
-        var item = await verify.OrderItems.SingleAsync(x => x.Id == support.Id);
-        item.DeliveryStatus.Should().Be((byte)DeliveryStatus.Delivered);
-        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == support.Id)).Should().Be(1);
+        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == support.Id)).Should().Be(0,
+            "no manual delivery evidence may be fabricated for a support item");
+        (await verify.OrderItems.SingleAsync(x => x.Id == support.Id)).DeliveryStatus
+            .Should().Be((byte)DeliveryStatus.Pending);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).Status
+            .Should().Be((byte)OrderStatus.Processing, "a paid support order waits on its support workflow");
+    }
+
+    /// <summary>
+    /// The manual evidence route belongs to Manual alone. Instant availability is the gift-code
+    /// pool, so hand-delivering it would fabricate a delivery for a code that was never allocated.
+    /// </summary>
+    [Fact]
+    public async Task Instant_items_can_never_be_fulfilled_by_hand()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (order, instant, _) = await SeedOrderAsync(user.Id, DeliveryType.Instant);
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var service = new OrderService(db, new NullNotifications(), Crypto());
+            var act = () => service.DeliverManualAsync(order.Id, admin.Id, new ManualDeliveryRequestDto
+            {
+                OrderItemId = instant.Id, Content = "should never be accepted", IsVisibleToCustomer = true
+            });
+            (await act.Should().ThrowAsync<BusinessException>()).Which.Message.Should()
+                .Be("این آیتم برای تحویل دستی تعریف نشده است.");
+        }
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == instant.Id)).Should().Be(0);
+        (await verify.OrderItems.SingleAsync(x => x.Id == instant.Id)).DeliveryStatus
+            .Should().Be((byte)DeliveryStatus.Pending);
+        (await verify.Orders.SingleAsync(x => x.Id == order.Id)).Status
+            .Should().Be((byte)OrderStatus.Processing, "an unfulfillable item must not complete the order");
+    }
+
+    /// <summary>The positive case for the manual route, so the two refusals above cannot pass vacuously.</summary>
+    [Fact]
+    public async Task Manual_items_still_record_delivery_evidence_and_complete_the_order()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (order, manual, _) = await SeedOrderAsync(user.Id, DeliveryType.Manual);
+
+        await using (var db = _fixture.CreateDbContext())
+            await new OrderService(db, new NullNotifications(), Crypto()).DeliverManualAsync(
+                order.Id, admin.Id, new ManualDeliveryRequestDto
+                {
+                    OrderItemId = manual.Id, Content = "manual fulfillment", IsVisibleToCustomer = true
+                });
+
+        await using var verify = _fixture.CreateDbContext();
+        var delivery = await verify.OrderItemDeliveries.SingleAsync(x => x.OrderItemId == manual.Id);
+        delivery.DeliveryType.Should().Be((byte)DeliveryType.Manual, "the evidence records the item's own mode");
+        (await verify.OrderItems.SingleAsync(x => x.Id == manual.Id)).DeliveryStatus
+            .Should().Be((byte)DeliveryStatus.Delivered);
         (await verify.Orders.SingleAsync(x => x.Id == order.Id)).Status.Should().Be((byte)OrderStatus.Completed);
     }
 

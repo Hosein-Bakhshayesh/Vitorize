@@ -24,6 +24,22 @@ export class AdminVariantPage extends BasePage {
     await expect(this.row(variant.title)).toHaveCount(1);
   }
 
+  /**
+   * Gives a managed-stock SKU a sellable quantity without touching its other fields.
+   *
+   * A non-Instant product is created with one canonical SKU at zero stock, so it is deliberately
+   * not purchasable until an administrator enters a quantity. This is that step — the same one a
+   * real administrator performs — and exercising it here is what proves the product becomes
+   * sellable rather than being stuck unsellable.
+   */
+  async setStock(variantTitle: string, quantity: number): Promise<void> {
+    await this.row(variantTitle).locator('button[title="ویرایش"]').click();
+    await this.page.getByTestId('variant-stock-quantity').fill(String(quantity));
+    await this.page.locator('button[form="variant-form"]').click();
+    await expect(this.page.getByTestId('variant-form')).toHaveCount(0);
+    await expect(this.page.locator('.vz-toast.success, .vz-toast--success').last()).toBeVisible();
+  }
+
   async createExpectingError(variant: VariantInput): Promise<void> {
     await this.page.getByTestId('add-product-variant').click();
     await this.fill(variant);

@@ -97,8 +97,10 @@
                         <button class="st-avatar" @onclick="ToggleMenu" type="button">@Initial</button>
                         @if (_menuOpen)
                         {
-                            <div style="position:fixed;inset:0;z-index:120" @onclick="CloseMenu"></div>
-                            <div class="st-dropdown">
+                            <div class="st-dropdown-backdrop" @onclick="CloseMenu"></div>
+                            @* --end: the avatar is the last control in the RTL header, so the panel
+                               must grow back into the page rather than off the viewport edge. *@
+                            <div class="st-dropdown st-dropdown--end">
                                 <a href="/customer/dashboard"><Icon Name="dashboard" Size="17" /> داشبورد</a>
                                 <a href="/customer/orders"><Icon Name="cart" Size="17" /> سفارش‌های من</a>
                                 <a href="/customer/wishlist"><Icon Name="heart" Size="17" /> علاقه‌مندی‌ها</a>

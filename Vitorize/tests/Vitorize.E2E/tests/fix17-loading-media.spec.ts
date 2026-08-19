@@ -235,12 +235,19 @@ async function readLoaderOnFreshPage(page: import('@playwright/test').Page, rout
       if (!el) return { present: false, mediaSrc: null as string | null, mediaWidth: null as number | null,
                         hasDefaultMark: false, hasDefaultSpinner: false, role: null as string | null };
       const media = el.querySelector('.vz-splash__media') as HTMLImageElement | null;
+      // A configured medium still emits the built-in mark and ring inside a hidden fallback, so a
+      // broken or missing file degrades to the default instead of a broken-image icon. What matters
+      // is therefore whether the default is SHOWN, not whether it exists in the DOM.
+      const isShown = (selector: string) => {
+        const node = el.querySelector(selector);
+        return !!node && node.getClientRects().length > 0;
+      };
       return {
         present: true,
         mediaSrc: media ? media.getAttribute('src') : null,
         mediaWidth: media ? Math.round(media.getBoundingClientRect().width) : null,
-        hasDefaultMark: !!el.querySelector('.vz-splash-mark'),
-        hasDefaultSpinner: !!el.querySelector('.vz-spinner'),
+        hasDefaultMark: isShown('.vz-splash-mark'),
+        hasDefaultSpinner: isShown('.vz-spinner'),
         role: el.getAttribute('role')
       };
     });

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -27,23 +27,35 @@ public sealed class Fix11ProductInputRequiredOptionalIntegrationTests
     public Fix11ProductInputRequiredOptionalIntegrationTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
     [Fact]
+    /// <summary>
+    /// The cart accepts a partially filled set because product information is collected at Checkout,
+    /// but a caller that skips the storefront form entirely still cannot turn that cart into an order.
+    /// </summary>
     public async Task Server_rejects_a_missing_required_value_even_when_browser_validation_is_bypassed()
     {
         var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var product = await CreateProductAsync();
         using var client = _fixture.CreateClient(token);
 
-        // Raw API call: no storefront form, no client-side validation.
+        // Raw API calls: no storefront form, no client-side validation.
         var omitted = await client.PostAsJsonAsync("/api/cart/items", Add(product.Id));
-        var blank = await client.PostAsJsonAsync("/api/cart/items", Add(product.Id, ("player_id", "   ")));
         var optionalOnly = await client.PostAsJsonAsync("/api/cart/items", Add(product.Id, ("note", "فقط اختیاری")));
 
-        omitted.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        blank.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        optionalOnly.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        omitted.StatusCode.Should().Be(HttpStatusCode.OK, "the cart no longer gates on it");
+        optionalOnly.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // A value that IS supplied is still format-checked at the cart.
+        var malformed = await client.PostAsJsonAsync("/api/cart/items",
+            Add(product.Id, ("player_id", new string('x', 5000))));
+        malformed.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // The required rule bites at order creation, before any payment could start.
+        client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var checkout = await client.PostAsJsonAsync("/api/checkout", new Vitorize.Application.DTOs.Checkout.CheckoutRequestDto());
+        checkout.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         await using var db = _fixture.CreateDbContext();
-        (await db.CartItems.CountAsync(x => x.Cart.UserId == user.Id)).Should().Be(0);
+        (await db.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
     }
 
     [Fact]
@@ -134,9 +146,6 @@ public sealed class Fix11ProductInputRequiredOptionalIntegrationTests
         using var guestClient = _fixture.CreateClient();
         guestClient.DefaultRequestHeaders.Add(CartIdentityResolver.GuestHeader, guestToken);
 
-        var blocked = await guestClient.PostAsJsonAsync("/api/cart/items", Add(product.Id, ("note", "فقط اختیاری")));
-        blocked.StatusCode.Should().Be(HttpStatusCode.BadRequest, "a guest is held to the same required rule");
-
         var guestAdd = await guestClient.PostAsJsonAsync("/api/cart/items", Add(product.Id, ("player_id", "GUEST-11")));
         guestAdd.StatusCode.Should().Be(HttpStatusCode.OK, await guestAdd.Content.ReadAsStringAsync());
 
@@ -208,6 +217,7 @@ public sealed class Fix11ProductInputRequiredOptionalIntegrationTests
                 DisplayStage = (byte)ProductInputStage.Checkout, IsActive = true, SortOrder = 30,
                 CreatedAt = DateTime.UtcNow
             });
+        product.WithCanonicalVariant();
         db.Categories.Add(category);
         db.Products.Add(product);
         await db.SaveChangesAsync();

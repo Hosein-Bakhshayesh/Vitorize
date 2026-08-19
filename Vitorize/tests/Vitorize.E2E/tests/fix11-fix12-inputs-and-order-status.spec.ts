@@ -1,5 +1,5 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl } from './support/app';
+import { apiBaseUrl, stockManagedProduct } from './support/app';
 
 type ApiResult<T> = { data: T };
 type OrderFixture = { id: string; number: string };
@@ -17,40 +17,36 @@ const OLD_PROCESSING = 'در حال پردازش';
 test.describe('FIX-11 required/optional inputs and FIX-12 order status display @fix11 @fix12', () => {
   test.describe.configure({ timeout: 180_000 });
 
-  test('FIX-11 product page distinguishes required from optional and enforces the required field', async ({ page, request, consoleGuard }, testInfo) => {
+  test('FIX-11 checkout distinguishes required from optional and enforces the required field', async ({ page, request, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-light', 'Storefront coverage runs once.');
     await page.setViewportSize({ width: 1440, height: 900 });
     const product = await createRequiredOptionalProduct(request);
     await loginCustomer(page, customerMobile);
     await clearCart(request, await tokenFor(request, customerMobile));
 
+    // The product page no longer announces the fields, and adding to the cart is not gated on them.
     await page.goto(`/product/${product.slug}`, { waitUntil: 'networkidle' });
-
-    // The summary must state the real required count and must not claim every field is required.
-    const summary = page.getByTestId('product-input-summary');
-    await expect(summary).toBeVisible();
-    await expect(summary).toContainText('۱ مورد اطلاعات الزامی');
-    await expect(summary).toContainText('۱ مورد اختیاری');
-    await expect(summary).not.toContainText('به ۲ مورد اطلاعات نیاز دارد');
-
+    await expect(page.getByTestId('product-input-summary')).toHaveCount(0);
     await page.getByRole('button', { name: 'افزودن به سبد خرید' }).click();
-    await expect(page.getByTestId('product-input-required-player_id')).toBeVisible();
-    await expect(page.getByTestId('product-input-optional-note')).toHaveText('اختیاری');
-    await expect(page.getByTestId('product-input-required-note')).toHaveCount(0);
-    await expect(page.getByTestId('product-input-optional-player_id')).toHaveCount(0);
-    // An untouched optional field must not be presented as an error.
-    await expect(page.locator('#product-input-note')).not.toHaveClass(/is-invalid/);
-
-    // Required missing -> blocked, and the modal stays open.
-    await page.getByRole('button', { name: 'تأیید و افزودن' }).click();
-    await expect(page.locator('#product-error-player_id')).toBeVisible();
-    await expect(page.locator('#product-input-player_id')).toHaveClass(/is-invalid/);
-
-    // Required supplied, optional left blank -> accepted.
-    await page.locator('#product-input-player_id').fill('FIX11-PLAYER');
-    await page.getByRole('button', { name: 'تأیید و افزودن' }).click();
-    await expect(page.locator('.st-dynamic-form')).toHaveCount(0);
     await expect(page.locator('.vz-toast').last()).toContainText('سبد خرید');
+
+    // Checkout asks for them, marking required and optional distinctly.
+    await page.goto('/checkout', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('checkout-input-required-player_id')).toBeVisible();
+    await expect(page.getByTestId('checkout-input-optional-note')).toHaveText('اختیاری');
+    await expect(page.getByTestId('checkout-input-required-note')).toHaveCount(0);
+    await expect(page.getByTestId('checkout-input-optional-player_id')).toHaveCount(0);
+
+    // Required missing -> payment is refused and the field is marked.
+    await page.locator('button.st-btn--accent').last().click();
+    await expect(page).toHaveURL(/\/checkout/);
+    const required = page.locator('[data-testid=checkout-input-card] [id$="-player_id"]').first();
+    await expect(required).toHaveAttribute('aria-invalid', 'true');
+
+    // Required supplied, optional left blank -> the purchase proceeds.
+    await required.fill('FIX11-CHECKOUT');
+    await page.locator('button.st-btn--accent').last().click();
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
     consoleGuard.assertClean();
   });
@@ -69,11 +65,14 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
 
     await page.goto('/cart', { waitUntil: 'networkidle' });
     await expect(page.locator('.st-cart-item').filter({ hasText: product.title })).toBeVisible();
-    await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.locator('main')).toContainText('FIX11-CART');
+    // The cart carries no product-input editors; it only shows the line itself.
+    await expect(page.locator('.st-dynamic-form')).toHaveCount(0);
 
     await page.locator('.st-cart-sum button.st-btn--accent').click();
     await expect(page).toHaveURL(/\/checkout/);
+    // Checkout seeds the field from the value already stored on the line.
+    await expect(page.locator('[data-testid=checkout-input-card] [id$="-player_id"]').first())
+      .toHaveValue('FIX11-CART');
     await page.locator('button.st-btn--accent').last().click();
     await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
@@ -203,7 +202,9 @@ async function createRequiredOptionalProduct(request: import('@playwright/test')
     }
   });
   await expectOk(created);
-  return { id: (await created.json() as ApiResult<{ id: string }>).data.id, slug, title };
+  const id = (await created.json() as ApiResult<{ id: string }>).data.id;
+  await stockManagedProduct(request, admin, id);
+  return { id, slug, title };
 }
 
 async function checkoutAndPay(request: import('@playwright/test').APIRequestContext, token: string, productId: string, quantity: number) {

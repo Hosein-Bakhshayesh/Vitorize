@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Vitorize Storefront — Design System v2 (per design_handoff_vitorize)
    Premium gaming/digital marketplace · Persian RTL + English LTR
    Light + Dark themes (dedicated palettes) · Peyda + Funnel Display · .st-* / --st-*
@@ -413,8 +413,26 @@ body { background: var(--st-bg, #fff); }
     border-radius: var(--st-clip-menu);
     box-shadow: var(--st-shadow-lg); z-index: 160;
     animation: st-modal-in var(--st-t-fast) var(--st-ease);
+    /* A menu can never be wider or taller than the space it has: without these a panel anchored
+       near a viewport edge grows straight off-screen, and a long menu runs past the fold with no
+       way to reach its last item. */
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
 }
+/* Anchor the panel's inline-END edge to the trigger so it grows back into the page instead of
+   toward the viewport edge. Required for triggers that sit at the far inline-end of a bar — in
+   RTL the header's account button is the left-most control, and the default inline-start anchor
+   sends a 210px panel straight past x=0. */
 .st-dropdown--end { inset-inline-start: auto; inset-inline-end: 0; }
+/* Click-catcher behind an open header dropdown.
+   .st-header sets backdrop-filter, which makes it the containing block for fixed-position
+   descendants — so a plain `inset: 0` here collapses to the header's own ~70px box and clicks
+   anywhere below the header never reach the catcher, leaving the menu stuck open. The header is
+   sticky at top:0, so its origin coincides with the viewport origin; viewport units therefore
+   restore true full-screen coverage. left/width are used deliberately: the containing block spans
+   the full viewport width in both directions, so logical properties would add no value here. */
+.st-dropdown-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 120; }
 .st-dropdown a, .st-dropdown button {
     display: flex; align-items: center; gap: 10px; width: 100%;
     padding: 10px 12px; border-radius: 9px;
@@ -471,7 +489,11 @@ body { background: var(--st-bg, #fff); }
     transition: transform 180ms var(--st-ease), box-shadow 180ms var(--st-ease), border-color 180ms var(--st-ease);
 }
 .st-pcard:hover { transform: translateY(-6px) scale(1.015); box-shadow: var(--st-card-hover); border-color: var(--st-primary-border); }
-.st-pcard__media { position: relative; aspect-ratio: 16/10; background: var(--st-surface-2); overflow: hidden; border-radius: var(--st-clip-media) / 0 0 0 0; }
+/* PRODUCT MEDIA IS SQUARE. Product artwork is presented 1:1 everywhere it appears so cards,
+   wishlist tiles and skeletons all share one geometry and nothing shifts when an image loads or
+   falls back to the placeholder. This applies to product media only — category, brand, banner,
+   hero, blog and CMS imagery keep their own ratios. */
+.st-pcard__media { position: relative; aspect-ratio: 1/1; background: var(--st-surface-2); overflow: hidden; border-radius: var(--st-clip-media) / 0 0 0 0; }
 .st-pcard__media img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--st-t-slow) var(--st-ease); }
 .st-pcard:hover .st-pcard__media img { transform: scale(1.05); }
 .st-pcard__media .ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--st-muted); }
@@ -720,7 +742,8 @@ body { background: var(--st-bg, #fff); }
     background-size: 200% 100%;
     animation: st-shimmer 1.3s linear infinite;
 }
-.st-skeleton--media { aspect-ratio: 16/10; border-radius: var(--st-clip-media); }
+/* Matches .st-pcard__media so the skeleton reserves exactly the card's real height. */
+.st-skeleton--media { aspect-ratio: 1/1; border-radius: var(--st-clip-media); }
 .st-skeleton--title { height: 16px; width: 70%; }
 .st-skeleton--text { height: 12px; }
 .st-skeleton--text.short { width: 45%; }
@@ -1059,6 +1082,10 @@ body { background: var(--st-bg, #fff); }
     .st-hero__title { font-size: 24px; }
     .st-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .st-main { padding-bottom: 90px; }
+    /* The footer is a sibling of .st-main, so .st-main's clearance does not protect it: at the end
+       of the page the fixed bottom nav sat on top of the last footer row. Reserve the bar's height
+       on the footer itself (plus the safe-area inset on notched devices). */
+    .st-footer { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
     .st-bottomnav {
         display: flex; position: fixed; bottom: 0; inset-inline: 0; z-index: 110;
         background: var(--st-header-bg);
@@ -1410,7 +1437,8 @@ body { background: var(--st-bg, #fff); }
 .st-gal__thumb:hover { opacity: 1; }
 .st-gal__thumb.active { opacity: 1; border-color: var(--st-primary); }
 .st-gal__thumb img { width: 100%; height: 100%; object-fit: cover; }
-.st-gal__main { position: relative; z-index: 1; flex: 1; min-width: 0; height: 400px; border-radius: 8px 28px 28px 28px; overflow: hidden; box-shadow: var(--st-shadow-lg); background: var(--st-surface-2); }
+/* Product detail main image: square, matching the 1:1 product media rule. */
+.st-gal__main { position: relative; z-index: 1; flex: 1; min-width: 0; aspect-ratio: 1/1; border-radius: 8px 28px 28px 28px; overflow: hidden; box-shadow: var(--st-shadow-lg); background: var(--st-surface-2); }
 [dir="rtl"] .st-gal__main { border-radius: 28px 8px 28px 28px; }
 .st-gal__main .st-img, .st-gal__main img { width: 100%; height: 100%; object-fit: cover; animation: st-reveal 400ms var(--st-ease) both; }
 .st-gal__badge { position: absolute; top: 0; inset-inline-start: 0; z-index: 2; background: var(--st-grad-accent); color: var(--st-on-accent); font-size: 11px; font-weight: 800; padding: 7px 18px 7px 22px; clip-path: var(--st-ribbon-clip); box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
@@ -1474,11 +1502,6 @@ body { background: var(--st-bg, #fff); }
 .st-flow__t { font-size: 10.5px; color: var(--st-muted); white-space: nowrap; }
 .st-flow__line { flex: 1; height: 2px; background: var(--st-grad-accent); margin: 12px 6px 0; border-radius: 2px; }
 
-.st-trustbar { margin: 16px 0; }
-.st-trustbar__row { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--st-text-2); margin-bottom: 6px; }
-.st-trustbar__row .ok { font-weight: 700; color: var(--st-success); }
-.st-trustbar__track { height: 5px; border-radius: 4px; background: var(--st-border); overflow: hidden; }
-.st-trustbar__fill { height: 100%; background: var(--st-grad-accent); border-radius: 4px; transition: width 600ms var(--st-ease); }
 
 .st-buy__qty { display: flex; align-items: center; justify-content: space-between; margin: 16px 0; }
 .st-buy__secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; font-size: 11.5px; color: var(--st-muted); }
@@ -1498,14 +1521,14 @@ body { background: var(--st-bg, #fff); }
     .st-pd2 > .st-buy { grid-row: 2; }
     .st-pd2 .st-product-features { grid-row: 3; }
     .st-pd2 .st-ptabs { grid-row: 4; }
-    .st-gal__main { height: min(54vw, 55dvh, 420px); }
+    /* Stays 1:1 (no height override, which would defeat aspect-ratio); contain keeps the whole
+       artwork visible on a narrow screen without changing the square container. */
     .st-gal__main .st-img, .st-gal__main img { object-fit: contain; }
     .st-buy { position: static; }
     .st-whyband__grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
     .st-lgrid { grid-template-columns: 1fr; }
-    .st-gal__main { height: clamp(210px, 68vw, 260px); }
     .st-gal__main .st-img, .st-gal__main img { object-fit: contain; }
     .st-gal__thumb { width: 52px; height: 52px; flex-basis: 52px; }
     .st-cart-item { display: grid !important; grid-template-columns: 70px minmax(0, 1fr); align-items: start !important; }
@@ -1586,7 +1609,6 @@ body { background: var(--st-bg, #fff); }
 .st-rich-content figure.table > figcaption { font-size: 12.5px; color: var(--st-muted); padding: 6px 4px; text-align: center; }
 .st-rich-content pre { background: var(--st-surface-2, #f4f6f9); border: 1px solid var(--st-border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; direction: ltr; text-align: left; }
 .st-rich-content :is(p,h2,h3,h4,li)[style*="text-align"] { /* honour inline alignment */ }
-.st-required-info { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; padding: 10px; border-radius: var(--st-clip-btn); background: var(--st-info-soft); color: var(--st-info); font-size: 12.5px; }
 .st-dynamic-form { display: grid; gap: 14px; }.st-field { display: grid; gap: 6px; }.st-help { color: var(--st-muted); font-size: 12px; }
 /* Required vs optional product-input markers. The optional chip is informational, never an error state. */
 .st-label .req { color: var(--st-danger); font-weight: 700; }
@@ -1655,3 +1677,16 @@ body { background: var(--st-bg, #fff); }
    control a keyboard user can actually reach. */
 [tabindex="-1"]:focus,[tabindex="-1"]:focus-visible{outline:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Checkout: one card per cart line that needs product information, so the customer can always tell
+   which values belong to which purchased item. */
+.st-itemform { border: 1px solid var(--st-border); border-radius: var(--st-clip-btn); padding: 14px; background: var(--st-surface); }
+.st-itemform__head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--st-border); }
+.st-itemform__media { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 10px; overflow: hidden; background: var(--st-surface-2); display: flex; align-items: center; justify-content: center; color: var(--st-muted); }
+.st-itemform__media img { width: 100%; height: 100%; object-fit: cover; }
+.st-itemform__t { font-weight: 700; font-size: 13.5px; overflow-wrap: anywhere; }
+.st-itemform__s { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; color: var(--st-text-2); font-size: 12px; }
+@media (max-width: 480px) {
+    .st-itemform { padding: 12px; }
+    .st-itemform__media { width: 38px; height: 38px; flex: 0 0 38px; }
+}

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Products;
@@ -255,6 +255,65 @@ namespace Vitorize.Infrastructure.Services
             return product;
         }
 
+
+        /// <summary>
+        /// F1/F3 remediation: inventory, cart validation and paid-time consumption are all
+        /// SKU-scoped, so every purchasable non-Instant product must own at least one active
+        /// ProductVariant. A product the admin regards as "variantless" receives one implicit
+        /// default SKU (Title «پیش‌فرض», IsDefault). The storefront hides the selector when a
+        /// product has a single variant, so nothing changes visually for the customer.
+        ///
+        /// Instant products are exempt: their availability is the gift-code pool, which may be
+        /// product-scoped, and forcing a variant id onto Instant order items would break legacy
+        /// gift-code allocation.
+        ///
+        /// The implicit SKU mirrors the product price so the displayed price and the charged
+        /// variant price can never drift; the sync deliberately targets only the implicit
+        /// default so a real, admin-authored variant price is never overwritten.
+        /// </summary>
+        private async Task EnsureDefaultVariantAsync(Product product)
+        {
+            if (ProductAvailabilityRules.IsGiftCodeDriven(product.DeliveryType))
+                return;
+
+            var variants = await _dbContext.ProductVariants
+                .Where(v => v.ProductId == product.Id)
+                .ToListAsync();
+
+            if (variants.Count == 0)
+            {
+                await _dbContext.ProductVariants.AddAsync(new ProductVariant
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = product.Id,
+                    Title = DefaultVariantTitle,
+                    Price = product.BasePrice,
+                    DiscountPrice = product.DiscountPrice,
+                    StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(product.DeliveryType),
+                    StockQuantity = 0,          // unknown legacy stock must never become sellable by default
+                    IsDefault = true,
+                    IsActive = true,
+                    SortOrder = 0,
+                    CreatedAt = DateTime.UtcNow
+                });
+                return;
+            }
+
+            var implicitDefault = variants.Count == 1 && variants[0].IsDefault && variants[0].Title == DefaultVariantTitle
+                ? variants[0]
+                : null;
+            if (implicitDefault is not null)
+            {
+                implicitDefault.Price = product.BasePrice;
+                implicitDefault.DiscountPrice = product.DiscountPrice;
+                implicitDefault.StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(product.DeliveryType);
+                implicitDefault.IsActive = true;
+            }
+        }
+
+        /// <summary>Marker title of the implicit SKU; V0021 seeds migrated products with the same value.</summary>
+        private const string DefaultVariantTitle = ProductAvailabilityRules.DefaultVariantTitle;
+
         public async Task<AdminProductDto> CreateAsync(CreateProductRequestDto request)
         {
             NormalizeRequest(request);
@@ -298,6 +357,7 @@ namespace Vitorize.Infrastructure.Services
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             await _dbContext.Products.AddAsync(product);
             await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
+            await EnsureDefaultVariantAsync(product);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -353,6 +413,7 @@ namespace Vitorize.Infrastructure.Services
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
+            await EnsureDefaultVariantAsync(product);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 

@@ -1,4 +1,4 @@
-SET NOCOUNT ON;
+﻿SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
@@ -166,9 +166,14 @@ WHERE Id = @ProductId;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.ProductVariants WHERE Id = @VariantId)
     INSERT dbo.ProductVariants
-        (Id, ProductId, Title, Sku, Price, DiscountPrice, Value, StockMode, IsDefault, IsActive, SortOrder, CreatedAt)
+        (Id, ProductId, Title, Sku, Price, DiscountPrice, Value, StockMode, StockQuantity, IsDefault, IsActive, SortOrder, CreatedAt)
     VALUES (@VariantId, @ProductId, N'E2E Premium Variant', N'E2E-PREMIUM', 150000, 140000,
-            N'premium', 3, 1, 1, 1, SYSUTCDATETIME());
+            N'premium', 2, 250, 1, 1, 1, SYSUTCDATETIME());
+
+-- Inventory (V0020): the product is Manual delivery, so its variant must carry managed stock or
+-- every add-to-cart in the browser suites is correctly rejected as out of stock. Re-assert the
+-- values on reruns because earlier fixture versions left StockMode=Unlimited/qty 0 behind.
+UPDATE dbo.ProductVariants SET StockMode = 2, StockQuantity = 250 WHERE Id = @VariantId;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.ProductFeatures WHERE Id = @FeatureId)
     INSERT dbo.ProductFeatures (Id, ProductId, Title, Value, IconKey, SortOrder, IsActive, CreatedAt)
@@ -362,3 +367,16 @@ IF NOT EXISTS (SELECT 1 FROM dbo.LegacyRedirects WHERE SourcePath = N'/e2e-gone-
     VALUES (NEWID(), N'/e2e-gone-product', NULL, 410, 1, SYSUTCDATETIME());
 
 PRINT N'E2E deterministic public fixture is ready.';
+
+-- Inventory invariant (V0021): every purchasable non-Instant product owns one implicit default
+-- SKU. Production guarantees this through AdminProductService + the V0021 migration; the seed
+-- inserts products with raw SQL after migrations already ran, so it must uphold the same
+-- invariant itself. QA default SKUs get generous stock so browser flows can purchase freely;
+-- the invariant itself (StockQuantity = 0 on migration) is proven by the migration tests, not
+-- by this fixture.
+INSERT dbo.ProductVariants
+    (Id, ProductId, Title, Price, DiscountPrice, StockMode, StockQuantity, IsDefault, IsActive, SortOrder, CreatedAt)
+SELECT NEWID(), p.Id, N'پیش' + NCHAR(8204) + N'فرض', p.BasePrice, p.DiscountPrice, 2, 250, 1, 1, 0, SYSUTCDATETIME()
+FROM dbo.Products p
+WHERE p.IsDeleted = 0 AND p.DeliveryType <> 1
+  AND NOT EXISTS (SELECT 1 FROM dbo.ProductVariants v WHERE v.ProductId = p.Id);

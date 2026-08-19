@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -387,7 +387,7 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
         setup ??= await CreateKycSetupAsync(requiresDocument);
         var now = DateTime.UtcNow;
         var category = new Category { Id = Guid.NewGuid(), Title = "Phase2G", Slug = $"p2g-{Guid.NewGuid():N}", IsActive = true, CreatedAt = now };
-        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = $"Phase2G {deliveryType}", Slug = $"p2g-product-{Guid.NewGuid():N}", ProductType = (byte)ProductType.GiftCard, DeliveryType = (byte)deliveryType, BasePrice = price, CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, IsActive = true, CreatedAt = now, RequiresVerification = mode != KycRequirementMode.None, KycRequirementMode = (byte)mode, KycThresholdAmount = threshold, KycPolicyVersionId = mode == KycRequirementMode.None ? null : setup.PolicyVersion.Id };
+        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = $"Phase2G {deliveryType}", Slug = $"p2g-product-{Guid.NewGuid():N}", ProductType = (byte)ProductType.GiftCard, DeliveryType = (byte)deliveryType, BasePrice = price, CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, IsActive = true, CreatedAt = now, RequiresVerification = mode != KycRequirementMode.None, KycRequirementMode = (byte)mode, KycThresholdAmount = threshold, KycPolicyVersionId = mode == KycRequirementMode.None ? null : setup.PolicyVersion.Id }.WithCanonicalVariant();
         await using var db = _fixture.CreateDbContext();
         db.AddRange(category, product);
         if (deliveryType == DeliveryType.Instant)

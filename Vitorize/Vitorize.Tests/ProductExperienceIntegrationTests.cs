@@ -139,6 +139,13 @@ public sealed class ProductExperienceIntegrationTests
             ProductType = 1, DeliveryType = 2, CurrencyType = 2, BasePrice = 1000, MinOrderQuantity = 1,
             IsActive = true, CreatedAt = DateTime.UtcNow
         };
+        // Inventory is SKU-scoped: a purchasable non-Instant product always owns a canonical variant.
+        product.ProductVariants.Add(new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = 1000,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+            IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+        });
         db.Categories.Add(category); db.Products.Add(product); return product;
     }
 

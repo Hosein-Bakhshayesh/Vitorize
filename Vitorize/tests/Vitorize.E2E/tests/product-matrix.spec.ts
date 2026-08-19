@@ -21,6 +21,13 @@ test.describe('Product Type / Delivery Type matrix', () => {
       await loginAs('SuperAdmin');
       const productId = await adminProduct.create(scenario.product);
 
+      // Managed-stock products are created with one canonical SKU holding zero stock, so the
+      // administrator's next step is entering a quantity. Instant products skip this: their
+      // inventory is the gift-code pool, imported further down.
+      if (scenario.product.deliveryType !== 1) {
+        await adminVariant.setStock('پیش‌فرض', 25);
+      }
+
       if (scenario.multipleVariants) {
         await adminVariant.create(new VariantBuilder('Matrix Standard', `MATRIX-STD-${runKey}`).priced(150_000, 140_000).default().sorted(20).stockMode(1).build());
         await adminVariant.create(new VariantBuilder('Matrix Deluxe', `MATRIX-DLX-${runKey}`).priced(175_000, 160_000).sorted(10).stockMode(1).build());

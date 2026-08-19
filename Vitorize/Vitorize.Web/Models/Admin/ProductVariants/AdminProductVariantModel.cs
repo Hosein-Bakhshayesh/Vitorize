@@ -16,6 +16,8 @@ namespace Vitorize.Web.Models.Admin.ProductVariants
         public decimal FinalPrice => DiscountPrice.HasValue && DiscountPrice.Value > 0 && DiscountPrice.Value < Price ? DiscountPrice.Value : Price;
         public string? Value { get; set; }
         public byte StockMode { get; set; }
+        /// <summary>Managed inventory; meaningful only for non-Instant delivery.</summary>
+        public int StockQuantity { get; set; }
         public int AvailableStock { get; set; }
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; }
@@ -36,6 +38,9 @@ namespace Vitorize.Web.Models.Admin.ProductVariants
         [MaxLength(100)] public string? Value { get; set; }
         [Range(1, 3, ErrorMessage = "حالت موجودی معتبر نیست.")]
         public byte StockMode { get; set; } = (byte)ProductVariantStockMode.GiftCode;
+        /// <summary>موجودی مدیریت‌شده؛ فقط برای تحویل غیرآنی معنا دارد.</summary>
+        [Range(0, int.MaxValue, ErrorMessage = "موجودی نمی‌تواند منفی باشد.")]
+        public int StockQuantity { get; set; }
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;
         [Range(0, 100000)] public int SortOrder { get; set; } = 10;

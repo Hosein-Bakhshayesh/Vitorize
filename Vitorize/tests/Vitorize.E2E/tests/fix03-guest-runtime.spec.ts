@@ -6,10 +6,6 @@ const guestCookie = 'Vitorize.GuestCart';
 async function addGuestItem(page: Page, context: BrowserContext): Promise<void> {
   await page.goto(productUrl, { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await expect(page.locator('#product-input-account_email')).toBeVisible();
-  await page.locator('#product-input-account_email').fill('fix03-guest@example.test');
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.vz-dialog')).toBeHidden();
   const cookie = (await context.cookies()).find(x => x.name === guestCookie);
   expect(cookie).toBeTruthy();
   await expect.poll(async () => {
@@ -53,7 +49,6 @@ async function addStagedGuestItem(page: Page, context: BrowserContext): Promise<
 async function openStagedEditor(page: Page) {
   const item = page.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' });
   await item.locator('button.st-btn--ghost').first().click();
-  await expect(page.locator('.vz-dialog')).toBeVisible();
   return item;
 }
 
@@ -62,7 +57,6 @@ async function saveStagedValues(page: Page, values = { text: 'guest-stage2-value
   await page.locator('select[id$="-stage2_region"]').selectOption(values.region);
   const terms = page.locator('input[id$="-stage2_terms"]');
   if (values.terms) await terms.check(); else await terms.uncheck();
-  await page.locator('.vz-dialog button.st-btn--accent').click();
 }
 
 async function loginCustomer(page: Page) {
@@ -73,17 +67,15 @@ async function loginCustomer(page: Page) {
   await expect(page).not.toHaveURL(/\/login/);
 }
 
-async function addPrimaryItem(page: Page, email: string) {
+/**
+ * Adds the primary product to the guest cart. Product information is collected at Checkout now, so
+ * an add carries no values and repeated adds of the same product merge into one line whose quantity
+ * grows — which is what this polls for, since the click returns before the cart round-trip lands.
+ */
+async function addPrimaryItem(page: Page, expectedQuantity: number) {
   await page.goto(productUrl, { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await page.locator('#product-input-account_email').fill(email);
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.vz-dialog')).toBeHidden();
 
-  // The dialog closes as soon as the client-side render completes, which is before the cart
-  // round-trip has been persisted. Reading the cart straight afterwards could therefore observe
-  // the previous state and see one line where two were added. addGuestItem already polls the API
-  // for exactly this reason; do the same here, keyed on the value that makes this line distinct.
   await expect
     .poll(async () => {
       const cookie = (await page.context().cookies()).find(x => x.name === guestCookie);
@@ -92,21 +84,55 @@ async function addPrimaryItem(page: Page, email: string) {
         headers: { 'X-Vitorize-Guest-Cart': cookie.value }
       });
       if (response.status() !== 200) return -1;
-      const cart = (await response.json()).data as {
-        items: Array<{ inputValues?: Array<{ fieldKey: string; value: string }> }>;
-      };
-      return cart.items.filter(item =>
-        item.inputValues?.some(value => value.fieldKey === 'account_email' && value.value === email)).length;
-    }, { message: `the guest cart must contain the line added with ${email}` })
-    .toBe(1);
+      return ((await response.json()).data as { totalQuantity: number }).totalQuantity;
+    }, { message: `the guest cart must hold ${expectedQuantity} unit(s) of the primary product` })
+    .toBe(expectedQuantity);
 }
 
+const faDigits = '۰۱۲۳۴۵۶۷۸۹';
+const toInt = (persian: string) =>
+  Number(persian.replace(/[۰-۹]/g, ch => String(faDigits.indexOf(ch))).replace(/\D/g, '')) || 0;
+
+/**
+ * Describes the signed-in customer's cart the way the merge contract cares about it: how many units
+ * of the primary product it holds in total, and how many other lines it has.
+ */
+async function readCustomerCart(page: Page) {
+  await page.goto('/cart', { waitUntil: 'networkidle' });
+  const lines = page.locator('.st-cart-item');
+  let primaryUnits = 0;
+  let otherLines = 0;
+  for (let index = 0; index < await lines.count(); index += 1) {
+    const line = lines.nth(index);
+    if ((await line.innerText()).includes('E2E Dynamic Product')) {
+      primaryUnits += toInt(await line.locator('.st-qty span').innerText());
+    } else {
+      otherLines += 1;
+    }
+  }
+  return { primaryUnits, otherLines };
+}
+
+/**
+ * The shared seeded customer's cart is written to by many other specs in this suite, so the absolute
+ * line counts a merge produces depend on execution order. This test therefore snapshots the
+ * customer's cart while signed in and asserts the merge arithmetic relative to that snapshot: the
+ * two guest units must arrive on the primary product, and no pre-existing line may be lost.
+ */
 test('FIX-03 browser merge uses a seeded existing cart, persists after refresh, and isolates logout', async ({ page, context }) => {
-  await addPrimaryItem(page, 'merge-match@example.test');
-  await addPrimaryItem(page, 'merge-guest-x@example.test');
+  await loginCustomer(page);
+  const before = await readCustomerCart(page);
+  await page.locator('button.st-avatar').click();
+  await page.locator('form[action="/auth/customer/logout"] button').click();
+  await expect(page).not.toHaveURL(/\/cart$/);
+
+  await addPrimaryItem(page, 1);
+  await addPrimaryItem(page, 2);
   const oldCookie = (await context.cookies()).find(x => x.name === guestCookie)!;
   const guestBefore = await readGuestCart(page, context);
-  expect(guestBefore.items).toHaveLength(2);
+  // Product information is supplied at Checkout, so repeated adds of the same product are one line.
+  expect(guestBefore.items).toHaveLength(1);
+  expect(guestBefore.totalQuantity).toBe(2);
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await page.locator('.st-cart-sum button.st-btn--accent').click();
   await expect(page).toHaveURL(/\/login\?returnUrl=%2Fcheckout/);
@@ -123,8 +149,10 @@ test('FIX-03 browser merge uses a seeded existing cart, persists after refresh, 
   await expect(page.locator('main')).toContainText('E2E Dynamic Product');
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(3);
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Related Product' })).toBeVisible();
+  // The two guest units land on the primary product, and nothing the customer already had is lost.
+  const merged = await readCustomerCart(page);
+  expect(merged.primaryUnits).toBe(before.primaryUnits + 2);
+  expect(merged.otherLines).toBe(before.otherLines);
 
   await page.locator('button.st-avatar').click();
   await page.locator('form[action="/auth/customer/logout"] button').click();
@@ -132,9 +160,7 @@ test('FIX-03 browser merge uses a seeded existing cart, persists after refresh, 
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await expect(page.locator('.st-cart-item')).toHaveCount(0);
   await loginCustomer(page);
-  await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(3);
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Related Product' })).toBeVisible();
+  expect(await readCustomerCart(page)).toEqual(merged);
 });
 
 test('FIX-03 expired access token refreshes and preserves the authenticated cart', async ({ page }) => {
@@ -160,7 +186,9 @@ test('FIX-03 expired access token refreshes and preserves the authenticated cart
   await expect(dynamicLines).toHaveCount(dynamicBefore);
   await page.goto('/shop', { waitUntil: 'networkidle' });
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Related Product' })).toBeVisible();
+  // Snapshot-relative for the same reason as the counts above: which products the shared seeded
+  // customer holds depends on execution order, but navigating away and back must change nothing.
+  await expect(page.locator('.st-cart-item')).toHaveCount(totalBefore);
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.locator('.st-cart-item')).toHaveCount(totalBefore);
   expect(routes.filter(x => x.route === '/auth/customer/login' && x.status === 302)).toHaveLength(1);
@@ -171,7 +199,6 @@ test('FIX-03 guest Stage-2 edit persists across mobile reload, navigation, and s
   await addStagedGuestItem(page, context);
   const item = await openStagedEditor(page);
   await saveStagedValues(page);
-  await expect(page.locator('.vz-dialog')).toBeHidden();
   await item.locator('.st-qty button').last().click();
   await expect(item.locator('.st-qty span')).toHaveText('۲');
   const expected = await readGuestCart(page, context);
@@ -198,21 +225,16 @@ test('FIX-03 guest Stage-2 edit persists across mobile reload, navigation, and s
   await expect(secondTab.locator('.st-cart-item').filter({ hasText: 'guest-stage2-value' })).toBeVisible();
 });
 
-test('FIX-03 guest Stage-2 validation blocks authentication before redirect', async ({ page, context }) => {
+// Product information is collected at Checkout, so the cart no longer holds a guest back for it.
+// The guest goes straight to sign-in and keeps their capability; the required-value gate lives at
+// Checkout and is covered by the dedicated checkout-product-information spec.
+test('FIX-03 an incomplete guest cart still routes to authentication and keeps its capability', async ({ page, context }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await addStagedGuestItem(page, context);
-  await page.locator('.st-cart-sum button.st-btn--accent').click();
-  await expect(page).toHaveURL(/\/cart$/);
-  await expect(page.locator('.vz-dialog')).toBeVisible();
-  const requiredText = page.locator('input[id$="-stage2_reference"]');
-  await expect(requiredText).toHaveAttribute('aria-invalid', 'true');
-  await expect(requiredText).toBeFocused();
-  await expect(page.locator('.st-field__error[role="alert"]').first()).toBeVisible();
-  await requiredText.fill('corrected-stage2-value');
-  await page.locator('select[id$="-stage2_region"]').selectOption('north');
-  await page.locator('input[id$="-stage2_terms"]').check();
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.vz-dialog')).toBeHidden();
+
+  // No product-input editors in the cart at all.
+  await expect(page.locator('.st-dynamic-form')).toHaveCount(0);
+
   await page.locator('.st-cart-sum button.st-btn--accent').click();
   await expect(page).toHaveURL(/\/login\?returnUrl=%2Fcheckout/);
   await expectGuestCookie(context);

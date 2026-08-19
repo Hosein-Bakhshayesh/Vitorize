@@ -30,36 +30,56 @@ export class StorefrontProductPage extends BasePage {
     await expect(card).toHaveClass(/active/);
   }
 
+  /**
+   * Adds to the cart. There is no longer a product-page dialog: product information is collected at
+   * Checkout, so any supplied values are remembered for {@link fillProductInformationAtCheckout}.
+   */
   async addToCart(
     inputs: Record<string, string> = {},
-    expectsInputForm = Object.keys(inputs).length > 0
+    _expectsInputForm = false
   ): Promise<void> {
     const button = this.page.locator('.st-buy__card button.st-btn--accent');
     await expect(button).toBeEnabled();
     await button.click();
-    const dialog = this.page.locator('.vz-dialog');
-    if (expectsInputForm) {
-      await expect(dialog).toBeVisible();
-      for (const [key, value] of Object.entries(inputs)) {
-        const input = dialog.locator(`#product-input-${key}`);
-        await input.fill(value);
-        await expect(input).toHaveValue(value);
-      }
-      await dialog.locator('button.st-btn--accent').click();
-      await expect(dialog).toBeHidden();
+    await expect(this.page.locator('.vz-toast.success, .vz-toast--success').last()).toBeVisible();
+    for (const [key, value] of Object.entries(inputs)) this.pendingInputs.set(key, value);
+  }
+
+  private readonly pendingInputs = new Map<string, string>();
+
+  /** Fills the checkout information section, using anything supplied to {@link addToCart}. */
+  async fillProductInformationAtCheckout(): Promise<void> {
+    const section = this.page.getByTestId('checkout-product-inputs');
+    if (!(await section.count())) return;
+    for (const field of await section.locator('input.st-input, textarea, select').all()) {
+      const id = (await field.getAttribute('id')) ?? '';
+      const key = id.replace(/^checkout-input-[0-9a-f]+-/i, '');
+      const value = this.pendingInputs.get(key) ?? `e2e-${key || 'value'}`;
+      const tag = await field.evaluate(el => el.tagName.toLowerCase());
+      if (tag === 'select') await field.selectOption({ index: 1 }).catch(() => {});
+      else await field.fill(value);
     }
-    await expect(this.page.locator('.vz-toast.success').last()).toBeVisible();
   }
 
   async expectOutOfStock(): Promise<void> {
     await expect(this.page.locator('.st-buy__card button.st-btn--accent')).toBeDisabled();
   }
 
+  /**
+   * Adds the product and then proves the missing required value stops the purchase at Checkout —
+   * the product page itself no longer asks for it, and no payment may begin without it.
+   */
   async expectRequiredFieldRejected(key: string): Promise<void> {
     await this.page.locator('.st-buy__card button.st-btn--accent').click();
-    await expect(this.page.locator(`#product-input-${key}`)).toBeVisible();
-    await this.page.locator('.vz-dialog button.st-btn--accent').click();
-    await expect(this.page.locator('.vz-toast.error')).toBeVisible();
+    await expect(this.page.locator('.vz-toast.success, .vz-toast--success').last()).toBeVisible();
+
+    await this.page.goto('/checkout', { waitUntil: 'networkidle' });
+    const field = this.page.locator(`[data-testid=checkout-input-card] [id$="-${key}"]`).first();
+    await expect(field).toBeVisible();
+
+    await this.page.locator('button.st-btn--accent').last().click();
+    await expect(this.page).toHaveURL(/\/checkout/);
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
   }
 
   async expectNotPublic(slug: string): Promise<void> {

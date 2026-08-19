@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -325,10 +325,17 @@ public sealed class VitorizeApiFactory : WebApplicationFactory<Vitorize.Api.Prog
 
 internal sealed class FakeZarinpalGateway : IZarinpalGatewayService
 {
+    /// <summary>
+    /// Counts real provider calls so a test can assert that a blocked checkout never reached the
+    /// gateway at all, rather than inferring it from the absence of a payment row.
+    /// </summary>
+    public int CreatePaymentCalls;
+
     public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(
         decimal amount, Vitorize.Shared.Enums.CurrencyType currency, string description,
         string? mobile = null, string? email = null, string? orderId = null)
     {
+        Interlocked.Increment(ref CreatePaymentCalls);
         var authority = $"A{Guid.NewGuid():N}";
         return Task.FromResult((true, authority, $"https://payment.test/{authority}"));
     }

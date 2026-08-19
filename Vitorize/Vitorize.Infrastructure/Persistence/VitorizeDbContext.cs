@@ -1154,6 +1154,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Sku).HasMaxLength(100);
+            entity.Property(e => e.StockQuantity).HasDefaultValue(0);
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Value).HasMaxLength(100);
 

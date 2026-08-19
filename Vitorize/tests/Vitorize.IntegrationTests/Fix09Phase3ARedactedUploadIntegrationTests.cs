@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -64,7 +64,7 @@ public sealed class Fix09Phase3ARedactedUploadIntegrationTests
         var category = new Category { Id = Guid.NewGuid(), Title = "P3A", Slug = $"p3a-{Guid.NewGuid():N}", IsActive = true, CreatedAt = now };
         var policy = new KycPolicy { Id = Guid.NewGuid(), Code = $"p3a-{Guid.NewGuid():N}", Name = "P3A", IsActive = true, CreatedAt = now };
         var version = new KycPolicyVersion { Id = Guid.NewGuid(), KycPolicyId = policy.Id, Version = 1, Status = (byte)KycPolicyVersionStatus.Published, CustomerTitle = "P3A", CreatedAt = now, PublishedAt = now };
-        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "P3A", Slug = $"p3a-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 1, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = now };
+        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "P3A", Slug = $"p3a-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 1, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = now }.WithCanonicalVariant();
         var order = new Order { Id = Guid.NewGuid(), UserId = owner.Id, OrderNumber = $"P3A-{Guid.NewGuid():N}", Status = 2, PaymentStatus = 2, SubtotalAmount = 1, FinalAmount = 1, CurrencyType = 2, CreatedAt = now };
         var item = new OrderItem { Id = Guid.NewGuid(), OrderId = order.Id, ProductId = product.Id, ProductTitle = product.Title, Quantity = 1, UnitPrice = 1, TotalPrice = 1, CurrencyType = 2, DeliveryType = 2, DeliveryStatus = 1, RequiresVerification = true, KycRequirementMode = 1, KycPolicyVersionId = version.Id, CreatedAt = now };
         await using (var db = _fixture.CreateDbContext())
@@ -109,7 +109,7 @@ public sealed class Fix09Phase3ARedactedUploadIntegrationTests
         var version = new KycPolicyVersion { Id = Guid.NewGuid(), KycPolicyId = policy.Id, Version = 1, Status = (byte)KycPolicyVersionStatus.Published, CustomerTitle = "Required", CreatedAt = DateTime.UtcNow };
         var type = new KycDocumentType { Id = Guid.NewGuid(), Code = $"p3a-required-doc-{Guid.NewGuid():N}", Title = "Required document", IsActive = true, AllowedExtensions = "jpg,jpeg,png,webp", MaxFileSizeBytes = 5 * 1024 * 1024 };
         var wrongType = new KycDocumentType { Id = Guid.NewGuid(), Code = $"p3a-wrong-doc-{Guid.NewGuid():N}", Title = "Wrong document", IsActive = true };
-        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "P3A", Slug = $"p3a-product-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 1, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow };
+        var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = "P3A", Slug = $"p3a-product-{Guid.NewGuid():N}", ProductType = 1, DeliveryType = 2, BasePrice = 1, CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow }.WithCanonicalVariant();
         var order = new Order { Id = Guid.NewGuid(), UserId = owner.Id, OrderNumber = $"P3A-{Guid.NewGuid():N}", Status = 2, PaymentStatus = 2, SubtotalAmount = 1, FinalAmount = 1, CurrencyType = 2, CreatedAt = DateTime.UtcNow };
         var item = new OrderItem { Id = Guid.NewGuid(), OrderId = order.Id, ProductId = product.Id, ProductTitle = product.Title, Quantity = 1, UnitPrice = 1, TotalPrice = 1, CurrencyType = 2, DeliveryType = 2, DeliveryStatus = 1, RequiresVerification = true, KycRequirementMode = 1, KycPolicyVersionId = version.Id, CreatedAt = DateTime.UtcNow };
         await using (var db = _fixture.CreateDbContext())

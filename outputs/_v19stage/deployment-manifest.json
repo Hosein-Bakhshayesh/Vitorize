@@ -1,0 +1,509 @@
+﻿{
+    "manifestVersion":  1,
+    "encoding":  "UTF-8",
+    "namingConvention":  "V####__description.sql",
+    "preflight":  "Preflight/validate_database_state.sql",
+    "postDeploy":  "PostDeploy/verify_database_deployment.sql",
+    "scripts":  [
+                    {
+                        "order":  10,
+                        "version":  "V0001",
+                        "name":  "V0001__create_database_script_history.sql",
+                        "path":  "Versioned/V0001__create_database_script_history.sql",
+                        "sha256":  "0d95329a1e6b5eafbb377b6898f6f43ade76054ad22c970a00c92ffcdc8c6053",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "Core database baseline"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  20,
+                        "version":  "V0002",
+                        "name":  "V0002__normalize_gift_code_reservation_status_constraint.sql",
+                        "path":  "Versioned/V0002__normalize_gift_code_reservation_status_constraint.sql",
+                        "sha256":  "918491680f470df380fff99caaa3b291b8e3354309e28b144945950ae7bc4b45",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0001",
+                                             "dbo.GiftCodeReservations"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  30,
+                        "version":  "H20260713-SMS-SCHEMA",
+                        "name":  "2026-07-13_create_sms_history.sql",
+                        "path":  "2026-07-13_create_sms_history.sql",
+                        "sha256":  "ece5f2dbebf7266c2c58e079377148a43bc02699d31ff9c3e853ca30b731a8f0",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0001",
+                                             "dbo.Users"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  40,
+                        "version":  "H20260714-PRODUCT-SCHEMA",
+                        "name":  "2026-07-14_product_experience_schema.sql",
+                        "path":  "2026-07-14_product_experience_schema.sql",
+                        "sha256":  "907cabcb1eefb753ae3b2ff19add608d2f011c448295f2e39a2a22e3799c393c",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0001",
+                                             "dbo.Products",
+                                             "dbo.CartItems",
+                                             "dbo.OrderItems",
+                                             "dbo.Users"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  50,
+                        "version":  "V0003",
+                        "name":  "V0003__seed_reference_roles.sql",
+                        "path":  "Versioned/V0003__seed_reference_roles.sql",
+                        "sha256":  "9cd5ff472bb5d776269b43f14565870c6c1de862b0a275a36e342138e635be35",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0001",
+                                             "dbo.Roles"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  55,
+                        "version":  "V0004",
+                        "name":  "V0004__financial_integrity_and_security_hardening.sql",
+                        "path":  "Versioned/V0004__financial_integrity_and_security_hardening.sql",
+                        "sha256":  "8a896e8cdbfbee4d84a0c6415192c03cd4fda4088b51828acb73f9ea5c862ef4",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0003",
+                                             "dbo.Payments",
+                                             "dbo.WalletTransactions",
+                                             "dbo.OtpCodes",
+                                             "dbo.UserVerificationProfiles"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  57,
+                        "version":  "V0005",
+                        "name":  "V0005__seo_content_and_legacy_redirects.sql",
+                        "path":  "Versioned/V0005__seo_content_and_legacy_redirects.sql",
+                        "sha256":  "ed6b02b7453590d09fc2d1a085ea3e8f006ab66659c046c911196d7af8955b22",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0004",
+                                             "dbo.Products",
+                                             "dbo.ProductTags",
+                                             "dbo.Categories",
+                                             "dbo.Brands",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  58,
+                        "version":  "V0006",
+                        "name":  "V0006__preserve_currency_through_checkout.sql",
+                        "path":  "Versioned/V0006__preserve_currency_through_checkout.sql",
+                        "sha256":  "70c4485300b40cc94547177682fba3e82e90a7deb1937d2a66c27ea4be1287cc",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0005",
+                                             "dbo.CartItems",
+                                             "dbo.Orders",
+                                             "dbo.OrderItems",
+                                             "dbo.Payments",
+                                             "dbo.Products"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  59,
+                        "version":  "V0007",
+                        "name":  "V0007__support_fulfillment_ticket_uniqueness.sql",
+                        "path":  "Versioned/V0007__support_fulfillment_ticket_uniqueness.sql",
+                        "sha256":  "b39587eed17e512d60e6db99986d488f1d770c54b02f8cee4fac3e54331d2a10",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0006",
+                                             "dbo.Tickets",
+                                             "dbo.OrderItems",
+                                             "dbo.TicketMessages"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  85,
+                        "version":  "V0008",
+                        "name":  "V0008__seed_storefront_typography_settings.sql",
+                        "path":  "Versioned/V0008__seed_storefront_typography_settings.sql",
+                        "sha256":  "fff9d2f0f22c6ac51629f3edee38c30a3e90dc7433d3914e10fbf2035eaade15",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0007",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  86,
+                        "version":  "V0009",
+                        "name":  "V0009__persistent_guest_carts.sql",
+                        "path":  "Versioned/V0009__persistent_guest_carts.sql",
+                        "sha256":  "3763a5b6236065f47b6b461f42188672bbb5584408a495eb7f1bd30c327ab438",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0008",
+                                             "dbo.Carts",
+                                             "dbo.CartItems"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  90,
+                        "version":  "V0010",
+                        "name":  "V0010__kyc_policy_and_order_item_snapshot.sql",
+                        "path":  "Versioned/V0010__kyc_policy_and_order_item_snapshot.sql",
+                        "sha256":  "029bf21945b4d1f19c14b3620955a64cbcf37512767e92b482ac8b7d5c5557f0",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0009",
+                                             "dbo.Products",
+                                             "dbo.OrderItems",
+                                             "dbo.UserVerificationProfiles"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  95,
+                        "version":  "V0011",
+                        "name":  "V0011__order_item_kyc_lifecycle_state.sql",
+                        "path":  "Versioned/V0011__order_item_kyc_lifecycle_state.sql",
+                        "sha256":  "0f838bdbe7d783d7e28f93a06d7c2f7aefd39e244ba00e11881cd903d6315181",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0010",
+                                             "dbo.OrderItems",
+                                             "dbo.UserVerificationProfiles"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  96,
+                        "version":  "V0012",
+                        "name":  "V0012__verification_document_kyc_document_type.sql",
+                        "path":  "Versioned/V0012__verification_document_kyc_document_type.sql",
+                        "sha256":  "73d8c8b043c8f610fd8896762fedaf8e7cd56b2333994722478bd9d4d5add73a",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0011",
+                                             "dbo.VerificationDocuments",
+                                             "dbo.KycDocumentTypes"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  97,
+                        "version":  "V0013",
+                        "name":  "V0013__kyc_document_redaction_configuration.sql",
+                        "path":  "Versioned/V0013__kyc_document_redaction_configuration.sql",
+                        "sha256":  "714524653dbbb8a03e304ad10de1bd7664d643e4f0f9b5904c122c0653e87e98",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0012",
+                                             "dbo.KycPolicyDocumentRequirements"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  98,
+                        "version":  "V0014",
+                        "name":  "V0014__kyc_customer_action_deadline.sql",
+                        "path":  "Versioned/V0014__kyc_customer_action_deadline.sql",
+                        "sha256":  "10f71bfaea811724ed1a7008ceaf80ba70a0c3b077377dee354d2dc66e23468f",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0013",
+                                             "dbo.KycPolicyVersions",
+                                             "dbo.OrderItems",
+                                             "dbo.OrderItemKycStates"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  99,
+                        "version":  "V0015",
+                        "name":  "V0015__kyc_finance_resolution.sql",
+                        "path":  "Versioned/V0015__kyc_finance_resolution.sql",
+                        "sha256":  "29a1af41c42b655785f6c90b419921992bb3029d41f943ebe3a721dc2ed9241a",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0014",
+                                             "dbo.OrderItems",
+                                             "dbo.Users"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  100,
+                        "version":  "V0016",
+                        "name":  "V0016__order_vat_snapshot.sql",
+                        "path":  "Versioned/V0016__order_vat_snapshot.sql",
+                        "sha256":  "e44e9af54422816c603c87ef1812e54a2bd817f2ea815cbf20ae30959f21b16e",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0015",
+                                             "dbo.Orders",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  101,
+                        "version":  "V0017",
+                        "name":  "V0017__cms_system_pages_seed.sql",
+                        "path":  "Versioned/V0017__cms_system_pages_seed.sql",
+                        "sha256":  "7929e2007087f635eed95ecaa1b75b205e5cc34a45621e4a5f999d8b2eb538a1",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0016",
+                                             "dbo.Pages"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  102,
+                        "version":  "V0018",
+                        "name":  "V0018__notification_broadcasts.sql",
+                        "path":  "Versioned/V0018__notification_broadcasts.sql",
+                        "sha256":  "4e331e3b0475f07b4af8f623fcdf49b98cf21a04b62890148ca04916605b1473",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0017",
+                                             "dbo.Notifications",
+                                             "dbo.Users"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  103,
+                        "version":  "V0019",
+                        "name":  "V0019__loading_media_setting_seed.sql",
+                        "path":  "Versioned/V0019__loading_media_setting_seed.sql",
+                        "sha256":  "2397e2acba47a1af09d214d815118b04db61c557b45bac0f2557ae46add0711e",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0018",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  60,
+                        "version":  "H20260708-UI",
+                        "name":  "2026-07-08_seed_settings_ui_customization.sql",
+                        "path":  "2026-07-08_seed_settings_ui_customization.sql",
+                        "sha256":  "a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "V0001",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  70,
+                        "version":  "H20260713-SMS-SEED",
+                        "name":  "2026-07-13_seed_sms_settings.sql",
+                        "path":  "2026-07-13_seed_sms_settings.sql",
+                        "sha256":  "a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "H20260713-SMS-SCHEMA",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  80,
+                        "version":  "H20260714-PRODUCT-SEED",
+                        "name":  "2026-07-14_seed_product_experience_settings.sql",
+                        "path":  "2026-07-14_seed_product_experience_settings.sql",
+                        "sha256":  "90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00",
+                        "classification":  "required",
+                        "dependencies":  [
+                                             "H20260714-PRODUCT-SCHEMA",
+                                             "dbo.Settings"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  900,
+                        "version":  "H20260707-GIFT-LEGACY",
+                        "name":  "2026-07-07_fix_GiftCodeReservations_Status_constraint.sql",
+                        "path":  "2026-07-07_fix_GiftCodeReservations_Status_constraint.sql",
+                        "sha256":  "e9087d640febdcc7b5d7c6080732dfc65d7ca5ce5301acd9ecf1bfaed302ebe9",
+                        "classification":  "superseded",
+                        "supersededBy":  "V0002",
+                        "dependencies":  [
+                                             "dbo.GiftCodeReservations"
+                                         ],
+                        "environments":  [
+
+                                         ]
+                    },
+                    {
+                        "order":  910,
+                        "version":  "H20260708-DATA-FIX",
+                        "name":  "2026-07-08_data_fix_image_paths_and_names.sql",
+                        "path":  "2026-07-08_data_fix_image_paths_and_names.sql",
+                        "sha256":  "3ddcdc13e8e573b603e9e427a4aadf2fe7b976ef8faeba38ae4cc1ecd78fbd9b",
+                        "classification":  "environment-specific",
+                        "dependencies":  [
+                                             "dbo.Categories",
+                                             "dbo.Users",
+                                             "Confirmed affected legacy rows"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  920,
+                        "version":  "H20260713-OTP-COMPAT",
+                        "name":  "2026-07-13_otpcodes_purpose_login_constraint.sql",
+                        "path":  "2026-07-13_otpcodes_purpose_login_constraint.sql",
+                        "sha256":  "81885aaded0f0ee3db6aa9c5cb9192c2f3f175f2d42d40df309e6492c8c82035",
+                        "classification":  "environment-specific",
+                        "dependencies":  [
+                                             "dbo.OtpCodes",
+                                             "Confirmed restrictive Purpose constraint"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    },
+                    {
+                        "order":  930,
+                        "version":  "H20260714-LUCIDE-CLEANUP",
+                        "name":  "2026-07-14_optional_normalize_legacy_lucide_icons.sql",
+                        "path":  "2026-07-14_optional_normalize_legacy_lucide_icons.sql",
+                        "sha256":  "7833bfbff5bcec3fae162ea32b85446ba2001d80b65e23528fc0c0edcdd1f49f",
+                        "classification":  "optional",
+                        "dependencies":  [
+                                             "dbo.ProductFeatures",
+                                             "dbo.Categories"
+                                         ],
+                        "environments":  [
+                                             "Development",
+                                             "Staging",
+                                             "Production"
+                                         ]
+                    }
+                ]
+}

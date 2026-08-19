@@ -3,6 +3,7 @@
 @inject ToastService Toasts
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@using Vitorize.Application.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>جزئیات سفارش | ویتورایز</PageTitle>
@@ -34,7 +35,8 @@ else
                 <div class="st-card st-card__pad">
                     <div class="st-spread">
                         <div>
-                            <div style="font-weight:700">@item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")</div>
+                            @{ var variantTitle = ProductAvailabilityRules.CustomerFacingVariantTitle(item.VariantTitle); }
+                            <div style="font-weight:700">@item.ProductTitle @(string.IsNullOrWhiteSpace(variantTitle) ? "" : $"— {variantTitle}")</div>
                             <div class="st-muted" style="font-size:12.5px;margin-top:4px">تعداد @AUI.Number(item.Quantity) · @AUI.MoneyFa(item.UnitPrice) · @AUI.DeliveryType(item.DeliveryType)</div>
                         </div>
                         <StoreBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="@(item.DeliveryStatus == (byte)DeliveryStatus.Delivered ? "success" : "warning")" Dot="false" />

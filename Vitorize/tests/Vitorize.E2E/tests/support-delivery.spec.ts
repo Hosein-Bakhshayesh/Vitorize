@@ -18,11 +18,13 @@ async function supportState(page: import('@playwright/test').Page, orderId: stri
 }
 
 test.describe('support/ticket delivery', () => {
-  test('admin fulfills a pending SupportRequired order from order details', {
+  test('admin order details route a pending SupportRequired item to its support workflow', {
     tag: [TAG.supportDelivery, TAG.business, TAG.customer, TAG.admin, TAG.regression, TAG.release]
   }, async ({ page, browser, storefront }) => {
-    // This is deliberately an order-fulfillment flow, rather than the ticket-reply flow below:
-    // SupportRequired items must have the same audited manual fulfillment route accepted by the API.
+    // SupportRequired is NOT fulfilled through the manual evidence route — the API refuses it and
+    // FIX-09 Phase 2E asserts that boundary. This screen must therefore withhold the manual
+    // delivery action and tell the administrator to use the order's support ticket instead. The
+    // test previously drove the manual route here and contradicted the API.
     await loginSeededCustomerWithEmptyCart(page);
     await storefront.addToCart(SUPPORT_SLUG, { support_ref: 'e2e-fix04-ref' });
     const orderId = await storefront.checkoutAndPay();
@@ -49,28 +51,22 @@ test.describe('support/ticket delivery', () => {
       await expect(details).toBeVisible();
       await expect(details.locator('#completion-reason')).toBeVisible();
       await expect(details.getByRole('button', { name: 'تکمیل سفارش' })).toBeDisabled();
-      await expect(details.locator('.vz-manual-delivery')).toBeVisible();
 
-      await details.locator('.vz-manual-delivery').click();
-      const content = `FIX-04 support fulfillment ${Date.now()}`;
-      const deliveryDialog = adminPage.getByRole('dialog').filter({ has: adminPage.locator('#manual-delivery-content') });
-      await deliveryDialog.locator('#manual-delivery-content').fill(content);
-      await deliveryDialog.locator('button.vz-btn--primary').click();
-      await expect(deliveryDialog).toBeHidden();
-      await expect(adminPage.locator('.vz-toast.success')).toBeVisible();
+      // No manual-delivery action for a support item, and the guidance names the real workflow.
       await expect(details.locator('.vz-manual-delivery')).toHaveCount(0);
-      await expect(details.getByRole('button', { name: 'تکمیل سفارش' })).toHaveCount(0);
+      await expect(details).toContainText('تیکت پشتیبانی');
 
       const after = await supportState(adminPage, orderId);
-      expect(after.manualDeliveries).toBe(1);
-      expect(after.orderStatus).toBe(3); // Completed automatically after the final item is fulfilled.
-
-      await page.goto(`/customer/orders/${orderId}`, { waitUntil: 'networkidle' });
-      await expect(page.locator('main')).toContainText(content);
-      await expect(page.locator('main')).toContainText('تکمیل شده');
+      expect(after.manualDeliveries).toBe(0); // nothing fabricated through the manual route
+      expect(after.orderStatus).toBe(2);      // still Processing, waiting on the support workflow
     } finally {
       await adminContext.close();
     }
+
+    // The customer is told support is following up, and no gift code or manual content is exposed.
+    await page.goto(`/customer/orders/${orderId}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('main')).toContainText('e2e-fix04-ref');
+    await expect(page.locator('main')).not.toContainText('تکمیل شده');
   });
 
   test('buy support product -> open ticket -> admin delivers via reply + closes -> customer verifies', {

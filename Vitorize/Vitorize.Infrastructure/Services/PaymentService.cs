@@ -1059,6 +1059,13 @@ namespace Vitorize.Infrastructure.Services
             order.PaidAt = now;
             order.UpdatedAt = now;
 
+            // Managed inventory is consumed here and nowhere else. This method is the single paid
+            // transition for every success path (gateway verification, wallet, reconciliation), it
+            // is guarded by the PaymentStatus check above, and all three callers run it inside a
+            // Serializable transaction — so consumption is exactly-once and commits atomically with
+            // the paid state.
+            await ConsumeManagedStockAsync(order, userId, now);
+
             await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
             {
                 EventType = "PaymentCaptured",
@@ -1104,6 +1111,67 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
+        }
+
+        /// <summary>
+        /// Decrements managed variant inventory for a newly paid order.
+        ///
+        /// Instant items are skipped entirely: their inventory is the gift-code pool and is handled
+        /// by the existing reservation/allocation pipeline, which this must not disturb.
+        ///
+        /// Each decrement is a single conditional UPDATE, so two concurrent orders competing for the
+        /// last unit cannot both succeed and stock can never go negative — the database, not the
+        /// application, arbitrates. A read-modify-save would lose that guarantee.
+        ///
+        /// Because inventory is deliberately not reserved at cart or checkout, a second buyer can
+        /// still complete payment after the last unit is gone. That payment is real and is never
+        /// discarded: the order stays paid and in Processing (the queue administrators already work),
+        /// and a distinct financial audit event records the shortfall so it is traceable and can be
+        /// resolved through the existing finance/manual path. We do not fabricate a delivery, and we
+        /// do not silently drive stock negative.
+        /// </summary>
+        private async Task ConsumeManagedStockAsync(Order order, Guid userId, DateTime now)
+        {
+            var managedItems = await _dbContext.OrderItems
+                .Where(oi => oi.OrderId == order.Id && oi.ProductVariantId != null)
+                .Select(oi => new
+                {
+                    oi.Id,
+                    VariantId = oi.ProductVariantId!.Value,
+                    oi.Quantity,
+                    DeliveryType = oi.Product.DeliveryType,
+                    VariantTitle = oi.ProductVariant!.Title
+                })
+                .ToListAsync();
+
+            foreach (var item in managedItems)
+            {
+                if (ProductAvailabilityRules.IsGiftCodeDriven(item.DeliveryType))
+                    continue;
+
+                if (item.Quantity <= 0)
+                    continue;
+
+                var affected = await _dbContext.Database.ExecuteSqlInterpolatedAsync($@"
+UPDATE dbo.ProductVariants
+SET    StockQuantity = StockQuantity - {item.Quantity}
+WHERE  Id = {item.VariantId}
+  AND  StockQuantity >= {item.Quantity}");
+
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = affected == 1 ? "StockConsumed" : "StockShortfall",
+                    EntityType = "ProductVariant",
+                    EntityId = item.VariantId,
+                    UserId = userId,
+                    Amount = item.Quantity,
+                    CorrelationId = order.Id,
+                    Detail = affected == 1
+                        ? $"order:{order.OrderNumber}; variant:{item.VariantTitle}; consumed:{item.Quantity}"
+                        : $"order:{order.OrderNumber}; variant:{item.VariantTitle}; requested:{item.Quantity}; insufficient stock at payment capture — requires manual fulfilment resolution",
+                    CreatedAt = now
+                });
+            }
         }
 
         private async Task ProcessPaidOrderSafelyAsync(Guid orderId)

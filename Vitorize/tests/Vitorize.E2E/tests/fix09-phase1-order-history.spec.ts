@@ -1,5 +1,5 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl, monitorBrowser } from './support/app';
+import { apiBaseUrl, monitorBrowser, stockManagedProduct } from './support/app';
 
 const productIds = {
   above: '31000000-0000-0000-0000-000000000053',
@@ -65,12 +65,10 @@ async function prepareOrders(request: import('@playwright/test').APIRequestConte
   const owner = await tokenFor(request, '09120000014');
   const otherCustomer = await tokenFor(request, '09120000013');
   const admin = await tokenFor(request, process.env.E2E_ADMIN_MOBILE ?? '09120000011');
+  // e2e-fix09-above is an Instant product, so it is delivered from the gift-code pool. The manual
+  // delivery route rejects Instant items by design, and this fixture used to call it anyway; the
+  // subject here is the KYC snapshot history across V1/V2/retry, not delivery evidence.
   const v1 = await checkoutAndPay(request, owner, productIds.above, 1);
-  const v1Detail = await orderDetails(request, admin, `/admin/orders/${v1.id}`);
-  const delivery = `FIX09 delivered V1 ${Date.now()}`;
-  await expectOk(await request.post(`${apiBaseUrl}/admin/orders/${v1.id}/deliver-manual`, {
-    headers: bearer(admin), data: { orderItemId: v1Detail.items[0].id, content: delivery, isVisibleToCustomer: true }
-  }));
 
   await updateKycProduct(request, admin, productIds.above, productIds.policyV2, 4_000);
   const v2 = await checkoutAndPay(request, owner, productIds.above, 1);
@@ -92,7 +90,7 @@ async function prepareOrders(request: import('@playwright/test').APIRequestConte
   }
   const idor = await request.get(`${apiBaseUrl}/orders/${v1.id}`, { headers: bearer(otherCustomer) });
   expect(idor.status()).toBe(404);
-  return { v1: { ...v1, delivery }, v2, retry, legacy };
+  return { v1, v2, retry, legacy };
 }
 
 async function checkoutAndPay(request: import('@playwright/test').APIRequestContext, token: string, productId: string, quantity: number) {
@@ -150,7 +148,9 @@ async function createLegacyCompatibleProduct(request: import('@playwright/test')
     }
   });
   await expectOk(created);
-  return (await created.json() as ApiResult<{ id: string }>).data.id;
+  const id = (await created.json() as ApiResult<{ id: string }>).data.id;
+  await stockManagedProduct(request, token, id);
+  return id;
 }
 
 async function orderDetails(request: import('@playwright/test').APIRequestContext, token: string, route: string): Promise<Order> {

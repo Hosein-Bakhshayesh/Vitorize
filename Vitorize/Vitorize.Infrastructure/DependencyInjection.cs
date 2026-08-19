@@ -101,6 +101,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<ISeoService, SeoService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();
             services.AddScoped<IAdminPageService, AdminPageService>();
+            services.AddScoped<IAdminBlogService, AdminBlogService>();
             services.AddScoped<IAdminFaqService, AdminFaqService>();
             services.AddScoped<IProductReviewService, ProductReviewService>();
             services.AddScoped<IAdminProductReviewService, AdminProductReviewService>();

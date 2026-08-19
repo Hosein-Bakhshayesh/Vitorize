@@ -13,7 +13,7 @@ const route = (path: string, component: string, interactions: string[]): Respons
 test.describe('@responsive @regression @release responsive interactions and overlays', () => {
   test.describe.configure({ timeout: 180_000 });
 
-  test('storefront header, product media and dynamic-input dialog stay reachable @mobile @overflow', async ({ page, loginAs }, testInfo) => {
+  test('storefront header, product media and checkout product information stay reachable @mobile @overflow', async ({ page, loginAs }, testInfo) => {
     test.skip(!interactionProjects.has(testInfo.project.name));
     await loginAs('Customer');
     await page.goto('/product/e2e-seo-product', { waitUntil: 'domcontentloaded' });
@@ -48,9 +48,12 @@ test.describe('@responsive @regression @release responsive interactions and over
     const buy = page.locator('.st-buy__card button.st-btn--accent');
     await expect(buy).toHaveCount(1);
     await buy.click();
-    await expect(page.locator('.st-shell .vz-dialog')).toBeVisible();
+    // Adding to the cart is immediate now; product information is collected at checkout instead.
+    await expect(page.locator('.vz-toast.success, .vz-toast--success').first()).toBeVisible();
+    await page.goto('/checkout', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('checkout-product-inputs')).toBeVisible();
     await auditResponsivePage(page, testInfo, {
-      route: { route: '/product/{Slug}', path: '/product/e2e-seo-product', component: 'Store/Product purchase dialog', persona: 'Customer', interactions: ['dynamic input dialog'] },
+      route: { route: '/checkout', path: '/checkout', component: 'Store/Checkout product information', persona: 'Customer', interactions: ['checkout product information'] },
       viewport: `${page.viewportSize()!.width}x${page.viewportSize()!.height}`,
       theme: testInfo.project.use.colorScheme?.toString() ?? 'light'
     });

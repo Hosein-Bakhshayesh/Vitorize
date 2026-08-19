@@ -13,6 +13,7 @@
         public string? Value { get; set; }
 
         public byte StockMode { get; set; } = 1;
+        public int StockQuantity { get; set; }
 
         public bool IsDefault { get; set; }
 

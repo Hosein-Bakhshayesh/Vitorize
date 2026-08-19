@@ -39,13 +39,20 @@ test('storefront, product, cart and checkout match approved responsive baselines
   // with the supported server-side price sort so the visual baseline represents
   // a fixed catalog state rather than mutable insertion timestamps.
   await capture(page, '/category/e2e-category?sort=cheapest', 'category.png');
-  await capture(page, '/product/e2e-seo-product', 'product.png');
+  // Managed inventory is live: the SKU's remaining count and the related cards' availability
+  // badges change as the other projects in this run buy the same seeded products. Pin the
+  // related grid and hide the count so the baseline captures layout, not a moving number.
+  const relatedGrid = page.locator('section.st-section:has(.st-pcard__wish) > .st-grid');
+  await capture(page, '/product/e2e-seo-product', 'product.png', [relatedGrid], async () => {
+    await page.addStyleTag({
+      content: '.st-vcard__stock { visibility: hidden !important; }'
+        + ' section.st-section:has(.st-pcard__wish) > .st-grid { height: 360px !important; overflow: hidden !important; }'
+    });
+  });
 
   await registerCustomer(page, uniqueCustomer('Visual Customer'));
   await page.goto('/product/e2e-seo-product', { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await page.locator('#product-input-account_email').fill('visual@example.test');
-  await page.locator('.vz-dialog button.st-btn--accent').click();
   await expect(page.locator('.vz-toast.success')).toBeVisible();
 
   await capture(page, '/cart', 'cart.png', [page.locator('.st-input-summary')]);

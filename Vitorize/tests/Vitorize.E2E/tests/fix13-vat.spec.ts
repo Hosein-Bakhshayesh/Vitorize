@@ -1,5 +1,5 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl } from './support/app';
+import { apiBaseUrl, stockManagedProduct } from './support/app';
 
 type ApiResult<T> = { data: T };
 type Cart = { subtotalAmount: number; discountAmount: number; vatEnabled: boolean; vatRatePercent: number; vatAmount: number; finalAmount: number };
@@ -276,7 +276,9 @@ async function createProduct(request: import('@playwright/test').APIRequestConte
     }
   });
   await expectOk(created);
-  return { id: (await created.json() as ApiResult<{ id: string }>).data.id };
+  const id = (await created.json() as ApiResult<{ id: string }>).data.id;
+  await stockManagedProduct(request, admin, id);
+  return { id };
 }
 
 async function stockCart(request: import('@playwright/test').APIRequestContext, token: string, productId: string) {

@@ -265,6 +265,13 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
         await using var db = _fixture.CreateDbContext();
         var category = new Category { Id = Guid.NewGuid(), Title = "FIX-09 evidence", Slug = $"fix09-evidence-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow };
         var product = new Product { Id = Guid.NewGuid(), CategoryId = category.Id, Title = $"FIX-09 {suffix}", Slug = $"fix09-{suffix}-{Guid.NewGuid():N}", ProductType = (byte)ProductType.Other, DeliveryType = (byte)DeliveryType.Manual, BasePrice = price, CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow, RequiresVerification = mode != KycRequirementMode.None, KycRequirementMode = (byte)mode, KycThresholdAmount = threshold, KycPolicyVersionId = policyVersionId };
+        // Inventory is SKU-scoped: a purchasable non-Instant product always owns a canonical variant.
+        product.ProductVariants.Add(new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = price,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+            IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+        });
         db.Categories.Add(category); db.Products.Add(product); await db.SaveChangesAsync();
         return product;
     }

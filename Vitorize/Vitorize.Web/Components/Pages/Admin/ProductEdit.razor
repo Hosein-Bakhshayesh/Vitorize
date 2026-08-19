@@ -426,13 +426,39 @@ else
                     <label class="vz-label">قیمت با تخفیف</label>
                     <InputNumber class="vz-input" data-testid="variant-discount-price" @bind-Value="_variant.DiscountPrice" />
                 </div>
+                @* Inventory is decided by the product's delivery type, not chosen per variant: Instant
+                   draws from the gift-code pool, every other mode from a managed quantity. Offering a
+                   free choice here would let an administrator claim stock that cannot be delivered. *@
                 <div class="vz-field">
-                    <label class="vz-label">حالت موجودی</label>
-                    <select class="vz-select" data-testid="variant-stock-mode" value="@_variant.StockMode" @onchange="e => _variant.StockMode = byte.Parse(e.Value!.ToString()!)">
-                        <option value="1">وابسته به کد گیفت</option>
-                        <option value="2">موجودی دستی</option>
-                        <option value="3">بدون محدودیت</option>
-                    </select>
+                    <label class="vz-label">موجودی</label>
+                    @if (IsInstantDelivery)
+                    {
+                        <div class="vz-input" style="display:flex;align-items:center;background:var(--surface-2)"
+                             data-testid="variant-stock-giftcode">
+                            <span>@AdminUiHelper.Number(_variantGiftCodeStock) عدد کد قابل تحویل</span>
+                        </div>
+                        <div class="vz-hint">موجودی این نوع محصول بر اساس تعداد کدهای قابل تحویل محاسبه می‌شود.</div>
+                    }
+                    else
+                    {
+                        <InputNumber class="vz-input" data-testid="variant-stock-quantity"
+                                     @bind-Value="_variant.StockQuantity" min="0" step="1" />
+                        <div class="vz-hint">
+                            تعداد قابل فروش این تنوع. مقدار صفر یعنی «ناموجود».
+                            موجودی فقط پس از پرداخت موفق کسر می‌شود؛ افزودن به سبد خرید آن را رزرو نمی‌کند.
+                        </div>
+                        <div class="vz-hint" data-testid="variant-stock-availability">
+                            وضعیت فعلی:
+                            @if (_variant.StockQuantity > 0)
+                            {
+                                <span class="vz-chip vz-chip--success">موجود</span>
+                            }
+                            else
+                            {
+                                <span class="vz-chip vz-chip--danger">ناموجود</span>
+                            }
+                        </div>
+                    }
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">ترتیب نمایش</label>
@@ -650,20 +676,36 @@ else
         (list[index], list[target]) = (list[target], list[index]);
     }
 
+    /// <summary>Instant products take their inventory from gift codes, so no manual quantity is offered.</summary>
+    private bool IsInstantDelivery => _model.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Instant;
+
+    /// <summary>Gift-code stock of the variant being edited, shown read-only for Instant delivery.</summary>
+    private int _variantGiftCodeStock;
+
     private void OpenVariantCreate()
     {
         _variantEditingId = null;
-        _variant = new CreateProductVariantRequestModel { IsActive = true, StockMode = 1, SortOrder = 10 };
+        _variantGiftCodeStock = 0;
+        // The server derives StockMode from the product's delivery type; this mirrors it for display.
+        _variant = new CreateProductVariantRequestModel
+        {
+            IsActive = true,
+            StockMode = (byte)(IsInstantDelivery ? 1 : 2),
+            StockQuantity = 0,
+            SortOrder = 10
+        };
         _variantOpen = true;
     }
 
     private void OpenVariantEdit(AdminProductVariantModel v)
     {
         _variantEditingId = v.Id;
+        _variantGiftCodeStock = v.AvailableStock;
         _variant = new CreateProductVariantRequestModel
         {
             Title = v.Title, Sku = v.Sku, Price = v.Price, DiscountPrice = v.DiscountPrice,
-            Value = v.Value, StockMode = v.StockMode, IsDefault = v.IsDefault, IsActive = v.IsActive, SortOrder = v.SortOrder
+            Value = v.Value, StockMode = v.StockMode, StockQuantity = v.StockQuantity,
+            IsDefault = v.IsDefault, IsActive = v.IsActive, SortOrder = v.SortOrder
         };
         _variantOpen = true;
     }

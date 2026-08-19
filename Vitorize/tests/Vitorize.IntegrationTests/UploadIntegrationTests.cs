@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Vitorize.Api.Hosting;
 using Vitorize.Application.DTOs.Admin.Uploads;
 using Vitorize.IntegrationTests.Infrastructure;
 using Vitorize.Shared.Common;
@@ -34,9 +34,14 @@ public sealed class UploadIntegrationTests
         (await anonymous.GetAsync($"/uploads/verifications/{result.FileName}")).StatusCode
             .Should().Be(HttpStatusCode.NotFound);
 
-        var environment = _fixture.Factory.Services.GetRequiredService<IWebHostEnvironment>();
-        var stored = Path.Combine(environment.ContentRootPath, "private", "verification-documents", user.Id.ToString("N"), result.FileName);
+        // Resolve the location from the application's own storage configuration rather than
+        // restating a layout: private documents live under App_Data/PrivateDocuments, which is the
+        // path the deployment grants write access to.
+        var storage = _fixture.Factory.Services.GetRequiredService<HostingStoragePaths>();
+        var stored = Path.Combine(storage.PrivateDocumentsRoot, user.Id.ToString("N"), result.FileName);
         File.Exists(stored).Should().BeTrue();
+        stored.Should().StartWith(storage.PrivateDocumentsRoot,
+            "a KYC document must never be written into the publicly served media root");
         File.Delete(stored);
     }
 
@@ -78,9 +83,10 @@ public sealed class UploadIntegrationTests
         result.FileName.Should().MatchRegex("^[a-f0-9]{32}\\.pdf$");
         result.FilePath.Should().Be($"/uploads/attachments/{result.FileName}");
 
-        var environment = _fixture.Factory.Services.GetRequiredService<IWebHostEnvironment>();
-        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-        var stored = Path.Combine(webRoot, "uploads", "attachments", result.FileName);
+        // Public media is served from App_Data/PublicMedia, not from wwwroot, so the on-disk
+        // assertion follows the application's configured root.
+        var storage = _fixture.Factory.Services.GetRequiredService<HostingStoragePaths>();
+        var stored = Path.Combine(storage.PublicMediaRoot, "attachments", result.FileName);
         File.Exists(stored).Should().BeTrue();
         File.Delete(stored);
     }

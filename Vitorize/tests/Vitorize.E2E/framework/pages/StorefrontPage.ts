@@ -18,24 +18,39 @@ export class StorefrontPage extends BasePage {
     await this.goto(`/product/${slug}`);
   }
 
-  /** Add a product to the cart, filling its required dynamic input fields (key -> value). */
+  /**
+   * Adds a product to the cart. Product-required information is collected at Checkout now, so the
+   * values are remembered here and filled in by {@link fillProductInformation} before payment.
+   */
   async addToCart(slug: string, inputs: Record<string, string> = {}): Promise<void> {
     await this.page.goto(`/product/${slug}`, { waitUntil: 'networkidle' });
     await this.page.locator('.st-buy__card button.st-btn--accent').click();
-    for (const [key, value] of Object.entries(inputs)) {
-      const field = this.page.locator(`#product-input-${key}`);
-      await expect(field).toBeVisible();
-      await field.fill(value);
+    await expect(this.page.locator('.vz-toast.success, .vz-toast--success').first()).toBeVisible();
+    for (const [key, value] of Object.entries(inputs)) this.pendingInputs.set(key, value);
+  }
+
+  private readonly pendingInputs = new Map<string, string>();
+
+  /** Fills every product-information field the checkout page is asking for. */
+  async fillProductInformation(): Promise<void> {
+    const section = this.page.getByTestId('checkout-product-inputs');
+    if (!(await section.count())) return;
+    for (const field of await section.locator('input.st-input, textarea, select').all()) {
+      const id = (await field.getAttribute('id')) ?? '';
+      const key = id.replace(/^checkout-input-[0-9a-f]+-/i, '');
+      const value = this.pendingInputs.get(key) ?? `e2e-${key || 'value'}`;
+      const tag = await field.evaluate(el => el.tagName.toLowerCase());
+      if (tag === 'select') await field.selectOption({ index: 1 }).catch(() => {});
+      else await field.fill(value);
     }
-    await this.page.locator('.vz-dialog button.st-btn--accent').click();
-    await expect(this.page.locator('.vz-toast.success')).toBeVisible();
   }
 
   /** Gateway checkout through the fake payment provider; returns the created order id. */
   async checkoutAndPay(): Promise<string> {
     await this.page.goto('/checkout', { waitUntil: 'networkidle' });
     await expect(this.page.locator('.st-paycard.active')).toBeVisible();
-    await this.page.locator('button.st-btn--accent').click();
+    await this.fillProductInformation();
+    await this.page.locator('button.st-btn--accent').last().click();
     await expect(this.page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
     const match = /orderId=([0-9a-f-]+)/i.exec(this.page.url());
     if (!match) throw new Error(`No orderId in payment result URL: ${this.page.url()}`);

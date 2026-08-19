@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vitorize.Application.DTOs.Cart;
@@ -183,6 +183,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
             CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1,
             IsActive = true, CreatedAt = DateTime.UtcNow
         };
+        product.WithCanonicalVariant();
         await using var seed = _fixture.CreateDbContext();
         seed.Categories.Add(category);
         seed.Products.Add(product);

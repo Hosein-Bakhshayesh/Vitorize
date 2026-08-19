@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -306,6 +306,7 @@ public sealed class Fix13VatSnapshotImmutabilityIntegrationTests
             CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1,
             IsActive = true, CreatedAt = DateTime.UtcNow
         };
+        product.WithCanonicalVariant();
         db.Categories.Add(category);
         db.Products.Add(product);
         await db.SaveChangesAsync();

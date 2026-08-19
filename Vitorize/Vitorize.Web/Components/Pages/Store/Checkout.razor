@@ -1,8 +1,13 @@
-@page "/checkout"
+﻿@page "/checkout"
 @inject ApiClient Api
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject MediaUrlResolver Media
+@inject IJSRuntime JS
+@using Vitorize.Application.Common
 @using Vitorize.Web.Models.Customer
+@using Vitorize.Web.Models.Store
+@using Vitorize.Web.Services.UI
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>تکمیل خرید | ویتورایز</PageTitle>
@@ -39,18 +44,35 @@ else
                 </div>
             </div>
 
+            @* KYC here is post-payment: the customer pays now and delivery of the affected items
+               waits for verification. That makes the explanation informational, but the customer
+               still needs a way to act on it, so the panel always ends in a real link into the
+               existing /customer/verification flow. The action follows the request's actual state
+               so a customer whose documents are already under review is not told to submit again. *@
             @if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
             {
-                <div data-testid="checkout-kyc-information" class="st-alert st-alert--info phase2g-kyc-information">
+                <div data-testid="checkout-kyc-information" class="st-alert st-alert--info st-checkout-kyc">
                     <Icon Name="shield" Size="20" />
                     <div>
-                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-bottom:6px">برای تحویل برخی اقلام این سفارش، پس از پرداخت تکمیل احراز هویت لازم است. پرداخت انجام می‌شود، اما تحویل این اقلام تا تکمیل احراز هویت در انتظار می‌ماند.</div>
                         <div style="font-weight:700">احراز هویت</div>
-                        <div style="font-size:12.5px;margin-top:3px">برخی محصولات برای تحویل نیازمند احراز هویت هستند. در صورت نیاز ابتدا احراز هویت را تکمیل کنید.</div>
-                        <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px" href="/customer/verification">تکمیل احراز هویت</a>
+                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-top:4px">برای تحویل برخی اقلام این سفارش، پس از پرداخت تکمیل احراز هویت لازم است. پرداخت انجام می‌شود، اما تحویل این اقلام تا تکمیل احراز هویت در انتظار می‌ماند.</div>
+                        <div data-testid="checkout-kyc-state" class="st-muted" style="font-size:12.5px;margin-top:6px">
+                            وضعیت فعلی: <StoreBadge Text="@KycStateLabel" Intent="@KycStateIntent" Dot="false" />
+                        </div>
+                        @if (KycAwaitingReview)
+                        {
+                            <div style="font-size:12.5px;margin-top:6px">مدارک شما ارسال شده و در حال بررسی است؛ در حال حاضر اقدام دیگری لازم نیست.</div>
+                            <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px"
+                               data-testid="checkout-kyc-status-link" href="/customer/verification">مشاهده وضعیت احراز هویت</a>
+                        }
+                        else
+                        {
+                            <div style="font-size:12.5px;margin-top:6px">@KycActionHint</div>
+                            <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px"
+                               data-testid="checkout-kyc-cta" href="/customer/verification">@KycCtaLabel</a>
+                        }
                     </div>
                 </div>
-                <style>.phase2g-kyc-information > div > :not([data-testid]) { display:none; }</style>
             }
 
             <div class="st-card">
@@ -75,6 +97,104 @@ else
                     }
                 </div>
             </div>
+
+            @* Product-required information is collected here, after the cart and before payment, so a
+               payment can never start while a required value is missing. One card per cart line keeps
+               it unambiguous which values belong to which purchased item. *@
+            @if (ItemsNeedingInput.Count > 0)
+            {
+                <div class="st-card" data-testid="checkout-product-inputs">
+                    <div class="st-card__head"><Icon Name="file-text" Size="18" /> اطلاعات مورد نیاز سفارش</div>
+                    <div class="st-card__pad">
+                        <div class="st-muted" style="font-size:12.5px;margin-bottom:12px">
+                            برای آماده‌سازی اقلام زیر به اطلاعات زیر نیاز داریم. تا تکمیل موارد الزامی، پرداخت انجام نمی‌شود.
+                        </div>
+                        <div class="st-stack" style="gap:14px">
+                            @foreach (var item in ItemsNeedingInput)
+                            {
+                                <div class="st-itemform" data-testid="checkout-input-card" data-item="@item.Id">
+                                    <div class="st-itemform__head">
+                                        <div class="st-itemform__media">
+                                            @if (!string.IsNullOrWhiteSpace(item.ThumbnailImagePath))
+                                            { <img src="@Media.Resolve(item.ThumbnailImagePath)" alt="" /> }
+                                            else { <Icon Name="box" Size="18" /> }
+                                        </div>
+                                        <div style="flex:1;min-width:0">
+                                            <div class="st-itemform__t">@item.ProductTitle</div>
+                                            @{ var vt = ProductAvailabilityRules.CustomerFacingVariantTitle(item.VariantTitle); }
+                                            <div class="st-itemform__s">
+                                                @if (!string.IsNullOrWhiteSpace(vt)) { <span>@vt</span> <span>·</span> }
+                                                <span>تعداد @AUI.Number(item.Quantity)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="st-dynamic-form">
+                                        @foreach (var field in item.InputFields.Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.Id))
+                                        {
+                                            var fid = FieldId(item, field.Key);
+                                            var err = FieldError(item, field.Key);
+                                            <div class="st-field">
+                                                <label class="st-label" for="@fid">
+                                                    @field.Label
+                                                    @if (field.IsRequired)
+                                                    { <span class="req" data-testid="@($"checkout-input-required-{field.Key}")" aria-label="الزامی">*</span> }
+                                                    else
+                                                    { <span class="st-optional" data-testid="@($"checkout-input-optional-{field.Key}")">اختیاری</span> }
+                                                </label>
+                                                @if (!string.IsNullOrWhiteSpace(field.Description)) { <span class="st-help">@field.Description</span> }
+                                                @if (field.FieldType is 6 or 7)
+                                                {
+                                                    <select id="@fid" class="st-select @(err is null ? null : "is-invalid")" value="@FieldValue(item, field.Key)"
+                                                            @onchange="e => SetField(item, field.Key, e.Value?.ToString())"
+                                                            aria-invalid="@(err is null ? "false" : "true")" aria-describedby="@(err is null ? null : FieldErrorId(item, field.Key))">
+                                                        <option value="">— انتخاب کنید —</option>
+                                                        @foreach (var option in field.Options) { <option value="@option">@option</option> }
+                                                    </select>
+                                                }
+                                                else if (field.FieldType == 8)
+                                                {
+                                                    <label class="st-check @(err is null ? null : "is-invalid")">
+                                                        <input id="@fid" type="checkbox" checked="@IsFieldChecked(item, field.Key)"
+                                                               @onchange="e => SetFieldCheckbox(item, field.Key, e.Value)"
+                                                               aria-invalid="@(err is null ? "false" : "true")" aria-describedby="@(err is null ? null : FieldErrorId(item, field.Key))" />
+                                                        <span>@field.Placeholder</span>
+                                                    </label>
+                                                }
+                                                else if (field.FieldType == 5)
+                                                {
+                                                    <textarea id="@fid" class="st-textarea @(err is null ? null : "is-invalid")" placeholder="@field.Placeholder"
+                                                              value="@FieldValue(item, field.Key)" @oninput="e => SetField(item, field.Key, e.Value?.ToString())"
+                                                              aria-invalid="@(err is null ? "false" : "true")" aria-describedby="@(err is null ? null : FieldErrorId(item, field.Key))"></textarea>
+                                                }
+                                                else
+                                                {
+                                                    <input id="@fid" class="st-input @(err is null ? null : "is-invalid")" type="@FieldInputType(field.FieldType)"
+                                                           inputmode="@FieldInputMode(field.FieldType)" dir="@FieldDirection(field.FieldType)"
+                                                           placeholder="@field.Placeholder" minlength="@field.MinLength" maxlength="@field.MaxLength"
+                                                           value="@FieldValue(item, field.Key)" @oninput="e => SetField(item, field.Key, e.Value?.ToString())" autocomplete="off"
+                                                           aria-invalid="@(err is null ? "false" : "true")" aria-describedby="@(err is null ? null : FieldErrorId(item, field.Key))" />
+                                                }
+                                                @if (field.IsSensitive)
+                                                { <span class="st-help"><Icon Name="lock" Size="12" /> این مقدار رمزگذاری و در نمایش‌ها مخفی می‌شود.</span> }
+                                                @if (field.RequiresConfirmation)
+                                                {
+                                                    <input id="@FieldConfirmId(item, field.Key)" class="st-input @(err is null ? null : "is-invalid")" type="password"
+                                                           placeholder="تکرار @field.Label" value="@FieldConfirmation(item, field.Key)"
+                                                           @oninput="e => SetFieldConfirmation(item, field.Key, e.Value?.ToString())" autocomplete="off" />
+                                                }
+                                                @if (err is { } message)
+                                                {
+                                                    <span id="@FieldErrorId(item, field.Key)" class="st-field__error" role="alert">@message</span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
 
             <div class="st-card">
                 <div class="st-card__head"><Icon Name="credit-card" Size="18" /> روش پرداخت</div>
@@ -130,7 +250,7 @@ else
                 @if (_placing) { <span class="st-spinner sm"></span> <span>در حال پردازش ...</span> }
                 else { <Icon Name="lock" Size="18" /> <span>پرداخت امن @AUI.MoneyFa(Payable)</span> }
             </button>
-            <div class="st-secure"><Icon Name="lock" Size="13" /> رمزگذاری ۲۵۶ بیتی · ضمانت فروشنده معتبر</div>
+            <div class="st-secure"><Icon Name="lock" Size="13" /> رمزگذاری ۲۵۶ بیتی · پرداخت امن</div>
             <div class="st-cart-trust">
                 <span><Icon Name="shield-check" Size="14" /> اصالت تضمینی</span>
                 <span><Icon Name="zap" Size="14" /> تحویل آنی</span>
@@ -164,6 +284,40 @@ else
     private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
     private bool RequiresKyc => _cart?.Items.Any(x => x.RequiresKyc) == true;
 
+    // The customer's own verification request, used only to choose between "submit" and
+    // "already under review". Null means nothing has been submitted yet.
+    private CustomerVerificationModel? _verification;
+
+    /// <summary>True once documents are submitted and still awaiting an administrator's decision.</summary>
+    private bool KycAwaitingReview =>
+        _verification is not null &&
+        _verification.SubmittedAt.HasValue &&
+        _verification.Status == (byte)VerificationStatus.Pending;
+
+    private bool KycRejected =>
+        _verification?.Status == (byte)VerificationStatus.Rejected ||
+        _user?.VerificationStatus == (byte)VerificationStatus.Rejected;
+
+    private string KycStateLabel =>
+        KycRejected ? "نیازمند ارسال مجدد"
+        : KycAwaitingReview ? "در حال بررسی"
+        : "ثبت نشده";
+
+    private string KycStateIntent => KycRejected ? "danger" : KycAwaitingReview ? "warning" : "muted";
+
+    private string KycCtaLabel => KycRejected ? "ارسال مجدد مدارک" : "تکمیل احراز هویت";
+
+    private string KycActionHint => KycRejected
+        ? "مدارک قبلی تأیید نشد. برای تحویل این اقلام، مدارک را دوباره ارسال کنید."
+        : "برای تحویل این اقلام، احراز هویت خود را تکمیل کنید.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTargetId is not { } targetId) return;
+        _focusTargetId = null;
+        try { await JS.InvokeAsync<bool>("vzStorefront.focusAndScroll", targetId); } catch { }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var cartTask = Api.GetAsync<CartModel>("cart");
@@ -175,6 +329,14 @@ else
         _user = meTask.Result.Data;
         _walletBalance = walletTask.Result.Data?.Balance ?? 0;
         _loading = false;
+
+        // Only needed to pick the right KYC action, so it is fetched after the page can render and
+        // a failure degrades to the "submit" action rather than blocking checkout.
+        if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
+        {
+            var verification = await Api.GetAsync<CustomerVerificationModel>("verification/me");
+            _verification = verification.IsSuccess ? verification.Data : null;
+        }
 
         // Re-validate a coupon carried over from the cart so its discount shows on the summary.
         if (!string.IsNullOrWhiteSpace(CouponFromQuery) && _cart is not null && _cart.Items.Count > 0)
@@ -212,9 +374,127 @@ else
         _discount = 0; _appliedCode = string.Empty; _coupon = string.Empty; _couponMsg = null;
     }
 
+    // ---- Product-required information, collected here and parked on the cart line it belongs to ----
+
+    private readonly Dictionary<Guid, Dictionary<string, string?>> _itemValues = new();
+    private readonly Dictionary<Guid, Dictionary<string, string?>> _itemConfirmations = new();
+    private readonly Dictionary<Guid, Dictionary<string, string>> _itemErrors = new();
+    private string? _focusTargetId;
+
+    private List<CartItemModel> ItemsNeedingInput =>
+        _cart?.Items.Where(x => x.InputFields.Any(f => f.IsActive)).ToList() ?? new();
+
+    private static string FieldId(CartItemModel item, string key) => $"checkout-input-{item.Id:N}-{key}";
+    private static string FieldConfirmId(CartItemModel item, string key) => $"checkout-confirm-{item.Id:N}-{key}";
+    private static string FieldErrorId(CartItemModel item, string key) => $"checkout-error-{item.Id:N}-{key}";
+    private static string FieldInputType(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "number", 10 => "url", 11 => "date", 12 => "password", _ => "text" };
+    private static string? FieldInputMode(byte type) => type switch { 2 => "email", 3 => "tel", 4 => "decimal", 10 => "url", _ => null };
+    private static string FieldDirection(byte type) => type is 2 or 3 or 4 or 10 or 11 ? "ltr" : "rtl";
+
+    private Dictionary<string, string?> ValuesFor(CartItemModel item)
+    {
+        if (_itemValues.TryGetValue(item.Id, out var existing)) return existing;
+        // Seed from whatever the line already carries so an earlier attempt is never retyped.
+        var seeded = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in item.InputFields.Where(x => x.IsActive))
+        {
+            var stored = item.InputValues.FirstOrDefault(v => v.FieldKey.Equals(field.Key, StringComparison.OrdinalIgnoreCase));
+            seeded[field.Key] = field.IsSensitive ? null : stored?.Value ?? field.DefaultValue;
+        }
+        _itemValues[item.Id] = seeded;
+        return seeded;
+    }
+
+    private string? FieldValue(CartItemModel item, string key) => ValuesFor(item).GetValueOrDefault(key);
+    private bool IsFieldChecked(CartItemModel item, string key) =>
+        string.Equals(FieldValue(item, key), "true", StringComparison.OrdinalIgnoreCase);
+    private string? FieldConfirmation(CartItemModel item, string key) =>
+        _itemConfirmations.TryGetValue(item.Id, out var map) ? map.GetValueOrDefault(key) : null;
+    private string? FieldError(CartItemModel item, string key) =>
+        _itemErrors.TryGetValue(item.Id, out var map) ? map.GetValueOrDefault(key) : null;
+
+    private void SetField(CartItemModel item, string key, string? value)
+    {
+        ValuesFor(item)[key] = value;
+        ClearFieldError(item, key);
+    }
+
+    private void SetFieldCheckbox(CartItemModel item, string key, object? value) =>
+        SetField(item, key, value is true ? "true" : "false");
+
+    private void SetFieldConfirmation(CartItemModel item, string key, string? value)
+    {
+        if (!_itemConfirmations.TryGetValue(item.Id, out var map))
+            _itemConfirmations[item.Id] = map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        map[key] = value;
+        ClearFieldError(item, key);
+    }
+
+    private void ClearFieldError(CartItemModel item, string key)
+    {
+        if (_itemErrors.TryGetValue(item.Id, out var map)) map.Remove(key);
+    }
+
+    /// <summary>
+    /// Validates every line's product information and reports the first invalid field so it can be
+    /// focused. Returns false without touching payment when anything is missing or malformed.
+    /// </summary>
+    private bool ValidateProductInputs()
+    {
+        _itemErrors.Clear();
+        _focusTargetId = null;
+
+        foreach (var item in ItemsNeedingInput)
+        {
+            var fields = item.InputFields.Where(x => x.IsActive).ToList();
+            var confirmations = _itemConfirmations.TryGetValue(item.Id, out var map)
+                ? map
+                : new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            var validation = StorefrontInputValidator.ValidateFields(fields, ValuesFor(item), confirmations, item.InputValues);
+            if (validation.IsValid) continue;
+
+            _itemErrors[item.Id] = new Dictionary<string, string>(validation.Errors, StringComparer.OrdinalIgnoreCase);
+            if (_focusTargetId is null)
+            {
+                var firstKey = fields.Where(x => validation.Errors.ContainsKey(x.Key))
+                    .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).Select(x => x.Key).FirstOrDefault();
+                if (firstKey is not null) _focusTargetId = FieldId(item, firstKey);
+            }
+        }
+
+        return _itemErrors.Count == 0;
+    }
+
+    /// <summary>Persists the captured values onto their cart lines so the order snapshot picks them up.</summary>
+    private async Task<bool> PersistProductInputsAsync()
+    {
+        foreach (var item in ItemsNeedingInput)
+        {
+            var result = await Api.PutAsync<CartModel>($"cart/items/{item.Id}",
+                new { Quantity = item.Quantity, InputValues = ValuesFor(item) });
+            if (!result.IsSuccess)
+            {
+                Toasts.Error(result.Message);
+                return false;
+            }
+            if (result.Data is not null) _cart = result.Data;
+        }
+        return true;
+    }
+
     private async Task PlaceOrder()
     {
         if (_cart is null || _cart.Items.Count == 0) return;
+
+        // Nothing about payment happens until the product information is complete and stored.
+        if (!ValidateProductInputs())
+        {
+            Toasts.Error("لطفاً اطلاعات مورد نیاز سفارش را تکمیل کنید.");
+            StateHasChanged();
+            return;
+        }
+        if (ItemsNeedingInput.Count > 0 && !await PersistProductInputsAsync()) return;
+
         _placing = true;
 
         var key = Guid.NewGuid().ToString("N");

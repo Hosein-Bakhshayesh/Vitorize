@@ -37,6 +37,53 @@ export async function registerCustomer(page: Page, customer = uniqueCustomer()):
   return customer;
 }
 
+/**
+ * Gives a freshly created Manual/SupportRequired product a sellable quantity.
+ *
+ * Inventory is tracked per SKU, so creating such a product also creates its canonical SKU — with
+ * zero stock, because nothing should be offered for sale before someone says how much of it
+ * exists. A test that creates a product through the admin API and then buys it has to perform the
+ * administrator's next step too, exactly as it already imports gift codes for Instant products.
+ */
+export async function stockManagedProduct(
+  request: APIRequestContext, adminToken: string, productId: string, quantity = 500
+): Promise<void> {
+  const listed = await request.get(`${apiBaseUrl}/admin/products/${productId}/variants`, {
+    headers: { Authorization: `Bearer ${adminToken}` }
+  });
+  expect(listed.ok(), await listed.text()).toBeTruthy();
+  const variants = (await listed.json() as { data: Array<Record<string, unknown>> }).data;
+  expect(variants.length, 'a managed product always owns at least one SKU').toBeGreaterThan(0);
+
+  for (const variant of variants) {
+    const updated = await request.put(`${apiBaseUrl}/admin/product-variants/${variant.id}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { ...variant, stockQuantity: quantity }
+    });
+    expect(updated.ok(), await updated.text()).toBeTruthy();
+  }
+}
+
+/**
+ * Product-required information is collected at Checkout. Fills every field the checkout page asks
+ * for, using explicit values where given and a deterministic placeholder otherwise. Safe to call
+ * when the cart needs nothing: it simply does nothing.
+ */
+export async function fillCheckoutProductInformation(
+  page: Page, values: Record<string, string> = {}
+): Promise<void> {
+  const section = page.getByTestId('checkout-product-inputs');
+  if (!(await section.count())) return;
+  for (const field of await section.locator('input.st-input, textarea, select').all()) {
+    const id = (await field.getAttribute('id')) ?? '';
+    const key = id.replace(/^checkout-input-[0-9a-f]+-/i, '');
+    const tag = await field.evaluate(el => el.tagName.toLowerCase());
+    if (tag === 'select') { await field.selectOption({ index: 1 }).catch(() => {}); continue; }
+    const value = values[key] ?? (key.includes('email') ? `e2e-${Date.now()}@example.test` : `e2e-${key || 'value'}`);
+    await field.fill(value);
+  }
+}
+
 export async function loginCustomer(page: Page, customer: CustomerIdentity, returnUrl?: string): Promise<void> {
   const loginUrl = returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : '/login';
   const current = new URL(page.url());

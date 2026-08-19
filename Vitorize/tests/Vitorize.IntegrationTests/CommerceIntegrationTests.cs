@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -61,9 +61,16 @@ public sealed class CommerceIntegrationTests
             values.Should().OnlyContain(x => x.Value == null && x.EncryptedValue != null);
             values.Should().NotContain(x => x.EncryptedValue == "REF-ONE" || x.EncryptedValue == "REF-TWO" || x.EncryptedValue == "REF-EDITED");
 
+            // Reprice the way an administrator does: the price lives on the SKU that is actually
+            // charged, and AdminProductService keeps the product's implicit default SKU in step
+            // with BasePrice. Updating only BasePrice here would test a state the admin UI cannot
+            // produce.
             var storedProduct = await db.Products.SingleAsync(x => x.Id == product.Id);
             storedProduct.BasePrice = 175m;
             storedProduct.DiscountPrice = 0m;
+            var storedVariant = await db.ProductVariants.SingleAsync(x => x.ProductId == product.Id);
+            storedVariant.Price = 175m;
+            storedVariant.DiscountPrice = 0m;
             await db.SaveChangesAsync();
         }
 
@@ -96,22 +103,35 @@ public sealed class CommerceIntegrationTests
             .CartItems.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Product information is collected at Checkout, so the cart accepts the line without it. The
+    /// refusal moved to order creation — the gate that stands in front of every payment — which this
+    /// asserts over HTTP so a crafted request cannot skip the browser and buy without it.
+    /// </summary>
     [Fact]
-    public async Task Missing_required_dynamic_input_is_rejected_without_creating_a_cart_item()
+    public async Task Missing_required_dynamic_input_is_rejected_at_checkout_not_at_the_cart()
     {
         var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var product = await CreateProductAsync(active: true, withSensitiveRequiredField: true);
         using var client = _fixture.CreateClient(token);
 
-        var response = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto
+        var added = await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto
         {
             ProductId = product.Id,
             Quantity = 1
         });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        added.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await using (var cartDb = _fixture.CreateDbContext())
+            (await cartDb.CartItems.CountAsync(x => x.Cart.UserId == user.Id)).Should().Be(1);
+
+        client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var checkout = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
+        checkout.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         await using var db = _fixture.CreateDbContext();
-        (await db.CartItems.CountAsync(x => x.Cart.UserId == user.Id)).Should().Be(0);
+        (await db.Orders.CountAsync(x => x.UserId == user.Id)).Should().Be(0,
+            "no order means no payment could have been started");
     }
 
     [Fact]
@@ -462,6 +482,15 @@ public sealed class CommerceIntegrationTests
                 DisplayStage = (byte)ProductInputStage.ProductPage, IsActive = true,
                 SortOrder = 0, CreatedAt = DateTime.UtcNow
             });
+        // Inventory is SKU-scoped, so a purchasable non-Instant product always owns a canonical
+        // variant. Stock is set well above anything these tests order, keeping the subject of the
+        // test the cart/checkout behaviour rather than the stock ceiling.
+        product.ProductVariants.Add(new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = product.Id, Title = "پیش‌فرض", Price = price,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 1000,
+            IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = DateTime.UtcNow
+        });
         db.Categories.Add(category);
         db.Products.Add(product);
         await db.SaveChangesAsync();

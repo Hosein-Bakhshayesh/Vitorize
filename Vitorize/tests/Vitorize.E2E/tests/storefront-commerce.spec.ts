@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { apiBaseUrl, expectRtlAndNoOverflow, loginAdmin, monitorBrowser, registerCustomer, uniqueCustomer } from './support/app';
+import { apiBaseUrl, expectRtlAndNoOverflow, fillCheckoutProductInformation, loginAdmin, monitorBrowser, registerCustomer, uniqueCustomer } from './support/app';
 
 const productUrl = '/product/e2e-seo-product';
 const instantProductId = '31000000-0000-0000-0000-000000000011';
@@ -8,10 +8,18 @@ async function addConfiguredProduct(page: Page, email: string): Promise<void> {
   await page.goto(productUrl, { waitUntil: 'networkidle' });
   await expect(page.locator('.st-vcard.active')).toContainText('E2E Premium Variant');
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await expect(page.locator('#product-input-account_email')).toBeVisible();
-  await page.locator('#product-input-account_email').fill(email);
-  await page.locator('.vz-dialog button.st-btn--accent').click();
   await expect(page.locator('.vz-toast.success')).toBeVisible();
+  configuredEmails.set(page, email);
+}
+
+// The product's required information is supplied at Checkout now, so remember what each test wants
+// and fill it in just before paying.
+const configuredEmails = new WeakMap<Page, string>();
+
+async function goToCheckoutAndFill(page: Page): Promise<void> {
+  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  const email = configuredEmails.get(page);
+  await fillCheckoutProductInformation(page, email ? { account_email: email } : {});
 }
 
 test('storefront navigation, search, filters and sorting render seeded catalog data', async ({ page }) => {
@@ -51,33 +59,28 @@ test('product page renders variant, gallery, feature card, rich HTML, related pr
   await expect(page.locator('.st-section')).toContainText('E2E Related Product');
 
   await page.locator('.st-buy__card button.st-btn--accent').click();
-  await expect(page.locator('#product-input-account_email')).toBeVisible();
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('#product-input-account_email')).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#product-input-account_email')).toBeVisible();
   await expectRtlAndNoOverflow(page);
   browser.assertClean();
 });
 
-test('cart merges identical inputs, separates different inputs, updates quantity, edits values and applies coupon', async ({ page }) => {
+// The storefront no longer attaches per-line information at add time, so repeated adds of the same
+// product merge into one line whose quantity grows. Information is asked for once, at Checkout.
+test('cart merges repeated adds, updates quantity, carries no input editors and applies a coupon', async ({ page }) => {
   await registerCustomer(page, uniqueCustomer('Cart Customer'));
   await addConfiguredProduct(page, 'same@example.test');
   await addConfiguredProduct(page, 'same@example.test');
-  await addConfiguredProduct(page, 'different@example.test');
 
   await page.goto('/cart', { waitUntil: 'networkidle' });
   const itemCards = page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' });
-  await expect(itemCards).toHaveCount(2);
-  await expect(itemCards.filter({ hasText: 'same@example.test' }).locator('.st-qty')).toContainText('۲');
-  await expect(itemCards.filter({ hasText: 'different@example.test' })).toBeVisible();
+  await expect(itemCards).toHaveCount(1);
+  await expect(itemCards.locator('.st-qty')).toContainText('۲');
 
-  const different = itemCards.filter({ hasText: 'different@example.test' });
-  await different.locator('.st-qty button').last().click();
-  await expect(different.locator('.st-qty')).toContainText('۲');
-  await different.getByRole('button', { name: /ویرایش/ }).click();
-  await page.locator('.vz-dialog input.st-input').fill('edited@example.test');
-  await page.locator('.vz-dialog button.st-btn--accent').click();
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'edited@example.test' })).toBeVisible();
+  // The cart is product, quantity and price only — nothing to fill in here.
+  await expect(page.locator('.st-dynamic-form')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /ویرایش اطلاعات خرید/ })).toHaveCount(0);
+
+  await itemCards.locator('.st-qty button').last().click();
+  await expect(itemCards.locator('.st-qty')).toContainText('۳');
   await expectRtlAndNoOverflow(page);
 
   await page.locator('.st-promo input').fill('E2E10');
@@ -100,16 +103,16 @@ test('cart merges identical inputs, separates different inputs, updates quantity
   await expect(page.locator('.st-promo__msg.ok')).toBeVisible();
   await expect(page.locator('.st-cart-sum')).toContainText('E2E10');
 
-  await itemCards.filter({ hasText: 'same@example.test' }).getByRole('button', { name: /حذف/ }).click();
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'same@example.test' })).toHaveCount(0);
+  await itemCards.getByRole('button', { name: /حذف/ }).click();
+  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(0);
 });
 
 test('gateway checkout completes through fake payment and creates an order visible to the customer', async ({ page }) => {
   await registerCustomer(page, uniqueCustomer('Checkout Customer'));
   await addConfiguredProduct(page, 'checkout@example.test');
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  await goToCheckoutAndFill(page);
   await expect(page.locator('.st-paycard.active')).toBeVisible();
-  await page.locator('button.st-btn--accent').click();
+  await page.locator('button.st-btn--accent').last().click();
 
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
   await expect(page.locator('main')).toContainText(/موفق|تکمیل/);
@@ -129,12 +132,12 @@ test('wallet top-up funds a wallet checkout and records the resulting debit', as
   await expect(page.locator('.st-table tbody tr')).toHaveCount(1);
 
   await addConfiguredProduct(page, 'wallet-checkout@example.test');
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
+  await goToCheckoutAndFill(page);
   const walletMethod = page.locator('.st-paycard').nth(1);
   await expect(walletMethod).not.toHaveClass(/disabled/);
   await walletMethod.click();
   await expect(walletMethod).toHaveClass(/active/);
-  await page.locator('button.st-btn--accent').click();
+  await page.locator('button.st-btn--accent').last().click();
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
   await page.goto('/customer/wallet', { waitUntil: 'networkidle' });
@@ -157,8 +160,8 @@ test('cancelled gateway attempt retries the same order and completes through the
 
   const faultEnabled = await page.request.post(`${apiBaseUrl}/testing/payment-fault?mode=MockVerifyFail`);
   expect(faultEnabled.ok()).toBeTruthy();
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
-  await page.locator('button.st-btn--accent').click();
+  await goToCheckoutAndFill(page);
+  await page.locator('button.st-btn--accent').last().click();
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=0/);
   const orderId = new URL(page.url()).searchParams.get('orderId');
   expect(orderId).toMatch(/^[0-9a-f-]{36}$/i);
@@ -187,8 +190,8 @@ test('cancelled gateway attempt retries the same order and completes through the
 test('admin manually delivers a paid item and the customer sees the audited content', async ({ page, browser }) => {
   const customer = await registerCustomer(page, uniqueCustomer('Manual Delivery Customer'));
   await addConfiguredProduct(page, 'manual-delivery@example.test');
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
-  await page.locator('button.st-btn--accent').click();
+  await goToCheckoutAndFill(page);
+  await page.locator('button.st-btn--accent').last().click();
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
   const orderId = new URL(page.url()).searchParams.get('orderId');
   expect(orderId).toMatch(/^[0-9a-f-]{36}$/i);
@@ -246,8 +249,8 @@ test('an imported instant gift code is delivered into the customer code library'
   await page.goto('/product/e2e-related-product', { waitUntil: 'networkidle' });
   await page.locator('.st-buy__card button.st-btn--accent').click();
   await expect(page.locator('.vz-toast.success')).toBeVisible();
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
-  await page.locator('button.st-btn--accent').click();
+  await goToCheckoutAndFill(page);
+  await page.locator('button.st-btn--accent').last().click();
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
 
   await page.goto('/customer/gift-codes', { waitUntil: 'networkidle' });
@@ -288,8 +291,8 @@ test('@multiqty a two-unit instant purchase delivers two distinct codes and show
   await expect(item.locator('.st-qty')).toContainText('۲');
 
   // Checkout must complete (previously the two-unit instant checkout returned HTTP 500).
-  await page.goto('/checkout', { waitUntil: 'networkidle' });
-  await page.locator('button.st-btn--accent').click();
+  await goToCheckoutAndFill(page);
+  await page.locator('button.st-btn--accent').last().click();
   await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
   const orderId = new URL(page.url()).searchParams.get('orderId')!;
   expect(orderId).toMatch(/^[0-9a-f-]{36}$/i);

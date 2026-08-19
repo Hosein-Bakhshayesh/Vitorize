@@ -1,0 +1,10 @@
+import { chromium } from 'file:///D:/Vitorize/Vitorize/tests/Vitorize.E2E/node_modules/playwright/index.mjs';
+const origin = process.argv[2];
+const out = process.argv[3];
+const browser = await chromium.launch({ channel: 'chrome' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: 'light', locale: 'fa-IR' });
+await page.goto(origin, { waitUntil: 'networkidle', timeout: 90_000 });
+await page.waitForTimeout(2000);
+await page.screenshot({ path: out });
+console.log('captured ' + out);
+await browser.close();
