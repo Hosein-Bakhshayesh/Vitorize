@@ -160,7 +160,7 @@ else if (_product is not null)
                                             <td class="vz-mono">@(string.IsNullOrWhiteSpace(v.Sku) ? "—" : v.Sku)</td>
                                             <td><MoneyDisplay Amount="v.Price" Currency="v.CurrencyType" /></td>
                                             <td><span class="vz-chip">@AUI.VariantStockMode(v.StockMode)</span></td>
-                                            <td class="num">@AUI.Number(v.AvailableStock)</td>
+                                            <td class="num" data-testid="variant-stock-cell">@AUI.VariantStock(p.DeliveryType, v.StockMode, v.StockQuantity, v.AvailableStock)</td>
                                             <td><StatusBadge Text="@(v.IsActive ? "فعال" : "غیرفعال")" Intent="@(v.IsActive ? "success" : "muted")" /></td>
                                         </tr>
                                     }

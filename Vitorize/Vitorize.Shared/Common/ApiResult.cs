@@ -15,6 +15,12 @@
         /// </summary>
         public bool RequiresAuthentication { get; set; }
 
+        /// <summary>
+        /// Machine-readable outcome, when the endpoint defines one (see
+        /// <c>AuthOutcomeCodes</c>). Callers branch on this instead of matching message text.
+        /// </summary>
+        public string? ErrorCode { get; set; }
+
         public static ApiResult Success(string message = "عملیات با موفقیت انجام شد.")
         {
             return new ApiResult

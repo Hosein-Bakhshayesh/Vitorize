@@ -575,6 +575,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 108,
+      "version": "V0024",
+      "name": "V0024__customer_order_visibility.sql",
+      "path": "Versioned/V0024__customer_order_visibility.sql",
+      "sha256": "b762994c35f64fdd0e779e91536fd28ca4091d8a5b821f8c4d18a13b72a8921b",
+      "classification": "required",
+      "dependencies": [
+        "V0023",
+        "dbo.Orders"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

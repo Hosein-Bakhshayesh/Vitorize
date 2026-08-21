@@ -1,6 +1,8 @@
-﻿namespace Vitorize.Application.DTOs.Orders
+﻿using Vitorize.Application.Common;
+
+namespace Vitorize.Application.DTOs.Orders
 {
-    public class OrderDto
+    public class OrderDto : ICustomerOrderFacts
     {
         public Guid Id { get; set; }
         public string OrderNumber { get; set; } = string.Empty;
@@ -23,5 +25,14 @@
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public List<OrderItemDto> Items { get; set; } = new();
+
+        // Customer self-service, decided by the server only. The web UI must never infer these from
+        // the status bytes: cancellability also depends on whether a gateway session can still
+        // settle, which the browser cannot see. Null reason means the action is available.
+        public bool CanCustomerCancel { get; set; }
+        public string? CustomerCancelBlockReason { get; set; }
+        public bool CanCustomerHide { get; set; }
+
+        IEnumerable<ICustomerOrderItemFacts> ICustomerOrderFacts.ItemFacts => Items;
     }
 }

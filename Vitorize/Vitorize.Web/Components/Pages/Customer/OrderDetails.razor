@@ -20,13 +20,24 @@ else if (_order is null)
 }
 else
 {
+    @* One canonical status for the order, from the same mapper the list page uses. The payment and
+       order enums are no longer shown side by side: that pairing is what produced a
+       «در انتظار پرداخت» badge next to delivery-in-progress wording. *@
     <div class="st-spread" style="margin-bottom:18px">
         <h1 style="font-size:20px">سفارش <span class="st-mono">@_order.OrderNumber</span></h1>
-        <div style="display:flex;gap:8px">
-            <StoreBadge Text="@AUI.PaymentStatus(_order.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(_order.PaymentStatus, "payment")" />
-            <StoreBadge Text="@AUI.OrderStatus(_order.Status)" Intent="@AUI.StatusBadgeIntent(_order.Status, "order")" />
+        <div style="display:flex;gap:8px" data-testid="order-state" data-order-state="@_view.State">
+            <StoreBadge Text="@_view.StatusLabel" Intent="@_view.BadgeIntent" />
         </div>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(_view.FulfillmentNotice))
+    {
+        <div class="st-alert st-alert--@(_view.ShowFulfillmentProgress ? "info" : "warning")"
+             data-testid="order-fulfillment-notice" style="margin-bottom:16px">
+            <Icon Name="@(_view.ShowFulfillmentProgress ? "clock" : "credit-card")" Size="17" />
+            <span>@_view.FulfillmentNotice</span>
+        </div>
+    }
 
     <div class="st-split">
         <div class="st-stack">
@@ -39,7 +50,9 @@ else
                             <div style="font-weight:700">@item.ProductTitle @(string.IsNullOrWhiteSpace(variantTitle) ? "" : $"— {variantTitle}")</div>
                             <div class="st-muted" style="font-size:12.5px;margin-top:4px">تعداد @AUI.Number(item.Quantity) · @AUI.MoneyFa(item.UnitPrice) · @AUI.DeliveryType(item.DeliveryType)</div>
                         </div>
-                        <StoreBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="@(item.DeliveryStatus == (byte)DeliveryStatus.Delivered ? "success" : "warning")" Dot="false" />
+                        <StoreBadge Text="@CustomerOrderPresenter.ItemDeliveryLabel(_view, item)"
+                                    Intent="@(item.DeliveryStatus == (byte)DeliveryStatus.Delivered ? "success" : _view.ShowFulfillmentProgress ? "warning" : "muted")"
+                                    Dot="false" />
                     </div>
 
                     @if (item.InputValues.Count > 0)
@@ -94,10 +107,18 @@ else
                             }
                         </div>
                     }
-                    else if (item.DeliveryStatus != (byte)DeliveryStatus.Delivered)
+                    else
                     {
-                        <div class="st-divider"></div>
-                        <div class="st-alert st-alert--info"><Icon Name="clock" Size="16" /> <span>تحویل این آیتم در حال انجام است.</span></div>
+                        @* Payment state gates fulfillment presentation: before a successful payment
+                           this must not claim that delivery is under way. *@
+                        var notice = CustomerOrderPresenter.DescribeItemDelivery(_view, item);
+                        @if (notice is not null)
+                        {
+                            <div class="st-divider"></div>
+                            <div class="st-alert st-alert--@(_view.ShowFulfillmentProgress ? "info" : "warning")" data-testid="item-delivery-notice">
+                                <Icon Name="@(_view.ShowFulfillmentProgress ? "clock" : "credit-card")" Size="16" /> <span>@notice</span>
+                            </div>
+                        }
                     }
                 </div>
             }
@@ -126,9 +147,42 @@ else
                 <div class="st-divider"></div>
                 <button class="st-btn st-btn--primary" style="width:100%" disabled="@_retrying" @onclick="RetryPayment"><Icon Name="refresh" Size="16" /> @(_retrying ? "در حال آماده‌سازی..." : "تلاش مجدد پرداخت")</button>
             }
+
+            @* Whether the customer may act is the server's decision, carried on the order itself. *@
+            @if (_order.CanCustomerCancel)
+            {
+                <div class="st-divider"></div>
+                <button class="st-btn st-btn--outline" style="width:100%" data-testid="order-cancel"
+                        disabled="@_busy" @onclick="() => _confirmKind = ConfirmKind.Cancel">
+                    <Icon Name="x-circle" Size="16" /> لغو سفارش
+                </button>
+            }
+            else if (_view.IsAwaitingCustomerPayment && !string.IsNullOrWhiteSpace(_order.CustomerCancelBlockReason))
+            {
+                @* An unpaid order the customer cannot cancel yet: say why rather than showing nothing. *@
+                <div class="st-divider"></div>
+                <div class="st-muted" style="font-size:12.5px" data-testid="order-cancel-blocked">@_order.CustomerCancelBlockReason</div>
+            }
+
+            @if (_order.CanCustomerHide)
+            {
+                <div class="st-divider"></div>
+                <button class="st-btn st-btn--ghost" style="width:100%" data-testid="order-hide"
+                        disabled="@_busy" @onclick="() => _confirmKind = ConfirmKind.Hide">
+                    <Icon Name="trash" Size="16" /> حذف از لیست سفارش‌های من
+                </button>
+            }
         </div>
     </div>
 }
+
+<ConfirmDialog Visible="_confirmKind is not null"
+               Title="@(_confirmKind == ConfirmKind.Cancel ? "لغو سفارش" : "حذف از لیست")"
+               Message="@ConfirmMessage"
+               ConfirmText="@(_confirmKind == ConfirmKind.Cancel ? "لغو سفارش" : "حذف از لیست")"
+               Icon="@(_confirmKind == ConfirmKind.Cancel ? "x-circle" : "trash")"
+               Busy="_busy"
+               OnConfirm="RunConfirmed" OnCancel="() => _confirmKind = null" />
 
 @code {
     [Parameter] public Guid Id { get; set; }
@@ -137,20 +191,70 @@ else
     private Guid _loadedId;
     private bool _canRetry;
     private bool _retrying;
+    private bool _busy;
+
+    private enum ConfirmKind { Cancel, Hide }
+    private ConfirmKind? _confirmKind;
+
+    /// <summary>The customer-facing reading of this order; the whole page renders from it.</summary>
+    private CustomerOrderPresentation _view = CustomerOrderPresenter.Describe(new StoreOrderModel());
+
+    private string ConfirmMessage => _confirmKind == ConfirmKind.Cancel
+        ? $"سفارش {_order?.OrderNumber} لغو شود؟ پس از لغو، امکان پرداخت این سفارش وجود نخواهد داشت."
+        : $"سفارش {_order?.OrderNumber} از فهرست شما حذف شود؟ سابقه سفارش برای پیگیری‌های بعدی نزد فروشگاه باقی می‌ماند.";
 
     protected override async Task OnParametersSetAsync()
     {
         if (Id == _loadedId) return;
         _loadedId = Id;
         _loading = true;
+        await LoadAsync();
+        _loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
         var result = await Api.GetAsync<StoreOrderModel>($"orders/{Id}");
         _order = result.IsSuccess ? result.Data : null;
-        if (_order is not null)
+        _canRetry = false;
+
+        if (_order is null) return;
+
+        _view = CustomerOrderPresenter.Describe(_order);
+
+        var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{Id}");
+        _canRetry = eligibility.IsSuccess && eligibility.Data?.CanRetry == true;
+    }
+
+    private async Task RunConfirmed()
+    {
+        if (_order is null || _confirmKind is null) return;
+
+        var hide = _confirmKind == ConfirmKind.Hide;
+        _busy = true;
+
+        // The server re-decides; the flag only made the button visible.
+        var result = await Api.PostAsync($"orders/{Id}/{(hide ? "hide" : "cancel")}");
+
+        _busy = false;
+        _confirmKind = null;
+
+        if (!result.IsSuccess)
         {
-            var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{Id}");
-            _canRetry = eligibility.IsSuccess && eligibility.Data?.CanRetry == true;
+            Toasts.Error(result.Message);
+            await LoadAsync();
+            return;
         }
-        _loading = false;
+
+        if (hide)
+        {
+            Toasts.Success("سفارش از فهرست شما حذف شد.");
+            Nav.NavigateTo("/customer/orders");
+            return;
+        }
+
+        Toasts.Success("سفارش لغو شد.");
+        await LoadAsync();
     }
 
     private async Task Copy(string text)

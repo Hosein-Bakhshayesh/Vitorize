@@ -588,6 +588,9 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.VatTaxableAmount).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
             entity.Property(e => e.VatAmount).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
 
+            // V0024. Customer-side visibility only; never filtered on by admin queries.
+            entity.HasIndex(e => new { e.UserId, e.HiddenByCustomerAt }, "IX_Orders_UserId_HiddenByCustomerAt");
+
             entity.HasOne(d => d.Coupon).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CouponId)
                 .HasConstraintName("FK_Orders_Coupons");

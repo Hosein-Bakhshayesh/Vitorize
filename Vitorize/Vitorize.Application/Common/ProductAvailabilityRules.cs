@@ -106,6 +106,53 @@ public static class ProductAvailabilityRules
     public static bool CanSatisfy(byte deliveryType, int availableGiftCodes, int stockQuantity, int requested) =>
         requested > 0 && requested <= AvailableUnits(deliveryType, availableGiftCodes, stockQuantity);
 
+    // ---------------------------------------------------------------- inventory display
+
+    /// <summary>Which inventory a SKU's number actually comes from.</summary>
+    public enum VariantStockDisplayKind : byte
+    {
+        /// <summary>A counted quantity an administrator maintains.</summary>
+        Counted = 1,
+
+        /// <summary>No quantity is tracked; the SKU never runs out.</summary>
+        Unlimited = 2,
+
+        /// <summary>Derived from the pool of undelivered gift codes, not from a counter.</summary>
+        GiftCodePool = 3
+    }
+
+    /// <summary>The inventory to show for one SKU, and where the number came from.</summary>
+    public readonly record struct VariantStockDisplay(VariantStockDisplayKind Kind, int Units);
+
+    /// <summary>
+    /// Resolves what a SKU's inventory should read as.
+    ///
+    /// Every administrative surface must go through this. The variant tables used to render the
+    /// gift-code pool count for every row, which is always zero for a manually counted SKU — so an
+    /// administrator who had just saved a stock of 17 was shown 0.
+    ///
+    /// The delivery type decides the inventory regime and the stock mode only refines it, in exactly
+    /// the order <see cref="AvailableUnits"/> uses. Keying on the stock mode alone would be wrong for
+    /// a gift-code product whose rows were written outside the admin service and so never had their
+    /// mode normalised: it would print a dormant counted number as if those units were sellable.
+    /// </summary>
+    public static VariantStockDisplay DescribeVariantStock(
+        byte deliveryType,
+        byte stockMode,
+        int stockQuantity,
+        int availableGiftCodes)
+    {
+        if (IsGiftCodeDriven(deliveryType))
+            return new(VariantStockDisplayKind.GiftCodePool, Math.Max(0, availableGiftCodes));
+
+        if (IsUnlimited((ProductVariantStockMode)stockMode))
+            return new(VariantStockDisplayKind.Unlimited, 0);
+
+        // Manual, and any unrecognised mode on a managed product, are a counted quantity: showing
+        // the real number is safer than implying an unlimited inventory.
+        return new(VariantStockDisplayKind.Counted, Math.Max(0, stockQuantity));
+    }
+
     // ---------------------------------------------------------------- effective availability
     //
     // Everything customer-facing and every purchase gate answers these two methods, so a badge can

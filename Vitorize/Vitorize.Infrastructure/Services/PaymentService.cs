@@ -481,6 +481,13 @@ namespace Vitorize.Infrastructure.Services
                     ?? throw new NotFoundException("پرداخت یافت نشد.");
                 var order = payment.Order;
 
+                // Provider verification happened outside any transaction, and this context already
+                // tracked the order from the first transaction, so the tracked copy can be stale by
+                // now: the order may have been cancelled or otherwise decided while the request was
+                // in flight. Every decision below turns on the order's current state, so re-read it
+                // under this transaction's lock rather than trusting the tracked snapshot.
+                await _dbContext.Entry(order).ReloadAsync();
+
                 if (payment.Status == (byte)PaymentStatus.Paid)
                 {
                     await finalizeTransaction.CommitAsync();
@@ -525,15 +532,25 @@ namespace Vitorize.Infrastructure.Services
                     return CreateFailedVerifyResult(payment, order);
                 }
 
-                if (order.PaymentStatus == (byte)PaymentStatus.Paid)
+                // A provider success that arrives after the order was already decided must never
+                // drive fulfillment. Two ways that happens: another attempt already paid, or the
+                // customer cancelled while a session was still open at the gateway. Both keep the
+                // gateway proof and hand the money to finance instead of delivering goods against a
+                // cancelled order.
+                if (order.PaymentStatus == (byte)PaymentStatus.Paid ||
+                    order.Status != (byte)OrderStatus.PendingPayment)
                 {
                     // A late success for an older attempt must never overwrite the authoritative
                     // payment. There is no automatic provider refund in Phase 0, so preserve the
                     // gateway proof and create an explicit finance-resolution audit record.
                     payment.Status = (byte)PaymentStatus.Failed;
                     payment.CallbackVerified = true;
-                    payment.ProviderStatusCode = "LATE_SUCCESS_REQUIRES_FINANCE";
-                    payment.ErrorMessage = "پرداخت موفق دیرهنگام پس از تعیین تکلیف سفارش؛ نیازمند بررسی مالی.";
+                    payment.ProviderStatusCode = order.Status == (byte)OrderStatus.Cancelled
+                        ? "LATE_SUCCESS_ON_CANCELLED_ORDER_REQUIRES_FINANCE"
+                        : "LATE_SUCCESS_REQUIRES_FINANCE";
+                    payment.ErrorMessage = order.Status == (byte)OrderStatus.Cancelled
+                        ? "پرداخت موفق دیرهنگام برای سفارش لغو‌شده؛ نیازمند بازپرداخت و بررسی مالی."
+                        : "پرداخت موفق دیرهنگام پس از تعیین تکلیف سفارش؛ نیازمند بررسی مالی.";
                     payment.ReferenceNumber = verifiedProviderReference;
                     payment.TransactionId = authority;
                     payment.GatewayTrackingCode = verifiedProviderReference;
@@ -736,6 +753,11 @@ namespace Vitorize.Infrastructure.Services
 
                 if (order.PaymentStatus == (byte)PaymentStatus.Paid)
                     throw new BusinessException("این سفارش قبلاً پرداخت شده است.");
+
+                // Wallet is an internal debit with no provider session, so it is refused by state
+                // rather than raced: a cancelled or already-decided order can never be wallet-paid.
+                if (order.Status != (byte)OrderStatus.PendingPayment)
+                    throw new BusinessException("این سفارش دیگر در انتظار پرداخت نیست.");
 
                 if (order.FinalAmount <= 0)
                     throw new BusinessException("مبلغ سفارش معتبر نیست.");

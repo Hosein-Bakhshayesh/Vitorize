@@ -330,7 +330,7 @@ else
                                                 <td class="vz-mono">@(string.IsNullOrWhiteSpace(v.Sku) ? "—" : v.Sku)</td>
                                                 <td><MoneyDisplay Amount="v.Price" Currency="v.CurrencyType" /></td>
                                                 <td><span class="vz-chip">@AUI.VariantStockMode(v.StockMode)</span></td>
-                                                <td class="num">@AUI.Number(v.AvailableStock)</td>
+                                                <td class="num" data-testid="variant-stock-cell">@AUI.VariantStock(_model.DeliveryType, v.StockMode, v.StockQuantity, v.AvailableStock)</td>
                                                 <td><StatusBadge Text="@(v.IsActive ? "فعال" : "غیرفعال")" Intent="@(v.IsActive ? "success" : "muted")" /></td>
                                                 <td class="col-actions">
                                                     <button type="button" class="vz-iconaction" @onclick="() => OpenVariantEdit(v)" title="ویرایش"><Icon Name="edit" Size="15" /></button>

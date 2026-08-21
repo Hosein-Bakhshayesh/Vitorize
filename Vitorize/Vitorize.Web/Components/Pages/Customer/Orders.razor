@@ -1,5 +1,7 @@
 @page "/customer/orders"
 @inject ApiClient Api
+@inject ToastService Toasts
+@using Vitorize.Application.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>سفارش‌های من | ویتورایز</PageTitle>
@@ -23,18 +25,36 @@ else
     <div class="st-card">
         <div class="st-table-wrap">
             <table class="st-table">
-                <thead><tr><th>شماره سفارش</th><th>تعداد اقلام</th><th>مبلغ</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
+                <thead><tr><th>شماره سفارش</th><th>تعداد اقلام</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var o in _orders)
                     {
-                        <tr>
+                        @* One status, from the same mapper the details page uses, so the two pages
+                           can never describe the same order differently. *@
+                        var view = CustomerOrderPresenter.Describe(o);
+                        <tr data-testid="order-row" data-order-state="@view.State">
                             <td class="st-mono">@o.OrderNumber</td>
                             <td>@AUI.Number(o.Items.Count)</td>
                             <td>@AUI.MoneyFa(o.FinalAmount)</td>
-                            <td><StoreBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" /></td>
-                            <td><StoreBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
+                            <td><StoreBadge Text="@view.StatusLabel" Intent="@view.BadgeIntent" /></td>
                             <td><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></td>
-                            <td><a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /> جزئیات</a></td>
+                            <td style="white-space:nowrap">
+                                <a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /> جزئیات</a>
+                                @if (o.CanCustomerCancel)
+                                {
+                                    <button class="st-btn st-btn--ghost st-btn--sm" data-testid="order-cancel"
+                                            disabled="@(_busyId == o.Id)" @onclick="() => AskCancel(o)">
+                                        <Icon Name="x-circle" Size="15" /> لغو سفارش
+                                    </button>
+                                }
+                                @if (o.CanCustomerHide)
+                                {
+                                    <button class="st-btn st-btn--ghost st-btn--sm" data-testid="order-hide"
+                                            disabled="@(_busyId == o.Id)" @onclick="() => AskHide(o)">
+                                        <Icon Name="trash" Size="15" /> حذف از لیست
+                                    </button>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -43,14 +63,64 @@ else
     </div>
 }
 
+@* Confirmation is deliberate for both actions: one is a business state change, the other removes
+   the order from the customer's own view. *@
+<ConfirmDialog Visible="_confirmKind is not null"
+               Title="@(_confirmKind == ConfirmKind.Cancel ? "لغو سفارش" : "حذف از لیست")"
+               Message="@ConfirmMessage"
+               ConfirmText="@(_confirmKind == ConfirmKind.Cancel ? "لغو سفارش" : "حذف از لیست")"
+               Icon="@(_confirmKind == ConfirmKind.Cancel ? "x-circle" : "trash")"
+               Busy="_busyId is not null"
+               OnConfirm="RunConfirmed" OnCancel="CloseConfirm" />
+
 @code {
     private bool _loading = true;
     private List<StoreOrderModel> _orders = new();
+    private Guid? _busyId;
 
-    protected override async Task OnInitializedAsync()
+    private enum ConfirmKind { Cancel, Hide }
+    private ConfirmKind? _confirmKind;
+    private StoreOrderModel? _target;
+
+    private string ConfirmMessage => _confirmKind == ConfirmKind.Cancel
+        ? $"سفارش {_target?.OrderNumber} لغو شود؟ پس از لغو، امکان پرداخت این سفارش وجود نخواهد داشت."
+        : $"سفارش {_target?.OrderNumber} از فهرست شما حذف شود؟ سابقه سفارش برای پیگیری‌های بعدی نزد فروشگاه باقی می‌ماند.";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
         var result = await Api.GetAsync<List<StoreOrderModel>>("orders");
         _orders = (result.Data ?? new()).OrderByDescending(o => o.CreatedAt).ToList();
         _loading = false;
+    }
+
+    private void AskCancel(StoreOrderModel order) { _target = order; _confirmKind = ConfirmKind.Cancel; }
+    private void AskHide(StoreOrderModel order) { _target = order; _confirmKind = ConfirmKind.Hide; }
+    private void CloseConfirm() { _confirmKind = null; _target = null; }
+
+    private async Task RunConfirmed()
+    {
+        if (_target is null || _confirmKind is null) return;
+
+        var order = _target;
+        var cancel = _confirmKind == ConfirmKind.Cancel;
+        _busyId = order.Id;
+
+        // The server decides again; the flag on the row is only what made the button appear.
+        var result = await Api.PostAsync($"orders/{order.Id}/{(cancel ? "cancel" : "hide")}");
+
+        _busyId = null;
+        CloseConfirm();
+
+        if (!result.IsSuccess)
+        {
+            Toasts.Error(result.Message);
+            await LoadAsync();      // Refresh so a now-stale action disappears.
+            return;
+        }
+
+        Toasts.Success(cancel ? "سفارش لغو شد." : "سفارش از فهرست شما حذف شد.");
+        await LoadAsync();
     }
 }

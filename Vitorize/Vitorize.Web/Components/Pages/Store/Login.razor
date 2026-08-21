@@ -3,6 +3,7 @@
 @inject ApiClient Api
 @inject IJSRuntime JS
 @using Vitorize.Web.Models.Admin.Auth
+@using Vitorize.Application.Common
 
 <PageTitle>ورود | ویتورایز</PageTitle>
 
@@ -14,7 +15,22 @@
             <p class="st-muted" style="font-size:13px;margin-top:6px">برای ادامه، وارد حساب خود شوید.</p>
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(Error))
+        @* An unregistered mobile is a distinct outcome, not a credential error: say so, and give the
+           visitor the one action that can succeed. *@
+        @if (ShowRegisterFirst)
+        {
+            <div class="st-alert st-alert--warning" data-testid="login-requires-registration" style="margin-bottom:16px">
+                <Icon Name="user-plus" Size="18" />
+                <div style="flex:1">
+                    <div style="font-weight:700">حسابی با این شماره یافت نشد. ابتدا ثبت‌نام کنید.</div>
+                    <div class="st-muted" style="font-size:12.5px;margin-top:4px">ساخت حساب کاربری چند ثانیه طول می‌کشد و پس از آن وارد حساب خود می‌شوید.</div>
+                </div>
+                <a class="st-btn st-btn--primary st-btn--sm" data-testid="login-register-cta" href="@RegisterLink">
+                    <Icon Name="user-plus" Size="16" /> ثبت‌نام
+                </a>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(Error))
         {
             <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@Error</span></div>
         }
@@ -62,7 +78,7 @@
         else
         {
             @* ── روش ۲: ورود با کد یکبار مصرف ── *@
-            @if (!string.IsNullOrWhiteSpace(_otpError))
+            @if (!string.IsNullOrWhiteSpace(_otpError) && !_needsRegistration)
             {
                 <div id="otp-error" class="st-alert st-alert--danger" role="alert" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
             }
@@ -155,6 +171,9 @@
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
     [SupplyParameterFromQuery(Name = "otp")] public string? OtpFlag { get; set; }
 
+    /// <summary>Machine-readable outcome from a server-side login attempt; never a message match.</summary>
+    [SupplyParameterFromQuery(Name = "code")] public string? Code { get; set; }
+
     private enum LoginTab { Password, Otp }
     private enum OtpStep { Mobile, Code }
 
@@ -167,6 +186,9 @@
     private string? _otpError;
     private bool _busy;
 
+    /// <summary>Set when the supplied mobile has no account: the page offers registration instead.</summary>
+    private bool _needsRegistration;
+
     private int _expiryRemaining;
     private int _cooldownRemaining;
     private System.Threading.Timer? _timer;
@@ -178,6 +200,15 @@
         ? "/register"
         : $"/register?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
 
+    /// <summary>
+    /// True when the supplied identity simply has no account. For the OTP tab this comes from the
+    /// request outcome; for the password tab the server endpoint puts the code in the query string,
+    /// because that login is a full form post and never runs inside this circuit.
+    /// </summary>
+    private bool ShowRegisterFirst =>
+        _needsRegistration ||
+        string.Equals(Code, AuthOutcomeCodes.RequiresRegistration, StringComparison.Ordinal);
+
     protected override void OnInitialized()
     {
         if (!string.IsNullOrWhiteSpace(OtpFlag))
@@ -187,6 +218,7 @@
     private async Task RequestOtp()
     {
         _otpError = null;
+        _needsRegistration = false;
 
         if (string.IsNullOrWhiteSpace(_mobile))
         {
@@ -204,6 +236,24 @@
             return;
         }
 
+        // A 200 no longer means a code was sent. Advancing on the response alone is what used to put
+        // an unregistered visitor in front of a code field that would never be filled.
+        if (r.Data.Outcome == AuthOutcomeCodes.RequiresRegistration)
+        {
+            _needsRegistration = true;
+            _step = OtpStep.Mobile;
+            return;
+        }
+
+        if (r.Data.Outcome == AuthOutcomeCodes.AccountNotEligible)
+        {
+            _needsRegistration = false;
+            _otpError = "این حساب فعال نیست. برای بررسی با پشتیبانی تماس بگیرید.";
+            _step = OtpStep.Mobile;
+            return;
+        }
+
+        _needsRegistration = false;
         _masked = r.Data.MaskedMobile;
         _expiryRemaining = r.Data.ExpirySeconds > 0 ? r.Data.ExpirySeconds : 180;
         _cooldownRemaining = r.Data.ResendCooldownSeconds;
@@ -301,5 +351,8 @@
         public string MaskedMobile { get; set; } = string.Empty;
         public int ExpirySeconds { get; set; }
         public int ResendCooldownSeconds { get; set; }
+
+        /// <summary>Machine-readable outcome; see <c>AuthOutcomeCodes</c>.</summary>
+        public string? Outcome { get; set; }
     }
 }

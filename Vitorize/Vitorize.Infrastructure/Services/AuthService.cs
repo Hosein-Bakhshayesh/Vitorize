@@ -136,7 +136,12 @@ namespace Vitorize.Infrastructure.Services
                     "Login failed for {MaskedMobile}. ReasonCategory={ReasonCategory} EventType={EventType}",
                     SensitiveLogData.MaskMobile(request.Mobile), "UnknownUser", "LoginFailed");
 
-                throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
+                // Product decision: an unregistered visitor is told to register instead of being
+                // left to guess at a password. Only that one fact is disclosed, and the wrong-password
+                // case below keeps its own indistinguishable message.
+                throw new BusinessException(
+                    "حسابی با این شماره یافت نشد. ابتدا ثبت‌نام کنید.",
+                    AuthOutcomeCodes.RequiresRegistration);
             }
 
             var isPasswordValid = PasswordHasher.Verify(request.Password, user.PasswordHash);
@@ -153,12 +158,18 @@ namespace Vitorize.Infrastructure.Services
                     "Login failed for user {UserId} and {MaskedMobile}. ReasonCategory={ReasonCategory} EventType={EventType}",
                     user.Id, SensitiveLogData.MaskMobile(user.Mobile), "InvalidCredential", "LoginFailed");
 
-                throw new BusinessException("شماره موبایل یا رمز عبور اشتباه است.");
+                // Unchanged wording: an existing account must not reveal whether the mobile or the
+                // password was the wrong half.
+                throw new BusinessException(
+                    "شماره موبایل یا رمز عبور اشتباه است.",
+                    AuthOutcomeCodes.InvalidCredentials);
             }
 
             if (user.Status != (byte)UserStatus.Active)
             {
-                throw new BusinessException("حساب کاربری شما فعال نیست.");
+                throw new BusinessException(
+                    "حساب کاربری شما فعال نیست.",
+                    AuthOutcomeCodes.AccountNotEligible);
             }
 
             // الزام تایید موبایل برای ورود با رمز، یک تصمیم محصولی است و عمداً اعمال نمی‌شود تا
@@ -758,15 +769,31 @@ namespace Vitorize.Infrastructure.Services
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x => x.Mobile == mobile && !x.IsDeleted);
 
-            // سیاست: ورود با کد فقط برای مشتریان فعال موجود است. برای جلوگیری از افشای
-            // وجود حساب، پاسخ در همه‌ی حالت‌ها یکسان است و در نبود کاربر پیامکی ارسال نمی‌شود.
-            if (user is null || user.Status != (byte)UserStatus.Active)
+            // سیاست محصول: به کاربرِ ثبت‌نام‌نشده صریحاً گفته می‌شود که ابتدا ثبت‌نام کند. پیش از این
+            // پاسخ در همه‌ی حالت‌ها یکسان بود تا وجود حساب افشا نشود، اما نتیجه‌ی آن این بود که کاربر
+            // به مرحله‌ی وارد کردن کدی می‌رفت که هرگز ارسال نشده بود. در هیچ حالتی پیامکی ارسال
+            // نمی‌شود و هیچ کدی ساخته نمی‌شود؛ فقط دلیل، ماشین‌خوان می‌شود.
+            if (user is null)
             {
                 await _securityLogService.LogAsync(
-                    user?.Id, "OTP_LOGIN_REQUEST", false,
-                    $"Login OTP requested for {IranMobile.Mask(mobile)} (no active account)",
+                    null, "OTP_LOGIN_REQUEST", false,
+                    $"Login OTP requested for {IranMobile.Mask(mobile)} (not registered)",
                     ipAddress, userAgent);
 
+                response.Outcome = AuthOutcomeCodes.RequiresRegistration;
+                return response;
+            }
+
+            // حسابی که وجود دارد ولی فعال نیست هرگز به ثبت‌نام مجدد هدایت نمی‌شود؛ این کار هم نادرست
+            // است و هم می‌تواند به ساخت حساب تکراری منجر شود.
+            if (user.Status != (byte)UserStatus.Active)
+            {
+                await _securityLogService.LogAsync(
+                    user.Id, "OTP_LOGIN_REQUEST", false,
+                    $"Login OTP requested for {IranMobile.Mask(mobile)} (account not active)",
+                    ipAddress, userAgent);
+
+                response.Outcome = AuthOutcomeCodes.AccountNotEligible;
                 return response;
             }
 

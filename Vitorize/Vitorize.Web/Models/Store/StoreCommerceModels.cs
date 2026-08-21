@@ -97,7 +97,7 @@ namespace Vitorize.Web.Models.Store
         public string? Reason { get; set; }
     }
 
-    public class StoreOrderModel
+    public class StoreOrderModel : Vitorize.Application.Common.ICustomerOrderFacts
     {
         public Guid Id { get; set; }
         public string OrderNumber { get; set; } = string.Empty;
@@ -116,9 +116,18 @@ namespace Vitorize.Web.Models.Store
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public List<StoreOrderItemModel> Items { get; set; } = new();
+
+        // Server-decided customer self-service. Never inferred in the browser: whether an order can
+        // be cancelled also depends on whether a gateway session can still settle.
+        public bool CanCustomerCancel { get; set; }
+        public string? CustomerCancelBlockReason { get; set; }
+        public bool CanCustomerHide { get; set; }
+
+        IEnumerable<Vitorize.Application.Common.ICustomerOrderItemFacts>
+            Vitorize.Application.Common.ICustomerOrderFacts.ItemFacts => Items;
     }
 
-    public class StoreOrderItemModel
+    public class StoreOrderItemModel : Vitorize.Application.Common.ICustomerOrderItemFacts
     {
         public Guid Id { get; set; }
         public Guid ProductId { get; set; }
@@ -136,6 +145,9 @@ namespace Vitorize.Web.Models.Store
         public List<StoreOrderDeliveryModel> Deliveries { get; set; } = new();
         public List<StoreProductInputValueModel> InputValues { get; set; } = new();
         public StoreOrderItemKycModel? Kyc { get; set; }
+
+        bool Vitorize.Application.Common.ICustomerOrderItemFacts.KycBlocksFulfillment =>
+            Kyc?.BlocksFulfillment == true;
     }
 
     public class StoreOrderItemKycModel

@@ -341,6 +341,10 @@ namespace Vitorize.Infrastructure.Services
                 S("NewsletterSubtitle", "با عضویت در خبرنامه، از تخفیف‌ها و محصولات تازه زودتر از همه مطلع شو.", "Homepage", "string", "زیرعنوان بخش خبرنامه"),
                 S("NewsletterCtaText", "عضویت", "Homepage", "string", "متن دکمه خبرنامه"),
                 S("NewsletterPlaceholder", "ایمیل خود را وارد کنید", "Homepage", "string", "متن راهنمای ورودی خبرنامه"),
+                // Off by default, and deliberately seeded rather than hard-coded: the section is
+                // hidden until an administrator turns it on, and because the seeder only inserts
+                // missing keys, a later admin choice is never overwritten by a redeploy.
+                S("HomePopularProductsEnabled", "false", "Homepage", "bool", "نمایش محبوب‌ترین کالاها در صفحه اصلی"),
 
                 // ───────────── About ─────────────
                 S("AboutTitle", "درباره ویتورایز", "About", "string", "عنوان بخش درباره ما"),

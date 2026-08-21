@@ -23,19 +23,24 @@ namespace Vitorize.Infrastructure.Services
         private readonly IEncryptionService _encryptionService;
         private readonly ILogger<OrderService> _logger;
         private readonly TimeProvider _timeProvider;
+        // Only for reading how long a gateway attempt stays live, so cancellability agrees with the
+        // payment service's own expiry rule instead of guessing a second timeout.
+        private readonly PaymentTimingOptions _paymentTiming;
 
         public OrderService(
             VitorizeDbContext dbContext,
             INotificationService notificationService,
             IEncryptionService encryptionService,
             ILogger<OrderService>? logger = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Microsoft.Extensions.Options.IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
             _encryptionService = encryptionService;
             _logger = logger ?? NullLogger<OrderService>.Instance;
             _timeProvider = timeProvider ?? TimeProvider.System;
+            _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -47,7 +52,12 @@ namespace Vitorize.Infrastructure.Services
                 .AsNoTracking()
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
-                .Where(x => x.UserId == userId)
+                .Include(x => x.OrderItems)
+                    .ThenInclude(x => x.OrderItemDeliveries)
+                .Include(x => x.Payments)
+                // Orders the customer removed from their own list. Admin queries never filter on
+                // this, so nothing is hidden from the shop or from accounting.
+                .Where(x => x.UserId == userId && x.HiddenByCustomerAt == null)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
@@ -67,6 +77,7 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.InputValues)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
+                .Include(x => x.Payments)
                 .FirstOrDefaultAsync(x =>
                     x.Id == orderId &&
                     x.UserId == userId);
@@ -74,7 +85,7 @@ namespace Vitorize.Infrastructure.Services
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
 
-            return await MapOrderDetailsAsync(order);
+            return await MapOrderDetailsAsync(order, userId);
         }
 
         public async Task<OrderItemKycProjectionDto> GetMyOrderItemKycContextAsync(Guid userId, Guid orderItemId)
@@ -357,6 +368,151 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
+        /// <summary>
+        /// Cancels the caller's own unpaid order.
+        ///
+        /// Two things make this safe rather than a status write. First, ownership is part of the
+        /// lookup, so another customer's order is simply not found. Second, the whole check-and-write
+        /// runs inside a Serializable transaction holding the same application lock the payment
+        /// service takes when it starts an attempt — so a cancellation cannot interleave with a
+        /// gateway attempt being created for the same order, and the cancellability rule is
+        /// re-evaluated against state nobody else can be changing.
+        ///
+        /// Nothing is deleted: the order, its payment attempts and its number all survive, and an
+        /// OrderStatusHistory row records who cancelled it.
+        /// </summary>
+        public async Task<OrderDto> CancelMyOrderAsync(Guid userId, Guid orderId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            if (orderId == Guid.Empty)
+                throw new BusinessException("شناسه سفارش معتبر نیست.");
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                // Same lock name the payment service uses for starting an attempt on this order.
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"payment-start:order:{orderId:N}");
+
+                var order = await _dbContext.Orders
+                    .Include(x => x.Payments)
+                    .Include(x => x.OrderItems)
+                        .ThenInclude(x => x.OrderItemDeliveries)
+                    .Include(x => x.GiftCodeReservations)
+                        .ThenInclude(x => x.GiftCode)
+                    .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
+                    ?? throw new NotFoundException("سفارش یافت نشد.");
+
+                var now = _timeProvider.GetUtcNow().UtcDateTime;
+                var block = CustomerOrderCancellationPolicy.GetCancelBlockReason(
+                    order, order.Payments, order.OrderItems, now, _paymentTiming.GatewayAttemptLifetimeMinutes);
+                if (block is not null)
+                    throw new BusinessException(block);
+
+                var fromStatus = order.Status;
+
+                // Release any reserved gift code so stock returns to the pool. This mirrors the
+                // administrative cancellation exactly; managed stock was never decremented, because
+                // that happens only on the paid transition.
+                foreach (var reservation in order.GiftCodeReservations)
+                {
+                    if (reservation.Status != (byte)GiftCodeReservationStatus.Active)
+                        continue;
+
+                    reservation.Status = (byte)GiftCodeReservationStatus.Released;
+                    reservation.ReleasedAt = now;
+                    reservation.GiftCode.Status = (byte)GiftCodeStatus.Available;
+                    reservation.GiftCode.ReservedByUserId = null;
+                    reservation.GiftCode.ReservedAt = null;
+                    reservation.GiftCode.ReservationExpiresAt = null;
+                    reservation.GiftCode.UpdatedAt = now;
+                }
+
+                // Close the open attempts so no expired session is left looking live. Only
+                // non-terminal attempts are touched; a Paid attempt cannot exist here.
+                foreach (var payment in order.Payments.Where(x => x.Status == (byte)PaymentStatus.Pending))
+                {
+                    payment.Status = (byte)PaymentStatus.Cancelled;
+                    payment.ProviderStatusCode = "CANCELLED_BY_CUSTOMER";
+                    payment.ErrorMessage = "سفارش پیش از پرداخت توسط مشتری لغو شد.";
+                    payment.UpdatedAt = now;
+                }
+
+                order.Status = (byte)OrderStatus.Cancelled;
+                order.UpdatedAt = now;
+
+                await _dbContext.OrderStatusHistories.AddAsync(new OrderStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = order.Id,
+                    FromStatus = fromStatus,
+                    ToStatus = order.Status,
+                    ChangedByUserId = userId,
+                    Note = "سفارش پیش از پرداخت توسط مشتری لغو شد.",
+                    CreatedAt = now
+                });
+
+                await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
+                {
+                    EventType = "OrderCancelledByCustomer",
+                    EntityType = "Order",
+                    EntityId = order.Id,
+                    UserId = userId,
+                    Amount = order.FinalAmount,
+                    CorrelationId = order.Id,
+                    Detail = $"order:{order.OrderNumber}",
+                    CreatedAt = now
+                });
+
+                await _notificationService.CreateAsync(
+                    order.UserId,
+                    (byte)NotificationType.OrderCancelled,
+                    "سفارش لغو شد",
+                    $"سفارش {order.OrderNumber} به درخواست شما لغو شد.");
+
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Order cancelled by its owner. OrderNumber={OrderNumber} EventType={EventType}",
+                    order.OrderNumber, "OrderCancelledByCustomer");
+
+                return await MapOrderDetailsAsync(order, userId);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Removes a settled, never-paid order from the owning customer's list. This writes one
+        /// timestamp and deletes nothing; Admin, accounting and the payment history are unaffected.
+        /// </summary>
+        public async Task HideMyOrderAsync(Guid userId, Guid orderId)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            if (orderId == Guid.Empty)
+                throw new BusinessException("شناسه سفارش معتبر نیست.");
+
+            var order = await _dbContext.Orders
+                .Include(x => x.Payments)
+                .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
+                ?? throw new NotFoundException("سفارش یافت نشد.");
+
+            if (order.HiddenByCustomerAt is not null)
+                return;     // Idempotent: hiding an already-hidden order is not an error.
+
+            var block = CustomerOrderCancellationPolicy.GetHideBlockReason(order, order.Payments);
+            if (block is not null)
+                throw new BusinessException(block);
+
+            order.HiddenByCustomerAt = _timeProvider.GetUtcNow().UtcDateTime;
+            await _dbContext.SaveChangesAsync();
+        }
+
         public async Task CompleteOrderAsync(Guid orderId, Guid adminUserId)
         {
             if (orderId == Guid.Empty)
@@ -527,12 +683,37 @@ namespace Vitorize.Infrastructure.Services
                     item.Kyc = BuildKycProjection(entity, policyMap.GetValueOrDefault(entity.KycPolicyVersionId ?? Guid.Empty),
                         uploadedDocumentTypeIds.GetValueOrDefault(order.UserId) ?? [], utcNow);
                 }
+
+                // Self-service availability is only meaningful on a customer surface, and only
+                // decidable when the payment attempts were loaded. Admin projections leave both
+                // flags false rather than showing an action Admin does not own.
+                if (customerUserId.HasValue && order.UserId == customerUserId.Value)
+                    ApplyCustomerActionFlags(dto, order, utcNow);
+
                 return dto;
             }).ToList();
         }
 
-        private async Task<OrderDto> MapOrderDetailsAsync(Order order) =>
-            (await MapOrdersAsync([order], null, includeDetails: true)).Single();
+        /// <summary>
+        /// Copies the server's decision about the customer's own actions onto the DTO. The reason is
+        /// carried too, so the UI can explain a blocked action instead of silently hiding it.
+        /// </summary>
+        private void ApplyCustomerActionFlags(OrderDto dto, Order order, DateTime utcNow)
+        {
+            var cancelBlock = CustomerOrderCancellationPolicy.GetCancelBlockReason(
+                order, order.Payments, order.OrderItems, utcNow, _paymentTiming.GatewayAttemptLifetimeMinutes);
+
+            dto.CanCustomerCancel = cancelBlock is null;
+            dto.CustomerCancelBlockReason = cancelBlock;
+            dto.CanCustomerHide = CustomerOrderCancellationPolicy.GetHideBlockReason(order, order.Payments) is null;
+        }
+
+        /// <summary>
+        /// <paramref name="customerUserId"/> is supplied only by the customer-facing path; that is
+        /// what decides whether self-service action flags are computed for the order.
+        /// </summary>
+        private async Task<OrderDto> MapOrderDetailsAsync(Order order, Guid? customerUserId = null) =>
+            (await MapOrdersAsync([order], customerUserId, includeDetails: true)).Single();
 
         private static OrderItemKycProjectionDto? BuildKycProjection(OrderItem item, KycPolicyVersion? policy,
             HashSet<Guid> uploadedDocumentTypeIds, DateTime utcNow)

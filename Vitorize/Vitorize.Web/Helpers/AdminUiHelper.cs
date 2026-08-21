@@ -183,6 +183,26 @@ namespace Vitorize.Web.Helpers
             };
         }
 
+        /// <summary>
+        /// The inventory cell for one SKU. Which inventory the number comes from is decided by
+        /// <see cref="Vitorize.Application.Common.ProductAvailabilityRules.DescribeVariantStock"/>,
+        /// so every admin table agrees with itself and with the storefront.
+        /// </summary>
+        public static string VariantStock(byte deliveryType, byte stockMode, int stockQuantity, int availableGiftCodes)
+        {
+            var display = Vitorize.Application.Common.ProductAvailabilityRules
+                .DescribeVariantStock(deliveryType, stockMode, stockQuantity, availableGiftCodes);
+
+            return display.Kind switch
+            {
+                Vitorize.Application.Common.ProductAvailabilityRules.VariantStockDisplayKind.Unlimited => "نامحدود",
+                // A gift-code SKU has no counter, so the unit is named to avoid reading as one.
+                Vitorize.Application.Common.ProductAvailabilityRules.VariantStockDisplayKind.GiftCodePool =>
+                    $"{Number(display.Units)} کد",
+                _ => Number(display.Units)
+            };
+        }
+
         public static string StockMode(byte value)
         {
             return VariantStockMode(value);

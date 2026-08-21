@@ -97,6 +97,12 @@ namespace Vitorize.Web.Services.UI
         public string SiteTagline => Get("SiteTagline", "بازارگاه دیجیتال گیمینگ و خدمات آنلاین");
         public string SiteLogoPath => Get("SiteLogoPath", "");
         public bool MaintenanceMode => GetBool("MaintenanceMode");
+
+        /// <summary>
+        /// Whether the home page shows the popular-products row. Absent setting means false, so an
+        /// environment that has not yet been seeded keeps the section hidden rather than showing it.
+        /// </summary>
+        public bool HomePopularProductsEnabled => GetBool("HomePopularProductsEnabled");
         public string MaintenanceMessage => Get("MaintenanceMessage", "به‌زودی با نسخه‌ای بهتر برمی‌گردیم.");
 
         // ── Logos & images (empty ⇒ built-in default) ──

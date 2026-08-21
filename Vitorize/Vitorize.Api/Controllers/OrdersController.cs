@@ -80,6 +80,40 @@ namespace Vitorize.Api.Controllers
                 "جزئیات سفارش با موفقیت دریافت شد."));
         }
 
+        [HttpPost("{orderId:guid}/cancel")]
+        [SwaggerOperation(
+            Summary = "لغو سفارش پرداخت‌نشده توسط مشتری",
+            Description = "لغو سفارشِ خودِ کاربر، تنها زمانی که هیچ پرداخت موفقی ثبت نشده و هیچ پرداخت بازی " +
+                          "در جریان نیست. سفارش و سابقه پرداخت حذف نمی‌شود.")]
+        [ProducesResponseType(typeof(ApiResult<OrderDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResult<OrderDto>>> CancelMyOrder(Guid orderId)
+        {
+            // Ownership is enforced inside the service as part of the lookup, so another customer's
+            // order is indistinguishable from one that does not exist.
+            var order = await _orderService.CancelMyOrderAsync(GetUserId(), orderId);
+
+            return Ok(ApiResult<OrderDto>.Success(order, "سفارش لغو شد."));
+        }
+
+        [HttpPost("{orderId:guid}/hide")]
+        [SwaggerOperation(
+            Summary = "حذف سفارش لغو/ناموفق از فهرست مشتری",
+            Description = "سفارش را فقط از فهرست خودِ مشتری پنهان می‌کند. رکورد سفارش، تلاش‌های پرداخت و " +
+                          "سابقه وضعیت دست‌نخورده می‌مانند و در پنل مدیریت کاملاً قابل مشاهده هستند.")]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResult>> HideMyOrder(Guid orderId)
+        {
+            await _orderService.HideMyOrderAsync(GetUserId(), orderId);
+
+            return Ok(ApiResult.Success("سفارش از فهرست شما حذف شد."));
+        }
+
         [HttpGet("items/{orderItemId:guid}/kyc-context")]
         public async Task<ActionResult<ApiResult<OrderItemKycProjectionDto>>> GetMyOrderItemKycContext(Guid orderItemId)
         {

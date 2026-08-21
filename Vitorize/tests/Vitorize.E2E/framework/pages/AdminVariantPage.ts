@@ -61,7 +61,12 @@ export class AdminVariantPage extends BasePage {
     await this.page.getByTestId('variant-value').fill(variant.value ?? '');
     await this.page.getByTestId('variant-price').fill(String(variant.price));
     await this.page.getByTestId('variant-discount-price').fill(variant.discountPrice === undefined ? '' : String(variant.discountPrice));
-    await this.page.getByTestId('variant-stock-mode').selectOption(String(variant.stockMode));
+    // Inventory policy is only a choice where it applies. An Instant product draws its units from
+    // the gift-code pool, so the product editor deliberately does not render this control for one -
+    // and the backend would refuse a policy anyway. Selecting it unconditionally made every
+    // Instant-delivery case hang until the test timed out.
+    const stockMode = this.page.getByTestId('variant-stock-mode');
+    if (await stockMode.count()) await stockMode.selectOption(String(variant.stockMode));
     await this.page.getByTestId('variant-sort-order').fill(String(variant.sortOrder));
     await this.setHiddenCheckbox(this.page.getByTestId('variant-default'), variant.isDefault);
     await this.setHiddenCheckbox(this.page.getByTestId('variant-active'), variant.active);

@@ -74,11 +74,14 @@ namespace Vitorize.Web.Endpoints
 
             if (!result.IsSuccess || result.Data is null)
             {
+                // The outcome code travels with the redirect so the login page can offer
+                // registration for an unknown mobile without matching the message text.
                 http.Response.Redirect(FailUrl("/login",
                     string.IsNullOrWhiteSpace(result.Message)
                         ? "ورود ناموفق بود. شماره موبایل یا رمز عبور نادرست است."
                         : result.Message,
-                    returnUrl));
+                    returnUrl,
+                    result.ErrorCode));
                 return;
             }
 
@@ -204,11 +207,13 @@ namespace Vitorize.Web.Endpoints
             }
         }
 
-        private static string FailUrl(string page, string message, string returnUrl)
+        private static string FailUrl(string page, string message, string returnUrl, string? errorCode = null)
         {
             var url = $"{page}?error={Uri.EscapeDataString(message)}";
             if (!string.IsNullOrWhiteSpace(returnUrl))
                 url += $"&returnUrl={Uri.EscapeDataString(returnUrl)}";
+            if (!string.IsNullOrWhiteSpace(errorCode))
+                url += $"&code={Uri.EscapeDataString(errorCode)}";
             return url;
         }
 

@@ -50,6 +50,13 @@ public partial class Order
 
     public DateTime? UpdatedAt { get; set; }
 
+    /// <summary>
+    /// When the owning customer removed this order from their own list. Presentation only: the order
+    /// and every payment attempt, status-history and accounting record stay intact, and all
+    /// administrative queries ignore this column. NULL means visible.
+    /// </summary>
+    public DateTime? HiddenByCustomerAt { get; set; }
+
     public virtual Coupon? Coupon { get; set; }
 
     public virtual CouponUsage? CouponUsage { get; set; }

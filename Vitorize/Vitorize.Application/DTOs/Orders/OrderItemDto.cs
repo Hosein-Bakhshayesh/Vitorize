@@ -1,6 +1,8 @@
-﻿namespace Vitorize.Application.DTOs.Orders
+﻿using Vitorize.Application.Common;
+
+namespace Vitorize.Application.DTOs.Orders
 {
-    public class OrderItemDto
+    public class OrderItemDto : ICustomerOrderItemFacts
     {
         public Guid Id { get; set; }
         public Guid ProductId { get; set; }
@@ -19,5 +21,7 @@
         public List<OrderDeliveryDto> Deliveries { get; set; } = new();
         public List<Vitorize.Application.DTOs.Products.ProductInputValueDto> InputValues { get; set; } = new();
         public OrderItemKycProjectionDto? Kyc { get; set; }
+
+        bool ICustomerOrderItemFacts.KycBlocksFulfillment => Kyc?.BlocksFulfillment == true;
     }
 }

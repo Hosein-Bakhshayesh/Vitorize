@@ -129,10 +129,12 @@ else
         <ProductRow Title="جدیدترین محصولات" MoreHref="/shop?sort=newest" Products="_latest" />
     }
 
-    @* ---------- Popular Products ---------- *@
+    @* ---------- Popular Products (Settings: HomePopularProductsEnabled, default off) ---------- *@
     @if (_popular.Count > 0)
     {
-        <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
+        <div data-testid="home-popular-products">
+            <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
+        </div>
     }
 
     @* ---------- Why Vitorize / How it works (from Settings: HomeFeaturesJson) ---------- *@
@@ -291,22 +293,28 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Branding is awaited first because it decides whether the popular-products request is worth
+        // making at all. It is served from a short-lived process cache, so this is not an extra
+        // round trip in practice — and when the section is off, the catalogue query never runs.
+        _branding = await Branding.GetAsync();
+
         var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
         var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=newest&pageSize=8");
-        var popularTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=20");
-        var brandingTask = Branding.GetAsync();
-        await Task.WhenAll(homeTask, latestTask, popularTask, brandingTask);
+        var popularTask = _branding.HomePopularProductsEnabled
+            ? Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=20")
+            : null;
 
-        _branding = brandingTask.Result;
+        await Task.WhenAll(new Task[] { homeTask, latestTask }
+            .Concat(popularTask is null ? Array.Empty<Task>() : new Task[] { popularTask }));
 
         if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
         if (latestTask.Result is { IsSuccess: true, Data: not null }) _latest = latestTask.Result.Data.Items.ToList();
 
         // "Popular" has no dedicated backend sort — rank the catalogue by real engagement
         // (review count, then rating). No fabricated data; purely client-side ordering of the API result.
-        if (popularTask.Result is { IsSuccess: true, Data: not null })
+        if (popularTask?.Result is { IsSuccess: true, Data: { } popular })
         {
-            _popular = popularTask.Result.Data.Items
+            _popular = popular.Items
                 .OrderByDescending(p => p.ReviewCount)
                 .ThenByDescending(p => p.AverageRating)
                 .Take(8)

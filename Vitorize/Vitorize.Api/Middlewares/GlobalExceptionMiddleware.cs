@@ -71,6 +71,11 @@ namespace Vitorize.Api.Middlewares
                     ? "خطای داخلی سرور رخ داده است."
                     : exception.Message);
 
+            // A business rule may name its outcome so the caller can branch on it instead of
+            // matching the message text. Never emitted for a server fault.
+            if (exception is BusinessException { ErrorCode: { } code })
+                response.ErrorCode = code;
+
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)statusCode;
             context.Response.Headers[CorrelationIdPolicy.HeaderName] =

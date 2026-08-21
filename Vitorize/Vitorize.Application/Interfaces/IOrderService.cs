@@ -23,6 +23,18 @@ namespace Vitorize.Application.Interfaces
 
         Task CancelOrderAsync(Guid orderId, Guid adminUserId, string? reason);
 
+        /// <summary>
+        /// Cancels an order on behalf of the customer who owns it. Ownership and cancellability are
+        /// both decided server-side; nothing is deleted.
+        /// </summary>
+        Task<OrderDto> CancelMyOrderAsync(Guid userId, Guid orderId);
+
+        /// <summary>
+        /// Hides a settled, never-paid order from the owning customer's own list. Presentation only:
+        /// the order stays intact and fully visible to Admin.
+        /// </summary>
+        Task HideMyOrderAsync(Guid userId, Guid orderId);
+
         Task CompleteOrderAsync(Guid orderId, Guid adminUserId);
 
         Task DeliverManualAsync(Guid orderId, Guid adminUserId, ManualDeliveryRequestDto request);
