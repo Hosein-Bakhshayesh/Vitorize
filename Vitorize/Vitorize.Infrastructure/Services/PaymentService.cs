@@ -1140,13 +1140,17 @@ namespace Vitorize.Infrastructure.Services
                     VariantId = oi.ProductVariantId!.Value,
                     oi.Quantity,
                     DeliveryType = oi.Product.DeliveryType,
+                    StockMode = oi.ProductVariant!.StockMode,
                     VariantTitle = oi.ProductVariant!.Title
                 })
                 .ToListAsync();
 
             foreach (var item in managedItems)
             {
-                if (ProductAvailabilityRules.IsGiftCodeDriven(item.DeliveryType))
+                // Gift-code delivery consumes codes, not a quantity, and an unlimited SKU has no
+                // quantity to consume: decrementing it would turn the policy into a countdown.
+                if (!ProductAvailabilityRules.ConsumesStockOnPayment(
+                        item.DeliveryType, (ProductVariantStockMode)item.StockMode))
                     continue;
 
                 if (item.Quantity <= 0)

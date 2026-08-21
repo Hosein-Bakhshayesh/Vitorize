@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Content;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -25,6 +25,20 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.Faqs
                 .AsNoTracking()
+                // The general FAQ screen manages the site-wide entries; product answers are edited
+                // on their product, so they must not appear in this list.
+                .Where(x => x.ProductId == null)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.CreatedAt)
+                .Select(x => Map(x))
+                .ToListAsync();
+        }
+
+        public async Task<List<AdminFaqDto>> GetByProductAsync(Guid productId)
+        {
+            return await _dbContext.Faqs
+                .AsNoTracking()
+                .Where(x => x.ProductId == productId)
                 .OrderBy(x => x.SortOrder)
                 .ThenBy(x => x.CreatedAt)
                 .Select(x => Map(x))
@@ -53,6 +67,7 @@ namespace Vitorize.Infrastructure.Services
                 Answer = request.Answer.Trim(),
                 SortOrder = Math.Max(0, request.SortOrder),
                 IsActive = request.IsActive,
+                ProductId = request.ProductId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -73,6 +88,8 @@ namespace Vitorize.Infrastructure.Services
             faq.Answer = request.Answer.Trim();
             faq.SortOrder = Math.Max(0, request.SortOrder);
             faq.IsActive = request.IsActive;
+            // Ownership is deliberately immutable here: an edit changes the text and its ordering,
+            // never which product (or the site-wide list) the entry belongs to.
 
             await _dbContext.SaveChangesAsync();
 
@@ -107,6 +124,7 @@ namespace Vitorize.Infrastructure.Services
             Answer = x.Answer,
             SortOrder = x.SortOrder,
             IsActive = x.IsActive,
+            ProductId = x.ProductId,
             CreatedAt = x.CreatedAt
         };
     }

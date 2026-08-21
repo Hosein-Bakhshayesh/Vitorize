@@ -1,4 +1,5 @@
 import { expect, test, clearCustomerCart } from '../framework/fixtures';
+import { fillCheckoutProductInformation } from './support/app';
 
 /**
  * Product-required information is collected at Checkout — not on the product page and not in the
@@ -30,6 +31,44 @@ test.describe('checkout product information @checkoutinputs', () => {
     await page.locator('.st-buy__card button.st-btn--accent').click();
     await expect(page.locator('.vz-toast.success, .vz-toast--success').first()).toBeVisible();
     await expect(page.locator('.vz-dialog')).toHaveCount(0);
+  });
+
+  /**
+   * Production regression: checkout consumes the cart, so once an order exists a second press of
+   * Pay found an empty cart and returned silently — no request, no message, a dead button. The
+   * button must always either act or explain itself, and a created-but-unpaid order must be
+   * retried rather than silently re-checked-out.
+   */
+  test('pressing Pay again after a failed payment retries the order instead of doing nothing', async ({ page }, testInfo) => {
+    await sizeFor(page, testInfo.project.name);
+    await login(page);
+    await clearCustomerCart(page);
+    await addToCart(page, INPUT_PRODUCT);
+
+    await page.goto('/checkout', { waitUntil: 'networkidle' });
+    await fillCheckoutProductInformation(page);
+
+    const pay = page.getByTestId('checkout-pay');
+    // Blazor Server issues the API calls from the server, so the browser cannot observe them.
+    // What the customer can observe - and what regressed - is whether the press does anything.
+
+    await pay.click();
+    await expect
+      .poll(async () => (await page.getByTestId('checkout-pending-order').count()) > 0 || !page.url().includes('/checkout'),
+        { message: 'the first press must either pay or report why it could not' })
+      .toBe(true);
+
+    // If the payment could not start, the page must say so and the button must offer a retry that
+    // actually reaches the server rather than returning silently.
+    if (page.url().includes('/checkout')) {
+      await expect(page.getByTestId('checkout-pending-order')).toBeVisible();
+      await expect(pay).toBeEnabled();
+      await pay.click();
+      await expect
+        .poll(async () => (await page.locator('.vz-toast').count()) > 0 || !page.url().includes('/checkout'),
+          { message: 'a retry must produce visible feedback, never a silent no-op' })
+        .toBe(true);
+    }
   });
 
   test('the cart carries no product-input editor', async ({ page }, testInfo) => {

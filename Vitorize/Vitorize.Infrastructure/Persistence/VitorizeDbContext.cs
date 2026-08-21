@@ -373,6 +373,15 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Question).HasMaxLength(500);
+
+            // Product-scoped entries live in the same table as the site-wide FAQ, told apart by
+            // ProductId. Cascade keeps a hard-deleted product from leaving orphaned answers behind.
+            entity.HasIndex(e => new { e.ProductId, e.IsActive, e.SortOrder }, "IX_FAQs_Product_Active_Sort");
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Faqs)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_FAQs_Products_ProductId");
         });
 
         modelBuilder.Entity<GiftCode>(entity =>
@@ -949,6 +958,8 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.DiscountPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.KycThresholdAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            // Existing products must keep behaving exactly as before the override existed.
+            entity.Property(e => e.ForceOutOfStock).HasDefaultValue(false);
             entity.Property(e => e.MinOrderQuantity).HasDefaultValue(1);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);

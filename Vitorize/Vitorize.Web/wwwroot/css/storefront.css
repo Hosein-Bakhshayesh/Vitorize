@@ -1323,6 +1323,48 @@ body { background: var(--st-bg, #fff); }
 .st-pcard__stock { position: absolute; top: 12px; inset-inline-end: 12px; z-index: 3; padding: 4px 10px; border-radius: 100px; font-size: 10.5px; font-weight: 800; }
 .st-pcard__stock.out { background: var(--st-danger-soft); color: var(--st-danger); }
 
+/* Out-of-stock badge. One definition drives every product surface — cards in listings, the home
+   sections, search, related products and the detail page's main image — so availability can never
+   be styled one way in one place and another way elsewhere. Deliberately small: it labels the
+   image, it does not cover it. Positioned with inset-inline-* so RTL places it correctly. */
+.st-oos {
+    position: absolute; top: 10px; inset-inline-start: 10px; z-index: 4;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 11px; border-radius: 100px;
+    font-size: 11px; font-weight: 800; line-height: 1.6; letter-spacing: -0.01em;
+    color: #fff;
+    background: rgba(17, 24, 39, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    -webkit-backdrop-filter: saturate(150%) blur(8px);
+    backdrop-filter: saturate(150%) blur(8px);
+    pointer-events: none;
+}
+.st-oos::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--st-danger); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+}
+/* The wishlist control already owns the inline-start corner on a card, so the badge yields to it. */
+.st-pcard__media .st-oos { inset-inline-start: auto; inset-inline-end: 10px; top: 10px; }
+.st-pcard__media .st-oos ~ .st-pcard__off { top: 44px; }
+
+/* Detail page: the image is larger, so the badge scales a little with it. */
+.st-gallery__main .st-oos, .st-buy__media .st-oos { top: 14px; inset-inline-start: 14px; font-size: 12px; padding: 6px 13px; }
+
+/* An unavailable product's image is muted so the state reads at a glance, not only from the pill. */
+.st-oos-media { filter: saturate(0.55) opacity(0.82); }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .st-oos {
+        background: rgba(2, 6, 23, 0.78);
+        border-color: rgba(255, 255, 255, 0.14);
+    }
+}
+:root[data-theme="dark"] .st-oos {
+    background: rgba(2, 6, 23, 0.78);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
 /* ----- Category pill rail ----- */
 .st-catrail { display: flex; gap: 10px; overflow-x: auto; padding: 2px 0 8px; margin-bottom: 6px; scrollbar-width: thin; }
 .st-catpill { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; padding: 6px 16px 6px 8px; border-radius: 100px; font-family: inherit; font-weight: 700; font-size: 13px; background: var(--st-surface); color: var(--st-text-2); border: 1px solid var(--st-border); cursor: pointer; text-decoration: none; transition: all var(--st-t-fast) var(--st-ease); }
@@ -1487,6 +1529,43 @@ body { background: var(--st-bg, #fff); }
 .st-buy__save { font-size: 12px; font-weight: 700; color: var(--st-success); margin-bottom: 14px; }
 .st-buy__lbl { font-size: 12.5px; font-weight: 700; color: var(--st-text-2); text-transform: uppercase; letter-spacing: 0.04em; margin: 16px 0 10px; }
 .st-vcards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+/* A product with dozens of SKUs used to make the purchase card taller than the viewport, pushing
+   "add to cart" and "buy now" below the fold. The selector is bounded instead and scrolls inside
+   itself, so the CTAs stay directly beneath it however many variants exist. The bound only kicks
+   in once there are enough variants to warrant it (see .st-vcards--bounded). */
+.st-vcards--bounded {
+    max-height: 244px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px;
+    padding-inline-end: 6px;
+    scrollbar-width: thin;
+    /* Fades the cut-off edge so it reads as "more below" rather than a clipped layout. */
+    mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 14px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 14px), transparent 100%);
+}
+.st-vcards--bounded::-webkit-scrollbar { width: 8px; }
+.st-vcards--bounded::-webkit-scrollbar-thumb { background: var(--st-border-2); border-radius: 100px; }
+.st-vcards--bounded::-webkit-scrollbar-track { background: transparent; }
+
+/* Which SKU is selected must stay obvious once the list scrolls out of view. */
+.st-vsummary {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 8px 0 2px; padding: 8px 12px; border-radius: var(--st-clip-media);
+    background: var(--st-primary-soft); border: 1px solid var(--st-primary);
+    font-size: 12.5px; font-weight: 700;
+}
+.st-vsummary__n { color: var(--st-muted); font-weight: 600; font-size: 11.5px; }
+
+/* An unavailable SKU is not a choice; it stays visible but reads as unselectable. */
+.st-vcard[disabled], .st-vcard.is-out { opacity: 0.55; cursor: not-allowed; }
+.st-vcard[disabled]:hover, .st-vcard.is-out:hover { border-color: var(--st-border); }
+
+@media (max-width: 480px) {
+    /* Shorter on phones so the CTA is reachable without scrolling the page, and clear of the
+       storefront's bottom navigation. */
+    .st-vcards--bounded { max-height: 196px; }
+}
 .st-vcard { padding: 12px 14px; border-radius: var(--st-clip-media); border: 2px solid var(--st-border); background: var(--st-surface-2); cursor: pointer; text-align: start; transition: border-color var(--st-t-fast) var(--st-ease), background var(--st-t-fast) var(--st-ease); }
 .st-vcard:hover { border-color: var(--st-border-2); }
 .st-vcard.active { border-color: var(--st-primary); background: var(--st-primary-soft); }

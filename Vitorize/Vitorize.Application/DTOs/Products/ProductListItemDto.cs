@@ -44,5 +44,11 @@
         public double AverageRating { get; set; }
 
         public int ReviewCount { get; set; }
+
+        /// <summary>Administrator override: off sale regardless of inventory. Highest priority.</summary>
+        public bool ForceOutOfStock { get; set; }
+
+        /// <summary>True when the purchasable SKU(s) carry the Unlimited inventory policy.</summary>
+        public bool IsUnlimitedStock { get; set; }
     }
 }

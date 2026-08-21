@@ -29,5 +29,11 @@
         public int SortOrder { get; set; }
 
         public int AvailableStock { get; set; }
+
+        /// <summary>True when this SKU's stock mode is Unlimited (an inventory policy, not a number).</summary>
+        public bool IsUnlimitedStock { get; set; }
+
+        /// <summary>Set from the owning product; the override applies to every SKU beneath it.</summary>
+        public bool ForceOutOfStock { get; set; }
     }
 }

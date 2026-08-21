@@ -50,13 +50,20 @@ public class CartService : ICartService
 
     /// <summary>
     /// Managed inventory is validated on cart writes but never reserved — carts must not hold units,
-    /// so stock is consumed only at authoritative payment success. Instant delivery is excluded here:
-    /// its availability is the gift-code pool, reserved under lock during checkout.
+    /// so stock is consumed only at authoritative payment success. Instant delivery is excluded from
+    /// the quantity check here: its availability is the gift-code pool, reserved under lock during
+    /// checkout. The administrator's manual override is not excluded from anything — it takes a
+    /// product off sale outright, so it is checked before any inventory question.
     /// </summary>
     private static void EnsureManagedStockAllows(Product product, ProductVariant? variant, int resultingQuantity)
     {
+        if (product.ForceOutOfStock)
+            throw new BusinessException($"محصول «{product.Title}» در حال حاضر ناموجود است.");
+
         if (variant is null) return;
         if (ProductAvailabilityRules.IsGiftCodeDriven(product.DeliveryType)) return;
+        // Unlimited carries no quantity limit, so there is nothing to compare against.
+        if (ProductAvailabilityRules.IsUnlimited((ProductVariantStockMode)variant.StockMode)) return;
         if (resultingQuantity <= variant.StockQuantity) return;
 
         throw new BusinessException(variant.StockQuantity == 0

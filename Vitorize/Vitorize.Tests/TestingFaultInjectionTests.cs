@@ -1,5 +1,6 @@
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Vitorize.Application.Interfaces;
 using Vitorize.Application.Models.Sms;
@@ -75,7 +76,8 @@ public sealed class TestingFaultInjectionTests
         var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
         var gateway = new ZarinpalGatewayService(
             new HttpClient(), configuration, Env("Testing"),
-            Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }));
+            Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }),
+            NullLogger<ZarinpalGatewayService>.Instance);
 
         var (success, refId) = await gateway.VerifyPaymentAsync("authority", 100m);
 
@@ -93,7 +95,8 @@ public sealed class TestingFaultInjectionTests
         configuration.ValidateAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalConfigurationValidation(false, new[] { "invalid" }));
         var gateway = new ZarinpalGatewayService(
             new HttpClient(), configuration, Env("Production"),
-            Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }));
+            Faults(new TestingFaultInjectionOptions { Payment = "VerifyFail" }),
+            NullLogger<ZarinpalGatewayService>.Instance);
 
         // Fault ignored in Production -> real configuration validation runs and fails safely.
         var result = await gateway.VerifyPaymentAsync("authority", 100m);
@@ -111,7 +114,8 @@ public sealed class TestingFaultInjectionTests
             new Uri("https://payment.zarinpal.com/pg/StartPay"),
             new Uri("https://vitorize.invalid/api/payments/zarinpal/callback")));
         var gateway = new ZarinpalGatewayService(
-            new HttpClient(), configuration, Env("Production"), Faults(new TestingFaultInjectionOptions()));
+            new HttpClient(), configuration, Env("Production"), Faults(new TestingFaultInjectionOptions()),
+            NullLogger<ZarinpalGatewayService>.Instance);
 
         var result = await gateway.CreatePaymentAsync(100m, CurrencyType.Toman, "certification");
 

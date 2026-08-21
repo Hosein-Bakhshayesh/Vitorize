@@ -1,10 +1,11 @@
-@page "/admin/products/create"
+﻿@page "/admin/products/create"
 @page "/admin/products/{Id:guid}"
 @implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@using Vitorize.Web.Models.Admin.Content
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="@(IsEdit ? "ویرایش محصول" : "افزودن محصول جدید")"
@@ -297,6 +298,85 @@ else
                     </div>
                 </div>
 
+                @* Product-owned questions. They share the FAQ table with the site-wide list but are
+                   reached only through this product's route, so nothing here can touch a global
+                   entry. Answers stay plain text: the storefront HTML-encodes them, which is a
+                   stronger guarantee than sanitising rich text would be. *@
+                <div class="vz-card">
+                    <div class="vz-card__body">
+                        <div class="vz-section__head">
+                            <span class="vz-section__badge"><Icon Name="help-circle" Size="16" /></span>
+                            <span class="vz-section__title">سوالات متداول این محصول</span>
+                        </div>
+
+                        @if (!IsEdit)
+                        {
+                            <div class="vz-hint">برای افزودن پرسش، ابتدا محصول را ذخیره کنید.</div>
+                        }
+                        else
+                        {
+                            <div class="vz-spread" style="margin-bottom:12px">
+                                <span class="vz-hint" style="margin:0">
+                                    فقط پرسش‌های همین محصول در صفحهٔ محصول نمایش داده می‌شوند.
+                                </span>
+                                <button type="button" class="vz-btn vz-btn--outline vz-btn--sm"
+                                        data-testid="add-product-faq" @onclick="OpenFaqCreate">
+                                    <Icon Name="plus" Size="14" /> پرسش جدید
+                                </button>
+                            </div>
+
+                            @if (_productFaqs.Count == 0)
+                            {
+                                <div class="vz-hint" data-testid="product-faq-empty">
+                                    برای این محصول پرسشی ثبت نشده است.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="vz-table-wrap">
+                                    <table class="vz-table" data-testid="product-faq-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ترتیب</th>
+                                                <th>پرسش</th>
+                                                <th>پاسخ</th>
+                                                <th>وضعیت</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var f in _productFaqs)
+                                            {
+                                                <tr data-testid="product-faq-row">
+                                                    <td>@AUI.Number(f.SortOrder)</td>
+                                                    <td>@f.Question</td>
+                                                    <td class="vz-truncate" style="max-width:280px">@f.Answer</td>
+                                                    <td>
+                                                        <StatusBadge Text="@(f.IsActive ? "فعال" : "غیرفعال")"
+                                                                     Intent="@(f.IsActive ? "success" : "muted")" />
+                                                    </td>
+                                                    <td class="vz-rowactions">
+                                                        <button type="button" class="vz-iconaction"
+                                                                data-testid="edit-product-faq"
+                                                                @onclick="() => OpenFaqEdit(f)" title="ویرایش">
+                                                            <Icon Name="edit" Size="15" />
+                                                        </button>
+                                                        <button type="button" class="vz-iconaction danger"
+                                                                data-testid="delete-product-faq"
+                                                                @onclick="() => AskDeleteFaq(f)" title="حذف">
+                                                            <Icon Name="trash" Size="15" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
                 <div class="vz-card">
                     <div class="vz-card__body">
                         <div class="vz-section__head">
@@ -356,6 +436,20 @@ else
                     <div class="vz-card__body vz-stack">
                         <label class="vz-switch"><input type="checkbox" data-testid="product-active" @bind="_model.IsActive" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول فعال (منتشر شده)</span></label>
                         <label class="vz-switch"><input type="checkbox" data-testid="product-featured" @bind="_model.IsFeatured" /><span class="vz-switch__track"></span><span class="vz-switch__label">محصول ویژه</span></label>
+                        <label class="vz-switch">
+                            <input type="checkbox" data-testid="product-force-out-of-stock" @bind="_model.ForceOutOfStock" />
+                            <span class="vz-switch__track"></span>
+                            <span class="vz-switch__label">نمایش به‌صورت ناموجود</span>
+                        </label>
+                        @if (_model.ForceOutOfStock)
+                        {
+                            @* Says plainly that inventory is untouched, because the whole point of the
+                               override is that the administrator gets their stock back unchanged. *@
+                            <div class="vz-hint" data-testid="product-force-out-of-stock-hint">
+                                حتی در صورت وجود موجودی، این کالا در فروشگاه ناموجود نمایش داده می‌شود و قابل خرید نخواهد بود.
+                                موجودی و کدهای این محصول تغییر نمی‌کند و با خاموش کردن این گزینه دقیقاً به حالت قبل برمی‌گردد.
+                            </div>
+                        }
                         <div class="vz-field">
                             <label>سیاست احراز هویت</label>
                             <select data-testid="product-kyc-mode" @bind="_model.KycRequirementMode">
@@ -429,6 +523,27 @@ else
                 @* Inventory is decided by the product's delivery type, not chosen per variant: Instant
                    draws from the gift-code pool, every other mode from a managed quantity. Offering a
                    free choice here would let an administrator claim stock that cannot be delivered. *@
+                @* Instant delivery draws its units from gift codes, so an inventory policy would be
+                   meaningless there and the backend refuses it anyway. The choice is offered only
+                   where it applies. *@
+                @if (!IsInstantDelivery)
+                {
+                    <div class="vz-field">
+                        <label class="vz-label">نوع موجودی</label>
+                        <select class="vz-input" data-testid="variant-stock-mode"
+                                value="@_variant.StockMode"
+                                @onchange="OnVariantStockModeChanged">
+                            <option value="2">موجودی محدود</option>
+                            <option value="3">موجودی نامحدود</option>
+                        </select>
+                        @if (VariantIsUnlimited)
+                        {
+                            <div class="vz-hint" data-testid="variant-unlimited-hint">
+                                این کالا محدودیت موجودی ندارد و همیشه قابل خرید است.
+                            </div>
+                        }
+                    </div>
+                }
                 <div class="vz-field">
                     <label class="vz-label">موجودی</label>
                     @if (IsInstantDelivery)
@@ -442,20 +557,41 @@ else
                     else
                     {
                         <InputNumber class="vz-input" data-testid="variant-stock-quantity"
-                                     @bind-Value="_variant.StockQuantity" min="0" step="1" />
-                        <div class="vz-hint">
-                            تعداد قابل فروش این تنوع. مقدار صفر یعنی «ناموجود».
-                            موجودی فقط پس از پرداخت موفق کسر می‌شود؛ افزودن به سبد خرید آن را رزرو نمی‌کند.
-                        </div>
+                                     @bind-Value="_variant.StockQuantity" min="0" step="1"
+                                     disabled="@VariantIsUnlimited" />
+                        @if (VariantIsUnlimited)
+                        {
+                            <div class="vz-hint" data-testid="variant-stock-dormant">
+                                در حالت نامحدود این عدد نادیده گرفته می‌شود و دست‌نخورده باقی می‌ماند؛
+                                با بازگشت به «موجودی محدود» همان مقدار قبلی به کار می‌رود.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="vz-hint">
+                                تعداد قابل فروش این تنوع. مقدار صفر یعنی «ناموجود».
+                                موجودی فقط پس از پرداخت موفق کسر می‌شود؛ افزودن به سبد خرید آن را رزرو نمی‌کند.
+                            </div>
+                        }
                         <div class="vz-hint" data-testid="variant-stock-availability">
                             وضعیت فعلی:
-                            @if (_variant.StockQuantity > 0)
+                            @if (VariantIsUnlimited)
+                            {
+                                <span class="vz-chip vz-chip--success">همیشه موجود</span>
+                            }
+                            else if (_variant.StockQuantity > 0)
                             {
                                 <span class="vz-chip vz-chip--success">موجود</span>
                             }
                             else
                             {
                                 <span class="vz-chip vz-chip--danger">ناموجود</span>
+                            }
+                            @if (_model.ForceOutOfStock)
+                            {
+                                <span class="vz-chip vz-chip--danger" data-testid="variant-forced-note">
+                                    نمایش دستی ناموجود فعال است
+                                </span>
                             }
                         </div>
                     }
@@ -478,6 +614,49 @@ else
         </button>
     </Footer>
 </Modal>
+
+<Modal Visible="_faqOpen" Title="@(_faqEditingId is null ? "پرسش جدید محصول" : "ویرایش پرسش محصول")"
+       Icon="help-circle" OnClose="() => _faqOpen = false">
+    <ChildContent>
+        <EditForm Model="_faq" OnValidSubmit="SaveFaq" id="product-faq-form" data-testid="product-faq-form">
+            <DataAnnotationsValidator />
+            <div class="vz-grid2">
+                <div class="vz-field span-2">
+                    <label class="vz-label">پرسش <span class="vz-req">*</span></label>
+                    <InputText class="vz-input" data-testid="product-faq-question" @bind-Value="_faq.Question" />
+                    <ValidationMessage For="() => _faq.Question" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">پاسخ <span class="vz-req">*</span></label>
+                    <InputTextArea class="vz-input" rows="5" data-testid="product-faq-answer" @bind-Value="_faq.Answer" />
+                    <div class="vz-hint">پاسخ به‌صورت متن ساده ذخیره و نمایش داده می‌شود.</div>
+                    <ValidationMessage For="() => _faq.Answer" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب نمایش</label>
+                    <InputNumber class="vz-input" data-testid="product-faq-sort" @bind-Value="_faq.SortOrder" min="0" />
+                </div>
+                <div class="vz-field" style="display:flex;align-items:flex-end">
+                    <label class="vz-switch">
+                        <input type="checkbox" data-testid="product-faq-active" @bind="_faq.IsActive" />
+                        <span class="vz-switch__track"></span><span class="vz-switch__label">فعال</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _faqOpen = false" disabled="@_savingFaq">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="product-faq-form" data-testid="save-product-faq" disabled="@_savingFaq">
+            @if (_savingFaq) { <span class="vz-spinner sm"></span> } else { <span>ذخیره پرسش</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmFaqDelete" Title="حذف پرسش"
+               Message="این پرسش از صفحهٔ محصول حذف می‌شود. ادامه می‌دهید؟"
+               ConfirmText="حذف" Busy="_deletingFaq"
+               OnConfirm="ConfirmDeleteFaq" OnCancel="() => _confirmFaqDelete = false" />
 
 <ConfirmDialog Visible="_confirmVariantDelete" Title="حذف واریانت"
                Message="@($"آیا از حذف واریانت «{_variantTarget?.Title}» مطمئن هستید؟")"
@@ -565,12 +744,13 @@ else
                 KycThresholdAmount = p.KycThresholdAmount, KycPolicyVersionId = p.KycPolicyVersionId,
                 RequiresSupportMessage = p.RequiresSupportMessage,
                 MinOrderQuantity = p.MinOrderQuantity, MaxOrderQuantity = p.MaxOrderQuantity,
-                IsFeatured = p.IsFeatured, IsActive = p.IsActive, SeoTitle = p.SeoTitle,
+                IsFeatured = p.IsFeatured, ForceOutOfStock = p.ForceOutOfStock, IsActive = p.IsActive, SeoTitle = p.SeoTitle,
                 SeoDescription = p.SeoDescription, FocusKeyword = p.FocusKeyword, TagIds = p.TagIds ?? new(), SortOrder = p.SortOrder,
                 Features = p.Features ?? new(), InputFields = p.InputFields ?? new()
             };
 
             await LoadVariants();
+            await LoadProductFaqsAsync();
             await LoadImageCount();
         }
         else
@@ -677,7 +857,118 @@ else
     }
 
     /// <summary>Instant products take their inventory from gift codes, so no manual quantity is offered.</summary>
+    // ---------------------------------------------------------------- product FAQ management
+    private List<AdminFaqModel> _productFaqs = new();
+    private AdminFaqInputModel _faq = new();
+    private Guid? _faqEditingId;
+    private bool _faqOpen, _savingFaq, _confirmFaqDelete, _deletingFaq;
+    private AdminFaqModel? _faqPendingDelete;
+
+    private async Task LoadProductFaqsAsync()
+    {
+        if (!IsEdit) { _productFaqs = new(); return; }
+
+        var result = await Api.GetAsync<List<AdminFaqModel>>($"admin/products/{Id}/faqs");
+        _productFaqs = result.IsSuccess && result.Data is not null ? result.Data : new();
+    }
+
+    private void OpenFaqCreate()
+    {
+        _faqEditingId = null;
+        // A sensible next position rather than 0, so a new question lands at the end.
+        _faq = new AdminFaqInputModel
+        {
+            IsActive = true,
+            SortOrder = _productFaqs.Count == 0 ? 1 : _productFaqs.Max(x => x.SortOrder) + 1
+        };
+        _faqOpen = true;
+    }
+
+    private void OpenFaqEdit(AdminFaqModel faq)
+    {
+        _faqEditingId = faq.Id;
+        _faq = new AdminFaqInputModel
+        {
+            Id = faq.Id,
+            Question = faq.Question,
+            Answer = faq.Answer,
+            SortOrder = faq.SortOrder,
+            IsActive = faq.IsActive
+        };
+        _faqOpen = true;
+    }
+
+    private async Task SaveFaq()
+    {
+        if (_savingFaq) return;
+
+        try
+        {
+            _savingFaq = true;
+            var result = _faqEditingId is null
+                ? await Api.PostAsync<AdminFaqModel>($"admin/products/{Id}/faqs", _faq)
+                : await Api.PutAsync<AdminFaqModel>($"admin/products/{Id}/faqs/{_faqEditingId}", _faq);
+
+            if (!result.IsSuccess)
+            {
+                Toasts.Error(string.IsNullOrWhiteSpace(result.Message) ? "ذخیره پرسش انجام نشد." : result.Message);
+                return;
+            }
+
+            _faqOpen = false;
+            Toasts.Success(result.Message);
+            await LoadProductFaqsAsync();
+        }
+        finally
+        {
+            _savingFaq = false;
+        }
+    }
+
+    private void AskDeleteFaq(AdminFaqModel faq)
+    {
+        _faqPendingDelete = faq;
+        _confirmFaqDelete = true;
+    }
+
+    private async Task ConfirmDeleteFaq()
+    {
+        if (_faqPendingDelete is null) { _confirmFaqDelete = false; return; }
+
+        try
+        {
+            _deletingFaq = true;
+            var result = await Api.DeleteAsync($"admin/products/{Id}/faqs/{_faqPendingDelete.Id}");
+            if (result.IsSuccess) Toasts.Success(result.Message);
+            else Toasts.Error(string.IsNullOrWhiteSpace(result.Message) ? "حذف پرسش انجام نشد." : result.Message);
+            await LoadProductFaqsAsync();
+        }
+        finally
+        {
+            _deletingFaq = false;
+            _confirmFaqDelete = false;
+            _faqPendingDelete = null;
+        }
+    }
+
     private bool IsInstantDelivery => _model.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Instant;
+
+    /// <summary>True while the variant being edited carries the Unlimited inventory policy.</summary>
+    private bool VariantIsUnlimited =>
+        _variant.StockMode == (byte)Vitorize.Shared.Enums.ProductVariantStockMode.Unlimited;
+
+    /// <summary>
+    /// Switching the policy never rewrites StockQuantity. The dormant number stays in the form and
+    /// in the database, so Limited -> Unlimited -> Limited returns the administrator's real value
+    /// instead of silently zeroing it. The backend applies the same rule.
+    /// </summary>
+    private void OnVariantStockModeChanged(ChangeEventArgs args)
+    {
+        if (byte.TryParse(args.Value?.ToString(), out var mode))
+        {
+            _variant.StockMode = mode;
+        }
+    }
 
     /// <summary>Gift-code stock of the variant being edited, shown read-only for Instant delivery.</summary>
     private int _variantGiftCodeStock;

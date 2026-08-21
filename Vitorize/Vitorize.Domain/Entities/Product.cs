@@ -45,6 +45,13 @@ public partial class Product
 
     public bool IsActive { get; set; }
 
+    /// <summary>
+    /// Administrator override that hides the product from sale regardless of how much inventory
+    /// exists. It is deliberately separate from StockQuantity: forcing a product unavailable must
+    /// never destroy the quantity an administrator will want back when they clear the override.
+    /// </summary>
+    public bool ForceOutOfStock { get; set; }
+
     public string? SeoTitle { get; set; }
 
     public string? SeoDescription { get; set; }
@@ -82,6 +89,8 @@ public partial class Product
     public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
 
     public virtual ICollection<ProductFeature> ProductFeatures { get; set; } = new List<ProductFeature>();
+
+    public virtual ICollection<Faq> Faqs { get; set; } = new List<Faq>();
 
     public virtual ICollection<ProductInputField> ProductInputFields { get; set; } = new List<ProductInputField>();
 

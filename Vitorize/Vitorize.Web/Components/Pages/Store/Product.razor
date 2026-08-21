@@ -13,6 +13,7 @@
 @using Vitorize.Web.Models.Store
 @using Vitorize.Web.Services.UI
 @using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 @if (_p is not null)
@@ -69,10 +70,14 @@ else
                         }
                     </div>
                 }
-                <div class="st-gal__main" @key="_activeImage">
-                    @if (_p.HasDiscount)
+                <div class="st-gal__main @(OutOfStock ? "st-oos-media" : null)" @key="_activeImage">
+                    @if (_p.HasDiscount && !OutOfStock)
                     {
                         <span class="st-gal__badge">@AUI.Number(DiscountPercent)٪ تخفیف</span>
+                    }
+                    @if (OutOfStock)
+                    {
+                        <span class="st-oos" data-testid="product-oos-badge">ناموجود</span>
                     }
                     <StoreImage Url="@_activeImage?.ImagePath" Alt="@(_activeImage?.AltText ?? _p.ThumbnailAltText ?? _p.Title)" Icon="gamepad" IconSize="56" Loading="eager" FetchPriority="high" Width="900" Height="900" />
                 </div>
@@ -97,7 +102,11 @@ else
             <div class="st-ptabs st-tabs">
                 <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
                 <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
-                <button class="st-tab @(_tab == "faq" ? "active" : "")" @onclick='() => _tab = "faq"'>سوالات متداول</button>
+                @if (ProductFaqs.Count > 0)
+                {
+                    <button class="st-tab @(_tab == "faq" ? "active" : "")" @onclick='() => _tab = "faq"'
+                            data-testid="product-faq-tab">سوالات متداول</button>
+                }
             </div>
 
             <div style="margin-top:20px">
@@ -156,21 +165,14 @@ else
                     }
                     <ProductReviews ProductId="_p.Id" Summary="_summary" />
                 }
-                else
+                else if (_tab == "faq" && ProductFaqs.Count > 0)
                 {
-                    @if (_faqs.Count == 0)
-                    {
-                        <p class="st-muted" style="font-size:14px">سوال متداولی ثبت نشده است.</p>
-                    }
-                    else
-                    {
-                        <div class="st-stack">
-                            @foreach (var f in _faqs)
-                            {
-                                <FaqItem Question="@f.Question" Answer="@f.Answer" />
-                            }
-                        </div>
-                    }
+                    <div class="st-stack" data-testid="product-faq-list">
+                        @foreach (var f in ProductFaqs)
+                        {
+                            <FaqItem Question="@f.Question" Answer="@f.Answer" />
+                        }
+                    </div>
                 }
             </div>
         </div>
@@ -208,16 +210,29 @@ else
                 @if (OffersVariantChoice)
                 {
                     <div class="st-buy__lbl">انتخاب نسخه</div>
-                    <div class="st-vcards">
-                        @foreach (var v in _p.Variants.OrderBy(x => x.SortOrder))
+                    @* Bounded once the list is long enough to push the purchase actions off screen.
+                       The selected SKU is echoed underneath so it stays visible while scrolling. *@
+                    <div class="st-vcards @(SelectableVariants.Count > VariantBoundThreshold ? "st-vcards--bounded" : null)"
+                         data-testid="product-variants" role="group" aria-label="انتخاب نسخه">
+                        @foreach (var v in SelectableVariants.OrderBy(x => x.SortOrder))
                         {
-                            <button class="st-vcard @(_variant?.Id == v.Id ? "active" : null)" @onclick="() => SelectVariant(v)">
+                            var available = SkuAvailable(v);
+                            <button class="st-vcard @(_variant?.Id == v.Id ? "active" : null) @(available ? null : "is-out")"
+                                    data-testid="product-variant" aria-pressed="@(_variant?.Id == v.Id ? "true" : "false")"
+                                    disabled="@(!available)" @onclick="() => SelectVariant(v)">
                                 <div class="st-vcard__t">@v.Title</div>
                                 <div class="st-vcard__p">@AUI.Number((long)v.FinalPrice) @Unit</div>
-                                <div class="st-vcard__stock">@(v.AvailableStock > 0 ? $"{AUI.Number(v.AvailableStock)} موجود" : "ناموجود")</div>
+                                <div class="st-vcard__stock">@VariantStockLabel(v)</div>
                             </button>
                         }
                     </div>
+                    @if (_variant is not null && SelectableVariants.Count > VariantBoundThreshold)
+                    {
+                        <div class="st-vsummary" data-testid="product-variant-summary">
+                            <span>@_variant.Title</span>
+                            <span class="st-vsummary__n">@AUI.Number((long)_variant.FinalPrice) @Unit</span>
+                        </div>
+                    }
                 }
 
                 @* payment -> delivery flow *@
@@ -289,7 +304,6 @@ else
     private CustomerReviewSummaryModel _summary = new();
     private List<CustomerReviewModel> _structuredReviews = new();
     private List<StoreProductModel> _related = new();
-    private List<StoreFaqModel> _faqs = new();
     private string? _loadedSlug;
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
@@ -310,18 +324,72 @@ else
     // managed modes from the SKU's StockQuantity - both arrive here as AvailableStock, so the
     // gate is uniform: the selected SKU decides, falling back to "any variant purchasable" and
     // finally the product aggregate for legacy variantless (Instant-only) products.
-    private bool OutOfStock =>
-        _p is not null &&
-        (_variant is not null
-            ? _variant.AvailableStock <= 0
-            : (_p.Variants.Count > 0
-                ? _p.Variants.All(v => v.AvailableStock <= 0)
-                : _p.AvailableStock <= 0));
+    private bool OutOfStock
+    {
+        get
+        {
+            if (_p is null) return false;
+            // The administrator's override applies to the whole product, so it is answered before
+            // any SKU question. Otherwise the selected SKU decides, falling back to "any variant
+            // purchasable" and finally to the product aggregate for legacy variantless products.
+            if (_p.ForceOutOfStock) return true;
+            if (_variant is not null) return !SkuAvailable(_variant);
+            if (_p.Variants.Count > 0) return !_p.Variants.Any(SkuAvailable);   // any SKU at all can satisfy an order
+            return !ProductAvailabilityRules.IsAvailableForSale(
+                _p.ForceOutOfStock, _p.DeliveryType,
+                _p.IsUnlimitedStock ? ProductVariantStockMode.Unlimited : ProductVariantStockMode.Manual,
+                _p.AvailableStock, _p.AvailableStock);
+        }
+    }
+
+    /// <summary>Above this many SKUs the selector is bounded and scrolls internally.</summary>
+    private const int VariantBoundThreshold = 6;
+
+    /// <summary>
+    /// Unlimited must never be shown as a number - the customer should read "available", not a
+    /// fabricated quantity.
+    /// </summary>
+    private string VariantStockLabel(StoreVariantModel variant) =>
+        !SkuAvailable(variant) ? "ناموجود"
+            : variant.IsUnlimitedStock ? "موجود"
+            : $"{AUI.Number(variant.AvailableStock)} موجود";
+
+    /// <summary>
+    /// This product's FAQ entries, already ordered by the API (SortOrder, then CreatedAt). They
+    /// arrive with the product itself, so the page no longer makes a separate call for the site-wide
+    /// list - which also meant every product showed the same six answers.
+    /// </summary>
+    private List<StoreFaqModel> ProductFaqs => _p?.Faqs ?? new();
+
+    private bool SkuAvailable(StoreVariantModel variant) =>
+        _p is not null && ProductAvailabilityRules.IsAvailableForSale(
+            _p.ForceOutOfStock, _p.DeliveryType,
+            variant.IsUnlimitedStock ? ProductVariantStockMode.Unlimited : ProductVariantStockMode.Manual,
+            variant.AvailableStock, variant.AvailableStock);
+
+    /// <summary>
+    /// The SKUs a customer may actually pick between. Every managed product owns an implicit
+    /// «پیش‌فرض» SKU so inventory has somewhere to live; once the administrator has authored real
+    /// variants that implicit one is pure plumbing, and offering it as a choice would both expose
+    /// an internal concept and — because it carries no stock of its own — present a "ناموجود"
+    /// option beside perfectly purchasable ones.
+    /// </summary>
+    private List<StoreVariantModel> SelectableVariants
+    {
+        get
+        {
+            if (_p is null) return new();
+            var named = _p.Variants
+                .Where(v => ProductAvailabilityRules.CustomerFacingVariantTitle(v.Title) is not null)
+                .ToList();
+            return named.Count > 0 ? named : _p.Variants.ToList();
+        }
+    }
 
     // A lone implicit SKU is inventory plumbing, not an option the customer picks between.
     private bool OffersVariantChoice =>
         _p is not null &&
-        ProductAvailabilityRules.OffersVariantChoice(_p.Variants.Select(v => v.Title).ToList());
+        ProductAvailabilityRules.OffersVariantChoice(SelectableVariants.Select(v => v.Title).ToList());
     // Trust score derived from real review rating; falls back to a guarantee baseline when unrated.
     private int TrustScore => _summary.TotalApprovedReviews > 0 ? (int)Math.Round(_summary.AverageRating / 5 * 100) : 95;
     private string ShareUrl => $"{Nav.BaseUri.TrimEnd('/')}/product/{Slug}";
@@ -355,7 +423,14 @@ else
             foreach (var img in _p.ImageItems.Where(i => !string.IsNullOrWhiteSpace(i.ImagePath)).OrderBy(i => i.SortOrder))
                 if (_gallery.All(x => !x.ImagePath.Equals(img.ImagePath, StringComparison.OrdinalIgnoreCase))) _gallery.Add(img);
             _activeImage = _gallery.FirstOrDefault();
-            _variant = _p.Variants.FirstOrDefault(v => v.IsDefault) ?? _p.Variants.OrderBy(v => v.SortOrder).FirstOrDefault();
+            // Prefer a SKU the customer can actually buy. The declared default wins when it is
+            // sellable; otherwise the first available one does, so an out-of-stock SKU is never
+            // preselected while a purchasable sibling exists.
+            var selectable = SelectableVariants.OrderBy(v => v.SortOrder).ToList();
+            _variant = selectable.FirstOrDefault(v => v.IsDefault && SkuAvailable(v))
+                ?? selectable.FirstOrDefault(SkuAvailable)
+                ?? selectable.FirstOrDefault(v => v.IsDefault)
+                ?? selectable.FirstOrDefault();
             _qty = Math.Max(1, _p.MinOrderQuantity);
             await LoadExtras(_p.Id);
         }
@@ -371,15 +446,14 @@ else
         var sumTask = Api.GetAsync<CustomerReviewSummaryModel>($"product-reviews/product/{id}/summary");
         var reviewsTask = Api.GetAsync<CustomerReviewListModel>($"product-reviews/product/{id}?page=1&pageSize=10&sort=newest");
         var relTask = Api.GetAsync<List<StoreProductModel>>($"products/{id}/related?count=8");
-        var faqTask = Api.GetAsync<List<StoreFaqModel>>("faqs");
-        await Task.WhenAll(sumTask, reviewsTask, relTask, faqTask);
+        // The product's own FAQs arrive with the product, so there is no separate FAQ round-trip.
+        await Task.WhenAll(sumTask, reviewsTask, relTask);
         if (sumTask.Result.Data is not null) _summary = sumTask.Result.Data;
         _structuredReviews = reviewsTask.Result.Data?.Reviews.Items
             .Where(x => x.IsApproved && !string.IsNullOrWhiteSpace(x.Comment))
             .Take(3)
             .ToList() ?? new();
         _related = relTask.Result.Data ?? new();
-        _faqs = (faqTask.Result.Data ?? new()).Take(6).ToList();
         StateHasChanged();
     }
 
@@ -477,22 +551,48 @@ else
     {
         if (_p is null) return;
 
-        _busy = true;
-        var result = await Api.PostAsync<CartModel>("cart/items",
-            new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty });
-        _busy = false;
+        // Re-entrancy guard. `disabled="@_busy"` only reaches the browser after a render round-trip
+        // over the circuit, so on a slow connection a second click arrives before the button is
+        // actually disabled and the customer gets two cart writes for one intent. The flag is
+        // checked here, where it takes effect immediately.
+        if (_busy) return;
 
-        if (result.IsSuccess && result.Data is not null)
+        try
         {
-            Cart.Set(result.Data.TotalQuantity);
-            if (buyNow) { Nav.NavigateTo("/checkout"); return; }
-            Toasts.Success("به سبد خرید اضافه شد.");
+            _busy = true;
+            StateHasChanged();          // show the spinner before awaiting anything
+
+            var result = await Api.PostAsync<CartModel>("cart/items",
+                new { ProductId = _p.Id, ProductVariantId = _variant?.Id, Quantity = _qty });
+
+            if (result.IsSuccess && result.Data is not null)
+            {
+                Cart.Set(result.Data.TotalQuantity);
+                if (buyNow) { Nav.NavigateTo("/checkout"); return; }
+                Toasts.Success("به سبد خرید اضافه شد.");
+                return;
+            }
+
+            if (result.RequiresAuthentication)
+            {
+                Nav.NavigateTo($"/login?returnUrl=/product/{Slug}", forceLoad: true);
+                return;
+            }
+
+            Toasts.Error(string.IsNullOrWhiteSpace(result.Message)
+                ? "افزودن به سبد خرید انجام نشد. لطفاً دوباره تلاش کنید."
+                : result.Message);
         }
-        else if (result.Message.Contains("احراز") || result.Message.Contains("نشست") || result.Message.Contains("مجاز"))
+        catch (Exception)
         {
-            Nav.NavigateTo($"/login?returnUrl=/product/{Slug}", forceLoad: true);
+            // Without this the flag stayed true and the button was dead until a page reload.
+            Toasts.Error("افزودن به سبد خرید انجام نشد. لطفاً دوباره تلاش کنید.");
         }
-        else { Toasts.Error(result.Message); }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ToggleWishlist()

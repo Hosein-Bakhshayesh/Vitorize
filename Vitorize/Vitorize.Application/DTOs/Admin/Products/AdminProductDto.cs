@@ -49,5 +49,8 @@
         public DateTime CreatedAt { get; set; }
         public List<Vitorize.Application.DTOs.Products.ProductFeatureDto> Features { get; set; } = new();
         public List<Vitorize.Application.DTOs.Products.ProductInputFieldDto> InputFields { get; set; } = new();
-    }
+
+        /// <summary>Takes the product off sale without touching a single unit of its inventory.</summary>
+        public bool ForceOutOfStock { get; set; }
+}
 }

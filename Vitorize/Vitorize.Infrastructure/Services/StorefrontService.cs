@@ -118,7 +118,9 @@ namespace Vitorize.Infrastructure.Services
 
             var faqs = await _dbContext.Faqs
                 .AsNoTracking()
-                .Where(x => x.IsActive)
+                // ProductId == null is the site-wide FAQ; product-scoped entries belong to their
+                // own product page only.
+                .Where(x => x.IsActive && x.ProductId == null)
                 .OrderBy(x => x.SortOrder)
                 .Take(6)
                 .Select(x => new FaqDto
@@ -180,7 +182,7 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.Faqs
                 .AsNoTracking()
-                .Where(x => x.IsActive)
+                .Where(x => x.IsActive && x.ProductId == null)
                 .OrderBy(x => x.SortOrder)
                 .Select(x => new FaqDto
                 {

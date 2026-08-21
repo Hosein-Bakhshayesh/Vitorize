@@ -295,14 +295,26 @@ namespace Vitorize.Infrastructure.Services
                     if (orderItem.ProductVariantId is null)
                         continue;
 
-                    var available = await _dbContext.ProductVariants
+                    var sku = await _dbContext.ProductVariants
                         .Where(v => v.Id == orderItem.ProductVariantId)
-                        .Select(v => v.StockQuantity)
+                        .Select(v => new { v.StockQuantity, v.StockMode, v.Product.ForceOutOfStock })
                         .FirstOrDefaultAsync();
 
-                    if (available < orderItem.Quantity)
+                    if (sku is null)
+                        continue;
+
+                    // An administrator can take a product off sale between the cart write and here,
+                    // and that decision outranks whatever inventory exists.
+                    if (sku.ForceOutOfStock)
+                        throw new BusinessException($"محصول {orderItem.ProductTitle} در حال حاضر ناموجود است.");
+
+                    // Unlimited has no quantity to compare against, so there is nothing to guard.
+                    if (ProductAvailabilityRules.IsUnlimited((ProductVariantStockMode)sku.StockMode))
+                        continue;
+
+                    if (sku.StockQuantity < orderItem.Quantity)
                         throw new BusinessException(
-                            $"موجودی محصول {orderItem.ProductTitle} کافی نیست؛ موجودی فعلی: {available}.");
+                            $"موجودی محصول {orderItem.ProductTitle} کافی نیست؛ موجودی فعلی: {sku.StockQuantity}.");
                 }
 
                 foreach (var orderItem in orderItems)

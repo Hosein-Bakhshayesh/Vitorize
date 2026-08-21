@@ -1,4 +1,4 @@
-@implements IDisposable
+﻿@implements IDisposable
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject CartState Cart
@@ -6,14 +6,20 @@
 @inject ToastService Toasts
 @inject NavigationManager Nav
 @using Vitorize.Web.Models.Store
+@using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <div class="st-pcard">
     <a class="st-pcard__media" href="@($"/product/{Product.Slug}")" aria-label="مشاهده @Product.Title">
         <StoreImage Url="@Product.ThumbnailImagePath" Alt="@Product.Title" Icon="gamepad" />
-        @if (Product.DiscountPercent > 0)
+        @if (Product.DiscountPercent > 0 && InStock)
         {
             <span class="st-pcard__off">@AUI.Number(Product.DiscountPercent)٪</span>
+        }
+        @if (!InStock)
+        {
+            <span class="st-oos" data-testid="product-oos-badge">ناموجود</span>
         }
     </a>
     <button class="st-pcard__wish @(InWishlist ? "active" : null)"
@@ -21,10 +27,6 @@
             @onclick="ToggleWishlist" @onclick:stopPropagation="true" disabled="@_wishBusy">
         <Icon Name="heart" Size="16" />
     </button>
-    @if (!InStock)
-    {
-        <span class="st-pcard__stock out">ناموجود</span>
-    }
     <div class="st-pcard__body">
         <div class="st-pcard__cat">@Product.CategoryTitle</div>
         <a class="st-pcard__title" href="@($"/product/{Product.Slug}")">@Product.Title</a>
@@ -51,7 +53,8 @@
                 }
                 <span class="st-price__now">@AUI.Number((long)Product.FinalPrice) <span class="st-price__unit">@Unit</span></span>
             </div>
-            <button class="st-btn st-btn--primary st-btn--sm" @onclick="AddToCart" disabled="@_busy" title="افزودن به سبد">
+            <button class="st-btn st-btn--primary st-btn--sm" @onclick="AddToCart" disabled="@(_busy || !InStock)"
+                    title="@(InStock ? "افزودن به سبد" : "ناموجود")">
                 @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="16" /> }
             </button>
         </div>
@@ -66,7 +69,14 @@
     private bool _wishBusy;
     private string Unit => Product.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
     private bool InWishlist => Wishlist.Contains(Product.Id);
-    private bool InStock => Product.HasVariants || Product.AvailableStock > 0;
+    // One rule for the badge and the button: a card must never invite a purchase the cart will
+    // refuse. HasVariants used to imply availability, which hid genuinely sold-out products.
+    private bool InStock => ProductAvailabilityRules.IsAvailableForSale(
+        Product.ForceOutOfStock,
+        Product.DeliveryType,
+        Product.IsUnlimitedStock ? ProductVariantStockMode.Unlimited : ProductVariantStockMode.Manual,
+        Product.AvailableStock,
+        Product.AvailableStock);
 
     protected override void OnInitialized() => Wishlist.OnChange += OnWishlistChange;
 

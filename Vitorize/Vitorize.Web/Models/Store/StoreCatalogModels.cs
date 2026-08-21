@@ -1,7 +1,10 @@
-namespace Vitorize.Web.Models.Store
+﻿namespace Vitorize.Web.Models.Store
 {
     public class StoreProductModel
     {
+        public bool ForceOutOfStock { get; set; }
+        public bool IsUnlimitedStock { get; set; }
+
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
@@ -65,6 +68,10 @@ namespace Vitorize.Web.Models.Store
 
     public class StoreProductDetailModel
     {
+        public bool ForceOutOfStock { get; set; }
+        public bool IsUnlimitedStock { get; set; }
+        public List<StoreFaqModel> Faqs { get; set; } = new();
+
         public Guid Id { get; set; }
         public Guid CategoryId { get; set; }
         public Guid? BrandId { get; set; }
@@ -116,6 +123,9 @@ namespace Vitorize.Web.Models.Store
 
     public class StoreVariantModel
     {
+        public bool IsUnlimitedStock { get; set; }
+        public bool ForceOutOfStock { get; set; }
+
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Sku { get; set; }

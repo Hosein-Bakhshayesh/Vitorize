@@ -8,6 +8,13 @@
 
         public List<string> Errors { get; set; } = new();
 
+        /// <summary>
+        /// Set by the web ApiClient when the failure was an authentication boundary rather than a
+        /// business rule. Callers previously had to match Persian words inside Message to tell the
+        /// difference, which mistook any message containing those words for a session problem.
+        /// </summary>
+        public bool RequiresAuthentication { get; set; }
+
         public static ApiResult Success(string message = "عملیات با موفقیت انجام شد.")
         {
             return new ApiResult

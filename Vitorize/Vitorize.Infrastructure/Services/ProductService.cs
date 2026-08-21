@@ -16,6 +16,8 @@ namespace Vitorize.Infrastructure.Services
 
         private const byte GiftCodeStatusAvailable = 0;
         private const byte DeliveryTypeInstant = 1;
+        // Unlimited is an inventory policy; it is compared as a mode, never as a quantity.
+        private const byte StockModeUnlimited = (byte)ProductVariantStockMode.Unlimited;
         private const byte DeliveryTypeManualTicket = 2;
 
         public ProductService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
@@ -210,6 +212,11 @@ namespace Vitorize.Infrastructure.Services
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
                         : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
+                    // Carried so the caller can apply ProductAvailabilityRules rather than
+                    // re-deriving availability from a bare number.
+                    ForceOutOfStock = x.ForceOutOfStock,
+                    IsUnlimitedStock = x.DeliveryType != DeliveryTypeInstant &&
+                        x.ProductVariants.Any(v => v.IsActive && v.StockMode == StockModeUnlimited),
                     AverageRating = _dbContext.ProductReviews
                         .Where(r =>
                             r.ProductId == x.Id &&
@@ -338,7 +345,10 @@ namespace Vitorize.Infrastructure.Services
                         ? _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
-                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
+                    ForceOutOfStock = x.ForceOutOfStock,
+                    IsUnlimitedStock = x.DeliveryType != DeliveryTypeInstant &&
+                        x.ProductVariants.Any(v => v.IsActive && v.StockMode == StockModeUnlimited)
                 })
                 .ToListAsync();
         }
@@ -498,9 +508,21 @@ namespace Vitorize.Infrastructure.Services
                                     g.ProductId == x.Id &&
                                     g.ProductVariantId == v.Id &&
                                     g.Status == GiftCodeStatusAvailable)
-                                : v.StockQuantity
+                                : v.StockQuantity,
+                            IsUnlimitedStock = x.DeliveryType != DeliveryTypeInstant &&
+                                v.StockMode == StockModeUnlimited,
+                            ForceOutOfStock = x.ForceOutOfStock
                         })
                         .ToList(),
+
+                    // Only this product's entries, active only, in administrator order.
+                    Faqs = x.Faqs
+                        .Where(f => f.IsActive)
+                        .OrderBy(f => f.SortOrder).ThenBy(f => f.CreatedAt)
+                        .Select(f => new Vitorize.Application.DTOs.Storefront.FaqDto
+                        {
+                            Id = f.Id, Question = f.Question, Answer = f.Answer, SortOrder = f.SortOrder
+                        }).ToList(),
 
                     Features = x.ProductFeatures
                         .Where(f => f.IsActive)
@@ -528,7 +550,10 @@ namespace Vitorize.Infrastructure.Services
                         ? _dbContext.GiftCodes.Count(g =>
                             g.ProductId == x.Id &&
                             g.Status == GiftCodeStatusAvailable)
-                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
+                    ForceOutOfStock = x.ForceOutOfStock,
+                    IsUnlimitedStock = x.DeliveryType != DeliveryTypeInstant &&
+                        x.ProductVariants.Any(v => v.IsActive && v.StockMode == StockModeUnlimited)
                 });
         }
 

@@ -1,9 +1,10 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Wishlist;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -11,6 +12,7 @@ namespace Vitorize.Infrastructure.Services
     {
         private const byte GiftCodeStatusAvailable = 0;
         private const byte DeliveryTypeInstant = 1;
+        private const byte StockModeUnlimited = (byte)ProductVariantStockMode.Unlimited;
 
         private readonly VitorizeDbContext _dbContext;
 
@@ -49,11 +51,15 @@ namespace Vitorize.Infrastructure.Services
                     // Instant is gift-code driven; every non-Instant mode uses managed variant stock.
                     // Previously Manual was hard-coded available, so wishlisted Manual products never
                     // showed as ناموجود.
-                    IsAvailable = x.Product.DeliveryType == DeliveryTypeInstant
-                        ? _dbContext.GiftCodes.Any(g =>
-                            g.ProductId == x.ProductId &&
-                            g.Status == GiftCodeStatusAvailable)
-                        : x.Product.ProductVariants.Any(v => v.IsActive && v.StockQuantity > 0),
+                    // Same precedence as ProductAvailabilityRules: the administrator's override
+                    // first, then Unlimited, then the inventory the regime actually counts.
+                    IsAvailable = !x.Product.ForceOutOfStock &&
+                        (x.Product.DeliveryType == DeliveryTypeInstant
+                            ? _dbContext.GiftCodes.Any(g =>
+                                g.ProductId == x.ProductId &&
+                                g.Status == GiftCodeStatusAvailable)
+                            : x.Product.ProductVariants.Any(v => v.IsActive &&
+                                (v.StockMode == StockModeUnlimited || v.StockQuantity > 0))),
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();

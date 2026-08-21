@@ -31,6 +31,9 @@
 
         public bool IsFeatured { get; set; }
         public bool IsActive { get; set; } = true;
+        /// <summary>Takes the product off sale without touching a single unit of its inventory.</summary>
+        public bool ForceOutOfStock { get; set; }
+
 
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

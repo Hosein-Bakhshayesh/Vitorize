@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -180,7 +180,7 @@ namespace Vitorize.Web.Services
             try
             {
                 if (IsMutation(method) && !await EnsureMutationAccessTokenAsync(url, cancellationToken))
-                    return ApiResult<T>.Failure(ExpiredSessionMessage);
+                    return AsAuthFailure(ApiResult<T>.Failure(ExpiredSessionMessage));
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
@@ -219,7 +219,7 @@ namespace Vitorize.Web.Services
             try
             {
                 if (IsMutation(method) && !await EnsureMutationAccessTokenAsync(url, cancellationToken))
-                    return ApiResult.Failure(ExpiredSessionMessage);
+                    return AsAuthFailure(ApiResult.Failure(ExpiredSessionMessage));
                 using var request = BuildRequest(method, url, data);
                 await ApplyAuthAsync(request);
                 ApplyCorrelation(request);
@@ -421,6 +421,19 @@ namespace Vitorize.Web.Services
             }
         }
 
+        private static T AuthFailure<T>(string message)
+        {
+            var failure = CreateFailure<T>(message);
+            if (failure is ApiResult result) result.RequiresAuthentication = true;
+            return failure;
+        }
+
+        private static TResult AsAuthFailure<TResult>(TResult result) where TResult : ApiResult
+        {
+            result.RequiresAuthentication = true;
+            return result;
+        }
+
         private const string ConnectionErrorMessage =
             "امکان برقراری ارتباط با سرور وجود ندارد. لطفاً اتصال خود را بررسی کرده و دوباره تلاش کنید.";
 
@@ -433,7 +446,7 @@ namespace Vitorize.Web.Services
             {
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.Forbidden)
-                    return CreateFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
+                    return AuthFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
 
                 return CreateFailure<T>("پاسخی از سرور دریافت نشد. لطفاً دوباره تلاش کنید.");
             }
@@ -451,7 +464,7 @@ namespace Vitorize.Web.Services
             {
                 if (response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.Forbidden)
-                    return CreateFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
+                    return AuthFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
 
                 return CreateFailure<T>("پاسخ سرور قابل پردازش نیست. لطفاً دوباره تلاش کنید.");
             }

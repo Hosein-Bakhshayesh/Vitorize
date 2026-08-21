@@ -246,8 +246,19 @@ else
             }
             <div class="st-sumrow total" data-testid="checkout-payable"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
 
-            <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="PlaceOrder" disabled="@_placing">
+            @if (_pendingOrderId is not null)
+            {
+                @* The order already exists; only its payment failed. Say so, so the customer knows
+                   pressing the button again retries the payment rather than ordering twice. *@
+                <div class="st-alert st-alert--warn" style="margin-top:14px" data-testid="checkout-pending-order">
+                    <Icon Name="alert-triangle" Size="16" />
+                    <span>سفارش شما ثبت شد اما پرداخت انجام نشد. برای تلاش دوباره روی دکمهٔ پرداخت بزنید.</span>
+                </div>
+            }
+            <button class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px"
+                    data-testid="checkout-pay" @onclick="PlaceOrder" disabled="@_placing">
                 @if (_placing) { <span class="st-spinner sm"></span> <span>در حال پردازش ...</span> }
+                else if (_pendingOrderId is not null) { <Icon Name="lock" Size="18" /> <span>تلاش دوباره برای پرداخت @AUI.MoneyFa(Payable)</span> }
                 else { <Icon Name="lock" Size="18" /> <span>پرداخت امن @AUI.MoneyFa(Payable)</span> }
             </button>
             <div class="st-secure"><Icon Name="lock" Size="13" /> رمزگذاری ۲۵۶ بیتی · پرداخت امن</div>
@@ -264,6 +275,9 @@ else
     [SupplyParameterFromQuery(Name = "coupon")] public string? CouponFromQuery { get; set; }
 
     private bool _loading = true, _placing, _couponBusy;
+    // Set once checkout has created an order whose payment has not completed. It makes the
+    // Pay button retry that order instead of re-running a checkout whose cart is already gone.
+    private Guid? _pendingOrderId;
     private CartModel? _cart;
     private CustomerProfileModel? _user;
     private decimal _walletBalance;
@@ -482,47 +496,93 @@ else
         return true;
     }
 
+    /// <summary>
+    /// A backend failure message is shown as-is when there is one; an empty message would otherwise
+    /// be swallowed by the toast service and leave the customer with no explanation at all.
+    /// </summary>
+    private void ShowError(string? message, string fallback) =>
+        Toasts.Error(string.IsNullOrWhiteSpace(message) ? fallback : message);
+
     private async Task PlaceOrder()
     {
-        if (_cart is null || _cart.Items.Count == 0) return;
+        // Re-entrancy guard: the button is disabled while placing, but a double event must never
+        // start a second checkout for the same cart.
+        if (_placing) return;
 
-        // Nothing about payment happens until the product information is complete and stored.
-        if (!ValidateProductInputs())
+        try
         {
-            Toasts.Error("لطفاً اطلاعات مورد نیاز سفارش را تکمیل کنید.");
-            StateHasChanged();
-            return;
+            _placing = true;
+
+            // Checkout consumes the cart, so an order created by an earlier attempt whose payment
+            // failed cannot be re-created — retrying pays the order that already exists. Without
+            // this the cart is empty on the second press and the click does nothing at all.
+            if (_pendingOrderId is { } pending)
+            {
+                await StartPaymentAsync(pending);
+                return;
+            }
+
+            if (_cart is null || _cart.Items.Count == 0)
+            {
+                Toasts.Error("سبد خرید شما خالی است. لطفاً ابتدا محصولی به سبد خرید اضافه کنید.");
+                Nav.NavigateTo("/cart");
+                return;
+            }
+
+            // Nothing about payment happens until the product information is complete and stored.
+            if (!ValidateProductInputs())
+            {
+                Toasts.Error("لطفاً اطلاعات مورد نیاز سفارش را تکمیل کنید.");
+                return;
+            }
+            if (ItemsNeedingInput.Count > 0 && !await PersistProductInputsAsync()) return;
+
+            var headers = new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString("N") };
+            var checkout = await Api.PostAsync<CheckoutResultModel>(
+                "checkout",
+                new { Description = (string?)null, CouponCode = string.IsNullOrWhiteSpace(_appliedCode) ? null : _appliedCode },
+                headers);
+
+            if (!checkout.IsSuccess || checkout.Data is null)
+            {
+                ShowError(checkout.Message, "ثبت سفارش انجام نشد. لطفاً دوباره تلاش کنید.");
+                return;
+            }
+
+            await StartPaymentAsync(checkout.Data.OrderId);
         }
-        if (ItemsNeedingInput.Count > 0 && !await PersistProductInputsAsync()) return;
-
-        _placing = true;
-
-        var key = Guid.NewGuid().ToString("N");
-        var headers = new Dictionary<string, string> { ["Idempotency-Key"] = key };
-
-        var checkout = await Api.PostAsync<CheckoutResultModel>(
-            "checkout",
-            new { Description = (string?)null, CouponCode = string.IsNullOrWhiteSpace(_appliedCode) ? null : _appliedCode },
-            headers);
-
-        if (!checkout.IsSuccess || checkout.Data is null)
+        catch (Exception)
+        {
+            // Any unexpected failure still has to reach the customer: a dead button is never an
+            // acceptable outcome of pressing Pay.
+            Toasts.Error("پرداخت آغاز نشد. لطفاً دوباره تلاش کنید.");
+        }
+        finally
         {
             _placing = false;
-            Toasts.Error(checkout.Message);
-            return;
+            StateHasChanged();
         }
+    }
 
-        var orderId = checkout.Data.OrderId;
+    /// <summary>
+    /// Pays an existing order. The order id is remembered so a failed payment can be retried
+    /// without creating a second order, and every failure path reports a reason.
+    /// </summary>
+    private async Task StartPaymentAsync(Guid orderId)
+    {
+        _pendingOrderId = orderId;
 
         if (_method == "wallet")
         {
             var payKey = new Dictionary<string, string> { ["Idempotency-Key"] = Guid.NewGuid().ToString("N") };
             var pay = await Api.PostAsync<PaymentVerifyResultModel>($"payments/wallet/pay/{orderId}", null, payKey);
-            _placing = false;
             if (pay.IsSuccess && pay.Data is not null)
+            {
+                _pendingOrderId = null;
                 Nav.NavigateTo($"/payment/result?orderId={orderId}&paid={(pay.Data.IsPaid ? "1" : "0")}");
-            else
-                Toasts.Error(pay.Message);
+                return;
+            }
+            ShowError(pay.Message, "پرداخت از کیف پول انجام نشد. لطفاً دوباره تلاش کنید.");
             return;
         }
 
@@ -530,21 +590,21 @@ else
         var start = await Api.PostAsync<PaymentStartResultModel>($"payments/start/{orderId}");
         if (!start.IsSuccess || start.Data is null)
         {
-            _placing = false;
-            Toasts.Error(start.Message);
+            ShowError(start.Message, "امکان اتصال به درگاه پرداخت وجود ندارد. لطفاً دوباره تلاش کنید.");
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(start.Data.PaymentUrl) &&
             start.Data.PaymentUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
+            _pendingOrderId = null;
             Nav.NavigateTo(start.Data.PaymentUrl, forceLoad: true);
             return;
         }
 
         // درگاه تستی: تایید داخلی
         var verify = await Api.PostAsync<PaymentVerifyResultModel>($"payments/mock/verify/{start.Data.PaymentId}");
-        _placing = false;
+        _pendingOrderId = null;
         if (verify.IsSuccess && verify.Data is not null)
             Nav.NavigateTo($"/payment/result?orderId={orderId}&paid={(verify.Data.IsPaid ? "1" : "0")}");
         else

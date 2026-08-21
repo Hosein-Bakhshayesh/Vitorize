@@ -16,11 +16,19 @@ namespace Vitorize.Infrastructure.Services
         private const int MaxExportSelection = 200;
         private readonly VitorizeDbContext _dbContext;
         private readonly IHtmlContentSanitizer _htmlSanitizer;
+        private readonly IAuditService _auditService;
+        private readonly ICurrentUserService _currentUser;
 
-        public AdminProductService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
+        public AdminProductService(
+            VitorizeDbContext dbContext,
+            IHtmlContentSanitizer htmlSanitizer,
+            IAuditService auditService,
+            ICurrentUserService currentUser)
         {
             _dbContext = dbContext;
             _htmlSanitizer = htmlSanitizer;
+            _auditService = auditService;
+            _currentUser = currentUser;
         }
 
         public async Task<List<AdminProductDto>> GetAllAsync()
@@ -53,6 +61,7 @@ namespace Vitorize.Infrastructure.Services
                     RequiresVerification = x.RequiresVerification,
                     KycRequirementMode = x.KycRequirementMode,
                     KycThresholdAmount = x.KycThresholdAmount,
+                    ForceOutOfStock = x.ForceOutOfStock,
                     KycPolicyVersionId = x.KycPolicyVersionId,
                     RequiresSupportMessage = x.RequiresSupportMessage,
                     MinOrderQuantity = x.MinOrderQuantity,
@@ -134,7 +143,8 @@ namespace Vitorize.Infrastructure.Services
                     ProductType = x.ProductType, DeliveryType = x.DeliveryType, BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice, CurrencyType = x.CurrencyType, IsActive = x.IsActive,
                     RequiresVerification = x.RequiresVerification, KycRequirementMode = x.KycRequirementMode,
-                    KycThresholdAmount = x.KycThresholdAmount, KycPolicyVersionId = x.KycPolicyVersionId,
+                    KycThresholdAmount = x.KycThresholdAmount,
+                    ForceOutOfStock = x.ForceOutOfStock, KycPolicyVersionId = x.KycPolicyVersionId,
                     IsFeatured = x.IsFeatured, ThumbnailImagePath = x.ThumbnailImagePath, CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand == null ? null : x.Brand.Title, CreatedAt = x.CreatedAt,
                     FinalPrice = x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice.Value : x.BasePrice,
@@ -207,6 +217,7 @@ namespace Vitorize.Infrastructure.Services
                     RequiresVerification = x.RequiresVerification,
                     KycRequirementMode = x.KycRequirementMode,
                     KycThresholdAmount = x.KycThresholdAmount,
+                    ForceOutOfStock = x.ForceOutOfStock,
                     KycPolicyVersionId = x.KycPolicyVersionId,
                     RequiresSupportMessage = x.RequiresSupportMessage,
                     MinOrderQuantity = x.MinOrderQuantity,
@@ -339,6 +350,7 @@ namespace Vitorize.Infrastructure.Services
                 KycRequirementMode = request.KycRequirementMode,
                 KycThresholdAmount = request.KycThresholdAmount,
                 KycPolicyVersionId = request.KycPolicyVersionId,
+                ForceOutOfStock = request.ForceOutOfStock,
                 RequiresSupportMessage = request.RequiresSupportMessage,
                 MinOrderQuantity = request.MinOrderQuantity,
                 MaxOrderQuantity = request.MaxOrderQuantity,
@@ -401,6 +413,20 @@ namespace Vitorize.Infrastructure.Services
             product.RequiresSupportMessage = request.RequiresSupportMessage;
             product.MinOrderQuantity = request.MinOrderQuantity;
             product.MaxOrderQuantity = request.MaxOrderQuantity;
+            if (product.ForceOutOfStock != request.ForceOutOfStock)
+            {
+                // Availability is an operational decision worth a trail, and it deliberately leaves
+                // StockQuantity and the gift-code pool exactly as they are.
+                await _auditService.LogAsync(
+                    _currentUser.UserId ?? Guid.Empty,
+                    "ProductAvailabilityOverrideChanged",
+                    nameof(Product),
+                    product.Id.ToString(),
+                    $"product:{product.Title}; forceOutOfStock:{product.ForceOutOfStock} -> {request.ForceOutOfStock}; stock untouched",
+                    _currentUser.IpAddress,
+                    _currentUser.UserAgent);
+            }
+            product.ForceOutOfStock = request.ForceOutOfStock;
             product.IsFeatured = request.IsFeatured;
             product.IsActive = request.IsActive;
             product.SeoTitle = NormalizeNullable(request.SeoTitle);

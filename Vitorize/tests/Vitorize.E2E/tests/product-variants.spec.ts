@@ -20,10 +20,15 @@ test.describe('Product variant matrix', () => {
     await adminVariant.create(new VariantBuilder('Variant Beta', `VAR-B-${key}`).priced(150_000, 130_000).sorted(10).build());
     await adminVariant.create(new VariantBuilder('Variant Inactive', `VAR-X-${key}`).priced(90_000).inactive().sorted(5).build());
 
+    // Inventory is SKU-scoped, so creating a managed product also creates its canonical implicit
+    // SKU (title «پیش‌فرض», sort order 0). It is part of the catalogue and therefore of every count
+    // below; the storefront hides it from the customer, which the card assertions cover.
+    const CANONICAL_SKU = 'پیش‌فرض';
+
     let state = await getProductState(request, product.slug);
-    expect(state.product.variants.map(v => v.title)).toEqual(['Variant Inactive', 'Variant Beta', 'Variant Alpha']);
+    expect(state.product.variants.map(v => v.title)).toEqual([CANONICAL_SKU, 'Variant Inactive', 'Variant Beta', 'Variant Alpha']);
     expect(state.product.variants.filter(v => v.isDefault).map(v => v.title)).toEqual(['Variant Alpha']);
-    expect(state.product.variants.filter(v => v.isActive)).toHaveLength(2);
+    expect(state.product.variants.filter(v => v.isActive)).toHaveLength(3);
     expectCatalogIntegrity(state);
 
     await adminVariant.createExpectingError(
@@ -32,7 +37,7 @@ test.describe('Product variant matrix', () => {
     await page.getByRole('dialog').locator('button.vz-btn--outline').click();
     await expect(page.getByTestId('variant-form')).toHaveCount(0);
     state = await getProductState(request, product.slug);
-    expect(state.product.variants).toHaveLength(3);
+    expect(state.product.variants).toHaveLength(4);
 
     await adminVariant.edit('Variant Beta',
       new VariantBuilder('Variant Beta Edited', `VAR-B2-${key}`).priced(155_000, 125_000).sorted(10).build());
@@ -47,6 +52,7 @@ test.describe('Product variant matrix', () => {
       await loginSeededCustomerWithEmptyCart(customerPage);
       const storefront = new StorefrontProductPage(customerPage);
       await storefront.open(product.slug);
+      // Only the administrator's real variants are offered; the implicit SKU stays hidden.
       await expect(customerPage.locator('.st-vcard')).toHaveCount(2);
       await expect(customerPage.locator('.st-vcard.active')).toContainText('Variant Alpha');
 
@@ -81,7 +87,7 @@ test.describe('Product variant matrix', () => {
     await adminProduct.openEdit(state.product.id);
     await adminVariant.delete('Variant Inactive');
     state = await getProductState(request, product.slug);
-    expect(state.product.variants).toHaveLength(2);
+    expect(state.product.variants).toHaveLength(3);
     expectCatalogIntegrity(state);
 
     // With every configured variant inactive, the storefront safely falls back to the base product.
@@ -90,8 +96,11 @@ test.describe('Product variant matrix', () => {
     await adminVariant.edit('Variant Beta Edited',
       new VariantBuilder('Variant Beta Edited', `VAR-B2-${key}`).priced(155_000, 125_000).inactive().sorted(10).build());
     state = await getProductState(request, product.slug);
-    expect(state.product.variants.filter(v => v.isActive)).toHaveLength(0);
+    // The canonical SKU stays active on purpose: a managed product must never be left with no
+    // purchasable SKU at all, which is exactly what F1 exists to prevent.
+    expect(state.product.variants.filter(v => v.isActive).map(v => v.title)).toEqual([CANONICAL_SKU]);
     await page.goto(`/product/${product.slug}`);
+    // A lone implicit SKU is not a choice, so the selector disappears for the customer.
     await expect(page.locator('.st-vcard')).toHaveCount(0);
     expect(await new StorefrontProductPage(page).currentPrice()).toBe(product.basePrice);
     await expect(page.locator('.st-buy__card')).toBeVisible();

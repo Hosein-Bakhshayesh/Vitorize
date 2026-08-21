@@ -6,6 +6,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -183,7 +184,10 @@ namespace Vitorize.Infrastructure.Services
                 // The product's delivery type — not the caller — decides the inventory regime, so an
                 // Instant variant can never be given a manual quantity that claims stock the gift-code
                 // pool cannot deliver.
-                StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(deliveryType),
+                // Delivery type decides the regime; within managed delivery the administrator may
+                // choose a counted quantity or Unlimited, and that choice is preserved.
+                StockMode = (byte)ProductAvailabilityRules.NormalizeStockMode(
+                    deliveryType, (ProductVariantStockMode)request.StockMode),
                 StockQuantity = ProductAvailabilityRules.IsManagedStock(deliveryType)
                     ? NormalizeStockQuantity(request.StockQuantity)
                     : 0,
@@ -226,13 +230,38 @@ namespace Vitorize.Infrastructure.Services
 
             var deliveryType = await GetDeliveryTypeAsync(variant.ProductId);
             var managed = ProductAvailabilityRules.IsManagedStock(deliveryType);
-            variant.StockMode = (byte)ProductAvailabilityRules.RequiredStockMode(deliveryType);
+            var newStockMode = (byte)ProductAvailabilityRules.NormalizeStockMode(
+                deliveryType, (ProductVariantStockMode)request.StockMode);
+
+            if (newStockMode != variant.StockMode)
+            {
+                // The inventory policy decides whether a paid order consumes units at all, so a
+                // change of policy is an inventory event in its own right.
+                await _auditService.LogAsync(
+                    _currentUser.UserId ?? Guid.Empty,
+                    "ProductVariantStockModeChanged",
+                    nameof(ProductVariant),
+                    variant.Id.ToString(),
+                    $"variant:{variant.Title}; from:{(ProductVariantStockMode)variant.StockMode}; to:{(ProductVariantStockMode)newStockMode}",
+                    _currentUser.IpAddress,
+                    _currentUser.UserAgent);
+            }
+            variant.StockMode = newStockMode;
 
             // Instant delivery draws availability from gift codes and ProductAvailabilityRules never
             // reads StockQuantity for it, so a dormant value cannot make an Instant variant sellable.
             // We therefore PRESERVE it rather than zeroing: a product flipped to Instant and back
             // would otherwise lose real inventory permanently, and the admin form does not even post
             // a quantity in Instant mode, so "0" here would mean "erase" rather than "unchanged".
+            // Unlimited ignores StockQuantity for availability, but the number is still recorded so
+            // it is there when the administrator switches back to a counted quantity. The editor
+            // posts whatever it displayed even while the input was disabled, so accepting it keeps
+            // the stored value equal to what the administrator actually saw - discarding it would
+            // silently drop an edit made in the same submission.
+            //
+            // Instant is the one case that preserves instead of accepting: its form shows gift-code
+            // stock rather than a quantity field, so a posted 0 there would mean "erase" rather than
+            // "unchanged".
             var newQuantity = managed ? NormalizeStockQuantity(request.StockQuantity) : variant.StockQuantity;
             if (newQuantity != variant.StockQuantity)
             {

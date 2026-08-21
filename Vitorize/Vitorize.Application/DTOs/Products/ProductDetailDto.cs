@@ -81,5 +81,17 @@
 
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>Administrator override: off sale regardless of inventory. Highest priority.</summary>
+        public bool ForceOutOfStock { get; set; }
+
+        /// <summary>True when the purchasable SKU(s) carry the Unlimited inventory policy.</summary>
+        public bool IsUnlimitedStock { get; set; }
+
+        /// <summary>
+        /// This product's own active FAQ entries, ordered for display. The product page used to show
+        /// the site-wide FAQ here, which meant every product answered the same six questions.
+        /// </summary>
+        public List<Vitorize.Application.DTOs.Storefront.FaqDto> Faqs { get; set; } = new();
     }
 }

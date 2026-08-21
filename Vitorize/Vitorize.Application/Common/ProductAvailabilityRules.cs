@@ -1,4 +1,4 @@
-using Vitorize.Shared.Enums;
+﻿using Vitorize.Shared.Enums;
 
 namespace Vitorize.Application.Common;
 
@@ -65,6 +65,33 @@ public static class ProductAvailabilityRules
         IsGiftCodeDriven(deliveryType) ? ProductVariantStockMode.GiftCode : ProductVariantStockMode.Manual;
 
     /// <summary>
+    /// The stock mode a variant may keep once an administrator has chosen one.
+    ///
+    /// Delivery type still decides the regime - Instant is always gift-code driven and can never be
+    /// declared unlimited, because its units are real codes that must exist before they can be
+    /// delivered. Within managed delivery an administrator may legitimately choose between a counted
+    /// quantity and Unlimited, so a requested Unlimited survives instead of being rewritten to
+    /// Manual. Anything else falls back to the required mode.
+    /// </summary>
+    public static ProductVariantStockMode NormalizeStockMode(byte deliveryType, ProductVariantStockMode requested) =>
+        IsGiftCodeDriven(deliveryType)
+            ? ProductVariantStockMode.GiftCode
+            : requested == ProductVariantStockMode.Unlimited
+                ? ProductVariantStockMode.Unlimited
+                : ProductVariantStockMode.Manual;
+
+    /// <summary>
+    /// True when the SKU carries no quantity limit. Unlimited is an inventory policy, never a large
+    /// number: nothing in the system stores or shows a sentinel quantity for it.
+    /// </summary>
+    public static bool IsUnlimited(ProductVariantStockMode stockMode) =>
+        stockMode == ProductVariantStockMode.Unlimited;
+
+    /// <summary>True when a paid order must decrement this SKU's counted quantity.</summary>
+    public static bool ConsumesStockOnPayment(byte deliveryType, ProductVariantStockMode stockMode) =>
+        IsManagedStock(deliveryType) && !IsUnlimited(stockMode);
+
+    /// <summary>
     /// Resolves available units for one variant.
     /// <paramref name="availableGiftCodes"/> is only consulted for Instant delivery, and
     /// <paramref name="stockQuantity"/> only for managed stock — neither leaks into the other.
@@ -78,4 +105,48 @@ public static class ProductAvailabilityRules
     /// <summary>True when a requested quantity can be satisfied right now.</summary>
     public static bool CanSatisfy(byte deliveryType, int availableGiftCodes, int stockQuantity, int requested) =>
         requested > 0 && requested <= AvailableUnits(deliveryType, availableGiftCodes, stockQuantity);
+
+    // ---------------------------------------------------------------- effective availability
+    //
+    // Everything customer-facing and every purchase gate answers these two methods, so a badge can
+    // never disagree with what the cart will accept. Precedence, highest first:
+    //
+    //   1. forceOutOfStock  - an administrator has taken the product off sale
+    //   2. Unlimited        - no quantity limit applies
+    //   3. Instant          - eligible gift codes decide
+    //   4. managed stock    - the counted quantity decides
+
+    /// <summary>
+    /// Whether the SKU can be sold at all right now. <paramref name="forceOutOfStock"/> wins over
+    /// every inventory consideration, including Unlimited.
+    /// </summary>
+    public static bool IsAvailableForSale(
+        bool forceOutOfStock,
+        byte deliveryType,
+        ProductVariantStockMode stockMode,
+        int availableGiftCodes,
+        int stockQuantity)
+    {
+        if (forceOutOfStock) return false;
+        if (IsUnlimited(stockMode) && IsManagedStock(deliveryType)) return true;
+        return IsInStock(deliveryType, availableGiftCodes, stockQuantity);
+    }
+
+    /// <summary>
+    /// Whether a specific quantity can be bought right now. An unlimited SKU accepts any positive
+    /// quantity; everything else defers to the units it actually has.
+    /// </summary>
+    public static bool CanSell(
+        bool forceOutOfStock,
+        byte deliveryType,
+        ProductVariantStockMode stockMode,
+        int availableGiftCodes,
+        int stockQuantity,
+        int requested)
+    {
+        if (requested <= 0) return false;
+        if (forceOutOfStock) return false;
+        if (IsUnlimited(stockMode) && IsManagedStock(deliveryType)) return true;
+        return CanSatisfy(deliveryType, availableGiftCodes, stockQuantity, requested);
+    }
 }
