@@ -34,6 +34,13 @@
         /// <summary>Takes the product off sale without touching a single unit of its inventory.</summary>
         public bool ForceOutOfStock { get; set; }
 
+        /// <summary>
+        /// Every category the product belongs to. CategoryId remains the primary one used for the
+        /// breadcrumb and canonical URL, and it is always included whether or not the caller listed
+        /// it, so the two can never disagree.
+        /// </summary>
+        public List<Guid> CategoryIds { get; set; } = new();
+
 
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

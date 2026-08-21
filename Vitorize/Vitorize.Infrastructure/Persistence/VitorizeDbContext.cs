@@ -40,6 +40,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<Faq> Faqs { get; set; }
 
+    public virtual DbSet<ProductCategory> ProductCategories { get; set; }
+
     public virtual DbSet<GiftCode> GiftCodes { get; set; }
 
     public virtual DbSet<GiftCodeBatch> GiftCodeBatches { get; set; }
@@ -942,6 +944,30 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Detail).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+        });
+
+        modelBuilder.Entity<ProductCategory>(entity =>
+        {
+            entity.ToTable("ProductCategories");
+            entity.HasKey(e => new { e.ProductId, e.CategoryId });
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasIndex(e => e.CategoryId, "IX_ProductCategories_CategoryId");
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.ProductCategories)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ProductCategories_Products");
+
+            // Deleting a category is not cascaded: the existing Products.CategoryId foreign key
+            // already blocks removing a category that is still some product's primary, and quietly
+            // dropping memberships would hide that.
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.ProductCategories)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ProductCategories_Categories");
         });
 
         modelBuilder.Entity<Product>(entity =>

@@ -63,6 +63,8 @@ namespace Vitorize.Infrastructure.Services
                     KycThresholdAmount = x.KycThresholdAmount,
                     ForceOutOfStock = x.ForceOutOfStock,
                     KycPolicyVersionId = x.KycPolicyVersionId,
+                    CategoryIds = x.ProductCategories.Select(pc => pc.CategoryId).ToList(),
+                    CategoryTitles = x.ProductCategories.OrderBy(pc => pc.Category.Title).Select(pc => pc.Category.Title).ToList(),
                     RequiresSupportMessage = x.RequiresSupportMessage,
                     MinOrderQuantity = x.MinOrderQuantity,
                     MaxOrderQuantity = x.MaxOrderQuantity,
@@ -114,7 +116,14 @@ namespace Vitorize.Infrastructure.Services
                 query = query.Where(x => x.Title.Contains(search) || x.Slug.Contains(search));
             }
             if (filter.ProductType.HasValue) query = query.Where(x => x.ProductType == filter.ProductType.Value);
-            if (filter.CategoryId.HasValue) query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
+            if (filter.CategoryId.HasValue)
+            {
+                // Same rule as the storefront: membership row or primary category.
+                var categoryId = filter.CategoryId.Value;
+                query = query.Where(x =>
+                    x.CategoryId == categoryId ||
+                    x.ProductCategories.Any(pc => pc.CategoryId == categoryId));
+            }
             if (filter.IsActive.HasValue) query = query.Where(x => x.IsActive == filter.IsActive.Value);
             if (filter.IsFeatured.HasValue) query = query.Where(x => x.IsFeatured == filter.IsFeatured.Value);
             query = filter.StockState?.Trim().ToLowerInvariant() switch
@@ -219,6 +228,8 @@ namespace Vitorize.Infrastructure.Services
                     KycThresholdAmount = x.KycThresholdAmount,
                     ForceOutOfStock = x.ForceOutOfStock,
                     KycPolicyVersionId = x.KycPolicyVersionId,
+                    CategoryIds = x.ProductCategories.Select(pc => pc.CategoryId).ToList(),
+                    CategoryTitles = x.ProductCategories.OrderBy(pc => pc.Category.Title).Select(pc => pc.Category.Title).ToList(),
                     RequiresSupportMessage = x.RequiresSupportMessage,
                     MinOrderQuantity = x.MinOrderQuantity,
                     MaxOrderQuantity = x.MaxOrderQuantity,
@@ -322,6 +333,50 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
+        /// <summary>
+        /// The complete, de-duplicated category set for a product. The primary category is always a
+        /// member, whether or not the caller listed it, so category filtering (which reads the join
+        /// table) can never disagree with the breadcrumb (which reads CategoryId).
+        /// </summary>
+        private static List<Guid> NormalizeCategoryIds(CreateProductRequestDto request)
+        {
+            var ids = new List<Guid> { request.CategoryId };
+            foreach (var id in request.CategoryIds)
+            {
+                if (id != Guid.Empty && !ids.Contains(id)) ids.Add(id);
+            }
+            return ids;
+        }
+
+        /// <summary>
+        /// Brings a product's memberships in line with the request: adds what is new, removes what
+        /// the administrator deselected, and leaves untouched rows alone so CreatedAt keeps meaning
+        /// "when this product entered this category".
+        /// </summary>
+        private async Task SyncCategoriesAsync(Product product, CreateProductRequestDto request)
+        {
+            var desired = NormalizeCategoryIds(request);
+
+            var current = await _dbContext.ProductCategories
+                .Where(x => x.ProductId == product.Id)
+                .ToListAsync();
+
+            foreach (var stale in current.Where(x => !desired.Contains(x.CategoryId)))
+                _dbContext.ProductCategories.Remove(stale);
+
+            foreach (var added in desired.Where(id => current.All(x => x.CategoryId != id)))
+            {
+                await _dbContext.ProductCategories.AddAsync(new ProductCategory
+                {
+                    ProductId = product.Id,
+                    CategoryId = added,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _dbContext.SaveChangesAsync();
+        }
+
         /// <summary>Marker title of the implicit SKU; V0021 seeds migrated products with the same value.</summary>
         private const string DefaultVariantTitle = ProductAvailabilityRules.DefaultVariantTitle;
 
@@ -370,6 +425,7 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.Products.AddAsync(product);
             await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
             await EnsureDefaultVariantAsync(product);
+            await SyncCategoriesAsync(product, request);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -440,6 +496,7 @@ namespace Vitorize.Infrastructure.Services
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             await SyncMetadataAsync(product, request.Features, request.InputFields, request.TagIds);
             await EnsureDefaultVariantAsync(product);
+            await SyncCategoriesAsync(product, request);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -545,6 +602,15 @@ namespace Vitorize.Infrastructure.Services
 
             if (!categoryExists)
                 throw new BusinessException("دسته‌بندی محصول معتبر نیست.");
+
+            // Additional categories are validated the same way, so a product can never be filed
+            // under a deleted or disabled category.
+            var requestedCategoryIds = NormalizeCategoryIds(request);
+            var validCategoryCount = await _dbContext.Categories.CountAsync(x =>
+                requestedCategoryIds.Contains(x.Id) && !x.IsDeleted && x.IsActive);
+
+            if (validCategoryCount != requestedCategoryIds.Count)
+                throw new BusinessException("یکی از دسته‌بندی‌های انتخاب‌شده معتبر نیست.");
 
             if (request.BrandId.HasValue)
             {

@@ -83,14 +83,62 @@ else
                                 <InputText class="vz-input vz-mono" data-testid="product-slug" aria-label="Slug" @bind-Value="_model.Slug" />
                                 <ValidationMessage For="() => _model.Slug" class="vz-val-msg" />
                             </div>
-                            <div class="vz-field">
-                                <label class="vz-label">دسته‌بندی <span class="req">*</span></label>
-                                <select class="vz-select" data-testid="product-category" aria-label="دسته‌بندی" value="@(_model.CategoryId == Guid.Empty ? "" : _model.CategoryId.ToString())"
-                                        @onchange="e => _model.CategoryId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
+                            <div class="vz-field span-2">
+                                <label class="vz-label">دسته‌بندی اصلی <span class="req">*</span></label>
+                                <select class="vz-select" data-testid="product-category" aria-label="دسته‌بندی اصلی" value="@(_model.CategoryId == Guid.Empty ? "" : _model.CategoryId.ToString())"
+                                        @onchange="OnPrimaryCategoryChanged">
                                     <option value="">— انتخاب دسته‌بندی —</option>
                                     @foreach (var c in _categories) { <option value="@c.Id">@c.Title</option> }
                                 </select>
+                                <div class="vz-hint">مسیر و نشانی محصول از این دسته‌بندی ساخته می‌شود.</div>
                                 <ValidationMessage For="() => _model.CategoryId" class="vz-val-msg" />
+
+                                @* A product may sit in several categories. The primary one above is
+                                   always a member, so it is shown as a locked chip rather than as a
+                                   removable one - taking it away would leave the breadcrumb without
+                                   a category. *@
+                                <label class="vz-label" style="margin-top:14px">دسته‌بندی‌های دیگر</label>
+                                <div class="vz-chips" data-testid="product-category-chips">
+                                    @if (_model.CategoryId != Guid.Empty)
+                                    {
+                                        <span class="vz-chip vz-chip--locked" data-testid="product-category-chip-primary">
+                                            @CategoryTitle(_model.CategoryId)
+                                            <span class="vz-chip__note">اصلی</span>
+                                        </span>
+                                    }
+                                    @foreach (var id in _model.CategoryIds.Where(x => x != _model.CategoryId))
+                                    {
+                                        <span class="vz-chip" data-testid="product-category-chip">
+                                            @CategoryTitle(id)
+                                            <button type="button" class="vz-chip__x" data-testid="product-category-remove"
+                                                    aria-label="@($"حذف {CategoryTitle(id)}")" @onclick="() => RemoveCategory(id)">×</button>
+                                        </span>
+                                    }
+                                    @if (_model.CategoryIds.Count(x => x != _model.CategoryId) == 0)
+                                    {
+                                        <span class="vz-hint" style="margin:0" data-testid="product-category-empty">
+                                            دسته‌بندی دیگری انتخاب نشده است.
+                                        </span>
+                                    }
+                                </div>
+
+                                <div class="vz-catpick">
+                                    <input class="vz-input" data-testid="product-category-search" type="search"
+                                           placeholder="جستجوی دسته‌بندی ..." @bind="_categoryQuery" @bind:event="oninput" />
+                                    <div class="vz-catpick__list" data-testid="product-category-options">
+                                        @foreach (var c in SelectableCategories)
+                                        {
+                                            <button type="button" class="vz-catpick__opt" data-testid="product-category-add"
+                                                    @onclick="() => AddCategory(c.Id)">
+                                                <Icon Name="plus" Size="13" /> <span>@c.Title</span>
+                                            </button>
+                                        }
+                                        @if (SelectableCategories.Count == 0)
+                                        {
+                                            <span class="vz-hint" style="margin:0">دسته‌بندی دیگری برای افزودن نیست.</span>
+                                        }
+                                    </div>
+                                </div>
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">برند</label>
@@ -736,7 +784,7 @@ else
             _createdAt = p.CreatedAt;
             _model = new CreateProductRequestModel
             {
-                CategoryId = p.CategoryId, BrandId = p.BrandId, Title = p.Title, Slug = p.Slug,
+                CategoryId = p.CategoryId, CategoryIds = p.CategoryIds ?? new(), BrandId = p.BrandId, Title = p.Title, Slug = p.Slug,
                 ShortDescription = p.ShortDescription, FullDescription = p.FullDescription,
                 ThumbnailImagePath = p.ThumbnailImagePath, ThumbnailAltText = p.ThumbnailAltText, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
                 CurrencyType = p.CurrencyType, BasePrice = p.BasePrice, DiscountPrice = p.DiscountPrice,
@@ -949,6 +997,50 @@ else
             _confirmFaqDelete = false;
             _faqPendingDelete = null;
         }
+    }
+
+    // ---------------------------------------------------------------- categories
+    private string _categoryQuery = string.Empty;
+
+    /// <summary>Active categories not already attached, filtered by the search box.</summary>
+    private List<AdminCategoryModel> SelectableCategories =>
+        _categories
+            .Where(c => c.Id != _model.CategoryId && !_model.CategoryIds.Contains(c.Id))
+            .Where(c => string.IsNullOrWhiteSpace(_categoryQuery) ||
+                        c.Title.Contains(_categoryQuery.Trim(), StringComparison.OrdinalIgnoreCase))
+            .OrderBy(c => c.Title)
+            .Take(40)
+            .ToList();
+
+    private string CategoryTitle(Guid id) =>
+        _categories.FirstOrDefault(c => c.Id == id)?.Title ?? "—";
+
+    /// <summary>
+    /// The primary category is always a member. Changing it swaps the old primary out of the set so
+    /// a previous primary does not silently linger as an extra category.
+    /// </summary>
+    private void OnPrimaryCategoryChanged(ChangeEventArgs args)
+    {
+        var previous = _model.CategoryId;
+        _model.CategoryId = Guid.TryParse(args.Value?.ToString(), out var parsed) ? parsed : Guid.Empty;
+
+        _model.CategoryIds.Remove(previous);
+        if (_model.CategoryId != Guid.Empty && !_model.CategoryIds.Contains(_model.CategoryId))
+            _model.CategoryIds.Add(_model.CategoryId);
+    }
+
+    private void AddCategory(Guid id)
+    {
+        if (id == Guid.Empty || _model.CategoryIds.Contains(id)) return;
+        _model.CategoryIds.Add(id);
+        _categoryQuery = string.Empty;
+    }
+
+    private void RemoveCategory(Guid id)
+    {
+        // The primary category cannot be removed here; it changes only by choosing another primary.
+        if (id == _model.CategoryId) return;
+        _model.CategoryIds.Remove(id);
     }
 
     private bool IsInstantDelivery => _model.DeliveryType == (byte)Vitorize.Shared.Enums.DeliveryType.Instant;

@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
@@ -95,7 +95,7 @@ else
                     var c = cats[i];
                     <a class="st-bento__tile @(i == 0 ? "lead" : null)" href="@($"/category/{c.Slug}")">
                         <div class="st-bento__ic">
-                            <StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="18" Contain="true" />
+                            <CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="18" />
                         </div>
                         <div>
                             <div class="st-bento__t">@c.Title</div>

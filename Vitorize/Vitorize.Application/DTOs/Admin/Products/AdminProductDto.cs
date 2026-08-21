@@ -52,5 +52,11 @@
 
         /// <summary>Takes the product off sale without touching a single unit of its inventory.</summary>
         public bool ForceOutOfStock { get; set; }
+
+        /// <summary>Every category the product belongs to, primary included.</summary>
+        public List<Guid> CategoryIds { get; set; } = new();
+
+        /// <summary>Category titles in the same order, for display without a second round trip.</summary>
+        public List<string> CategoryTitles { get; set; } = new();
 }
 }

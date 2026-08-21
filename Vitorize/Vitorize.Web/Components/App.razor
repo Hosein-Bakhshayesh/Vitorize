@@ -1,10 +1,10 @@
-@inject IConfiguration Configuration
+﻿@inject IConfiguration Configuration
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject MediaUrlResolver Media
 @inject IHttpContextAccessor HttpContextAccessor
 
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="@_theme">
 
 <head>
     <meta charset="utf-8" />
@@ -27,14 +27,34 @@
     }
 
     <script>
+        // The server already rendered data-theme from the vitorize-theme cookie, so the correct
+        // palette is in the first byte of HTML and cannot flash. This only reconciles the two cases
+        // the server cannot know about: a visitor whose preference lives in localStorage from before
+        // the cookie existed, and a first-time visitor whose system prefers dark. It also re-applies
+        // after an enhanced navigation, because the incoming document's <html> carries the attribute
+        // but a client-side theme change since then would otherwise be lost.
         (function () {
-            try {
-                var t = localStorage.getItem('vitorize-theme');
-                if (!t) {
-                    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            function preferred() {
+                try {
+                    var stored = localStorage.getItem('vitorize-theme');
+                    if (stored === 'dark' || stored === 'light') return stored;
+                } catch (e) { }
+                var cookie = / vitorize-theme=(dark|light)/.exec('; ' + document.cookie);
+                if (cookie) return cookie[1];
+                try {
+                    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+                } catch (e) { }
+                return 'light';
+            }
+            function apply() {
+                var t = preferred();
+                if (document.documentElement.getAttribute('data-theme') !== t) {
+                    document.documentElement.setAttribute('data-theme', t);
                 }
-                document.documentElement.setAttribute('data-theme', t);
-            } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+            }
+            apply();
+            window.vzApplyTheme = apply;
+            document.addEventListener('DOMContentLoaded', apply);
         })();
         window.vzStorefront = window.vzStorefront || {};
         window.vzStorefront.focusAndScroll = function (id) {
@@ -178,6 +198,15 @@
     private string? _loadingMediaSrc;
     private string? _fontFaceCss;
     private string? _storefrontTypographyCss;
+    /// <summary>
+    /// Theme rendered into the document by the server. It comes from the vitorize-theme cookie that
+    /// the client writes alongside localStorage, so a returning visitor's choice is present before
+    /// any script runs - no light flash, and nothing for an enhanced navigation to drop.
+    /// "light" is the deliberate default for a request with no cookie; the inline script upgrades it
+    /// to dark when the system asks for dark, which the server cannot see.
+    /// </summary>
+    private string _theme = "light";
+
     private bool _prerender, _indexableRoute, _needsAdminAssets, _isStorefront;
 
     protected override async Task OnInitializedAsync()
@@ -185,6 +214,11 @@
         var path = HttpContextAccessor.HttpContext?.Request.Path.Value ?? "/";
         _indexableRoute = IsIndexablePublicPath(path);
         _prerender = IsPrerenderedPublicPath(path);
+
+        // Read the persisted choice before anything renders. Only the two known values are accepted,
+        // so a tampered cookie cannot inject an attribute value.
+        var themeCookie = HttpContextAccessor.HttpContext?.Request.Cookies["vitorize-theme"];
+        _theme = themeCookie is "dark" or "light" ? themeCookie : "light";
         _needsAdminAssets = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
                             path.StartsWith("/customer", StringComparison.OrdinalIgnoreCase);
         _isStorefront = !path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
@@ -210,9 +244,10 @@
 
         if (_isStorefront)
         {
-            var persian = CssFontFamily(_b.StorefrontPersianFont, "Peyda");
+            // Vazirmatn is the application default; Peyda remains selectable in Admin - Settings.
+            var persian = CssFontFamily(_b.StorefrontPersianFont, "Vazirmatn");
             var english = CssFontFamily(_b.StorefrontEnglishFont, "Funnel Display");
-            _storefrontTypographyCss = $".st-shell{{--font-fa:'{persian}';--font-en:'{english}','Manrope';--st-font:var(--font-fa),var(--font-en),system-ui,sans-serif;}}";
+            _storefrontTypographyCss = $".st-shell{{--font-fa:'{persian}';--font-en:'{english}','Manrope';--st-font:var(--font-fa),var(--font-en),'Vazirmatn',Tahoma,sans-serif;}}";
         }
     }
 

@@ -75,7 +75,16 @@ namespace Vitorize.Infrastructure.Services
 
             if (filter.CategoryId.HasValue)
             {
-                query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
+                // A product belongs to a category when it has a membership row OR when that
+                // category is its primary one. The primary is a membership by definition, so
+                // counting it here is the same single rule - not a second source of truth. It also
+                // means a product created outside the admin service (a SQL seed, a data import,
+                // legacy tooling) can never silently disappear from its own category listing
+                // because no join row was written for it.
+                var categoryId = filter.CategoryId.Value;
+                query = query.Where(x =>
+                    x.CategoryId == categoryId ||
+                    x.ProductCategories.Any(pc => pc.CategoryId == categoryId));
             }
 
             if (filter.BrandId.HasValue)
@@ -297,6 +306,9 @@ namespace Vitorize.Infrastructure.Services
                 .Select(x => new
                 {
                     x.Id, x.CategoryId, x.BrandId,
+                    // Affinity is measured against every category the product belongs to, not just
+                    // its primary one.
+                    CategoryIds = x.ProductCategories.Select(pc => pc.CategoryId).ToList(),
                     TagIds = x.Tags.Where(t => t.IsActive).Select(t => t.Id).ToList()
                 })
                 .FirstOrDefaultAsync();
@@ -316,9 +328,10 @@ namespace Vitorize.Infrastructure.Services
                     x.Category.IsActive &&
                     !x.Category.IsDeleted &&
                     (x.CategoryId == source.CategoryId ||
+                     x.ProductCategories.Any(pc => source.CategoryIds.Contains(pc.CategoryId)) ||
                      (source.BrandId != null && x.BrandId == source.BrandId) ||
                      x.Tags.Any(t => t.IsActive && source.TagIds.Contains(t.Id))))
-                .OrderByDescending(x => x.CategoryId == source.CategoryId)
+                .OrderByDescending(x => x.ProductCategories.Any(pc => source.CategoryIds.Contains(pc.CategoryId)))
                 .ThenByDescending(x => x.Tags.Count(t => t.IsActive && source.TagIds.Contains(t.Id)))
                 .ThenByDescending(x => x.IsFeatured)
                 .ThenBy(x => x.SortOrder)
@@ -365,6 +378,7 @@ namespace Vitorize.Infrastructure.Services
                     Id = x.Id,
                     Title = x.Title,
                     Slug = x.Slug,
+                    Icon = x.Icon,
                     ImagePath = x.ImagePath,
                     ImageAltText = x.ImageAltText,
                     Description = x.Description,

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Vitorize Admin Panel — Design System v2 (Claude Design handoff)
    Persian / RTL · Light + Dark · Glass surfaces · Signature clipped corners
    ========================================================================== */
@@ -1377,3 +1377,36 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 .vz-icon-block__remove { align-self:start; }
 @media (max-width:900px) { .vz-icon-block__fields { grid-template-columns:1fr; } }
 @media (max-width:560px) { .vz-icon-block { grid-template-columns:28px minmax(0,1fr); } .vz-icon-block__remove { position:absolute; inset-inline-end:8px; top:8px; } }
+
+/* ------------------------------------------------------------------ multi-category picker
+   A product may belong to several categories. Selected ones are chips (the primary is locked, since
+   removing it would leave the breadcrumb without a category) and the rest are added from a bounded,
+   searchable list so a site with many categories never renders a giant uncontrolled dropdown. */
+.vz-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.vz-chip--locked { border-style: dashed; opacity: 0.95; }
+.vz-chip__note { margin-inline-start: 6px; font-size: 10.5px; opacity: 0.75; }
+.vz-chip__x {
+    margin-inline-start: 6px; border: none; background: none; cursor: pointer;
+    font: inherit; font-size: 15px; line-height: 1; color: inherit; padding: 0 2px;
+}
+.vz-chip__x:hover { color: var(--danger, #ef4444); }
+
+.vz-catpick { margin-top: 10px; }
+.vz-catpick__list {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    max-height: 168px; overflow-y: auto; overscroll-behavior: contain;
+    margin-top: 8px; padding: 8px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2);
+}
+.vz-catpick__opt {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 11px; border-radius: 100px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600;
+}
+.vz-catpick__opt:hover { border-color: var(--primary); color: var(--primary); }
+.vz-catpick__opt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+    .vz-catpick__list { max-height: 148px; }
+}

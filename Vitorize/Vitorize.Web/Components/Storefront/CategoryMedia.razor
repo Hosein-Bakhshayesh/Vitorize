@@ -1,0 +1,38 @@
+@* Category artwork, honouring the media the administrator actually configured.
+
+   Every category surface used to render `<StoreImage Url="@c.ImagePath" Icon="gamepad" />`, which
+   read only the image path and fell back to a hard-coded glyph. A category configured with an icon
+   therefore never showed it: with no image it showed the generic gamepad, and with a stale image
+   path it showed the old picture. The rule lives here once instead of being repeated at each call
+   site, so all surfaces agree:
+
+     icon configured   -> the icon (inline SVG, so nothing depends on an icon font)
+     image only        -> the image
+     neither           -> a neutral fallback glyph, never a broken-image placeholder
+*@
+@if (!string.IsNullOrWhiteSpace(IconKey))
+{
+    <Icon Name="@IconKey" Size="@IconSize" AriaLabel="@Alt" />
+}
+else if (!string.IsNullOrWhiteSpace(ImagePath))
+{
+    <StoreImage Url="@ImagePath" Alt="@Alt" Icon="@Fallback" IconSize="@IconSize" Contain="true" />
+}
+else
+{
+    <Icon Name="@Fallback" Size="@IconSize" AriaLabel="@Alt" />
+}
+
+@code {
+    /// <summary>Configured icon key. Takes precedence over <see cref="ImagePath"/> when set.</summary>
+    [Parameter] public string? IconKey { get; set; }
+
+    [Parameter] public string? ImagePath { get; set; }
+
+    [Parameter] public string Alt { get; set; } = string.Empty;
+
+    [Parameter] public int IconSize { get; set; } = 20;
+
+    /// <summary>Glyph used when the category has neither an icon nor an image.</summary>
+    [Parameter] public string Fallback { get; set; } = "layers";
+}

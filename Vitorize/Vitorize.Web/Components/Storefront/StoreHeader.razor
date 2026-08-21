@@ -1,4 +1,4 @@
-@implements IDisposable
+﻿@implements IDisposable
 @inject NavigationManager Nav
 @inject ApiClient Api
 @inject CartState Cart
@@ -26,7 +26,7 @@
                                     @foreach (var c in _categories.Take(6))
                                     {
                                         <a class="st-mega__item" href="@($"/category/{c.Slug}")" @onclick="CloseMega">
-                                            <span class="st-mega__ic"><StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="16" Contain="true" /></span>
+                                            <span class="st-mega__ic"><CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="16" /></span>
                                             <div class="st-mega__t">@c.Title</div>
                                         </a>
                                     }

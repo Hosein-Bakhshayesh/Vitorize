@@ -1,4 +1,4 @@
-@page "/categories"
+﻿@page "/categories"
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 
@@ -22,7 +22,7 @@ else
         {
             <a class="st-cat" href="@($"/category/{c.Slug}")">
                 <div class="st-cat__ic">
-                    <StoreImage Url="@c.ImagePath" Alt="@(c.ImageAltText ?? c.Title)" Icon="gamepad" IconSize="22" Contain="true" />
+                    <CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@(c.ImageAltText ?? c.Title)" IconSize="22" />
                 </div>
                 <div class="st-cat__t">@c.Title</div>
             </a>

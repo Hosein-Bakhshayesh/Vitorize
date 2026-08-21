@@ -92,6 +92,9 @@ public partial class Product
 
     public virtual ICollection<Faq> Faqs { get; set; } = new List<Faq>();
 
+    /// <summary>Every category this product belongs to, including its primary one.</summary>
+    public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
+
     public virtual ICollection<ProductInputField> ProductInputFields { get; set; } = new List<ProductInputField>();
 
     public virtual ICollection<ProductReview> ProductReviews { get; set; } = new List<ProductReview>();

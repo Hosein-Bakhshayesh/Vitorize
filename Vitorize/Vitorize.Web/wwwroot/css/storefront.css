@@ -17,6 +17,15 @@
 html, body { margin: 0; min-height: 100%; max-width: 100%; overflow-x: clip; }
 body { background: var(--st-bg, #fff); }
 
+/* Vazirmatn — the application's default UI face. Same local webfonts the admin panel uses,
+   so the storefront can never be left rendering a browser default when a configured
+   brand font is absent or fails to load. */
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Light.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn/fonts/webfonts/Vazirmatn-ExtraBold.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; }
 @font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-300.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
 @font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
 @font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
@@ -117,9 +126,11 @@ body { background: var(--st-bg, #fff); }
     --st-header-h: 70px;
 
     /* Storefront-only typography contract. Admin keeps its independent --font token. */
-    --font-fa: "Peyda";
+    --font-fa: "Vazirmatn";
     --font-en: "Funnel Display", "Manrope";
-    --st-font: var(--font-fa), var(--font-en), system-ui, sans-serif;
+    /* Vazirmatn is repeated as the last real family on purpose: whatever an administrator selects,
+       the chain resolves to a bundled face rather than to system-ui/Arial/Times. */
+    --st-font: var(--font-fa), var(--font-en), "Vazirmatn", Tahoma, sans-serif;
 
     /* legacy aliases (older markup) */
     --st-brand: var(--st-primary);
@@ -207,6 +218,36 @@ body { background: var(--st-bg, #fff); }
     isolation: isolate;
     transition: background var(--st-t-slow) var(--st-ease), color var(--st-t-slow) var(--st-ease);
 }
+/* ------------------------------------------------------------------ font contract
+   The application font used to be applied to .st-shell only, so <body> itself resolved to the
+   browser default serif ("Times New Roman") and any element rendered outside the shell inherited
+   it. Anchoring it at the root makes the font a property of the document, not of one container.
+
+   Native form controls do NOT inherit typography from their parent: a <button> or <select> uses the
+   user agent's own font (Arial in Chromium) unless told otherwise. Components that happened to
+   declare `font-family: inherit` looked right while ones that did not - the product variant cards
+   and the quantity stepper among them - rendered in Arial beside Persian text. One normalisation
+   removes the whole class of bug instead of patching each control as it is noticed.
+
+   Only font-family is inherited here: font-size and font-weight stay with each component, so this
+   cannot shift any existing layout. */
+/* Only the root element is set here. admin.css declares its own `html, body` font using the admin
+   --font token and is linked before this file, so claiming `body` too would let the storefront's
+   brand font leak into the admin panel at equal specificity. Setting `html` alone keeps the safety
+   net (nothing can fall back to the browser serif) while leaving each shell its own typography. */
+html {
+    font-family: var(--st-font);
+}
+
+button,
+input,
+select,
+textarea,
+optgroup,
+option {
+    font-family: inherit;
+}
+
 .st-shell::before,
 .st-shell::after {
     content: "";
@@ -1768,4 +1809,16 @@ body { background: var(--st-bg, #fff); }
 @media (max-width: 480px) {
     .st-itemform { padding: 12px; }
     .st-itemform__media { width: 38px; height: 38px; flex: 0 0 38px; }
+}
+
+/* FAQ answers are plain text (never MarkupString), so line breaks survive through styling rather
+   than through markup. pre-line preserves the administrator's newlines and still collapses runs of
+   spaces and wraps long lines normally. Shared by the product, global and home FAQ surfaces. */
+.st-faq__a {
+    padding: 0 20px 18px;
+    color: var(--st-text-2);
+    font-size: 13.5px;
+    line-height: 2;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
 }

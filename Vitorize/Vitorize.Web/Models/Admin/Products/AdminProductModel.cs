@@ -32,6 +32,8 @@ namespace Vitorize.Web.Models.Admin.Products
         public bool IsFeatured { get; set; }
         /// <summary>Availability override: off sale regardless of inventory. Never alters stock.</summary>
         public bool ForceOutOfStock { get; set; }
+        /// <summary>Every category the product belongs to; the primary one is always included.</summary>
+        public List<Guid> CategoryIds { get; set; } = new();
         public bool IsActive { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
@@ -79,6 +81,8 @@ namespace Vitorize.Web.Models.Admin.Products
         public bool IsFeatured { get; set; }
         /// <summary>Availability override: off sale regardless of inventory. Never alters stock.</summary>
         public bool ForceOutOfStock { get; set; }
+        /// <summary>Every category the product belongs to; the primary one is always included.</summary>
+        public List<Guid> CategoryIds { get; set; } = new();
         public bool IsActive { get; set; } = true;
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }

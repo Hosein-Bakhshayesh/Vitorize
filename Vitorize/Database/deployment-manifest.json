@@ -556,6 +556,25 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 107,
+      "version": "V0023",
+      "name": "V0023__product_categories_and_default_font.sql",
+      "path": "Versioned/V0023__product_categories_and_default_font.sql",
+      "sha256": "c0e4ac5aca4fc1b76ce62b136038836a75a66ac3943eed95a7523ee3d751f4d0",
+      "classification": "required",
+      "dependencies": [
+        "V0022",
+        "dbo.Products",
+        "dbo.Categories",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

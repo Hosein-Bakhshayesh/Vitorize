@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Content;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -64,7 +65,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = Guid.NewGuid(),
                 Question = request.Question.Trim(),
-                Answer = request.Answer.Trim(),
+                Answer = FaqAnswerText.Normalize(request.Answer),
                 SortOrder = Math.Max(0, request.SortOrder),
                 IsActive = request.IsActive,
                 ProductId = request.ProductId,
@@ -85,7 +86,7 @@ namespace Vitorize.Infrastructure.Services
                 ?? throw new NotFoundException("پرسش یافت نشد.");
 
             faq.Question = request.Question.Trim();
-            faq.Answer = request.Answer.Trim();
+            faq.Answer = FaqAnswerText.Normalize(request.Answer);
             faq.SortOrder = Math.Max(0, request.SortOrder);
             faq.IsActive = request.IsActive;
             // Ownership is deliberately immutable here: an edit changes the text and its ordering,
@@ -104,6 +105,8 @@ namespace Vitorize.Infrastructure.Services
             _dbContext.Faqs.Remove(faq);
             await _dbContext.SaveChangesAsync();
         }
+
+
 
         private static void Validate(CreateFaqRequestDto request)
         {

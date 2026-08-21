@@ -1,4 +1,4 @@
-// Vitorize storefront theme controller (light/dark, persisted in localStorage)
+﻿// Vitorize storefront theme controller (light/dark, persisted in localStorage)
 (function () {
     // The initial loading overlay is released by js/initial-loader.js (FIX-17), which is emitted
     // only on the routes that actually render it.
@@ -21,12 +21,30 @@
             var theme = (t === 'dark') ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', theme);
             try { localStorage.setItem('vitorize-theme', theme); } catch (e) { }
+            // Also stored as a cookie so the SERVER can render data-theme on <html>. localStorage is
+            // invisible to the server, which is why the theme used to depend on a script running
+            // before first paint on every single navigation.
+            try {
+                document.cookie = 'vitorize-theme=' + theme +
+                    ';path=/;max-age=31536000;samesite=lax';
+            } catch (e) { }
             return theme;
         },
         toggle: function () {
             return this.set(this.get() === 'dark' ? 'light' : 'dark');
         }
     };
+
+    // Enhanced navigation swaps the document without a full load. The incoming <html> carries the
+    // server-rendered theme, but a change made since that response was generated would be lost, so
+    // the persisted choice is re-applied once the new page is in place.
+    if (window.Blazor && typeof window.Blazor.addEventListener === 'function') {
+        try {
+            window.Blazor.addEventListener('enhancedload', function () {
+                if (typeof window.vzApplyTheme === 'function') window.vzApplyTheme();
+            });
+        } catch (e) { }
+    }
 
     window.vzStorefront = window.vzStorefront || {};
     window.vzStorefront.focusAndScroll = function (id) {

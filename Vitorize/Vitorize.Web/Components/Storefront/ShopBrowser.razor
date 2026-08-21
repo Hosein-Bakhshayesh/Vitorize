@@ -1,4 +1,4 @@
-@inject ApiClient Api
+﻿@inject ApiClient Api
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using Vitorize.Shared.Common
@@ -22,7 +22,7 @@
         @foreach (var c in _categories)
         {
             <button type="button" class="st-catpill @(_categoryId == c.Id.ToString() ? "active" : null)" @onclick="() => SelectCategory(c.Id.ToString())">
-                <span class="st-catpill__ic"><StoreImage Url="@c.ImagePath" Alt="@c.Title" Icon="gamepad" IconSize="13" Contain="true" /></span> @c.Title
+                <span class="st-catpill__ic"><CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="13" /></span> @c.Title
             </button>
         }
     </div>

@@ -145,6 +145,8 @@
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
+        /// <summary>Configured icon key; categories may be shown as an icon instead of an image.</summary>
+        public string? Icon { get; set; }
         public string? ImagePath { get; set; }
         public string? ImageAltText { get; set; }
         public string? Description { get; set; }
