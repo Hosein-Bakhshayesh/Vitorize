@@ -48,7 +48,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
     await expect(checkoutKycAlert(page).locator('a[href="/customer/verification"]')).toBeVisible();
     await placeOrder(page);
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     await expect(page.locator('main')).toContainText('تکمیل احراز هویت');
 
     await clearCustomerCart(page);
@@ -56,7 +56,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await goToCheckoutFromCart(page);
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
     await placeOrder(page);
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
 
     await clearCustomerCart(page);
     await addProduct(page, products.couponThreshold);
@@ -69,7 +69,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await expect(page.locator('.st-sumrow[style*="success"]')).toBeVisible();
     await expect(checkoutKycAlert(page)).toContainText('احراز هویت');
     await placeOrder(page);
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
 
     await loginAs('CustomerVIP');
     await clearCustomerCart(page);
@@ -80,7 +80,7 @@ test.describe('FIX-09 Phase 1 current Checkout KYC @fix09p1checkoutkyc', () => {
     await goToCheckoutFromCart(page);
     await expect(checkoutKycAlert(page)).toHaveCount(0);
     await placeOrder(page);
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     const verifiedOrders = await ordersFor(request, 'CustomerVIP');
     expect(verifiedOrders.length).toBe(beforeVerified.length + 1);
     const verifiedOrder = verifiedOrders[0];

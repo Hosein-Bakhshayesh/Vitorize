@@ -14,6 +14,9 @@ const primaryCustomers = {
 } as const;
 
 test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
+  // Placing the order and verifying the payment is one server round trip that allocates a gift code
+  // and writes the delivery record; measured here at up to 16s, it overruns the default 10s expect
+  // budget while succeeding, so the two payment navigations below carry a measured wait.
   test.describe.configure({ timeout: 180_000 });
 
   test('real Customer checkout, upload, Admin approval, and allocated code reveal', async ({ page, consoleGuard }, testInfo) => {
@@ -37,7 +40,7 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     await expectRtlAndNoOverflow(page);
 
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     const orderId = new URL(page.url()).searchParams.get('orderId')!;
     const orderAction = page.locator(`a[href="/customer/orders/${orderId}"]`);
     await expect(orderAction).toBeVisible();
@@ -75,7 +78,7 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     await page.goto('/cart', { waitUntil: 'networkidle' });
     await page.locator('.st-cart-sum button.st-btn--accent').click();
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     const orderId = new URL(page.url()).searchParams.get('orderId')!;
     await page.locator(`a[href="/customer/orders/${orderId}"]`).click();
     await page.locator('a[href^="/customer/verification?orderItem="]').click();

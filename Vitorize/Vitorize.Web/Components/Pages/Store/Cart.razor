@@ -24,20 +24,23 @@
     </div>
 }
 
+@* A read failure is reported wherever it happens, including over items that are still displayed:
+   the customer sees that the shop could not refresh, not that their cart was emptied. *@
+@if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="st-alert st-alert--danger st-errpage--inline" role="alert" data-testid="cart-load-error">
+        <span>@_loadError</span>
+        <button class="st-btn st-btn--outline st-btn--sm" @onclick="Load">تلاش مجدد</button>
+    </div>
+}
+
 @if (_loading)
 {
     <div class="st-state"><div class="st-spinner"></div></div>
 }
 else if (_cart is null || _cart.Items.Count == 0)
 {
-    @if (!string.IsNullOrWhiteSpace(_loadError))
-    {
-        <div class="st-alert st-alert--danger st-errpage--inline" role="alert">
-            <span>@_loadError</span>
-            <button class="st-btn st-btn--outline st-btn--sm" @onclick="Load">تلاش مجدد</button>
-        </div>
-    }
-    else
+    @if (string.IsNullOrWhiteSpace(_loadError))
     {
         <StoreState Info="_emptyInfo" Class="st-errpage--inline" />
     }
@@ -190,6 +193,13 @@ else
         _discount = 0; _appliedCode = string.Empty; _coupon = string.Empty; _couponMsg = null;
     }
 
+    /// <summary>
+    /// Loads the cart, keeping what is already on screen if the request fails.
+    ///
+    /// A failed read says nothing about what the customer's cart contains, so it must not be allowed
+    /// to look like an emptied one: the last known items stay visible under a recoverable error with a
+    /// retry. Only a successful response ever replaces the contents.
+    /// </summary>
     private async Task Load()
     {
         _loading = true; _loadError = null;
@@ -203,13 +213,11 @@ else
             }
             else
             {
-                _cart = null;
                 _loadError = "سبد خرید بارگذاری نشد. لطفاً دوباره تلاش کنید.";
             }
         }
         catch
         {
-            _cart = null;
             _loadError = "سبد خرید بارگذاری نشد. لطفاً دوباره تلاش کنید.";
         }
         finally { _loading = false; }

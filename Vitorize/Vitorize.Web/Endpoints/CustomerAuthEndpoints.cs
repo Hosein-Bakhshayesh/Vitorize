@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Vitorize.Web.Models.Admin.Auth;
+using Vitorize.Web.Models.Store;
 using Vitorize.Web.Services;
 using Vitorize.Web.Services.Auth;
 using Vitorize.Web.Services.Cart;
@@ -19,6 +20,8 @@ namespace Vitorize.Web.Endpoints
             app.MapPost("/auth/customer/login", LoginAsync).DisableAntiforgery();
             app.MapPost("/auth/customer/login/otp/complete", OtpCompleteAsync).DisableAntiforgery();
             app.MapPost("/auth/customer/register", RegisterAsync).DisableAntiforgery();
+            app.MapPost("/auth/customer/register/verify", VerifyRegistrationAsync).DisableAntiforgery();
+            app.MapPost("/auth/customer/register/resend", ResendRegistrationAsync).DisableAntiforgery();
             app.MapPost("/auth/customer/logout", LogoutAsync).DisableAntiforgery();
         }
 
@@ -106,7 +109,9 @@ namespace Vitorize.Web.Endpoints
                 return;
             }
 
-            var result = await apiClient.PostAsync<AdminLoginResponseModel>(
+            // Registration no longer signs anybody in. It creates a pending account and sends a code;
+            // only /auth/customer/register/verify can establish a session.
+            var result = await apiClient.PostAsync<RegistrationChallengeModel>(
                 "auth/register",
                 new
                 {
@@ -122,12 +127,134 @@ namespace Vitorize.Web.Endpoints
                     string.IsNullOrWhiteSpace(result.Message)
                         ? "ثبت‌نام ناموفق بود. لطفاً دوباره تلاش کنید."
                         : result.Message,
-                    returnUrl));
+                    returnUrl,
+                    result.ErrorCode));
                 return;
             }
 
-            await SignInCustomerAsync(http, result.Data, mobile);
-            await CompleteGuestMergeAndRedirectAsync(http, guestCartMerge, result.Data.GetAccessToken(), returnUrl);
+            // The mobile travels in an HttpOnly cookie rather than the query string: it is personal
+            // data, and the verification step is the only thing that needs it. The password is never
+            // carried anywhere - the pending account already holds it hashed.
+            WritePendingRegistration(http, mobile, result.Data.MaskedMobile, returnUrl);
+            http.Response.Redirect("/register?stage=verify");
+        }
+
+        /// <summary>
+        /// Completes registration with the code, then establishes the session exactly as login does:
+        /// same cookie writer, same guest-cart merge, same safe return url.
+        /// </summary>
+        private static async Task VerifyRegistrationAsync(HttpContext http, ApiClient apiClient, GuestCartMergeService guestCartMerge)
+        {
+            var form = await http.Request.ReadFormAsync();
+            var code = form["code"].ToString().Trim();
+            var pending = ReadPendingRegistration(http);
+
+            if (pending is null)
+            {
+                http.Response.Redirect(FailUrl("/register", "مهلت تأیید ثبت‌نام به پایان رسید. لطفاً دوباره ثبت‌نام کنید.", string.Empty));
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                http.Response.Redirect(VerifyUrl("کد تأیید را وارد کنید."));
+                return;
+            }
+
+            var result = await apiClient.PostAsync<AdminLoginResponseModel>(
+                "auth/register/verify",
+                new { Mobile = pending.Mobile, Code = code });
+
+            if (!result.IsSuccess || result.Data is null)
+            {
+                http.Response.Redirect(VerifyUrl(string.IsNullOrWhiteSpace(result.Message)
+                    ? "کد تأیید معتبر نیست."
+                    : result.Message));
+                return;
+            }
+
+            ClearPendingRegistration(http);
+            await SignInCustomerAsync(http, result.Data, pending.Mobile);
+            await CompleteGuestMergeAndRedirectAsync(http, guestCartMerge, result.Data.GetAccessToken(), pending.ReturnUrl);
+        }
+
+        private static async Task ResendRegistrationAsync(HttpContext http, ApiClient apiClient)
+        {
+            var pending = ReadPendingRegistration(http);
+            if (pending is null)
+            {
+                http.Response.Redirect(FailUrl("/register", "مهلت تأیید ثبت‌نام به پایان رسید. لطفاً دوباره ثبت‌نام کنید.", string.Empty));
+                return;
+            }
+
+            var result = await apiClient.PostAsync<RegistrationChallengeModel>(
+                "auth/register/resend", new { Mobile = pending.Mobile });
+
+            http.Response.Redirect(result.IsSuccess
+                ? VerifyUrl(null, "کد تأیید دوباره ارسال شد.")
+                : VerifyUrl(string.IsNullOrWhiteSpace(result.Message) ? "ارسال مجدد کد ناموفق بود." : result.Message));
+        }
+
+        // ---------------------------------------------------------------- pending registration state
+
+        /// <summary>
+        /// The in-progress registration, held server-side in one short-lived HttpOnly cookie. Contains
+        /// no secret: the password stays hashed in the pending account and never returns to the
+        /// browser, and the code itself only ever travels by SMS.
+        /// </summary>
+        private sealed record PendingRegistration(string Mobile, string MaskedMobile, string ReturnUrl);
+
+        private const string PendingRegistrationCookie = "vitorize-registration";
+
+        private static void WritePendingRegistration(HttpContext http, string mobile, string? maskedMobile, string returnUrl)
+        {
+            var payload = string.Join('|', mobile, maskedMobile ?? string.Empty, SafeRedirect.LocalOrDefault(returnUrl, string.Empty));
+            http.Response.Cookies.Append(PendingRegistrationCookie,
+                Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload)),
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = AuthCookiePolicy.IsSecure(http),
+                    SameSite = SameSiteMode.Lax,
+                    // Long enough to receive an SMS and resend once; short enough that an abandoned
+                    // attempt does not linger.
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(30),
+                    Path = "/"
+                });
+        }
+
+        internal static PendingRegistrationView? ReadPendingRegistrationView(HttpContext http)
+        {
+            var pending = ReadPendingRegistration(http);
+            return pending is null ? null : new PendingRegistrationView(pending.MaskedMobile, pending.ReturnUrl);
+        }
+
+        /// <summary>What the verification page may display: the masked mobile and where to go next.</summary>
+        internal sealed record PendingRegistrationView(string MaskedMobile, string ReturnUrl);
+
+        private static PendingRegistration? ReadPendingRegistration(HttpContext http)
+        {
+            var raw = http.Request.Cookies[PendingRegistrationCookie];
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            try
+            {
+                var parts = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(raw)).Split('|');
+                return parts.Length == 3 && !string.IsNullOrWhiteSpace(parts[0])
+                    ? new PendingRegistration(parts[0], parts[1], parts[2])
+                    : null;
+            }
+            catch { return null; }
+        }
+
+        private static void ClearPendingRegistration(HttpContext http) =>
+            http.Response.Cookies.Delete(PendingRegistrationCookie, new CookieOptions { Path = "/" });
+
+        private static string VerifyUrl(string? error, string? notice = null)
+        {
+            var url = "/register?stage=verify";
+            if (!string.IsNullOrWhiteSpace(error)) url += $"&error={Uri.EscapeDataString(error)}";
+            if (!string.IsNullOrWhiteSpace(notice)) url += $"&notice={Uri.EscapeDataString(notice)}";
+            return url;
         }
 
         private static async Task LogoutAsync(HttpContext http, ApiClient apiClient)

@@ -12,6 +12,13 @@ public static class AuthSessionEndpoints
             .RequireAuthorization()
             .DisableAntiforgery();
 
+        // Ends one scheme in the browser's own cookie jar. Deliberately anonymous: it is reached when
+        // the session is already finished, so requiring authorization would be self-defeating, and it
+        // only ever deletes the caller's own cookies.
+        app.MapPost("/auth/session/end", EndBrowserSessionAsync)
+            .AllowAnonymous()
+            .DisableAntiforgery();
+
         app.MapGet("/auth/session-expired", async (HttpContext context, string? area, string? returnUrl) =>
         {
             var scheme = string.Equals(area, "admin", StringComparison.OrdinalIgnoreCase)
@@ -39,5 +46,21 @@ public static class AuthSessionEndpoints
             : Results.BadRequest();
     }
 
+    private static async Task<IResult> EndBrowserSessionAsync(HttpContext context, EndSessionRequest request)
+    {
+        var scheme = request.Scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme
+            ? request.Scheme
+            : null;
+        if (scheme is null) return Results.BadRequest();
+
+        await context.SignOutAsync(scheme);
+        foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(scheme))
+            context.Response.Cookies.Delete(cookie);
+
+        return Results.NoContent();
+    }
+
     private sealed record RotatedTokensRequest(string Scheme, string AccessToken, string RefreshToken);
+
+    private sealed record EndSessionRequest(string Scheme);
 }

@@ -1,11 +1,16 @@
 @using System.Globalization
+@using Microsoft.JSInterop
 @using Vitorize.Application.Common
+@inject IJSRuntime JS
 
 <div class="vz-datepicker @((ReadOnly ? "is-readonly" : ""))">
     <div class="vz-datepicker__entry">
-        <input class="vz-input" type="text" inputmode="numeric" autocomplete="bday"
-               aria-label="تاریخ تولد به تقویم شمسی"
-               placeholder="مثلاً ۱۳۷۵/۰۶/۱۵" value="@_entry"
+        @* dir=ltr on the field itself keeps digit entry predictable inside the RTL page: the year is
+           typed first and the caret advances rightwards, as it does on every date field. *@
+        <input @ref="_entryElement" class="vz-input" type="text" inputmode="numeric" autocomplete="bday"
+               dir="ltr" maxlength="10" data-testid="persian-date-input"
+               aria-label="تاریخ تولد به تقویم شمسی (سال/ماه/روز)"
+               placeholder="۱۳۷۵/۰۶/۱۵" value="@_entry"
                @oninput="OnEntryInputAsync" @onchange="CommitEntryAsync" disabled="@ReadOnly" />
         <button type="button" class="vz-iconaction vz-datepicker__toggle" @onclick="Toggle" disabled="@ReadOnly"
                 aria-label="باز کردن تقویم تاریخ تولد" aria-expanded="@_open">
@@ -84,6 +89,8 @@
     [Parameter] public string Placeholder { get; set; } = "انتخاب تاریخ";
 
     private readonly DateTime _minimum = VerificationBirthDateRules.Minimum.ToDateTime(TimeOnly.MinValue);
+    private ElementReference _entryElement;
+    private bool _maskAttached;
     private bool _open;
     private int _viewYear;
     private int _viewMonth;
@@ -98,6 +105,23 @@
     private DateTime Today => DateTime.Today;
     private bool HasValue => PersianDateHelper.IsValid(Value);
     private string MonthTitle => $"{PersianDateHelper.MonthNames[_viewMonth - 1]} {PersianDateHelper.ToPersianDigits(_viewYear.ToString(CultureInfo.InvariantCulture))}";
+
+    /// <summary>
+    /// Attaches the shared typing mask once the field exists. The mask inserts the separators as the
+    /// customer types; parsing and validation still happen here on the server, so the component
+    /// behaves correctly even if the script never runs.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_maskAttached || ReadOnly) return;
+        try
+        {
+            await JS.InvokeVoidAsync("vzPersianDateMask.attach", _entryElement);
+            _maskAttached = true;
+        }
+        catch (JSDisconnectedException) { }
+        catch (InvalidOperationException) { /* still prerendering; retried on the next render */ }
+    }
 
     protected override void OnInitialized()
     {
@@ -255,24 +279,26 @@
 
     private async Task OnEntryInputAsync(ChangeEventArgs args)
     {
-        _entry = args.Value?.ToString() ?? "";
-        var normalized = NormalizeDigits(_entry);
-        if (normalized.Length == 10)
+        var typed = args.Value?.ToString() ?? "";
+        // Hold the masked form, so a field typed while the script is unavailable still shows the
+        // separators and the two paths cannot diverge.
+        _entry = PersianDateEntry.Mask(typed);
+
+        if (PersianDateEntry.IsComplete(_entry))
             await CommitEntryAsync();
-        else if (normalized.Length == 0)
+        else if (_entry.Length == 0)
             await SetErrorAsync(null);
     }
 
     private async Task CommitEntryAsync()
     {
         if (ReadOnly) return;
-        var normalized = NormalizeDigits(_entry);
-        if (string.IsNullOrWhiteSpace(normalized))
+        if (string.IsNullOrWhiteSpace(_entry))
         {
             await ClearAsync();
             return;
         }
-        if (!TryParseJalali(normalized, out var date) || date < _minimum || date.Date > Today)
+        if (!TryParseJalali(_entry, out var date) || date < _minimum || date.Date > Today)
         {
             await SetErrorAsync("تاریخ تولد واردشده معتبر نیست.");
             return;
@@ -296,24 +322,8 @@
         if (ValidationChanged.HasDelegate) await ValidationChanged.InvokeAsync(value);
     }
 
-    private static bool TryParseJalali(string input, out DateTime date)
-    {
-        date = default;
-        var parts = input.Split('/');
-        if (parts.Length != 3 || parts.Any(x => x.Length is < 1 or > 4) ||
-            !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year) ||
-            !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month) ||
-            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day)) return false;
-        var converted = PersianDateHelper.ToGregorian(year, month, day);
-        if (!converted.HasValue) return false;
-        date = converted.Value;
-        return true;
-    }
-
-    private static string NormalizeDigits(string value) => new(value.Trim().Select(ch => ch switch
-    {
-        >= '۰' and <= '۹' => (char)('0' + ch - '۰'),
-        >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
-        _ => ch
-    }).ToArray());
+    // Entry formatting and parsing live in PersianDateEntry so the browser-side mask, this component
+    // and the unit tests all share one definition of what "yyyy/MM/dd" means.
+    private static bool TryParseJalali(string input, out DateTime date) =>
+        PersianDateEntry.TryParse(input, out date);
 }

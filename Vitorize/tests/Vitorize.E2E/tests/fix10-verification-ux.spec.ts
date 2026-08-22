@@ -5,6 +5,9 @@ const password = process.env.E2E_QA_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?
 const docA = '31000000000000000000000000000044';
 const docB = '31000000000000000000000000000045';
 const adminDocA = '31000000-0000-0000-0000-000000000044';
+// FIX-10 uses its own Phase-3A-B scenario rows. Sharing DL/ML/MULTI with the Phase-3A specs meant
+// whichever ran first spent the upload slot or submitted the profile, leaving this spec a read-only
+// form and no upload controls to assert against.
 const policy = '35000000-0000-0000-0000-000000000078';
 
 test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
@@ -13,8 +16,8 @@ test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
   test('desktop Persian DOB entry persists, bounds future values, and uses direct year navigation', async ({ page, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-light', 'Desktop coverage runs once.');
     const monitor = monitorBrowser(page);
-    await login(page, '09120000031');
-    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000071', { waitUntil: 'networkidle' });
+    await login(page, '09120000042');
+    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000082', { waitUntil: 'networkidle' });
     const dob = page.getByLabel('تاریخ تولد به تقویم شمسی');
     await dob.fill('۱۳۷۵/۰۶/۱۵');
     await page.getByRole('button', { name: 'ثبت اطلاعات احراز هویت', exact: true }).click();
@@ -37,8 +40,8 @@ test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
   test('mobile English-digit entry is reachable without overflow', async ({ page, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-light', 'Mobile coverage runs once.');
     const monitor = monitorBrowser(page);
-    await login(page, '09120000033');
-    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000073', { waitUntil: 'networkidle' });
+    await login(page, '09120000043');
+    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000083', { waitUntil: 'networkidle' });
     const dob = page.getByLabel('تاریخ تولد به تقویم شمسی');
     await dob.fill('1375/06/15');
     await page.getByRole('button', { name: 'ثبت اطلاعات احراز هویت', exact: true }).click();
@@ -54,8 +57,8 @@ test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
   test('customer sees required and optional multiline instructions as text only', async ({ page, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-light', 'Instruction rendering runs once.');
     const monitor = monitorBrowser(page);
-    await login(page, '09120000041');
-    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000081', { waitUntil: 'networkidle' });
+    await login(page, '09120000044');
+    await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000084', { waitUntil: 'networkidle' });
     const required = page.getByTestId(`document-redaction-upload-${docA}`).locator('xpath=..');
     const optional = page.getByTestId(`document-redaction-upload-${docB}`).locator('xpath=..');
     await expect(required).toContainText('راهنمای مدرک الزامی - خط اول');

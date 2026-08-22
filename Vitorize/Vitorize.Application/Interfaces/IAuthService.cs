@@ -4,7 +4,24 @@ namespace Vitorize.Application.Interfaces
 {
     public interface IAuthService
     {
-        Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request);
+        /// <summary>
+        /// Begins registration: creates or refreshes a NOT login-eligible pending account and sends a
+        /// mobile verification code. Deliberately returns no tokens - see
+        /// <see cref="VerifyRegistrationAsync"/>.
+        /// </summary>
+        Task<RegistrationChallengeDto> StartRegistrationAsync(RegisterRequestDto request, string? ipAddress = null, string? userAgent = null);
+
+        /// <summary>
+        /// Completes registration with the code sent to the customer's mobile, then establishes the
+        /// session through the same issuance path login uses.
+        /// </summary>
+        Task<AuthResponseDto> VerifyRegistrationAsync(VerifyRegistrationRequestDto request, string? ipAddress = null, string? userAgent = null);
+
+        /// <summary>
+        /// Re-sends the pending registration's code. Requires only the mobile, and refuses anything
+        /// that is not an unclaimed pending registration.
+        /// </summary>
+        Task<RegistrationChallengeDto> ResendRegistrationOtpAsync(string mobile, string? ipAddress = null, string? userAgent = null);
 
         Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
 

@@ -47,73 +47,260 @@ namespace Vitorize.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
+        /// <summary>
+        /// First registration step: hold the account as pending and send a verification code.
+        ///
+        /// The account row is created immediately - that is what keeps the mobile number unique, keeps
+        /// the password hashed at rest instead of parked in a pending blob, and lets a resend reuse one
+        /// record instead of creating duplicates. It is created NOT login-eligible
+        /// (<see cref="UserStatus.Inactive"/>, mobile unconfirmed), so no existing sign-in path will
+        /// accept it: password login and OTP login both refuse anything that is not Active. Only
+        /// <see cref="VerifyRegistrationAsync"/> can promote it, and only with the code.
+        /// </summary>
+        public async Task<RegistrationChallengeDto> StartRegistrationAsync(
+            RegisterRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null)
         {
-            var mobileExists = await _dbContext.Users
-                .AnyAsync(x => x.Mobile == request.Mobile && !x.IsDeleted);
+            if (!IranMobile.TryNormalize(request.Mobile, out var mobile))
+                throw new BusinessException("شماره موبایل معتبر نیست.");
 
-            if (mobileExists)
+            var customerRole = await _dbContext.Roles.FirstOrDefaultAsync(x => x.Name == "Customer")
+                ?? throw new BusinessException("نقش پیش‌فرض مشتری یافت نشد.");
+
+            var existing = await _dbContext.Users
+                .Include(x => x.Roles)
+                .FirstOrDefaultAsync(x => x.Mobile == mobile && !x.IsDeleted);
+
+            if (existing is not null && !IsUnclaimedRegistration(existing))
             {
-                throw new BusinessException("این شماره موبایل قبلا ثبت شده است.");
+                // A real account owns this number. Say so and send nothing: issuing a code here could
+                // only lead to a duplicate account or serve an attempt to take over someone else's.
+                await _securityLogService.LogAsync(
+                    existing.Id, "REGISTER", false,
+                    $"Registration attempted for an existing account {SensitiveLogData.MaskMobile(mobile)}",
+                    ipAddress, userAgent);
+
+                throw new BusinessException(
+                    "این شماره موبایل قبلاً ثبت شده است. لطفاً وارد شوید.",
+                    AuthOutcomeCodes.AlreadyRegistered);
             }
 
-            var customerRole = await _dbContext.Roles
-                .FirstOrDefaultAsync(x => x.Name == "Customer");
-
-            if (customerRole == null)
+            var now = DateTime.UtcNow;
+            var user = existing;
+            if (user is null)
             {
-                throw new BusinessException("نقش پیش‌فرض مشتری یافت نشد.");
+                user = new User
+                {
+                    Id = Guid.NewGuid(),
+                    FullName = request.FullName,
+                    Mobile = mobile,
+                    Email = request.Email,
+                    PasswordHash = PasswordHasher.Hash(request.Password),
+                    // Pending: no sign-in path accepts a non-Active account.
+                    Status = (byte)UserStatus.Inactive,
+                    VerificationStatus = (byte)VerificationStatus.Pending,
+                    IsMobileConfirmed = false,
+                    IsEmailConfirmed = false,
+                    CreatedAt = now,
+                    IsDeleted = false
+                };
+                user.Roles.Add(customerRole);
+                await _dbContext.Users.AddAsync(user);
+            }
+            else
+            {
+                // An unclaimed pending registration is re-issued rather than duplicated. Whoever
+                // receives the code owns the number, so refreshing the pending details is safe: an
+                // abandoned attempt can never block the real owner from registering.
+                user.FullName = request.FullName;
+                user.Email = request.Email;
+                user.PasswordHash = PasswordHasher.Hash(request.Password);
+                user.UpdatedAt = now;
+                if (!user.Roles.Any(x => x.Id == customerRole.Id))
+                    user.Roles.Add(customerRole);
             }
 
-            var user = new User
+            await _dbContext.SaveChangesAsync();
+
+            // Same issuance path as every other code: purpose-bound, mobile-bound, hashed, rate
+            // limited, and it invalidates any previous code for this purpose.
+            await IssueAndSendOtpAsync(user, mobile, OtpPurpose.MobileVerification, ipAddress, userAgent);
+
+            await _securityLogService.LogAsync(
+                user.Id, "REGISTER_OTP_REQUEST", true,
+                $"Registration code issued for {SensitiveLogData.MaskMobile(mobile)}",
+                ipAddress, userAgent);
+
+            var opts = await _smsSettingsProvider.GetAsync();
+            return new RegistrationChallengeDto
             {
-                Id = Guid.NewGuid(),
-                FullName = request.FullName,
-                Mobile = request.Mobile,
-                Email = request.Email,
-                PasswordHash = PasswordHasher.Hash(request.Password),
-                Status = (byte)UserStatus.Active,
-                VerificationStatus = (byte)VerificationStatus.Pending,
-                IsMobileConfirmed = false,
-                IsEmailConfirmed = false,
-                CreatedAt = DateTime.UtcNow,
-                IsDeleted = false
+                MaskedMobile = IranMobile.Mask(mobile),
+                ExpirySeconds = Math.Clamp(opts.OtpExpiryMinutes, 1, 15) * 60,
+                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds),
+                Outcome = AuthOutcomeCodes.RegistrationOtpSent
             };
+        }
 
-            user.Roles.Add(customerRole);
+        /// <summary>
+        /// Re-sends the registration code for a pending registration.
+        ///
+        /// Takes only the mobile, so a resend never needs the password again and can never create a
+        /// second account: it refuses anything that is not an unclaimed pending registration. The
+        /// existing OTP rate limits and resend cooldown apply unchanged, and issuing a new code
+        /// invalidates the previous one.
+        /// </summary>
+        public async Task<RegistrationChallengeDto> ResendRegistrationOtpAsync(
+            string mobileInput,
+            string? ipAddress = null,
+            string? userAgent = null)
+        {
+            if (!IranMobile.TryNormalize(mobileInput, out var mobile))
+                throw new BusinessException("شماره موبایل معتبر نیست.");
+
+            var user = await _dbContext.Users.FirstOrDefaultAsync(x => x.Mobile == mobile && !x.IsDeleted);
+            if (user is null || !IsUnclaimedRegistration(user))
+                throw new BusinessException("ثبت‌نام در جریانی برای این شماره یافت نشد. لطفاً دوباره ثبت‌نام کنید.");
+
+            await IssueAndSendOtpAsync(user, mobile, OtpPurpose.MobileVerification, ipAddress, userAgent);
+
+            await _securityLogService.LogAsync(
+                user.Id, "REGISTER_OTP_RESEND", true,
+                $"Registration code re-issued for {SensitiveLogData.MaskMobile(mobile)}",
+                ipAddress, userAgent);
+
+            var opts = await _smsSettingsProvider.GetAsync();
+            return new RegistrationChallengeDto
+            {
+                MaskedMobile = IranMobile.Mask(mobile),
+                ExpirySeconds = Math.Clamp(opts.OtpExpiryMinutes, 1, 15) * 60,
+                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds),
+                Outcome = AuthOutcomeCodes.RegistrationOtpSent
+            };
+        }
+
+        /// <summary>
+        /// A user row that exists but has never been claimed: created by an unfinished registration and
+        /// never signed in. Only such a row may be taken over by a new registration for the same
+        /// mobile. An account merely deactivated by an administrator has signed in before, or carries a
+        /// confirmed mobile, and is never treated as claimable.
+        /// </summary>
+        private static bool IsUnclaimedRegistration(User user) =>
+            user.Status == (byte)UserStatus.Inactive &&
+            !user.IsMobileConfirmed &&
+            user.LastLoginAt is null;
+
+        /// <summary>
+        /// Second registration step. On the correct code the account becomes real and the customer is
+        /// signed in through the same session issuance login uses, so no second sign-in is needed.
+        /// </summary>
+        public async Task<AuthResponseDto> VerifyRegistrationAsync(
+            VerifyRegistrationRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null)
+        {
+            if (!IranMobile.TryNormalize(request.Mobile, out var mobile))
+                throw new BusinessException("کد وارد شده معتبر نیست یا منقضی شده است.");
+
+            var now = DateTime.UtcNow;
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(
+                _dbContext, $"otp:{mobile}:{(byte)OtpPurpose.MobileVerification}");
+
+            // Purpose is part of the lookup, so a login code can never complete a registration.
+            var otp = await _dbContext.OtpCodes
+                .Where(x =>
+                    x.Mobile == mobile &&
+                    x.Purpose == (byte)OtpPurpose.MobileVerification &&
+                    x.ConsumedAt == null &&
+                    x.ExpiresAt > now)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (otp is null)
+            {
+                await _securityLogService.LogAsync(
+                    null, "REGISTER_OTP_VERIFY", false,
+                    $"No usable registration code for {SensitiveLogData.MaskMobile(mobile)}",
+                    ipAddress, userAgent);
+                throw new BusinessException("کد تایید معتبر نیست یا منقضی شده است.");
+            }
+
+            if (otp.AttemptCount >= otp.MaxAttempt)
+                throw new BusinessException("تعداد تلاش‌های مجاز برای این کد تمام شده است.");
+
+            if (!OtpSecurity.Verify(request.Code, otp.CodeHash))
+            {
+                otp.AttemptCount += 1;
+                if (otp.AttemptCount >= otp.MaxAttempt)
+                    otp.ConsumedAt = now;
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await _securityLogService.LogAsync(
+                    otp.UserId, "REGISTER_OTP_VERIFY", false,
+                    $"Incorrect registration code for {SensitiveLogData.MaskMobile(mobile)}",
+                    ipAddress, userAgent);
+                throw new BusinessException("کد تایید اشتباه است.");
+            }
+
+            var user = await _dbContext.Users
+                .Include(x => x.Roles)
+                .FirstOrDefaultAsync(x => x.Mobile == mobile && !x.IsDeleted)
+                ?? throw new BusinessException("ثبت‌نام یافت نشد. لطفاً دوباره تلاش کنید.");
+
+            // One-time consumption, committed with the promotion in a single transaction.
+            otp.ConsumedAt = now;
+
+            var wasPending = user.Status != (byte)UserStatus.Active;
+            user.Status = (byte)UserStatus.Active;
+            user.IsMobileConfirmed = true;
+            user.UpdatedAt = now;
+
+            var session = await IssueSessionAsync(user, now);
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            await _securityLogService.LogAsync(
+                user.Id, "REGISTER", true,
+                wasPending ? "Registration completed after mobile verification" : "Registration verification repeated",
+                ipAddress, userAgent);
+
+            _logger.LogInformation(
+                "Registration verified for user {UserId}. EventType={EventType}",
+                user.Id, "RegistrationVerified");
+
+            return session;
+        }
+
+        /// <summary>
+        /// The one place a customer session is minted. Login, OTP login and registration verification
+        /// all go through here, so a session established by any of them is identical.
+        /// </summary>
+        private async Task<AuthResponseDto> IssueSessionAsync(User user, DateTime now)
+        {
+            user.LastLoginAt = now;
 
             var refreshToken = _jwtTokenService.GenerateRefreshToken();
-            var refreshTokenHash = HashToken(refreshToken);
-
             var userRefreshToken = new UserRefreshToken
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
-                TokenHash = refreshTokenHash,
-                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
-                CreatedAt = DateTime.UtcNow
+                TokenHash = HashToken(refreshToken),
+                ExpiresAt = now.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+                CreatedAt = now
             };
-
-            await _dbContext.Users.AddAsync(user);
             await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
-            await _dbContext.SaveChangesAsync();
-
-            await _securityLogService.LogAsync(
-                user.Id,
-                "REGISTER",
-                true,
-                "User registration successful");
-
-            var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
             return new AuthResponseDto
             {
                 UserId = user.Id,
                 FullName = user.FullName,
                 Mobile = user.Mobile,
-                AccessToken = accessToken,
+                AccessToken = _jwtTokenService.GenerateAccessToken(user),
                 RefreshToken = refreshToken,
-                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+                AccessTokenExpiresAt = now.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
                 RefreshTokenExpiresAt = userRefreshToken.ExpiresAt
             };
         }
@@ -176,21 +363,8 @@ namespace Vitorize.Infrastructure.Services
             // کاربران قدیمی قفل نشوند. ورود با کد یکبار‌مصرف به‌صورت ضمنی موبایل را تایید می‌کند
             // و کاربران می‌توانند از طریق OTP موبایل خود را تایید کنند.
 
-            user.LastLoginAt = DateTime.UtcNow;
-
-            var refreshToken = _jwtTokenService.GenerateRefreshToken();
-            var refreshTokenHash = HashToken(refreshToken);
-
-            var userRefreshToken = new UserRefreshToken
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                TokenHash = refreshTokenHash,
-                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
+            // One shared issuance path for login, OTP login and registration verification.
+            var session = await IssueSessionAsync(user, DateTime.UtcNow);
             await _dbContext.SaveChangesAsync();
 
             await _securityLogService.LogAsync(
@@ -203,18 +377,7 @@ namespace Vitorize.Infrastructure.Services
                 "Login succeeded for user {UserId}. EventType={EventType}",
                 user.Id, "LoginSucceeded");
 
-            var accessToken = _jwtTokenService.GenerateAccessToken(user);
-
-            return new AuthResponseDto
-            {
-                UserId = user.Id,
-                FullName = user.FullName,
-                Mobile = user.Mobile,
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
-                RefreshTokenExpiresAt = userRefreshToken.ExpiresAt
-            };
+            return session;
         }
 
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
@@ -895,19 +1058,9 @@ namespace Vitorize.Infrastructure.Services
             otp.ConsumedAt = now;
             if (!user.IsMobileConfirmed)
                 user.IsMobileConfirmed = true;
-            user.LastLoginAt = now;
 
-            var refreshToken = _jwtTokenService.GenerateRefreshToken();
-            var userRefreshToken = new UserRefreshToken
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                TokenHash = HashToken(refreshToken),
-                ExpiresAt = now.AddDays(_jwtSettings.RefreshTokenExpirationDays),
-                CreatedAt = now
-            };
-
-            await _dbContext.UserRefreshTokens.AddAsync(userRefreshToken);
+            // Same shared issuance path as password login and registration verification.
+            var session = await IssueSessionAsync(user, now);
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -919,18 +1072,7 @@ namespace Vitorize.Infrastructure.Services
                 "OTP verification succeeded. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
                 user.Id, SensitiveLogData.MaskMobile(mobile), OtpPurpose.Login, OperationalEventNames.OtpVerified);
 
-            var accessToken = _jwtTokenService.GenerateAccessToken(user);
-
-            return new AuthResponseDto
-            {
-                UserId = user.Id,
-                FullName = user.FullName,
-                Mobile = user.Mobile,
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                AccessTokenExpiresAt = now.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
-                RefreshTokenExpiresAt = userRefreshToken.ExpiresAt
-            };
+            return session;
         }
 
         private static string TemplateKeyForPurpose(OtpPurpose purpose) => purpose switch

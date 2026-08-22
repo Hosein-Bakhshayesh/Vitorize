@@ -24,6 +24,13 @@ export function uniqueCustomer(label = 'Browser Customer'): CustomerIdentity {
   };
 }
 
+/**
+ * Registers a customer through the real two-step flow.
+ *
+ * Registration is gated on a code sent to the mobile, so the form alone no longer signs anybody in:
+ * it lands on the verification step, and only the correct code establishes the session. The code is
+ * read from the fake SMS provider the Testing host exposes, exactly as the OTP login specs do.
+ */
 export async function registerCustomer(page: Page, customer = uniqueCustomer()): Promise<CustomerIdentity> {
   await page.goto('/register');
   await page.locator('input[name="fullName"]').fill(customer.fullName);
@@ -31,8 +38,15 @@ export async function registerCustomer(page: Page, customer = uniqueCustomer()):
   await page.locator('input[name="email"]').fill(customer.email);
   await page.locator('input[name="password"]').fill(customer.password);
   await Promise.all([
-    page.waitForURL(/\/customer\/dashboard/i),
+    page.waitForURL(/\/register\?stage=verify/i),
     page.locator('button[type="submit"]').click()
+  ]);
+
+  const code = await latestOtp(page.request, customer.mobile);
+  await page.getByTestId('register-otp-code').fill(code);
+  await Promise.all([
+    page.waitForURL(/\/customer\/dashboard|\/checkout|\/cart/i),
+    page.getByTestId('register-otp-submit').click()
   ]);
   return customer;
 }
@@ -99,25 +113,22 @@ export async function loginCustomer(page: Page, customer: CustomerIdentity, retu
 }
 
 export async function logoutCustomer(page: Page): Promise<void> {
-  const forms = page.locator('form[action="/auth/customer/logout"]');
-  for (let index = 0; index < await forms.count(); index += 1) {
-    const form = forms.nth(index);
-    if (await form.isVisible()) {
-      await Promise.all([page.waitForURL(/\/$/), form.locator('button[type="submit"]').click()]);
-      return;
-    }
-  }
+  // The account layout that owns these controls renders once the Blazor circuit is connected, so
+  // wait for one of them to appear. Sampling visibility the instant a navigation resolves reports
+  // "no logout control" for a signed-in customer whose dashboard is still rendering.
+  const form = page.locator('form[action="/auth/customer/logout"]:visible').first();
+  const mobileToggle = page.locator('button.st-acc__mobile-toggle:visible').first();
+  await expect(form.or(mobileToggle)).toBeVisible();
 
-  const mobileToggle = page.locator('button.st-acc__mobile-toggle');
-  if (await mobileToggle.isVisible()) {
-    await mobileToggle.click();
-    const mobileForm = page.locator('#customer-account-nav form[action="/auth/customer/logout"]');
-    await mobileForm.waitFor({ state: 'visible' });
-    await Promise.all([page.waitForURL(/\/$/), mobileForm.locator('button[type="submit"]').click()]);
+  if (await form.isVisible()) {
+    await Promise.all([page.waitForURL(/\/$/), form.locator('button[type="submit"]').click()]);
     return;
   }
 
-  throw new Error('No visible customer logout control is available.');
+  await mobileToggle.click();
+  const mobileForm = page.locator('#customer-account-nav form[action="/auth/customer/logout"]');
+  await mobileForm.waitFor({ state: 'visible' });
+  await Promise.all([page.waitForURL(/\/$/), mobileForm.locator('button[type="submit"]').click()]);
 }
 
 export async function loginAdmin(page: Page): Promise<void> {

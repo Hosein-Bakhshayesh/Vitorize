@@ -136,21 +136,61 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         return client;
     }
 
+    /// <summary>
+    /// Registers through the real two-step flow: start the registration, then verify the mobile code.
+    /// Registration no longer issues a session on its own, so a helper that stopped at the first step
+    /// would hand back nothing usable. The code is substituted in the database rather than parsed out
+    /// of an SMS, which is the same technique the OTP login tests use.
+    /// </summary>
     public async Task<AuthResponseDto> RegisterAsync(HttpClient client, string? mobile = null)
     {
         mobile ??= $"0912{Random.Shared.Next(1000000, 9999999)}";
+        var challenge = await StartRegistrationAsync(client, mobile);
+        challenge.Should().NotBeNull();
+        return await CompleteRegistrationAsync(client, mobile);
+    }
+
+    /// <summary>First registration step only, for tests that assert the un-authenticated state.</summary>
+    public async Task<RegistrationChallengeDto> StartRegistrationAsync(HttpClient client, string mobile, string? password = null)
+    {
         var response = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
         {
             FullName = "کاربر تست یکپارچه",
             Mobile = mobile,
             Email = $"integration-{Guid.NewGuid():N}@example.test",
-            Password = "Secure-Test-Password-123!"
+            Password = password ?? "Secure-Test-Password-123!"
         });
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>();
-        body.Should().NotBeNull();
+        var body = await response.Content.ReadFromJsonAsync<ApiResult<RegistrationChallengeDto>>();
         body!.IsSuccess.Should().BeTrue();
         return body.Data!;
+    }
+
+    /// <summary>Replaces the pending registration code with a known one and verifies it.</summary>
+    public async Task<AuthResponseDto> CompleteRegistrationAsync(HttpClient client, string mobile, string code = "123456")
+    {
+        await SetPendingRegistrationCodeAsync(mobile, code);
+        var response = await client.PostAsJsonAsync("/api/auth/register/verify",
+            new VerifyRegistrationRequestDto { Mobile = mobile, Code = code });
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>();
+        body!.IsSuccess.Should().BeTrue();
+        return body.Data!;
+    }
+
+    /// <summary>Makes the live registration code for one mobile a known value.</summary>
+    public async Task SetPendingRegistrationCodeAsync(string mobile, string code)
+    {
+        await using var db = CreateDbContext();
+        var otp = await db.OtpCodes
+            .Where(x => x.Mobile == mobile &&
+                        x.Purpose == (byte)Vitorize.Shared.Enums.OtpPurpose.MobileVerification &&
+                        x.ConsumedAt == null)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
+        otp.Should().NotBeNull("the registration step must have issued a verification code");
+        otp!.CodeHash = Vitorize.Application.Common.OtpSecurity.Hash(code);
+        await db.SaveChangesAsync();
     }
 
     public async Task<(User User, string AccessToken)> CreateUserAndTokenAsync(params string[] roles)

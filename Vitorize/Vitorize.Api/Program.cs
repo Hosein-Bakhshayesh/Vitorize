@@ -371,6 +371,7 @@ namespace Vitorize.Api
                     return Results.NoContent();
                 });
 
+
             }
 
             if (app.Environment.IsEnvironment("Testing") &&

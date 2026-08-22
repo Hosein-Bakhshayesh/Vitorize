@@ -104,10 +104,10 @@ test.describe('FIX-09 Phase 3B-B KYC deadline browser closure @fix09p3bb', () =>
     await verification(page, scenarios.reopen.item);
     await expect(page.getByTestId(`redaction-open-${docA}`)).toBeVisible();
     await redact(page, docA);
-    const submit = page.getByRole('button', { name: 'ثبت اطلاعات احراز هویت', exact: true });
-    await expect(submit).toBeVisible();
-    await submit.click();
-    await expect(submit).toHaveCount(0);
+    // Uploading the reopened policy's required document is itself the customer's action: the item
+    // moves to review on its own and the form stops offering a submit button. Asserting a separate
+    // submit click only ever passed by clicking before that transition committed.
+    await expect(page.getByRole('button', { name: 'ثبت اطلاعات احراز هویت', exact: true })).toHaveCount(0);
     await expect(page.locator('main')).toContainText('در انتظار بررسی');
     await expectRtlAndNoOverflow(page);
     monitor.assertClean(); consoleGuard.assertClean();
@@ -200,4 +200,9 @@ async function redact(page: import('@playwright/test').Page, documentType: strin
   await page.mouse.down(); await page.mouse.move(box!.x + box!.width * .7, box!.y + box!.height * .7); await page.mouse.up();
   await page.getByRole('dialog').getByRole('button').last().click();
   await expect(page.locator('.vz-redaction-modal')).toHaveCount(0);
+  // Closing the modal only starts the upload. The slot keeps offering its "choose and redact"
+  // button until the uploaded value comes back, and the form re-renders when it does - so returning
+  // at modal-close handed the caller a page that was about to replace the submit button underneath
+  // it. Wait for the slot to reach its uploaded state instead.
+  await expect(page.getByTestId(`redaction-open-${documentType}`)).toHaveCount(0);
 }

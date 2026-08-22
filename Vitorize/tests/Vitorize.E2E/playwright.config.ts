@@ -15,10 +15,16 @@ export default defineConfig({
   // headroom on slower CI machines without masking real hangs (steps still fail fast on assertions).
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  // The Admin release suite deliberately runs 31 stateful scenarios over three device projects
-  // serially against one managed SQL/API/Web stack. Measured normal runtime is about 15 minutes;
-  // 25 minutes preserves a bounded diagnostic failure while allowing a realistic CI margin.
-  globalTimeout: 1_500_000,
+  // The whole suite runs serially against one managed SQL/API/Web stack. The 25-minute budget this
+  // replaces was set for the Admin release suite alone and could no longer hold the full regression:
+  // a measured run reached test 136 of 197 before the ceiling stopped it, leaving 81 never started
+  // and reporting a bounded-timeout failure that read like a test failure. 60 minutes covers the
+  // measured full-suite duration with margin and still fails a genuine hang in bounded time.
+  // Revised again from measurement: on a memory-constrained machine the same suite runs at roughly
+  // a third of its usual throughput (99 tests in 60 minutes for 14.8 minutes of test time), so a
+  // 60-minute ceiling still stopped 101 tests before they started. Three hours is generous enough
+  // that a healthy but slow run always finishes, and finite enough to still catch a hung suite.
+  globalTimeout: 10_800_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   globalTeardown: manageStack ? './global-teardown.ts' : undefined,

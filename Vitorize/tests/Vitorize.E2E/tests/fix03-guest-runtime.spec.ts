@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { latestOtp } from './support/app';
 
 const productUrl = '/product/e2e-seo-product';
 const guestCookie = 'Vitorize.GuestCart';
@@ -44,19 +45,6 @@ async function addStagedGuestItem(page: Page, context: BrowserContext): Promise<
   await expect.poll(async () => (await readGuestCart(page, context)).totalQuantity).toBe(1);
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' })).toBeVisible();
-}
-
-async function openStagedEditor(page: Page) {
-  const item = page.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' });
-  await item.locator('button.st-btn--ghost').first().click();
-  return item;
-}
-
-async function saveStagedValues(page: Page, values = { text: 'guest-stage2-value', region: 'south', terms: true }) {
-  await page.locator('input[id$="-stage2_reference"]').fill(values.text);
-  await page.locator('select[id$="-stage2_region"]').selectOption(values.region);
-  const terms = page.locator('input[id$="-stage2_terms"]');
-  if (values.terms) await terms.check(); else await terms.uncheck();
 }
 
 async function loginCustomer(page: Page) {
@@ -194,11 +182,15 @@ test('FIX-03 expired access token refreshes and preserves the authenticated cart
   expect(routes.filter(x => x.route === '/auth/customer/login' && x.status === 302)).toHaveLength(1);
 });
 
-test('FIX-03 guest Stage-2 edit persists across mobile reload, navigation, and second tab', async ({ page, context }) => {
+// Product information moved out of the cart and into Checkout, and a guest cannot reach Checkout at
+// all (the test below covers that routing), so there is no longer a guest-facing staged editor to
+// exercise here. What still matters, and is what this test now proves, is that the guest cart itself
+// survives a mobile reload, a round trip through another page, and a second tab: same cart, same
+// item, same quantity. The staged values themselves are covered by checkout-product-information.
+test('FIX-03 guest cart survives mobile reload, navigation, and a second tab', async ({ page, context }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await addStagedGuestItem(page, context);
-  const item = await openStagedEditor(page);
-  await saveStagedValues(page);
+  const item = page.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' });
   await item.locator('.st-qty button').last().click();
   await expect(item.locator('.st-qty span')).toHaveText('۲');
   const expected = await readGuestCart(page, context);
@@ -214,15 +206,14 @@ test('FIX-03 guest Stage-2 edit persists across mobile reload, navigation, and s
     expect(actual.id).toBe(expected.id);
     expect(actual.totalQuantity).toBe(2);
     expect(actual.items).toHaveLength(1);
-    await expect(page.locator('.st-cart-item').filter({ hasText: 'guest-stage2-value' })).toBeVisible();
-    await expect(page.locator('.st-cart-item').filter({ hasText: 'south' })).toBeVisible();
+    await expect(page.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' })).toBeVisible();
   }
   const secondTab = await context.newPage();
   await secondTab.goto('/cart', { waitUntil: 'networkidle' });
   const same = await readGuestCart(secondTab, context);
   expect(same.id).toBe(expected.id);
   expect(same.totalQuantity).toBe(2);
-  await expect(secondTab.locator('.st-cart-item').filter({ hasText: 'guest-stage2-value' })).toBeVisible();
+  await expect(secondTab.locator('.st-cart-item').filter({ hasText: 'E2E Staged Cart Product' })).toBeVisible();
 });
 
 // Product information is collected at Checkout, so the cart no longer holds a guest back for it.
@@ -331,11 +322,18 @@ test('FIX-03 guest checkout registration merges before checkout', async ({ page,
   await page.locator('a[href="/register?returnUrl=%2Fcheckout"]').click();
   await expect(page).toHaveURL(/\/register\?returnUrl=%2Fcheckout/);
   const stamp = Date.now();
+  const mobile = `0919${String(stamp).slice(-7)}`;
   await page.locator('input[name="fullName"]').fill('FIX03 Registration');
-  await page.locator('input[name="mobile"]').fill(`0919${String(stamp).slice(-7)}`);
+  await page.locator('input[name="mobile"]').fill(mobile);
   await page.locator('input[name="email"]').fill(`fix03-${stamp}@example.test`);
   await page.locator('input[name="password"]').fill('Fix03-Register-aA1!');
   await page.locator('form[action="/auth/customer/register"] button[type="submit"]').click();
+  // Registration hands out an OTP challenge instead of a session, so the guest cart must survive the
+  // verification step and merge only once the mobile is confirmed and the customer is signed in.
+  await expect(page).toHaveURL(/\/register\?stage=verify/i);
+  expect((await context.cookies()).some(x => x.name === guestCookie)).toBe(true);
+  await page.getByTestId('register-otp-code').fill(await latestOtp(page.request, mobile));
+  await page.getByTestId('register-otp-submit').click();
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.locator('main')).toContainText('E2E Dynamic Product');
   expect((await context.cookies()).some(x => x.name === guestCookie)).toBe(false);

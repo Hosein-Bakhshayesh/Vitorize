@@ -50,7 +50,7 @@ test.describe.serial('FIX-09 final browser closure @fix09final', () => {
     try {
       await loginAdmin(adminPage);
       const details = await openAdminOrder(adminPage, 'P2F-MAIN');
-      await itemRow(details, 'P2F Manual Pending').locator('.vz-manual-delivery').click();
+      await itemRow(details, 'P2F Closure Delivery').locator('.vz-manual-delivery').click();
       const deliveryDialog = adminPage.getByRole('dialog').filter({ has: adminPage.locator('#manual-delivery-content') });
       await deliveryDialog.locator('#manual-delivery-content').fill('FIX09 final manual delivery reference');
       await deliveryDialog.locator('#manual-delivery-content').press('Tab');

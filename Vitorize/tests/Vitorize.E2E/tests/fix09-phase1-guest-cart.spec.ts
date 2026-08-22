@@ -92,7 +92,7 @@ async function runGuestJourney(page: import('@playwright/test').Page, context: i
   await expect(information).toBeVisible();
   await expect(information.getByTestId('checkout-kyc-post-payment-copy')).toContainText('پس از پرداخت');
   await page.locator('button.st-btn--accent').last().click();
-  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
   expect((await ordersFor(request, customerToken)).length).toBe(ordersBefore.length + 1);
 
   const paymentResultOrderId = new URL(page.url()).searchParams.get('orderId');

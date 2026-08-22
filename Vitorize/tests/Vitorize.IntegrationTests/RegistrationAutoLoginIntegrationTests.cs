@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Auth;
 using Vitorize.Application.Cart;
 using Vitorize.Application.DTOs.Cart;
@@ -186,7 +187,9 @@ public sealed class RegistrationAutoLoginIntegrationTests
         });
 
         duplicate.IsSuccessStatusCode.Should().BeFalse();
-        (await duplicate.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>())!.Data.Should().BeNull();
+        var duplicateBody = await duplicate.Content.ReadFromJsonAsync<ApiResult<RegistrationChallengeDto>>();
+        duplicateBody!.Data.Should().BeNull();
+        duplicateBody.ErrorCode.Should().Be(AuthOutcomeCodes.AlreadyRegistered);
         await using var db = _fixture.CreateDbContext();
         (await db.Users.CountAsync(x => x.Mobile == mobile && !x.IsDeleted)).Should().Be(1);
         (await db.UserRefreshTokens.CountAsync(x => x.UserId == first.UserId && x.RevokedAt == null))
@@ -211,23 +214,40 @@ public sealed class RegistrationAutoLoginIntegrationTests
     }
 
     [Fact]
-    public async Task Registering_does_not_mark_the_mobile_as_verified()
+    public async Task Completing_the_verified_registration_confirms_the_mobile()
     {
-        // Auto-login removes the second password prompt. It must not be read as having satisfied
-        // mobile verification, which is a separate claim the shop makes about the number.
+        // The mobile is now confirmed because a code sent to it was actually verified. Identity
+        // verification (KYC) is a separate claim and deliberately stays Pending.
         using var client = _fixture.CreateClient();
         var registered = await RegisterAsync(client, UnusedMobile());
 
         await using var db = _fixture.CreateDbContext();
         var user = await db.Users.AsNoTracking().SingleAsync(x => x.Id == registered.UserId);
-        user.IsMobileConfirmed.Should().BeFalse();
-        user.VerificationStatus.Should().Be((byte)VerificationStatus.Pending);
+        user.IsMobileConfirmed.Should().BeTrue();
+        user.Status.Should().Be((byte)UserStatus.Active);
+        user.VerificationStatus.Should().Be((byte)VerificationStatus.Pending, "KYC is a different claim");
     }
 
     // ---------------------------------------------------------------- helpers
 
+    /// <summary>
+    /// Registers through both steps of the verified flow. Registration itself no longer issues a
+    /// session, so what these tests assert is the state AFTER the mobile code is verified: that is
+    /// where the "no second sign-in" promise now lives.
+    /// </summary>
     private async Task<AuthResponseDto> RegisterAsync(HttpClient client, string mobile)
     {
+        var challenge = await StartAsync(client, mobile);
+        challenge.Outcome.Should().Be(AuthOutcomeCodes.RegistrationOtpSent);
+        return await _fixture.CompleteRegistrationAsync(client, mobile);
+    }
+
+    private async Task<RegistrationChallengeDto> StartAsync(HttpClient client, string mobile)
+    {
+        // Registration now sends a code, and the service refuses to claim it sent one when the SMS
+        // provider is unusable. Configuring the fake provider per test keeps this deterministic no
+        // matter what order the shared fixture runs its classes in.
+        await _fixture.ConfigureSmsAsync();
         var response = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
         {
             FullName = "کاربر ثبت‌نام خودکار",
@@ -236,7 +256,7 @@ public sealed class RegistrationAutoLoginIntegrationTests
             Password = Password
         });
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>())!.Data!;
+        return (await response.Content.ReadFromJsonAsync<ApiResult<RegistrationChallengeDto>>())!.Data!;
     }
 
     private async Task<CartDto> ReadCartAsync(HttpClient client)

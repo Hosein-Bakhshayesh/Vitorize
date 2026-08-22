@@ -254,10 +254,17 @@ public sealed class Fix01BTokenRotationIntegrationTests
         public string? AccessToken { get; private set; }
         public string? RefreshToken { get; private set; }
         public string AccessFingerprint => Fingerprint(AccessToken);
+        public string? EndedScheme { get; private set; }
         public Task<bool> PersistAsync(string _, string access, string refresh, CancellationToken cancellationToken)
         {
             Persisted = true;
             (AccessToken, RefreshToken) = (access, refresh);
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> EndSessionAsync(string scheme, CancellationToken cancellationToken)
+        {
+            EndedScheme = scheme;
             return Task.FromResult(true);
         }
     }

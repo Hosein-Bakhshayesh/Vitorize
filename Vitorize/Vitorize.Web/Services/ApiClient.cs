@@ -288,27 +288,58 @@ namespace Vitorize.Web.Services
                 || await RefreshTokensAsync(cancellationToken);
         }
 
+        /// <summary>
+        /// Rotates the session's tokens. Returns whether the caller may retry its request.
+        ///
+        /// A session is ended here only when something authoritative says it is over: no refresh token
+        /// at all, or the provider rejecting the one we hold. Everything else - a timeout, a recycling
+        /// API, a 502 from the proxy, a circuit that cannot write cookies right now - leaves the
+        /// session exactly as it was. Ending it on those was why customers were signed out mid-visit
+        /// and had to clear their browser data to get back in.
+        /// </summary>
         private async Task<bool> RefreshTokensAsync(CancellationToken cancellationToken)
         {
             var scheme = await _tokenProvider.GetSchemeAsync();
             var refresh = await _tokenProvider.GetRefreshTokenAsync();
             if (string.IsNullOrWhiteSpace(scheme) || string.IsNullOrWhiteSpace(refresh))
             {
+                // Nothing to rotate with: this really is the end of the session.
                 await EndLocalSessionAsync(scheme);
                 return false;
             }
+
             var result = await _refreshCoordinator.RefreshAsync(scheme, refresh, cancellationToken);
+
+            if (result.Outcome == RefreshOutcome.Transient)
+            {
+                // Keep the tokens we have. The next request retries, and a genuinely dead session
+                // will be reported as Rejected then.
+                _logger.LogWarning(
+                    "Keeping the current session after a transient rotation failure. EventType={EventType}",
+                    "TokenRefreshDeferred");
+                return false;
+            }
+
             if (!result.Success || result.AccessToken is null || result.RefreshToken is null)
             {
                 await EndLocalSessionAsync(scheme);
                 return false;
             }
+
             _tokenProvider.SetTokens(scheme, result.AccessToken, result.RefreshToken);
+
             if (await _tokenSessionPersistence.PersistAsync(scheme, result.AccessToken, result.RefreshToken, cancellationToken))
                 return true;
 
-            await EndLocalSessionAsync(scheme);
-            return false;
+            // The rotation succeeded, so the previous refresh token is already spent at the provider -
+            // discarding the new pair here would strand the browser holding a revoked one, which is
+            // the state that only clearing cookies could recover from. The new tokens are live in this
+            // scope, so the request proceeds and the cookie is rewritten by the next request that owns
+            // a real HTTP response.
+            _logger.LogWarning(
+                "Rotated tokens could not be written to the browser yet; the session continues with the new pair. EventType={EventType}",
+                "TokenRotationPersistenceDeferred");
+            return true;
         }
 
         private static bool IsMutation(HttpMethod method) =>
@@ -320,14 +351,12 @@ namespace Vitorize.Web.Services
             _expiredSessionScheme = scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme
                 ? scheme
                 : null;
-            var context = _serviceProvider.GetService<IHttpContextAccessor>()?.HttpContext;
-            if (context is not null)
-            {
-                if (scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme)
-                    await context.SignOutAsync(scheme);
-                foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(scheme))
-                    context.Response.Cookies.Delete(cookie);
-            }
+            // The browser's cookies must go too, through whichever channel is available. A rendered
+            // circuit has no HTTP response of its own, so this previously cleared only the in-memory
+            // tokens and left a cookie holding a revoked refresh token behind - the state that could
+            // only be recovered by clearing browser data.
+            if (scheme is VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme)
+                await _tokenSessionPersistence.EndSessionAsync(scheme, CancellationToken.None);
         }
 
         private static void ApplyHeaders(HttpRequestMessage request, IReadOnlyDictionary<string, string>? headers)

@@ -8,9 +8,9 @@ const galleryImage = 'D:\\Vitorize\\Vitorize\\Vitorize.Api\\wwwroot\\uploads\\pr
 test.describe('Admin product edit and rich storefront projection', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test('all supported editable product metadata persists to DB and storefront', {
-    tag: [TAG.admin, TAG.product, TAG.catalog, TAG.customer, TAG.supportDelivery, TAG.regression, TAG.release]
-  }, async ({ page, browser, request, loginAs, adminProduct }) => {
+  test('all supported editable product metadata persists to DB', {
+    tag: [TAG.admin, TAG.product, TAG.catalog, TAG.regression, TAG.release]
+  }, async ({ page, request, loginAs, adminProduct }) => {
     const key = `${Date.now().toString(36)}-${process.pid}`;
     const original = new ProductBuilder(`e2e-edit-original-${key}`, `Edit Original ${key}`)
       .ofType(1).deliveredBy(2).withoutBrand().priced(100_000).build();
@@ -80,6 +80,39 @@ test.describe('Admin product edit and rich storefront projection', () => {
     expect(state.product.fullDescription).not.toMatch(/<script|onerror/i);
     expectCatalogIntegrity(state);
 
+    await adminProduct.setActive(productId, false);
+    await adminProduct.setActive(relatedId, false);
+  });
+
+  test('an edited product projects its rich content, features and required fields to the storefront', {
+    tag: [TAG.admin, TAG.product, TAG.catalog, TAG.customer, TAG.supportDelivery, TAG.regression, TAG.release]
+  }, async ({ page, browser, loginAs, adminProduct, adminVariant }) => {
+    const key = `${Date.now().toString(36)}-${process.pid}`;
+    const related = new ProductBuilder(`e2e-proj-related-${key}`, `Proj Related ${key}`)
+      .ofType(99).deliveredBy(2).inCategory('E2E Child Category').priced(70_000).featured()
+      .tagged('آزمون مرورگر').build();
+    const updated = new ProductBuilder(`e2e-proj-final-${key}`, `Proj Final ${key}`)
+      .ofType(3).deliveredBy(3).inCategory('E2E Child Category').withBrand('E2E Brand')
+      .priced(210_000, 180_000).inCurrency(1).quantities(2, 5).featured()
+      .described('Edited deterministic short description.',
+        '<h2>Safe Matrix HTML</h2><p><strong>Allowed content</strong></p><script>alert(1)</script><img src=x onerror=alert(2)>')
+      .seo(`Proj SEO ${key}`, `Proj SEO description ${key}.`, 'projected matrix')
+      .tagged('آزمون مرورگر')
+      .withFeature('Platform', 'Cross-platform')
+      .withFeature('Specification', 'Premium tier')
+      .withDynamicField({ key: 'required_account', label: 'Required Account', fieldType: 1, required: true })
+      .withDynamicField({ key: 'optional_note', label: 'Optional Note', fieldType: 5, required: false })
+      .build();
+
+    await loginAs('SuperAdmin');
+    const relatedId = await adminProduct.create(related);
+    const productId = await adminProduct.create(updated);
+    // A support-delivery product is created with one canonical SKU at zero stock, so it is not
+    // purchasable until an administrator enters a quantity. The storefront assertions below reach
+    // add-to-cart, so perform that step here exactly as an administrator would.
+    await adminVariant.setStock('پیش‌فرض', 25);
+    await adminProduct.uploadGalleryImage(productId, galleryImage);
+
     const customerContext = await browser.newContext();
     const customerPage = await customerContext.newPage();
     try {
@@ -91,13 +124,15 @@ test.describe('Admin product edit and rich storefront projection', () => {
       await expect(customerPage.locator('.st-feature-card')).toHaveCount(2);
       await expect(customerPage.locator('.st-section')).toContainText(related.title);
       await expect(customerPage.locator('meta[name="description"]')).toHaveAttribute('content', updated.seoDescription!);
+      // Adds the product and proves the projected required field stops the purchase at Checkout.
+      // Product information is no longer collected in a product-page dialog, so there is nothing
+      // to dismiss afterwards and no second add-to-cart to perform - the add already happened here.
       await storefront.expectRequiredFieldRejected('required_account');
-      await customerPage.keyboard.press('Escape');
-      await storefront.addToCart({ required_account: 'account-42' });
       await clearCustomerCart(customerPage);
     } finally {
       await customerContext.close();
     }
+
     await adminProduct.setActive(productId, false);
     await adminProduct.setActive(relatedId, false);
   });

@@ -1,13 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-test('product is present in initial HTML with complete safe SEO metadata', async ({ request }) => {
+test('product is present in initial HTML with complete safe SEO metadata', async ({ request, baseURL }) => {
   const response = await request.get('/product/e2e-seo-product');
   expect(response.status()).toBe(200);
   const html = decodeNumericEntities(await response.text());
   expect(html).toContain('E2E Dynamic Product');
   expect(html).toMatch(/<title>[^<]*E2E Product SEO[^<]*<\/title>/);
   expect(html).toMatch(/<meta name="description" content="E2E product meta description\."/);
-  expect(html).toMatch(/<link rel="canonical" href="http:\/\/127\.0\.0\.1:5077\/product\/e2e-seo-product"/);
+  // The canonical origin follows the request when no https canonical base is configured, so derive
+  // it from the harness base URL instead of pinning one host: hard-coding 127.0.0.1 made this fail
+  // against the configured localhost origin while the page was perfectly correct.
+  expect(html).toContain(`<link rel="canonical" href="${new URL('/product/e2e-seo-product', baseURL!).href}"`);
   expect(html).toMatch(/<meta property="og:title"/);
   expect(html).toMatch(/<meta property="og:description"/);
   expect(html).toMatch(/<meta name="twitter:card"/);

@@ -53,6 +53,7 @@ INSERT @OrderIds VALUES (@Main), (@V2Order), (@Mixed), (@Payment);
 DELETE d FROM dbo.OrderItemDeliveries d JOIN dbo.OrderItems i ON i.Id = d.OrderItemId JOIN @OrderIds o ON o.Id = i.OrderId;
 DELETE s FROM dbo.OrderItemKycStates s JOIN dbo.OrderItems i ON i.Id = s.OrderItemId JOIN @OrderIds o ON o.Id = i.OrderId;
 DELETE r FROM dbo.OrderItemKycFinanceResolutions r JOIN dbo.OrderItems i ON i.Id = r.OrderItemId JOIN @OrderIds o ON o.Id = i.OrderId;
+DELETE v FROM dbo.GiftCodeReservations v JOIN dbo.GiftCodes g ON g.Id = v.GiftCodeId JOIN dbo.OrderItems i ON i.Id = g.OrderItemId JOIN @OrderIds o ON o.Id = i.OrderId;
 DELETE g FROM dbo.GiftCodes g JOIN dbo.OrderItems i ON i.Id = g.OrderItemId JOIN @OrderIds o ON o.Id = i.OrderId;
 DELETE h FROM dbo.OrderStatusHistories h JOIN @OrderIds o ON o.Id = h.OrderId;
 DELETE FROM dbo.OrderItemInputValues WHERE OrderItemId IN (SELECT i.Id FROM dbo.OrderItems i JOIN @OrderIds o ON o.Id = i.OrderId);
@@ -113,6 +114,11 @@ INSERT @Items VALUES
 ('32000000-0000-0000-0000-000000000109', @Main, N'P2F Legacy', 2, 1, 0, NULL, NULL, 0),
 ('32000000-0000-0000-0000-000000000110', @Main, N'P2F Manual Held', 2, 1, 2, @V1, 4, 0),
 ('32000000-0000-0000-0000-000000000111', @Main, N'P2F Support Held', 3, 1, 2, @V1, 4, 0),
+-- Owned by the final browser-closure spec, which fulfils it. It used to spend 'P2F Manual Pending'
+-- instead, and because it runs first that left the Phase-2F Admin spec asserting a delivery button
+-- on an item that was already delivered. The title deliberately shares no substring with the other
+-- rows so row filters stay unambiguous.
+('32000000-0000-0000-0000-000000000112', @Main, N'P2F Closure Delivery', 2, 1, 2, @V1, 2, 0),
 ('32000000-0000-0000-0000-000000000201', @V2Order, N'P2F Instant Release Pending', 1, 1, 2, @V2, 2, 0),
 ('32000000-0000-0000-0000-000000000202', @V2Order, N'P2F V2 Awaiting Submission', 1, 1, 2, @V2, 3, 0),
 ('32000000-0000-0000-0000-000000000301', @Mixed, N'P2F Mixed Delivered Legacy', 1, 2, 0, NULL, NULL, 0),
@@ -141,6 +147,13 @@ DECLARE @P2GCheckoutCode2 uniqueidentifier = '32000000-0000-0000-0000-0000000005
 DECLARE @P2GCheckoutCode3 uniqueidentifier = '32000000-0000-0000-0000-000000000513';
 DECLARE @P2GCheckoutCode4 uniqueidentifier = '32000000-0000-0000-0000-000000000514';
 DECLARE @P2GCheckoutCode5 uniqueidentifier = '32000000-0000-0000-0000-000000000515';
+-- A previous run may have allocated these pool codes and recorded a delivery against them, and
+-- OrderItemDeliveries.GiftCodeId is enforced, so the dependent rows have to go first. Without this
+-- the whole fixture aborts the second time it is applied to a database that has served a run.
+DELETE d FROM dbo.OrderItemDeliveries d
+WHERE d.GiftCodeId IN (@CheckoutAvailableCode, @P2GCheckoutCode1, @P2GCheckoutCode2, @P2GCheckoutCode3, @P2GCheckoutCode4, @P2GCheckoutCode5);
+DELETE v FROM dbo.GiftCodeReservations v
+WHERE v.GiftCodeId IN (@CheckoutAvailableCode, @P2GCheckoutCode1, @P2GCheckoutCode2, @P2GCheckoutCode3, @P2GCheckoutCode4, @P2GCheckoutCode5);
 DELETE FROM dbo.GiftCodes WHERE Id IN (@CheckoutAvailableCode, @P2GCheckoutCode1, @P2GCheckoutCode2, @P2GCheckoutCode3, @P2GCheckoutCode4, @P2GCheckoutCode5);
 INSERT dbo.GiftCodes (Id, ProductId, OrderItemId, EncryptedCode, MaskedCode, Status, EncryptionVersion, CodeHashFingerprint, ReservedByUserId, SoldAt, DeliveredAt, CreatedAt)
 VALUES
@@ -154,4 +167,46 @@ VALUES
 (@P2GCheckoutCode5, @ProductId, NULL, N'P2G-CHECKOUT-5', N'****2G5', 0, 0, N'fix09-p2g-checkout-5', NULL, NULL, NULL, SYSUTCDATETIME());
 INSERT dbo.OrderItemDeliveries (Id, OrderItemId, DeliveryType, GiftCodeId, DeliveredContent, ContentHash, IsVisibleToCustomer, CreatedAt)
 VALUES (NEWID(), '32000000-0000-0000-0000-000000000105', 1, @DeliveredCode, N'P2F-DELIVERED-CODE', REPLICATE(N'A', 64), 1, SYSUTCDATETIME());
+
+-- This product is Instant, so its inventory is the gift-code pool, and several browser specs buy
+-- from that one pool during a run. Seeding exactly as many codes as a single spec consumes leaves
+-- the later specs facing an out-of-stock product and blaming the storefront for it, so keep real
+-- head-room. These rows are identifiable by fingerprint and are rebuilt on every application.
+DECLARE @PoolSpares int = 40;
+DELETE v FROM dbo.GiftCodeReservations v JOIN dbo.GiftCodes g ON g.Id = v.GiftCodeId
+WHERE g.CodeHashFingerprint LIKE N'fix09-pool-%';
+DELETE d FROM dbo.OrderItemDeliveries d JOIN dbo.GiftCodes g ON g.Id = d.GiftCodeId
+WHERE g.CodeHashFingerprint LIKE N'fix09-pool-%';
+DELETE FROM dbo.GiftCodes WHERE CodeHashFingerprint LIKE N'fix09-pool-%';
+
+-- Two pools, because the two purchase routes look the product up differently: the storefront picks
+-- the default SKU and needs codes attached to it, while an API checkout that posts only a productId
+-- needs product-level codes. The seeded product carries a SKU from when it was a Manual product, so
+-- both routes are live and both have to find inventory. These rows are rebuilt on every application.
+-- Turning the product Instant leaves behind the SKU it owned as a Manual product. Production keeps
+-- the two consistent (an Instant product's SKU is always gift-code backed) and Checkout enforces it,
+-- so the fixture has to uphold the same invariant instead of shipping a combination the application
+-- would never create.
+UPDATE v SET v.StockMode = 1
+FROM dbo.ProductVariants v WHERE v.ProductId = @ProductId;
+
+WITH Spares AS (
+    SELECT TOP (@PoolSpares) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS Ordinal FROM sys.all_objects
+)
+INSERT dbo.GiftCodes (Id, ProductId, ProductVariantId, OrderItemId, EncryptedCode, MaskedCode, Status,
+    EncryptionVersion, CodeHashFingerprint, ReservedByUserId, SoldAt, DeliveredAt, CreatedAt)
+SELECT NEWID(), @ProductId, NULL, NULL, N'P2G-CHECKOUT-P-' + CAST(Ordinal AS nvarchar(4)),
+    N'****' + RIGHT(N'000' + CAST(Ordinal AS nvarchar(4)), 3), 0, 0,
+    N'fix09-pool-p-' + CAST(Ordinal AS nvarchar(4)), NULL, NULL, NULL, SYSUTCDATETIME()
+FROM Spares;
+WITH Spares AS (
+    SELECT TOP (@PoolSpares) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS Ordinal FROM sys.all_objects
+)
+INSERT dbo.GiftCodes (Id, ProductId, ProductVariantId, OrderItemId, EncryptedCode, MaskedCode, Status,
+    EncryptionVersion, CodeHashFingerprint, ReservedByUserId, SoldAt, DeliveredAt, CreatedAt)
+SELECT NEWID(), @ProductId, v.Id, NULL, N'P2G-CHECKOUT-V-' + CAST(Ordinal AS nvarchar(4)),
+    N'****' + RIGHT(N'000' + CAST(Ordinal AS nvarchar(4)), 3), 0, 0,
+    N'fix09-pool-v-' + CAST(Ordinal AS nvarchar(4)), NULL, NULL, NULL, SYSUTCDATETIME()
+FROM Spares
+CROSS JOIN (SELECT TOP 1 Id FROM dbo.ProductVariants WHERE ProductId = @ProductId AND IsDefault = 1 AND IsActive = 1) v;
 PRINT N'FIX-09 Phase-2F Customer browser fixture is ready.';

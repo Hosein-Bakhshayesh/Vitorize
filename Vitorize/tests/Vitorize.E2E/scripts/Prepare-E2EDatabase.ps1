@@ -48,6 +48,13 @@ $finalBrowserFixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-
 & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $finalBrowserFixture
 if ($LASTEXITCODE -ne 0) { throw 'FIX-09 final browser fixture failed.' }
 
+# FIX-05's visual fixtures assert against a disposable product carrying every direction-sensitive
+# input type. The fixture existed and had its own preparation script, but nothing ever invoked
+# either, so the product was absent and both visual tests waited on a buy button that never rendered.
+$fix05Fixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-fix05-visual.sql')).Path
+& sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $fix05Fixture
+if ($LASTEXITCODE -ne 0) { throw 'FIX-05 visual fixture failed.' }
+
 # FIX-03 guest-cart runtime tests assert against a pre-existing authenticated cart (a
 # fingerprint-matching line, a distinct line, and a second product). The fixture existed but was
 # never applied here, so those tests ran against whatever cart earlier fixtures happened to leave.
@@ -96,6 +103,29 @@ foreach ($entry in $phase2fSecrets.GetEnumerator()) {
     & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -Q "SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON; UPDATE dbo.GiftCodes SET EncryptedCode = N'$ciphertext', EncryptionVersion = 0 WHERE CodeHashFingerprint = N'$fingerprint';"
     if ($LASTEXITCODE -ne 0) { throw "Could not encrypt E2E gift-code fixture '$($entry.Key)'." }
 }
+
+# The spare pool the Phase-2F fixture inserts is stored the same way as the named codes above:
+# EncryptionVersion 0 means legacy AES-CBC ciphertext, not plaintext, and delivery decrypts it.
+# Seeding these as raw text made the code allocated to a customer fail to decrypt at delivery, so
+# each spare is encrypted here with the same ephemeral Testing key, in one batch.
+$poolStatements = [Text.StringBuilder]::new()
+[void]$poolStatements.AppendLine('SET QUOTED_IDENTIFIER ON;')
+[void]$poolStatements.AppendLine('SET ANSI_NULLS ON;')
+foreach ($shape in 'p', 'v') {
+    foreach ($ordinal in 1..40) {
+        $plaintext = "P2G-CHECKOUT-$($shape.ToUpperInvariant())-$ordinal"
+        $ciphertext = (Protect-E2EFixtureValue $plaintext).Replace("'", "''")
+        [void]$poolStatements.AppendLine(
+            "UPDATE dbo.GiftCodes SET EncryptedCode = N'$ciphertext', EncryptionVersion = 0 WHERE CodeHashFingerprint = N'fix09-pool-$shape-$ordinal';")
+    }
+}
+$poolScript = Join-Path ([IO.Path]::GetTempPath()) "vitorize-e2e-pool-$PID.sql"
+[IO.File]::WriteAllText($poolScript, $poolStatements.ToString(), [Text.UTF8Encoding]::new($false))
+try {
+    & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $poolScript
+    if ($LASTEXITCODE -ne 0) { throw 'Could not encrypt the E2E gift-code spare pool.' }
+}
+finally { Remove-Item -LiteralPath $poolScript -Force -ErrorAction SilentlyContinue }
 $fixtureOwnerId = '31000000000000000000000000000021'
 $fixturePrivateDirectory = Join-Path $root "Vitorize.Api\App_Data\PrivateDocuments\$fixtureOwnerId"
 $fixtureDocument = Join-Path $fixturePrivateDirectory 'document-canary.jpg'

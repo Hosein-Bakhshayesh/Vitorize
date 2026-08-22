@@ -31,6 +31,11 @@ test.describe('FIX-14 CMS pages, system routes, contact and FAQ @fix14', () => {
     await expect(editor).toBeVisible();
     await editor.click();
     await page.keyboard.type('محتوای آزمایشی صفحه سفارشی');
+    // CKEditor pushes into its Blazor-bound value on a fixed 220ms change debounce. Saving inside
+    // that window stores the page with empty content, which is exactly how this intermittently
+    // failed. Settle the debounce, as the admin product editor already does; the persisted value is
+    // still asserted from the customer-facing page below, so this is a settle, not a crutch.
+    await page.waitForTimeout(400);
 
     // The published control is a .vz-switch: its checkbox is visually hidden, so toggle the label.
     const published = page.getByTestId('page-published');

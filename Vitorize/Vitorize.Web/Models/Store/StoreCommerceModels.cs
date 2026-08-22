@@ -219,3 +219,18 @@ namespace Vitorize.Web.Models.Store
         public DateTime? UpdatedAt { get; set; }
     }
 }
+
+namespace Vitorize.Web.Models.Store
+{
+    /// <summary>
+    /// The registration challenge returned by the API's first step. Carries no tokens by design: a
+    /// registration whose mobile has not been verified must never produce a session.
+    /// </summary>
+    public class RegistrationChallengeModel
+    {
+        public string MaskedMobile { get; set; } = string.Empty;
+        public int ExpirySeconds { get; set; }
+        public int ResendCooldownSeconds { get; set; }
+        public string? Outcome { get; set; }
+    }
+}

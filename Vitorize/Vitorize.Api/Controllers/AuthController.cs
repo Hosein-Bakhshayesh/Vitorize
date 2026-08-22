@@ -28,18 +28,50 @@ namespace Vitorize.Api.Controllers
         [EnableRateLimiting("register")]
         [HttpPost("register")]
         [SwaggerOperation(
-            Summary = "ثبت‌نام کاربر",
-            Description = "ایجاد حساب کاربری جدید برای مشتری و دریافت AccessToken و RefreshToken.")]
+            Summary = "شروع ثبت‌نام و ارسال کد تأیید",
+            Description = "حساب به‌صورت «در انتظار تأیید» ساخته می‌شود و کد تأیید به موبایل ارسال می‌گردد. " +
+                          "هیچ توکنی صادر نمی‌شود؛ ثبت‌نام تنها با تأیید کد کامل می‌شود.")]
+        [ProducesResponseType(typeof(ApiResult<RegistrationChallengeDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult<ApiResult<RegistrationChallengeDto>>> Register(RegisterRequestDto request)
+        {
+            var result = await _authService.StartRegistrationAsync(request, GetClientIp(), GetUserAgent());
+
+            return Ok(ApiResult<RegistrationChallengeDto>.Success(
+                result,
+                "کد تأیید به شماره شما ارسال شد."));
+        }
+
+        [EnableRateLimiting("register")]
+        [HttpPost("register/verify")]
+        [SwaggerOperation(
+            Summary = "تأیید کد ثبت‌نام و ورود خودکار",
+            Description = "با کد صحیح، موبایل تأیید و حساب فعال می‌شود و همان نشست استاندارد ورود صادر می‌گردد؛ " +
+                          "کاربر نیازی به ورود دوباره ندارد.")]
         [ProducesResponseType(typeof(ApiResult<AuthResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
-        public async Task<ActionResult<ApiResult<AuthResponseDto>>> Register(RegisterRequestDto request)
+        public async Task<ActionResult<ApiResult<AuthResponseDto>>> VerifyRegistration(VerifyRegistrationRequestDto request)
         {
-            var result = await _authService.RegisterAsync(request);
+            var result = await _authService.VerifyRegistrationAsync(request, GetClientIp(), GetUserAgent());
 
-            return Ok(ApiResult<AuthResponseDto>.Success(
-                result,
-                "ثبت‌نام با موفقیت انجام شد."));
+            return Ok(ApiResult<AuthResponseDto>.Success(result, "ثبت‌نام با موفقیت تکمیل شد."));
+        }
+
+        [EnableRateLimiting("register")]
+        [HttpPost("register/resend")]
+        [SwaggerOperation(
+            Summary = "ارسال مجدد کد ثبت‌نام",
+            Description = "فقط برای ثبت‌نامی که تأیید نشده است؛ رمز عبور لازم نیست و حساب تکراری ساخته نمی‌شود.")]
+        [ProducesResponseType(typeof(ApiResult<RegistrationChallengeDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult<ApiResult<RegistrationChallengeDto>>> ResendRegistrationOtp(ResendRegistrationRequestDto request)
+        {
+            var result = await _authService.ResendRegistrationOtpAsync(request.Mobile, GetClientIp(), GetUserAgent());
+
+            return Ok(ApiResult<RegistrationChallengeDto>.Success(result, "کد تأیید دوباره ارسال شد."));
         }
 
         [EnableRateLimiting("login")]

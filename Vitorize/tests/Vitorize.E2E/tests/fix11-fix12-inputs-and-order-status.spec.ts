@@ -13,6 +13,9 @@ const customerMobile = '09120000013';
 const PENDING_PAYMENT = 'در انتظار پرداخت';
 const PREPARING = 'در حال آماده‌سازی';
 const OLD_PROCESSING = 'در حال پردازش';
+// A paid order names the most blocking thing it waits for, so a KYC-blocked one reads this rather
+// than the generic 'being prepared'. The persisted order enum stays Processing either way.
+const AWAITING_KYC = 'در انتظار احراز هویت';
 
 test.describe('FIX-11 required/optional inputs and FIX-12 order status display @fix11 @fix12', () => {
   test.describe.configure({ timeout: 180_000 });
@@ -46,7 +49,7 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
     // Required supplied, optional left blank -> the purchase proceeds.
     await required.fill('FIX11-CHECKOUT');
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
 
     consoleGuard.assertClean();
   });
@@ -74,7 +77,7 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
     await expect(page.locator('[data-testid=checkout-input-card] [id$="-player_id"]').first())
       .toHaveValue('FIX11-CART');
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
 
     const orderId = new URL(page.url()).searchParams.get('orderId')!;
     const detail = await orderDetails(request, token, `/orders/${orderId}`);
@@ -105,7 +108,7 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
     consoleGuard.assertClean();
   });
 
-  test('FIX-12 a paid order reads "در حال آماده‌سازی" everywhere while KYC stays visible', async ({ page, request, loginAs, consoleGuard }, testInfo) => {
+  test('FIX-12 a paid KYC-blocked order names its blocker for the customer and stays Processing for the admin', async ({ page, request, loginAs, consoleGuard }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-light', 'Status terminology is asserted once.');
     await page.setViewportSize({ width: 1440, height: 900 });
     const token = await tokenFor(request, customerMobile);
@@ -122,14 +125,15 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
     await expect(page.locator('main')).not.toContainText(PENDING_PAYMENT);
 
     await page.goto(`/customer/orders/${order.id}`, { waitUntil: 'networkidle' });
-    await expect(orderStatusBadge(page)).toHaveText(PREPARING);
+    await expect(orderStatusBadge(page)).toHaveText(AWAITING_KYC);
     await expect(page.locator('main')).not.toContainText(OLD_PROCESSING);
-    // Item-level truth is preserved next to the order-level "being prepared" badge.
+    // The order-level badge must never contradict the item, so it names the blocker instead of
+    // claiming preparation is under way; the item-level requirement stays visible beside it.
     await expect(page.locator('main')).toContainText('احراز هویت');
     await expect(page.getByRole('link', { name: 'تکمیل احراز هویت', exact: true })).toBeVisible();
 
     await page.goto('/customer/orders', { waitUntil: 'networkidle' });
-    await expect(customerOrderStatusCell(page, order.number)).toHaveText(PREPARING);
+    await expect(customerOrderStatusCell(page, order.number)).toHaveText(AWAITING_KYC);
     await page.goto('/customer/dashboard', { waitUntil: 'networkidle' });
     await expect(page.locator('main')).not.toContainText(OLD_PROCESSING);
 
@@ -252,14 +256,17 @@ async function expectOk(response: import('@playwright/test').APIResponse) {
   expect(response.ok(), `${response.status()} ${await response.text()}`).toBeTruthy();
 }
 
-// The order-level status badge sits next to the payment badge in the header; index 1 is the order one.
+// One unified status badge: the separate payment badge that used to sit beside it is what made the
+// same order read two contradictory things at once. Its wrapper carries a stable test id, so this
+// no longer depends on how many badges the header happens to render.
 function orderStatusBadge(page: import('@playwright/test').Page) {
-  return page.locator('.st-spread').first().locator('.st-badge').nth(1);
+  return page.getByTestId('order-state').locator('.st-badge');
 }
 
-// Customer orders table: number | items | amount | payment | status | date | actions
+// Customer orders table: number | items | amount | status | date | actions.
+// The payment column was merged into the single status column for the same reason.
 function customerOrderStatusCell(page: import('@playwright/test').Page, orderNumber: string) {
-  return page.locator('tbody tr').filter({ hasText: orderNumber }).locator('td').nth(4);
+  return page.getByTestId('order-row').filter({ hasText: orderNumber }).locator('td').nth(3);
 }
 
 // Admin orders table: select | number | customer | amount | payment | status | date | actions

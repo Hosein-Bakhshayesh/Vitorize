@@ -119,19 +119,31 @@ public sealed class Fix09Phase2AKycStateIntegrationTests
 
         await _fixture.RunSqlFileAsync(Path.Combine("Database", "Versioned", "V0011__order_item_kyc_lifecycle_state.sql"));
 
+        // V0011 brings the table back at its V0011 shape, so the later migration that adds to it is
+        // replayed straight away: without it the shared schema sits behind the code that reads it, and
+        // every later test touching that column fails with "Invalid column name" - which is how one
+        // deliberate schema exercise used to take dozens of unrelated tests down with it. The scripts
+        // are guarded and idempotent, so replaying is always safe.
+        await _fixture.RunSqlFileAsync(Path.Combine("Database", "Versioned", "V0014__kyc_customer_action_deadline.sql"));
+
+        await AssertPhase1UpgradeAsync(historicalKycItem.Id, noKycItem.Id, legacyCompatibleItem.Id, policyVersionId);
+    }
+
+    private async Task AssertPhase1UpgradeAsync(Guid historicalKycItemId, Guid noKycItemId, Guid legacyCompatibleItemId, Guid policyVersionId)
+    {
         await using var verify = _fixture.CreateDbContext();
-        var item = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == historicalKycItem.Id);
+        var item = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == historicalKycItemId);
         item.RequiresVerification.Should().BeTrue();
         item.KycRequirementMode.Should().Be((byte)KycRequirementMode.AboveThreshold);
         item.KycThresholdAmount.Should().Be(50m);
         item.KycEvaluatedAmount.Should().Be(100m);
         item.KycPolicyVersionId.Should().Be(policyVersionId);
         item.KycLifecycleState.Should().BeNull("Phase 2A intentionally does not backfill ambiguous historical item KYC states");
-        var untouchedNoKycItem = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == noKycItem.Id);
+        var untouchedNoKycItem = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == noKycItemId);
         untouchedNoKycItem.RequiresVerification.Should().BeFalse();
         untouchedNoKycItem.KycRequirementMode.Should().Be((byte)KycRequirementMode.None);
         untouchedNoKycItem.KycLifecycleState.Should().BeNull();
-        var preservedLegacyItem = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == legacyCompatibleItem.Id);
+        var preservedLegacyItem = await verify.OrderItems.Include(x => x.KycLifecycleState).SingleAsync(x => x.Id == legacyCompatibleItemId);
         preservedLegacyItem.KycRequirementMode.Should().Be((byte)KycRequirementMode.Always);
         preservedLegacyItem.KycPolicyVersionId.Should().Be(policyVersionId);
         preservedLegacyItem.KycLifecycleState.Should().BeNull();

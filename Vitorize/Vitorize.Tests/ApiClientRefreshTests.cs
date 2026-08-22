@@ -204,9 +204,16 @@ public sealed class ApiClientRefreshTests
     private sealed class FakeTokenSessionPersistence : ITokenSessionPersistence
     {
         public (string Scheme, string AccessToken, string RefreshToken)? LastPersisted { get; private set; }
+        public string? EndedScheme { get; private set; }
         public Task<bool> PersistAsync(string scheme, string accessToken, string refreshToken, CancellationToken cancellationToken)
         {
             LastPersisted = (scheme, accessToken, refreshToken);
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> EndSessionAsync(string scheme, CancellationToken cancellationToken)
+        {
+            EndedScheme = scheme;
             return Task.FromResult(true);
         }
     }

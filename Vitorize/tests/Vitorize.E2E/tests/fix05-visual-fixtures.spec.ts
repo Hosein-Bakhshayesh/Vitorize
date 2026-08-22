@@ -22,12 +22,9 @@ async function addFixtureItem(page: Page): Promise<void> {
   await expect(page.locator('.st-cart-item').filter({ hasText: productName })).toBeVisible();
 }
 
-async function openFixtureEditor(page: Page): Promise<void> {
-  const item = page.locator('.st-cart-item').filter({ hasText: productName });
-  await item.locator('button.st-btn--ghost').first().click();
-}
-
-async function fillFixtureEditor(page: Page): Promise<void> {
+// Product information is collected at Checkout, not in a cart-side dialog, so these fields are
+// filled where they actually live now.
+async function fillCheckoutFixtureInformation(page: Page): Promise<void> {
   await page.locator('input[id$="-persian_text"]').fill('متن آزمایشی');
   await page.locator('input[id$="-email"]').fill('customer@example.test');
   await page.locator('input[id$="-url"]').fill('https://example.test/account');
@@ -36,14 +33,13 @@ async function fillFixtureEditor(page: Page): Promise<void> {
   await page.locator('input[id$="-terms"]').check();
 }
 
-async function saveFixtureEditor(page: Page): Promise<void> {
-}
-
-async function prepareGuestCart(page: Page): Promise<void> {
-  await addFixtureItem(page);
-  await openFixtureEditor(page);
-  await fillFixtureEditor(page);
-  await saveFixtureEditor(page);
+async function signInAtCheckoutGate(page: Page): Promise<void> {
+  await page.locator('.st-cart-sum button.st-btn--accent').click();
+  await expect(page).toHaveURL(/\/login\?returnUrl=%2Fcheckout/);
+  await page.locator('#pw-mobile').fill('09120000014');
+  await page.locator('#pw-pass').fill('E2E-Admin-Only-aA1!');
+  await page.locator('form[action="/auth/customer/login"] button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/checkout/);
 }
 
 test('FIX-05 visual OTP fixture renders entry, invalid, expired, and resend states', async ({ page, request }) => {
@@ -76,52 +72,51 @@ test('FIX-05 visual OTP fixture renders entry, invalid, expired, and resend stat
   browser.assertClean();
 });
 
-test('FIX-05 visual guest cart fixture renders and persists the real edit modal', async ({ page }) => {
+// The cart no longer edits product information - that moved to Checkout - so the guest-side subject
+// is what the cart itself renders. The direction, validation and persistence coverage that used to
+// live here now runs against the real checkout form in the test below.
+test('FIX-05 visual guest cart fixture renders the fixture product without overflow', async ({ page }) => {
   const browser = monitorBrowser(page);
   await addFixtureItem(page);
-  await openFixtureEditor(page);
 
-  const dialog = page.locator('.vz-dialog');
-  await expect(dialog.locator('input[id$="-persian_text"]')).toHaveAttribute('dir', 'rtl');
-  await expect(dialog.locator('input[id$="-email"]')).toHaveAttribute('dir', 'ltr');
-  await expect(dialog.locator('input[id$="-url"]')).toHaveAttribute('dir', 'ltr');
-  await expect(dialog.locator('input[id$="-phone"]')).toHaveAttribute('dir', 'ltr');
-  await expect(dialog.locator('select[id$="-region"]')).toBeVisible();
-  await expect(dialog.locator('input[id$="-terms"]')).toBeVisible();
-
-  await dialog.locator('button.st-btn--accent').click();
-  const required = dialog.locator('input[id$="-persian_text"]');
-  await expect(required).toHaveAttribute('aria-invalid', 'true');
-  await expect(required).toBeFocused();
-  await expect(dialog.locator('.st-field__error[role="alert"]').first()).toBeVisible();
-
-  await fillFixtureEditor(page);
-  await saveFixtureEditor(page);
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.goto('/shop', { waitUntil: 'networkidle' });
-  await page.goto('/cart', { waitUntil: 'networkidle' });
-  await openFixtureEditor(page);
-  await expect(dialog.locator('input[id$="-persian_text"]')).toHaveValue('متن آزمایشی');
-  await expect(dialog.locator('input[id$="-email"]')).toHaveValue('customer@example.test');
-  await expect(dialog.locator('input[id$="-url"]')).toHaveValue('https://example.test/account');
-  await expect(dialog.locator('input[id$="-phone"]')).toHaveValue('+491234567890');
-  await expect(dialog.locator('select[id$="-region"]')).toHaveValue('north');
-  await expect(dialog.locator('input[id$="-terms"]')).toBeChecked();
+  const item = page.locator('.st-cart-item').filter({ hasText: productName });
+  await expect(item).toBeVisible();
+  await expect(item.locator('.st-qty')).toBeVisible();
+  await expect(page.locator('.st-cart-sum button.st-btn--accent')).toBeEnabled();
+  await expect(page.locator('.st-cart-item')).toHaveCount(1);
   await expectNoOverflow(page);
   browser.assertClean();
 });
 
 test('FIX-05 visual authenticated checkout fixture renders the real checkout', async ({ page, context }) => {
   const browser = monitorBrowser(page);
-  await prepareGuestCart(page);
-  await page.locator('.st-cart-sum button.st-btn--accent').click();
-  await expect(page).toHaveURL(/\/login\?returnUrl=%2Fcheckout/);
-  await page.locator('#pw-mobile').fill('09120000014');
-  await page.locator('#pw-pass').fill('E2E-Admin-Only-aA1!');
-  await page.locator('form[action="/auth/customer/login"] button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/checkout/);
+  await addFixtureItem(page);
+  await signInAtCheckoutGate(page);
   await expect(page.locator('main')).toContainText(productName);
   await expect(context.cookies()).resolves.toEqual(expect.any(Array));
+
+  // Every supported input type keeps its own writing direction: Persian text stays RTL while
+  // machine-readable values stay LTR so they cannot render reversed.
+  const card = page.getByTestId('checkout-input-card');
+  await expect(card.locator('input[id$="-persian_text"]')).toHaveAttribute('dir', 'rtl');
+  await expect(card.locator('input[id$="-email"]')).toHaveAttribute('dir', 'ltr');
+  await expect(card.locator('input[id$="-url"]')).toHaveAttribute('dir', 'ltr');
+  await expect(card.locator('input[id$="-phone"]')).toHaveAttribute('dir', 'ltr');
+  await expect(card.locator('select[id$="-region"]')).toBeVisible();
+  await expect(card.locator('input[id$="-terms"]')).toBeVisible();
+
+  // A missing required value stops the purchase and says so on the field itself.
+  await page.locator('button.st-btn--accent').last().click();
+  await expect(page).toHaveURL(/\/checkout/);
+  await expect(card.locator('input[id$="-persian_text"]')).toHaveAttribute('aria-invalid', 'true');
+
+  // Supplying the values clears the rejection. They are written to the cart line on submit, not
+  // while typing, so a reload deliberately starts the form clean rather than half-filled.
+  await fillCheckoutFixtureInformation(page);
+  await expect(card.locator('input[id$="-persian_text"]')).toHaveValue('متن آزمایشی');
+  await expect(card.locator('input[id$="-email"]')).toHaveValue('customer@example.test');
+  await expect(card.locator('select[id$="-region"]')).toHaveValue('north');
+  await expect(card.locator('input[id$="-terms"]')).toBeChecked();
   await expectNoOverflow(page);
   browser.assertClean();
 });

@@ -163,6 +163,10 @@ $env:Monitoring__SeqUiUrl = 'https://seq.e2e.invalid'
 try {
     Write-Host '-- Starting API --' -ForegroundColor Yellow
     $env:ASPNETCORE_URLS = $apiUrl
+    # Deadline expiry stays synchronous for the browser suite. The KYC deadline specs assert that the
+    # API itself refuses an overdue action on the request that discovers it; a background sweep that
+    # expires the fixture first would silently answer those requests from an already-expired row.
+    $env:KycDeadlineProcessing__Enabled = 'false'
     # WorkingDirectory = project dir so ASP.NET's ContentRoot (== current directory) resolves wwwroot
     # from the project (static CSS/JS live there for a `build`, not the bin output).
     Start-Process dotnet -ArgumentList $apiDll -WorkingDirectory (Join-Path $repoRoot 'Vitorize.Api') -WindowStyle Hidden `

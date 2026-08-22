@@ -30,7 +30,10 @@ async function capture(
 test('storefront, product, cart and checkout match approved responsive baselines', async ({ page }) => {
   const homeProductGrids = page.locator('section.st-section:has(.st-pcard__wish) > .st-grid');
   await capture(page, '/', 'home.png', [homeProductGrids], async () => {
-    await expect(homeProductGrids).toHaveCount(3);
+    // Two, not three: the home page's popular-products section now ships disabled by default and is
+    // opt-in from Admin settings, so the default storefront this baseline represents has one fewer
+    // product grid.
+    await expect(homeProductGrids).toHaveCount(2);
     await page.addStyleTag({
       content: 'section.st-section:has(.st-pcard__wish) > .st-grid { height: 360px !important; overflow: hidden !important; }'
     });

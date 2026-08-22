@@ -26,7 +26,34 @@ public sealed class SmsWorkerSeoIntegrationTests
     public async Task Sms_outbox_handles_legacy_payload_retry_dead_letter_lease_recovery_history_and_heartbeat()
     {
         await _fixture.ConfigureSmsAsync();
+
+        // The outbox is shared with every other test in this collection, and the worker takes a fixed
+        // batch of the oldest pending messages. Leftovers from earlier tests could therefore fill the
+        // batch and this test's own message would never be attempted - which showed up as a retry
+        // count of 0 rather than as anything to do with SMS. Starting from an empty queue makes the
+        // single iteration below mean what it says.
+        await using (var reset = _fixture.CreateDbContext())
+        {
+            var leftovers = await reset.OutboxMessages
+                .Where(x => x.Status == (byte)OutboxMessageStatus.Pending)
+                .Select(x => x.Id)
+                .ToListAsync();
+            if (leftovers.Count > 0)
+            {
+                // SmsMessages references the outbox, so the history rows go first.
+                var history = await reset.SmsMessages
+                    .Where(x => x.OutboxMessageId != null && leftovers.Contains(x.OutboxMessageId.Value))
+                    .ToListAsync();
+                reset.SmsMessages.RemoveRange(history);
+                reset.OutboxMessages.RemoveRange(
+                    await reset.OutboxMessages.Where(x => leftovers.Contains(x.Id)).ToListAsync());
+                await reset.SaveChangesAsync();
+            }
+        }
+
         var sender = (FakeSmsSender)_fixture.Factory.Services.GetRequiredService<ISmsSender>();
+        sender.Clear();
+        sender.ResultsByMobile.Clear();
         var legacyId = Guid.NewGuid();
         var staleId = Guid.NewGuid();
         var unknownId = Guid.NewGuid();

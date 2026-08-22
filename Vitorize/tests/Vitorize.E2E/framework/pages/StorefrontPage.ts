@@ -51,7 +51,11 @@ export class StorefrontPage extends BasePage {
     await expect(this.page.locator('.st-paycard.active')).toBeVisible();
     await this.fillProductInformation();
     await this.page.locator('button.st-btn--accent').last().click();
-    await expect(this.page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    // Placing the order and verifying the payment is one server round trip that allocates stock or
+    // gift codes and writes the delivery record. Measured at 3.3s for /api/checkout plus up to 16s
+    // for the verification callback, it overruns the default 10s expect budget while succeeding, so
+    // this single navigation gets a measured wait rather than the suite default.
+    await expect(this.page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     const match = /orderId=([0-9a-f-]+)/i.exec(this.page.url());
     if (!match) throw new Error(`No orderId in payment result URL: ${this.page.url()}`);
     return match[1];

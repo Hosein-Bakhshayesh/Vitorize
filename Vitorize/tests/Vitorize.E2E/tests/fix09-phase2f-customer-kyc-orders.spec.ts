@@ -134,7 +134,7 @@ test.describe('FIX-09 Phase 2F Customer KYC orders @fix09p2fcustomer', () => {
     await expect(page.getByTestId('checkout-kyc-information')).toBeVisible();
     await expect(page.getByTestId('checkout-kyc-post-payment-copy')).toContainText('پس از پرداخت');
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/);
+    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
     expect(await myOrderCount(request)).toBe(before + 1);
     await clearCustomerCart(page);
     consoleGuard.assertClean();

@@ -28,4 +28,16 @@ public static class AuthOutcomeCodes
 
     /// <summary>The account exists and the supplied password was wrong.</summary>
     public const string InvalidCredentials = "InvalidCredentials";
+
+    /// <summary>
+    /// A registration verification code was sent. The caller is not authenticated yet: registration
+    /// completes only when that code is verified.
+    /// </summary>
+    public const string RegistrationOtpSent = "RegistrationOtpSent";
+
+    /// <summary>
+    /// The mobile already belongs to a real, claimed account, so registration cannot proceed and no
+    /// code was sent. The caller is directed to sign in instead.
+    /// </summary>
+    public const string AlreadyRegistered = "AlreadyRegistered";
 }
