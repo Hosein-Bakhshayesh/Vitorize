@@ -6,6 +6,7 @@ using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Storefront;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -19,6 +20,8 @@ namespace Vitorize.Infrastructure.Services
         // Unlimited is an inventory policy; it is compared as a mode, never as a quantity.
         private const byte StockModeUnlimited = (byte)ProductVariantStockMode.Unlimited;
         private const byte DeliveryTypeManualTicket = 2;
+        // Best-selling counts paid orders only, matching the admin dashboard's metric.
+        private const byte PaymentStatusPaid = (byte)PaymentStatus.Paid;
 
         public ProductService(VitorizeDbContext dbContext, IHtmlContentSanitizer htmlSanitizer)
         {
@@ -162,8 +165,48 @@ namespace Vitorize.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            query = (filter.Sort ?? string.Empty).Trim().ToLowerInvariant() switch
+            // A customer's explicit choice always wins. Only when they have not asked for an order
+            // does the administrator's saved storefront default decide it. The setting is read
+            // straight from the database rather than through a cache, so a saved change is in
+            // effect on the very next listing request without recycling anything.
+            var requestedSort = (filter.Sort ?? string.Empty).Trim();
+            var effectiveSort = requestedSort.Length > 0
+                ? requestedSort.ToLowerInvariant()
+                : StorefrontProductSortModes.ToQueryKey(
+                    await _dbContext.Settings.AsNoTracking()
+                        .Where(x => x.Key == StorefrontProductSortModes.SettingKey)
+                        .Select(x => x.Value)
+                        .FirstOrDefaultAsync());
+
+            query = effectiveSort switch
             {
+                // Available first, unavailable after, using the same canonical inputs the list
+                // projection carries: an override wins outright, unlimited inventory is available
+                // regardless of quantity, Instant draws on its gift-code pool and every other
+                // delivery mode on managed per-variant stock.
+                "availability" => query
+                    .OrderByDescending(x =>
+                        !x.ForceOutOfStock &&
+                        ((x.DeliveryType != DeliveryTypeInstant &&
+                          x.ProductVariants.Any(v => v.IsActive && v.StockMode == StockModeUnlimited)) ||
+                         (x.DeliveryType == DeliveryTypeInstant
+                             ? _dbContext.GiftCodes.Count(g => g.ProductId == x.Id && g.Status == GiftCodeStatusAvailable)
+                             : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0) > 0))
+                    .ThenBy(x => x.SortOrder)
+                    .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
+                // The same paid-order quantity the admin dashboard reports. Products that have never
+                // sold fall to the back and keep the ordinary default order among themselves.
+                "bestselling" => query
+                    .OrderByDescending(x => _dbContext.OrderItems
+                        .Where(oi => oi.ProductId == x.Id && oi.Order.PaymentStatus == PaymentStatusPaid)
+                        .Sum(oi => (int?)oi.Quantity) ?? 0)
+                    .ThenBy(x => x.SortOrder)
+                    .ThenByDescending(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
+                "oldest" => query
+                    .OrderBy(x => x.CreatedAt)
+                    .ThenBy(x => x.Id),
                 "newest" => query
                     .OrderByDescending(x => x.CreatedAt)
                     .ThenBy(x => x.Id),

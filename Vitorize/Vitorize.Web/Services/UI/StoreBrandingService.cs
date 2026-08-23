@@ -103,6 +103,13 @@ namespace Vitorize.Web.Services.UI
         /// environment that has not yet been seeded keeps the section hidden rather than showing it.
         /// </summary>
         public bool HomePopularProductsEnabled => GetBool("HomePopularProductsEnabled");
+        /// <summary>
+        /// The administrator's default storefront ordering. Exposed so the customer's sort menu can
+        /// name the order the listing is actually in; the ordering itself is applied server-side.
+        /// </summary>
+        public string StorefrontDefaultProductSort =>
+            Vitorize.Shared.Storefront.StorefrontProductSortModes.Normalize(
+                Get(Vitorize.Shared.Storefront.StorefrontProductSortModes.SettingKey, string.Empty));
         public string MaintenanceMessage => Get("MaintenanceMessage", "به‌زودی با نسخه‌ای بهتر برمی‌گردیم.");
 
         // ── Logos & images (empty ⇒ built-in default) ──

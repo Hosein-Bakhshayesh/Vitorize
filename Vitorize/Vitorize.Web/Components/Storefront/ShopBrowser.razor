@@ -1,5 +1,7 @@
 ﻿@inject ApiClient Api
 @inject NavigationManager Nav
+@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@using Vitorize.Shared.Storefront
 @inject IJSRuntime JS
 @using Vitorize.Shared.Common
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
@@ -214,7 +216,7 @@
                     <div class="st-sort__menu">
                         @foreach (var opt in SortOptions)
                         {
-                            <button class="st-sort__opt @(_sort == opt.Key ? "active" : null)" @onclick="() => SelectSort(opt.Key)">@opt.Value</button>
+                            <button class="st-sort__opt @(EffectiveSortKey == opt.Key ? "active" : null)" @onclick="() => SelectSort(opt.Key)">@opt.Value</button>
                         }
                     </div>
                 }
@@ -313,7 +315,14 @@
     private string _filterSearch = string.Empty;
     private string _categoryId = string.Empty;
     private string _brandId = string.Empty;
-    private string _sort = "newest";
+    // Deliberately empty: no explicit customer choice yet, so the listing request carries no
+    // sort and the storefront default the administrator configured decides the order.
+    private string _sort = string.Empty;
+    private string _defaultSortCode = StorefrontProductSortModes.Default;
+    // What the listing is actually ordered by right now: the customer's choice when they made one,
+    // otherwise the configured default expressed as its query key.
+    private string EffectiveSortKey =>
+        string.IsNullOrEmpty(_sort) ? StorefrontProductSortModes.ToQueryKey(_defaultSortCode) : _sort;
     private readonly HashSet<byte> _types = new();
     private bool _instantOnly, _verifiedOnly, _discountOnly, _inStockOnly;
     private int _discountTier;   // 0=none, 1=any-discount, 10/25/50 = percent tiers
@@ -328,9 +337,16 @@
     };
     private static readonly Dictionary<string, string> SortOptions = new()
     {
-        { "newest", "جدیدترین" }, { "cheapest", "ارزان‌ترین" }, { "expensive", "گران‌ترین" }, { "discount", "بیشترین تخفیف" }
+        { "availability", "موجودها اول" }, { "bestselling", "پرفروش‌ترین" }, { "newest", "جدیدترین" },
+        { "oldest", "قدیمی‌ترین" }, { "cheapest", "ارزان‌ترین" }, { "expensive", "گران‌ترین" },
+        { "discount", "بیشترین تخفیف" }
     };
-    private static string SortLabel(string k) => SortOptions.TryGetValue(k, out var v) ? v : "مرتب‌سازی";
+    // With no explicit choice the listing is in the administrator's configured order, so the menu
+    // names that order rather than showing a different one and misleading the customer.
+    private string SortLabel(string k) =>
+        !string.IsNullOrEmpty(k) && SortOptions.TryGetValue(k, out var v)
+            ? v
+            : StorefrontProductSortModes.Label(_defaultSortCode);
 
     private int PageStart => _totalCount == 0 ? 0 : (_page - 1) * _pageSize + 1;
     private int PageEnd => Math.Min(_page * _pageSize, _totalCount);
@@ -379,6 +395,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _defaultSortCode = (await Branding.GetAsync()).StorefrontDefaultProductSort;
         var catTask = Api.GetAsync<List<StoreLookupModel>>("products/categories");
         var brandTask = Api.GetAsync<List<StoreLookupModel>>("products/brands");
         await Task.WhenAll(catTask, brandTask);
@@ -478,7 +495,9 @@
     {
         _loading = true;
         StateHasChanged();
-        var query = $"products?page={_page}&pageSize={_pageSize}&sort={_sort}";
+        var query = $"products?page={_page}&pageSize={_pageSize}";
+        // Only an explicit choice is sent. Omitting it is what lets the server apply the default.
+        if (!string.IsNullOrEmpty(_sort)) query += $"&sort={_sort}";
         if (!string.IsNullOrWhiteSpace(_search)) query += $"&search={Uri.EscapeDataString(_search)}";
         if (!string.IsNullOrWhiteSpace(_categoryId)) query += $"&categoryId={_categoryId}";
         if (!string.IsNullOrWhiteSpace(_brandId)) query += $"&brandId={_brandId}";

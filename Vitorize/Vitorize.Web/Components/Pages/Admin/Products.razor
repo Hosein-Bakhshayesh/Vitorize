@@ -5,6 +5,8 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
+@using Vitorize.Shared.Storefront
+@using Vitorize.Web.Models.Admin.Settings
 @implements IDisposable
 
 <PageHeader Title="مدیریت محصولات" Subtitle="لیست محصولات فروشگاه خود را مدیریت و ویرایش کنید"
@@ -33,6 +35,40 @@ else
                 <button class="vz-pill @(_stockFilter == f.Key ? "active" : "")" @onclick="() => SelectStock(f.Key)">
                     @f.Label <span class="vz-pill__count">@AUI.Number(f.Count(_items))</span>
                 </button>
+            }
+        </div>
+    </div>
+
+    @* Configures what CUSTOMERS see, not this table. The admin grid keeps its own column sorting
+       and filters below, which is why this sits in its own card with an explicit description. *@
+    <div class="vz-filterbar" data-testid="storefront-default-sort" style="margin-bottom:16px">
+        <div class="vz-filterbar__row" style="align-items:flex-end">
+            <div class="vz-field" style="min-width:280px">
+                <label class="vz-label" for="storefront-default-sort-select">
+                    <Icon Name="arrow-down-up" Size="15" /> مرتب‌سازی پیش‌فرض کالاها در فروشگاه
+                </label>
+                <select id="storefront-default-sort-select" class="vz-select"
+                        data-testid="storefront-default-sort-select"
+                        @bind="_storefrontSort" @bind:after="() => { _storefrontSortSaved = false; return Task.CompletedTask; }">
+                    @foreach (var mode in StorefrontProductSortModes.All)
+                    {
+                        <option value="@mode.Key">@mode.Value</option>
+                    }
+                </select>
+                <div class="vz-hint">این گزینه ترتیب پیش‌فرض نمایش کالاها برای مشتریان را تعیین می‌کند و بر مرتب‌سازی همین جدول مدیریت اثری ندارد. اگر مشتری خودش مرتب‌سازی دیگری انتخاب کند، انتخاب او اولویت دارد.</div>
+            </div>
+            <div class="vz-field" style="flex:0 0 auto">
+                <button class="vz-btn vz-btn--primary" data-testid="storefront-default-sort-save"
+                        disabled="@_savingStorefrontSort" @onclick="SaveStorefrontSort">
+                    @if (_savingStorefrontSort) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> }
+                    <span>ذخیره</span>
+                </button>
+            </div>
+            @if (_storefrontSortSaved)
+            {
+                <div class="vz-field" style="flex:0 0 auto">
+                    <span class="vz-badge vz-badge--success" data-testid="storefront-default-sort-saved">ذخیره شد</span>
+                </div>
             }
         </div>
     </div>
@@ -182,6 +218,43 @@ else
                OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
 
 @code {
+    // Storefront default ordering. Persisted through the ordinary Settings API; the storefront reads
+    // it server-side, so a save takes effect on the next customer listing without any recycle.
+    private string _storefrontSort = StorefrontProductSortModes.Default;
+    private bool _savingStorefrontSort;
+    private bool _storefrontSortSaved;
+
+    private async Task LoadStorefrontSortAsync()
+    {
+        var result = await Api.GetAsync<SettingModel>($"admin/settings/{StorefrontProductSortModes.SettingKey}");
+        // A database that has never seen the key is not an error: it simply means the default.
+        _storefrontSort = StorefrontProductSortModes.Normalize(
+            result is { IsSuccess: true, Data: not null } ? result.Data.Value : null);
+    }
+
+    private async Task SaveStorefrontSort()
+    {
+        _savingStorefrontSort = true;
+        _storefrontSortSaved = false;
+        var result = await Api.PostAsync<SettingModel>("admin/settings", new
+        {
+            Key = StorefrontProductSortModes.SettingKey,
+            Value = StorefrontProductSortModes.Normalize(_storefrontSort),
+            GroupName = "General",
+            ValueType = "string",
+            Description = "ترتیب پیش‌فرض نمایش کالاها برای مشتریان در فروشگاه"
+        });
+        _savingStorefrontSort = false;
+        if (result.IsSuccess)
+        {
+            _storefrontSortSaved = true;
+            // The customer's sort menu reads the effective default from the cached public settings.
+            Vitorize.Web.Services.UI.StoreBrandingService.Invalidate();
+            Toasts.Success($"مرتب‌سازی پیش‌فرض فروشگاه روی «{StorefrontProductSortModes.Label(_storefrontSort)}» ذخیره شد.");
+        }
+        else Toasts.Error(result.Message);
+    }
+
     private bool _loading = true;
     private string? _error;
     private List<AdminProductModel> _items = new();
@@ -224,6 +297,7 @@ else
         if (q.TryGetValue("q", out var search)) _search = search.ToString();
         var categories = await Api.GetAsync<List<AdminCategoryModel>>("admin/categories");
         _categories = categories.Data ?? new();
+        await LoadStorefrontSortAsync();
         await Load();
     }
 

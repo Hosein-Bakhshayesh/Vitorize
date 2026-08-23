@@ -346,6 +346,13 @@ namespace Vitorize.Infrastructure.Services
                 // missing keys, a later admin choice is never overwritten by a redeploy.
                 S("HomePopularProductsEnabled", "false", "Homepage", "bool", "نمایش محبوب‌ترین کالاها در صفحه اصلی"),
 
+                // The storefront's default product ordering. Public so the customer's sort menu can
+                // show which order it is currently in. Seeded like every other key - inserted only
+                // when absent - so an administrator's choice survives a redeploy, and code falls back
+                // to the same value anyway if an older database has never seen this key.
+                S("StorefrontDefaultProductSort", "AvailabilityFirst", "General", "string",
+                  "ترتیب پیش‌فرض نمایش کالاها برای مشتریان در فروشگاه"),
+
                 // ───────────── About ─────────────
                 S("AboutTitle", "درباره ویتورایز", "About", "string", "عنوان بخش درباره ما"),
                 S("AboutText", "ویتورایز بازارگاهی دیجیتال برای خرید امن و آنی گیفت کارت، اشتراک و خدمات آنلاین است.", "About", "string", "متن درباره ما"),

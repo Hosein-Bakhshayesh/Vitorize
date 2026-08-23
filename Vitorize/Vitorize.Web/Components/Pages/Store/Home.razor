@@ -301,7 +301,10 @@ else
         var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
         var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=newest&pageSize=8");
         var popularTask = _branding.HomePopularProductsEnabled
-            ? Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=20")
+            // Explicitly ranked, so this section keeps its own meaning instead of drifting with the
+            // storefront's configurable default order. Best-selling is the only real ranking signal
+            // Vitorize stores - paid-order quantity - so the heading now reflects the actual order.
+            ? Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=bestselling&pageSize=20")
             : null;
 
         await Task.WhenAll(new Task[] { homeTask, latestTask }
