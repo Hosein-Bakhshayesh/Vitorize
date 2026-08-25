@@ -207,16 +207,6 @@ else
                    choice, so a one-option picker for it would only expose the internal variant
                    concept. A single SKU the administrator named and priced still means something
                    and stays visible. *@
-                @* The delivery/payment strip is information, not a decision, so it sits above the
-                   version chooser. It used to sit between the chooser and the buy buttons, where its
-                   ~80px pushed the actions further below the fold on exactly the products that already
-                   had the most to scroll past. *@
-                <div class="st-flow">
-                    <div class="st-flow__step"><span class="st-flow__dot on"><Icon Name="check" Size="11" /></span><span class="st-flow__t">پرداخت</span></div>
-                    <div class="st-flow__line"></div>
-                    <div class="st-flow__step"><span class="st-flow__dot off"><Icon Name="zap" Size="12" /></span><span class="st-flow__t">@AUI.DeliveryType(_p.DeliveryType)</span></div>
-                </div>
-
                 @if (OffersVariantChoice)
                 {
                     <div class="st-buy__lbl">انتخاب نسخه</div>

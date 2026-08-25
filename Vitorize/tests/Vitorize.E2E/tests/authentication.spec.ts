@@ -67,10 +67,15 @@ test('expired OTP is rejected and forgot-password reset accepts the newly issued
   const customer = await registerCustomer(page, uniqueCustomer('Password Reset'));
   await logoutCustomer(page);
 
+  // The outbox still holds the REGISTRATION code at this point. Without pinning it as the previous
+  // code, a fast machine reads that stale (already consumed) code before the login OTP lands, and
+  // the expiry step below then finds nothing to expire. The extra read is instant.
+  const registrationCode = await latestOtp(request, customer.mobile);
+
   await page.goto('/login?otp=1');
   await page.locator('#otp-mobile').fill(customer.mobile);
   await page.locator('#otp-mobile').locator('xpath=following::button[1]').click();
-  const expiredCode = await latestOtp(request, customer.mobile);
+  const expiredCode = await latestOtp(request, customer.mobile, registrationCode);
   await expireOtp(request, customer.mobile);
   await page.locator('#otp-code').fill(expiredCode);
   await page.locator('main button.st-btn--primary.st-btn--block').click();
