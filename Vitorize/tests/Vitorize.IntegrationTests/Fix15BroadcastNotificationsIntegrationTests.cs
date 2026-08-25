@@ -383,8 +383,12 @@ public sealed class Fix15BroadcastNotificationsIntegrationTests
             .StatusCode.Should().BeOneOf(HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed);
     }
 
+    // Admin is deliberately absent from this list. It now holds users.manage - granted so the
+    // /admin/users page it could always open would stop returning 403 from every call - and
+    // broadcasting is gated on the same permission, so an administrator can now broadcast. That is a
+    // consequence of the grant rather than a separate decision, and the test below states it outright
+    // instead of leaving it implied.
     [Theory]
-    [InlineData("Admin")]
     [InlineData("Support")]
     [InlineData("KycViewer")]
     [InlineData("Customer")]
@@ -408,6 +412,17 @@ public sealed class Fix15BroadcastNotificationsIntegrationTests
                 .Match(status => status == HttpStatusCode.Forbidden || status == HttpStatusCode.Unauthorized,
                     $"role '{role}' does not hold UserManage");
         }
+    }
+
+    [Fact]
+    public async Task An_administrator_can_broadcast_because_it_now_holds_UserManage()
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("Admin");
+        using var client = _fixture.CreateClient(token);
+
+        (await client.GetAsync("/api/admin/notification-broadcasts")).StatusCode
+            .Should().Be(HttpStatusCode.OK,
+                "users.manage was granted to Admin, and broadcasting is gated on that same permission");
     }
 
     [Fact]

@@ -127,6 +127,33 @@ public sealed class PersianDateEntryTests
         Assert.False(PersianDateEntry.TryParse(entry, out _), entry + " is not a real date");
 
     [Fact]
+    public void Esfand_length_is_taken_from_the_calendar_itself_for_every_year_in_range()
+    {
+        // Derived, not asserted from memory: for each year the picker can offer, ask PersianCalendar
+        // how long Esfand is and require TryParse to agree. A hard-coded list of leap years would only
+        // restate a belief about the calendar - and an earlier draft of this work got that belief
+        // backwards - whereas this fails if parsing and the calendar ever diverge.
+        var calendar = new System.Globalization.PersianCalendar();
+        var leapYears = 0;
+        var commonYears = 0;
+
+        for (var year = 1330; year <= 1410; year++)
+        {
+            var daysInEsfand = calendar.GetDaysInMonth(year, 12);
+            var thirtiethExists = PersianDateEntry.TryParse($"{year}/12/30", out _);
+
+            Assert.Equal(daysInEsfand == 30, thirtiethExists);
+            Assert.True(PersianDateEntry.TryParse($"{year}/12/29", out _), $"29 Esfand {year} always exists");
+
+            if (daysInEsfand == 30) leapYears++; else commonYears++;
+        }
+
+        // Both branches were actually exercised, so the loop cannot pass by covering only one case.
+        Assert.True(leapYears > 0, "the range must contain leap years");
+        Assert.True(commonYears > 0, "the range must contain common years");
+    }
+
+    [Fact]
     public void Leap_and_common_esfand_are_told_apart_by_the_real_calendar()
     {
         // Not a regex check: the distinction only exists in the calendar itself.

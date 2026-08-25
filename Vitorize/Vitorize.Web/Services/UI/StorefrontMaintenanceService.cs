@@ -4,21 +4,22 @@ namespace Vitorize.Web.Services.UI;
 
 /// <summary>
 /// Resolves the single maintenance-mode business rule shared by the storefront
-/// layout and the HTTP pipeline. Administrators retain access while maintenance
-/// is enabled so they can operate the site.
+/// layout and the HTTP pipeline. The storefront blackout applies to everyone,
+/// administrators included: operating the site during maintenance happens under
+/// /admin (always reachable) and through the API's own admin bypass, never by
+/// browsing the closed shop. A role exemption here used to let a browser holding
+/// an admin cookie watch the maintenance page silently swap back to the live
+/// shop once its circuit booted - the very leak it now prevents.
 /// </summary>
 public sealed class StorefrontMaintenanceService(StoreBrandingService branding)
 {
     public async Task<StorefrontMaintenanceState?> GetStateAsync(ClaimsPrincipal? user)
     {
         var storeBranding = await branding.GetAsync();
-        return storeBranding.MaintenanceMode && !IsAdministrator(user)
+        return storeBranding.MaintenanceMode
             ? new StorefrontMaintenanceState(storeBranding)
             : null;
     }
-
-    private static bool IsAdministrator(ClaimsPrincipal? user) =>
-        user?.IsInRole("Admin") == true || user?.IsInRole("SuperAdmin") == true;
 }
 
 public sealed record StorefrontMaintenanceState(StoreBranding Branding);

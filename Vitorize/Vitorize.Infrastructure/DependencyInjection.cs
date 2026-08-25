@@ -70,6 +70,11 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
+            // Singleton with the shared memory cache: the rotation grace window has to be visible to
+            // every request in the process, which is what makes concurrent refreshes converge.
+            services.AddMemoryCache();
+            services.AddSingleton<IRefreshTokenRotationCache, RefreshTokenRotationCache>();
+            services.AddSingleton<IMaintenanceStateProvider, MaintenanceStateProvider>();
             services.AddScoped<IVatSettingsProvider, VatSettingsProvider>();
             services.AddScoped<IZarinpalPaymentConfigurationProvider, ZarinpalPaymentConfigurationProvider>();
 

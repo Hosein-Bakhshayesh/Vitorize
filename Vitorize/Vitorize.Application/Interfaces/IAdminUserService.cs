@@ -16,6 +16,12 @@ namespace Vitorize.Application.Interfaces
 
         Task BlockAsync(Guid userId);
 
+        /// <summary>
+        /// Replaces a user's password on their behalf and ends every session they hold.
+        /// Returns how many sessions were revoked, so the caller can say so plainly.
+        /// </summary>
+        Task<int> ResetPasswordAsync(Guid userId, string newPassword, string confirmPassword);
+
         Task AddRoleAsync(
             Guid userId,
             string roleName);

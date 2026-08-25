@@ -284,6 +284,83 @@ public sealed class StorefrontDefaultSortIntegrationTests
         secondary.Should().OnlyHaveUniqueItems();
     }
 
+    // ---------------------------------------------------------------- the setting is a fixed set
+
+    [Theory]
+    [InlineData("Popular")]                 // deliberately unsupported: no popularity metric exists
+    [InlineData("'; DROP TABLE Settings--")]
+    [InlineData("")]
+    public async Task An_unsupported_ordering_is_rejected_rather_than_silently_ignored(string value)
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var admin = _fixture.CreateClient(token);
+
+        await SetDefaultSortAsync("Newest");
+
+        var response = await admin.PostAsJsonAsync("/api/admin/settings", new
+        {
+            Key = StorefrontProductSortModes.SettingKey, Value = value,
+            GroupName = "General", ValueType = "sortmode", Description = "default order"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "the query layer would fall back to the default, so a bad value would look accepted and do nothing");
+
+        await using var db = _fixture.CreateDbContext();
+        var stored = await db.Settings.AsNoTracking()
+            .Where(x => x.Key == StorefrontProductSortModes.SettingKey)
+            .Select(x => x.Value).FirstOrDefaultAsync();
+        stored.Should().Be("Newest", "a rejected save must leave the previous choice intact");
+    }
+
+    [Fact]
+    public async Task A_differently_cased_code_is_stored_canonically()
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var admin = _fixture.CreateClient(token);
+
+        // Accepted, because codes are matched case-insensitively - but written back in the canonical
+        // spelling so the admin select can preselect it.
+        (await admin.PostAsJsonAsync("/api/admin/settings", new
+        {
+            Key = StorefrontProductSortModes.SettingKey, Value = "newest",
+            GroupName = "General", ValueType = "sortmode", Description = "default order"
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await using var db = _fixture.CreateDbContext();
+        (await db.Settings.AsNoTracking()
+            .Where(x => x.Key == StorefrontProductSortModes.SettingKey)
+            .Select(x => x.Value).FirstOrDefaultAsync())
+            .Should().Be("Newest");
+    }
+
+    [Theory]
+    [InlineData("AvailabilityFirst")]
+    [InlineData("BestSelling")]
+    [InlineData("Newest")]
+    [InlineData("Oldest")]
+    [InlineData("PriceLowToHigh")]
+    [InlineData("PriceHighToLow")]
+    [InlineData("MostDiscounted")]
+    public async Task Every_supported_mode_is_accepted_and_stored_verbatim(string code)
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var admin = _fixture.CreateClient(token);
+
+        var response = await admin.PostAsJsonAsync("/api/admin/settings", new
+        {
+            Key = StorefrontProductSortModes.SettingKey, Value = code,
+            GroupName = "General", ValueType = "sortmode", Description = "default order"
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await using var db = _fixture.CreateDbContext();
+        var row = await db.Settings.AsNoTracking()
+            .FirstAsync(x => x.Key == StorefrontProductSortModes.SettingKey);
+        row.Value.Should().Be(code);
+        row.ValueType.Should().Be("sortmode", "the admin UI renders a select from this type");
+    }
+
     private static Order NewOrder(Guid userId, PaymentStatus payment) => new()
     {
         Id = Guid.NewGuid(), UserId = userId, OrderNumber = $"SORT-{Guid.NewGuid():N}"[..20],

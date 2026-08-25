@@ -32,6 +32,29 @@ namespace Vitorize.Api.Controllers.Admin
                 PagedResult<AdminUserDto>>
                 .Success(result);
         }
+        /// <summary>
+        /// Sets another account's password.
+        ///
+        /// Gated by its own permission rather than the controller's users.manage: replacing someone's
+        /// credentials takes over their account and ends every session they hold, which is a heavier
+        /// act than the listing and status changes the rest of this controller performs.
+        /// </summary>
+        [HttpPost("{id:guid}/reset-password")]
+        [Authorize(Policy = "UserPasswordReset")]
+        public async Task<ApiResult> ResetPassword(
+            Guid id,
+            [FromBody] AdminResetPasswordRequestDto request)
+        {
+            var revoked = await _adminUserService.ResetPasswordAsync(
+                id, request.NewPassword, request.ConfirmPassword);
+
+            // The new password is never echoed back; only what the administrator needs to know.
+            return ApiResult.Success(
+                revoked > 0
+                    ? $"رمز عبور تغییر کرد و {revoked} نشست فعال کاربر پایان یافت."
+                    : "رمز عبور تغییر کرد.");
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<ApiResult<AdminUserDetailDto>> GetById(
             Guid id)

@@ -41,6 +41,6 @@
     {
         if (AuthState is null) return;
         var state = await AuthState;
-        _name = state.User.Identity?.Name ?? "کاربر";
+        _name = state.User.CustomerIdentity()?.Name ?? state.User.Identity?.Name ?? "کاربر";
     }
 }

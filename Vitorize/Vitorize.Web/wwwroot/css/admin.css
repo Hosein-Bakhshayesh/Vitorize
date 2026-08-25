@@ -3,6 +3,30 @@
    Persian / RTL · Light + Dark · Glass surfaces · Signature clipped corners
    ========================================================================== */
 
+/* The application faces, declared here as well as in storefront.css so a font chosen in
+   Settings can actually load in the admin panel. Peyda previously existed only on the
+   storefront side, which is why the admin panel could never render it however the setting
+   was configured. Peyda carries a unicode-range: it serves Arabic-script text, and the Latin
+   companions below serve everything else. */
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-300.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Peyda"; src: url("/fonts/storefront/peyda-800.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-300.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Funnel Display"; src: url("/fonts/storefront/funnel-display-800.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-300.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url("/fonts/storefront/manrope-800.woff2") format("woff2"); font-weight: 800; font-style: normal; font-display: swap; }
+
 /* Vazirmatn — local webfonts only (fonts/Vazirmatn/fonts/webfonts). */
 @font-face {
     font-family: "Vazirmatn";
@@ -51,6 +75,8 @@
    Design tokens — light (default)
    -------------------------------------------------------------------------- */
 :root {
+    /* Scrollbars are painted from color-scheme; see the dark block below. */
+    color-scheme: light;
     --admin-primary: #0F766E;
     --admin-primary-2: #0E7490;
     --admin-primary-strong: #115E59;
@@ -116,7 +142,12 @@
     --topbar-h: 70px;
 
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
-    --font: "Vazirmatn", "Tahoma", system-ui, sans-serif;
+    /* Same three variables storefront.css declares, with the same values, so whichever stylesheet
+       loads last the result is identical - and the runtime override on :root governs both. */
+    --vz-font-fa: "Peyda";
+    --vz-font-en: "Funnel Display", "Manrope";
+    --vz-font: var(--vz-font-fa), var(--vz-font-en), "Vazirmatn", Tahoma, sans-serif;
+    --font: var(--vz-font);
     --bg-page: var(--bg); --bg-surface: var(--surface); --bg-surface-elevated: var(--surface-solid);
     --bg-input: var(--input-bg); --bg-dropdown: var(--surface-solid); --bg-hover: var(--surface-2);
     --bg-selected: var(--admin-primary-soft); --text-primary: var(--text); --text-secondary: var(--text-2);
@@ -138,6 +169,8 @@
    Design tokens — dark (dedicated palette, not inverted)
    -------------------------------------------------------------------------- */
 :root[data-theme="dark"] {
+    /* Dark scrollbars everywhere in dark mode - the UA reads this, not the palette tokens. */
+    color-scheme: dark;
     --admin-primary: #2DD4BF;
     --admin-primary-2: #22D3EE;
     --admin-primary-strong: #5EEAD4;

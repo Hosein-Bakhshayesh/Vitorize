@@ -268,8 +268,11 @@ namespace Vitorize.Web.Endpoints
                 await apiClient.PostAsync("auth/logout", new { RefreshToken = refreshToken });
             }
             await http.SignOutAsync(VitorizeAuthSchemes.CustomerScheme);
-            http.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerAccessTokenCookie);
-            http.Response.Cookies.Delete(VitorizeAuthSchemes.CustomerRefreshTokenCookie);
+            // Every cookie the scheme owns, including the auth ticket. SignOutAsync normally removes
+            // the ticket itself, but naming all three through the shared helper keeps this endpoint
+            // and the session endpoints deleting exactly the same set.
+            foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(VitorizeAuthSchemes.CustomerScheme))
+                http.Response.Cookies.Delete(cookie);
             http.Response.Redirect("/");
         }
 
@@ -349,15 +352,17 @@ namespace Vitorize.Web.Endpoints
 
         private static async Task CompleteGuestMergeAndRedirectAsync(HttpContext http, GuestCartMergeService guestCartMerge, string accessToken, string returnUrl)
         {
-            var guestToken = http.Request.Cookies[GuestCartIdentityProvider.CookieName];
-            if (!await guestCartMerge.MergeAsync(guestToken, accessToken))
+            // The sign-in is already complete by the time the guest cart merges; a merge hiccup must
+            // never change where the signed-in user lands. Redirecting to /cart?mergeError=1 here
+            // used to hijack a SUCCESSFUL login into an error page - and since the guest cookie is
+            // provisioned on every visit, the hijack risk applied to logins with nothing to merge at
+            // all. On failure the guest cookie is kept, so the next sign-in retries the merge.
+            if (await guestCartMerge.MergeAsync(http.Request.Cookies[GuestCartIdentityProvider.CookieName], accessToken)
+                && !string.IsNullOrWhiteSpace(http.Request.Cookies[GuestCartIdentityProvider.CookieName]))
             {
-                http.Response.Redirect("/cart?mergeError=1");
-                return;
+                http.Response.Cookies.Delete(GuestCartIdentityProvider.CookieName);
             }
 
-            if (!string.IsNullOrWhiteSpace(guestToken))
-                http.Response.Cookies.Delete(GuestCartIdentityProvider.CookieName);
             http.Response.Redirect(SafeReturn(returnUrl));
         }
     }

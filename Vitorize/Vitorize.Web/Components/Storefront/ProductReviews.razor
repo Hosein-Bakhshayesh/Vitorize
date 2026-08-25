@@ -123,7 +123,9 @@
         if (AuthState is not null)
         {
             var state = await AuthState;
-            _authenticated = state.User.Identity?.IsAuthenticated == true;
+            // The customer identity specifically: an admin session in the same browser must not
+            // make the review form think the shopper is signed in.
+            _authenticated = state.User.CustomerIdentity() is not null;
         }
     }
 

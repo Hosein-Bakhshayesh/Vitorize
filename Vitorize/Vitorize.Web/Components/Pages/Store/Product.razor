@@ -207,6 +207,16 @@ else
                    choice, so a one-option picker for it would only expose the internal variant
                    concept. A single SKU the administrator named and priced still means something
                    and stays visible. *@
+                @* The delivery/payment strip is information, not a decision, so it sits above the
+                   version chooser. It used to sit between the chooser and the buy buttons, where its
+                   ~80px pushed the actions further below the fold on exactly the products that already
+                   had the most to scroll past. *@
+                <div class="st-flow">
+                    <div class="st-flow__step"><span class="st-flow__dot on"><Icon Name="check" Size="11" /></span><span class="st-flow__t">پرداخت</span></div>
+                    <div class="st-flow__line"></div>
+                    <div class="st-flow__step"><span class="st-flow__dot off"><Icon Name="zap" Size="12" /></span><span class="st-flow__t">@AUI.DeliveryType(_p.DeliveryType)</span></div>
+                </div>
+
                 @if (OffersVariantChoice)
                 {
                     <div class="st-buy__lbl">انتخاب نسخه</div>
@@ -234,13 +244,6 @@ else
                         </div>
                     }
                 }
-
-                @* payment -> delivery flow *@
-                <div class="st-flow">
-                    <div class="st-flow__step"><span class="st-flow__dot on"><Icon Name="check" Size="11" /></span><span class="st-flow__t">پرداخت</span></div>
-                    <div class="st-flow__line"></div>
-                    <div class="st-flow__step"><span class="st-flow__dot off"><Icon Name="zap" Size="12" /></span><span class="st-flow__t">@AUI.DeliveryType(_p.DeliveryType)</span></div>
-                </div>
 
                 @if (RequiresKycForSelection)
                 {
@@ -274,6 +277,26 @@ else
                     </button>
                 </div>
                 <div class="st-buy__secure"><Icon Name="lock" Size="13" /> پرداخت امن · رمزگذاری ۲۵۶ بیتی</div>
+            </div>
+        </div>
+
+        @* On a phone the gallery comes first and the buy card is static, so the actions sit more than
+           a screen down even for a product with a single version - the variant list is not the whole
+           story there. Both actions are pinned within reach instead, above the bottom navigation and
+           clear of the home indicator. *@
+        <div class="st-buybar" data-testid="product-sticky-buy">
+            <div class="st-buybar__price">
+                <span class="st-buybar__now">@AUI.Number((long)CurrentPrice)</span>
+                <span class="st-buybar__unit">@Unit</span>
+            </div>
+            <div class="st-buybar__actions">
+                <button class="st-btn st-btn--accent st-buybar__btn" data-testid="sticky-add-to-cart"
+                        @onclick="() => BeginAddToCart(false)" disabled="@(_busy || OutOfStock)">
+                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="cart" Size="17" /> }
+                    <span>@(OutOfStock ? "ناموجود" : "افزودن به سبد")</span>
+                </button>
+                <button class="st-btn st-btn--outline st-buybar__btn" data-testid="sticky-buy-now"
+                        @onclick="() => BeginAddToCart(true)" disabled="@(_busy || OutOfStock)">خرید فوری</button>
             </div>
         </div>
     </div>
@@ -342,8 +365,14 @@ else
         }
     }
 
-    /// <summary>Above this many SKUs the selector is bounded and scrolls internally.</summary>
-    private const int VariantBoundThreshold = 6;
+    /// <summary>
+    /// Above this many SKUs the selector is bounded and scrolls internally.
+    ///
+    /// Four, not six. At six the grid is three rows tall and unbounded - taller than the bounded case
+    /// that follows it - so the worst layout was the one just below the old threshold rather than the
+    /// one above it.
+    /// </summary>
+    private const int VariantBoundThreshold = 4;
 
     /// <summary>
     /// Unlimited must never be shown as a number - the customer should read "available", not a

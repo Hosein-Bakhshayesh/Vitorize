@@ -123,10 +123,10 @@ else
         </section>
     }
 
-    @* ---------- Latest Products ---------- *@
+    @* ---------- Products (ordered by the admin-configured storefront default) ---------- *@
     @if (_latest.Count > 0)
     {
-        <ProductRow Title="جدیدترین محصولات" MoreHref="/shop?sort=newest" Products="_latest" />
+        <ProductRow Title="محصولات" MoreHref="/shop" Products="_latest" />
     }
 
     @* ---------- Popular Products (Settings: HomePopularProductsEnabled, default off) ---------- *@
@@ -299,7 +299,9 @@ else
         _branding = await Branding.GetAsync();
 
         var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
-        var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=newest&pageSize=8");
+        // No sort key on purpose: the server then applies the admin-configured storefront default,
+        // so this section and the shop page agree on the order instead of pinning "newest" here.
+        var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=8");
         var popularTask = _branding.HomePopularProductsEnabled
             // Explicitly ranked, so this section keeps its own meaning instead of drifting with the
             // storefront's configurable default order. Best-selling is the only real ranking signal

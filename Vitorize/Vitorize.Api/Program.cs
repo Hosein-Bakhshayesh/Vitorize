@@ -251,6 +251,9 @@ namespace Vitorize.Api
                 options.AddPolicy("UserManage", policy => policy.RequireClaim(
                     Vitorize.Application.Common.AdminPermissions.ClaimType,
                     Vitorize.Application.Common.AdminPermissions.UserManage));
+                options.AddPolicy("UserPasswordReset", policy => policy.RequireClaim(
+                    Vitorize.Application.Common.AdminPermissions.ClaimType,
+                    Vitorize.Application.Common.AdminPermissions.UserPasswordReset));
             });
 
             // Rate Limiting برای جلوگیری از Brute Force و Spam
@@ -358,6 +361,10 @@ namespace Vitorize.Api
             app.UseAuthentication();
 
             app.UseAuthorization();
+
+            // After authorization so the admin bypass can see role claims, and before the endpoints
+            // so a refused purchase never reaches a controller.
+            app.UseMiddleware<Vitorize.Api.Middlewares.MaintenanceModeMiddleware>();
 
             app.UseRateLimiter();
 

@@ -592,6 +592,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 109,
+      "version": "V0025",
+      "name": "V0025__peyda_default_and_sortmode_setting_type.sql",
+      "path": "Versioned/V0025__peyda_default_and_sortmode_setting_type.sql",
+      "sha256": "ad21b18d3918da4ab56221e1b00b1fd4c455de9f58cc50d1adc28513a713d5c6",
+      "classification": "required",
+      "dependencies": [
+        "V0024",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

@@ -153,6 +153,12 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     /// <summary>First registration step only, for tests that assert the un-authenticated state.</summary>
     public async Task<RegistrationChallengeDto> StartRegistrationAsync(HttpClient client, string mobile, string? password = null)
     {
+        // Registration sends a verification code, so it fails outright without a usable SMS provider.
+        // Guaranteeing it here rather than in each test removes an ordering dependence: this helper used
+        // to succeed only when some earlier test in the shared database happened to configure SMS first,
+        // so a change in execution order turned unrelated tests red.
+        await ConfigureSmsAsync();
+
         var response = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequestDto
         {
             FullName = "کاربر تست یکپارچه",
@@ -160,10 +166,30 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             Email = $"integration-{Guid.NewGuid():N}@example.test",
             Password = password ?? "Secure-Test-Password-123!"
         });
-        response.EnsureSuccessStatusCode();
+        // A bare EnsureSuccessStatusCode reports only "400 Bad Request", which says nothing about which
+        // rule rejected the registration. The body carries the actual message.
+        if (!response.IsSuccessStatusCode)
+        {
+            var failure = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException(
+                $"Registration start failed for {mobile}: {(int)response.StatusCode} {response.StatusCode}. Body: {failure}");
+        }
         var body = await response.Content.ReadFromJsonAsync<ApiResult<RegistrationChallengeDto>>();
         body!.IsSuccess.Should().BeTrue();
         return body.Data!;
+    }
+
+    /// <summary>
+    /// Ends the rotation grace window for a refresh token, so a test can reach the "genuine replay"
+    /// path without sleeping for the length of the window.
+    /// </summary>
+    public Task<bool> ForgetRotationGraceAsync(string refreshToken)
+    {
+        // Same hash the service keys rotations by: Base64 of the SHA-256 of the raw token.
+        var hash = Convert.ToBase64String(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(refreshToken)));
+        Factory.Services.GetRequiredService<IRefreshTokenRotationCache>().Forget(hash);
+        return Task.FromResult(true);
     }
 
     /// <summary>Replaces the pending registration code with a known one and verifies it.</summary>

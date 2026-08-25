@@ -157,8 +157,9 @@ namespace Vitorize.Web.Endpoints
             }
             await http.SignOutAsync(VitorizeAuthSchemes.AdminScheme);
 
-            http.Response.Cookies.Delete(VitorizeAuthSchemes.AdminAccessTokenCookie);
-            http.Response.Cookies.Delete(VitorizeAuthSchemes.AdminRefreshTokenCookie);
+            // Same set as the customer endpoint and the session endpoints, from one definition.
+            foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(VitorizeAuthSchemes.AdminScheme))
+                http.Response.Cookies.Delete(cookie);
 
             http.Response.Redirect("/admin/login");
         }

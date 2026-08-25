@@ -55,6 +55,12 @@ window.vzPersianDateMask = window.vzPersianDateMask || (function () {
         if (input.value !== formatted) {
             input.value = formatted;
             // Tell Blazor the value changed; @oninput/@onchange both bind through these.
+            //
+            // Blazor also receives the browser's own input event, so a keystroke costs two round trips
+            // on a Server circuit. An attempt to suppress the original with a capture-phase
+            // stopPropagation did remove the duplicate - and stopped the value reaching the component
+            // at all, so a typed birth date saved as empty. The duplicate is a cost; losing the value
+            // is a defect, so the duplicate stays.
             input.dispatchEvent(new Event("input", { bubbles: true }));
         }
         const caret = caretAfterDigits(formatted, caretDigits);

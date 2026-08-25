@@ -58,15 +58,50 @@ public sealed class AuthenticationIntegrationTests
         var rotated = (await refreshResponse.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>())!.Data!;
         rotated.RefreshToken.Should().NotBe(registered.RefreshToken);
 
+        // Replaying the spent token immediately is a race, not an attack: two tabs, or a reload whose
+        // rotated cookie never landed. Inside the grace window it therefore returns the SAME pair the
+        // rotation produced rather than 401, so a live session is not destroyed by timing. It must not
+        // start a second token chain - that is what the equality check below proves.
         var replay = await client.PostAsJsonAsync("/api/auth/refresh-token",
             new RefreshTokenRequestDto { RefreshToken = registered.RefreshToken });
-        replay.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        replay.StatusCode.Should().Be(HttpStatusCode.OK);
+        var replayed = (await replay.Content.ReadFromJsonAsync<ApiResult<AuthResponseDto>>())!.Data!;
+        replayed.RefreshToken.Should().Be(rotated.RefreshToken);
+        replayed.AccessToken.Should().Be(rotated.AccessToken);
 
+        await using (var db = _fixture.CreateDbContext())
+        {
+            // The replay reused the recorded result instead of rotating again, so it created no extra
+            // token chain. Two remain live because this test also signed in separately above; what
+            // matters is that replaying did not add a third.
+            (await db.UserRefreshTokens.CountAsync(x => x.UserId == registered.UserId && x.RevokedAt == null))
+                .Should().Be(2);
+        }
+
+        // A token that is neither active nor inside the window is a genuine replay. It is refused, and
+        // because a replayed token means the family can no longer be trusted, every session ends.
+        var stale = await _fixture.ForgetRotationGraceAsync(registered.RefreshToken);
+        stale.Should().BeTrue();
+        var refused = await client.PostAsJsonAsync("/api/auth/refresh-token",
+            new RefreshTokenRequestDto { RefreshToken = registered.RefreshToken });
+        refused.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            (await db.UserRefreshTokens.CountAsync(x => x.UserId == registered.UserId && x.RevokedAt == null))
+                .Should().Be(0);
+        }
+
+        // Logout no longer needs a live access token. Requiring one meant that signing out after the
+        // access token had expired silently skipped revocation and left the refresh token usable for
+        // the rest of its life, because the Web client never retries a POST after a 401. The refresh
+        // token in the body is the proof of possession, and the operation only ever revokes.
         var logout = await client.PostAsJsonAsync("/api/auth/logout",
             new LogoutRequestDto { RefreshToken = rotated.RefreshToken });
-        logout.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
-            "logout itself requires a valid access token");
+        logout.StatusCode.Should().Be(HttpStatusCode.OK,
+            "the refresh token is itself the proof, so an expired access token must not block revocation");
 
+        // Idempotent: repeating it with a live access token is still fine.
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", rotated.AccessToken);
         (await client.PostAsJsonAsync("/api/auth/logout",
             new LogoutRequestDto { RefreshToken = rotated.RefreshToken })).StatusCode.Should().Be(HttpStatusCode.OK);

@@ -80,6 +80,8 @@
                                                 <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "activate", "کاربر فعال شد.")'><Icon Name="check-circle" Size="15" /> فعال‌سازی</button>
                                                 <button class="vz-ctx__item" @onclick='() => QuickStatus(u, "suspend", "کاربر معلق شد.")'><Icon Name="clock" Size="15" /> تعلیق</button>
                                                 <button class="vz-ctx__item danger" @onclick='() => QuickStatus(u, "block", "کاربر مسدود شد.")'><Icon Name="lock" Size="15" /> مسدودسازی</button>
+                                                <div class="vz-ctx__divider"></div>
+                                                <button class="vz-ctx__item" data-testid="reset-password-action" @onclick="() => OpenPasswordReset(u.Id, u.FullName)"><Icon Name="key" Size="15" /> بازنشانی رمز عبور</button>
                                     </AdminContextMenu>
                                 </td>
                             </tr>
@@ -156,12 +158,90 @@
             <button class="vz-btn vz-btn--success" @onclick='() => ChangeStatus("activate", "کاربر فعال شد.")' disabled="@_acting">فعال‌سازی</button>
             <button class="vz-btn vz-btn--outline" @onclick='() => ChangeStatus("suspend", "کاربر معلق شد.")' disabled="@_acting">تعلیق</button>
             <button class="vz-btn vz-btn--danger" @onclick='() => ChangeStatus("block", "کاربر مسدود شد.")' disabled="@_acting">مسدودسازی</button>
+            <button class="vz-btn vz-btn--outline" data-testid="reset-password-detail"
+                    @onclick="() => OpenPasswordReset(_detail.Id, _detail.FullName)" disabled="@_acting">
+                <Icon Name="key" Size="16" /> بازنشانی رمز عبور
+            </button>
         }
         <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
     </Footer>
 </SlidePanel>
 
+@* Setting someone else's password takes over their account and signs them out everywhere, so it asks
+   for confirmation and says plainly what will happen rather than acting on a single click. *@
+<SlidePanel Visible="_passwordOpen" Title="بازنشانی رمز عبور" Subtitle="@_passwordUserName" Icon="key"
+            OnClose="ClosePasswordReset">
+    <ChildContent>
+        <div data-testid="reset-password-panel">
+            <div class="vz-alert vz-alert--info" style="margin-bottom:16px">
+                <Icon Name="alert" Size="16" />
+                <span>با بازنشانی رمز عبور، همهٔ نشست‌های فعال این کاربر پایان می‌یابد و باید دوباره وارد شود.</span>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label" for="reset-new-password">رمز عبور جدید</label>
+                <input id="reset-new-password" class="vz-input" type="password" autocomplete="new-password"
+                       data-testid="reset-new-password" @bind="_newPassword" />
+                <div class="vz-hint">حداقل ۸ کاراکتر.</div>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label" for="reset-confirm-password">تکرار رمز عبور جدید</label>
+                <input id="reset-confirm-password" class="vz-input" type="password" autocomplete="new-password"
+                       data-testid="reset-confirm-password" @bind="_confirmPassword" />
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--primary" data-testid="reset-password-submit"
+                disabled="@_resetting" @onclick="SubmitPasswordReset">
+            @if (_resetting) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> }
+            <span>بازنشانی رمز عبور</span>
+        </button>
+        <button class="vz-btn vz-btn--ghost" @onclick="ClosePasswordReset">انصراف</button>
+    </Footer>
+</SlidePanel>
+
 @code {
+    private bool _passwordOpen;
+    private bool _resetting;
+    private Guid _passwordUserId;
+    private string _passwordUserName = string.Empty;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+
+    private void OpenPasswordReset(Guid userId, string fullName)
+    {
+        _passwordUserId = userId;
+        _passwordUserName = fullName;
+        _newPassword = _confirmPassword = string.Empty;
+        _passwordOpen = true;
+    }
+
+    private void ClosePasswordReset()
+    {
+        _passwordOpen = false;
+        // Never leave a typed password sitting in component state after the panel closes.
+        _newPassword = _confirmPassword = string.Empty;
+    }
+
+    private async Task SubmitPasswordReset()
+    {
+        if (string.IsNullOrWhiteSpace(_newPassword)) { Toasts.Error("رمز عبور جدید را وارد کنید."); return; }
+        if (_newPassword != _confirmPassword) { Toasts.Error("رمز جدید و تکرار آن یکسان نیست."); return; }
+
+        _resetting = true;
+        var result = await Api.PostAsync(
+            $"admin/users/{_passwordUserId}/reset-password",
+            new { NewPassword = _newPassword, ConfirmPassword = _confirmPassword });
+        _resetting = false;
+
+        if (result.IsSuccess)
+        {
+            Toasts.Success(result.Message);
+            ClosePasswordReset();
+        }
+        else Toasts.Error(result.Message);
+    }
+
     private bool _loading = true;
     private string? _error;
     private List<AdminUserModel> _items = new();

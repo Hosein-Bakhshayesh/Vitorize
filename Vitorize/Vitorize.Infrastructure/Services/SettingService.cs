@@ -5,6 +5,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Storefront;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -15,17 +16,20 @@ namespace Vitorize.Infrastructure.Services
 
         private readonly VitorizeDbContext _dbContext;
         private readonly ISmsSettingsProvider _smsSettingsProvider;
+        private readonly IMaintenanceStateProvider _maintenanceState;
         private readonly IAuditService _auditService;
         private readonly ICurrentUserService _currentUser;
 
         public SettingService(
             VitorizeDbContext dbContext,
             ISmsSettingsProvider smsSettingsProvider,
+            IMaintenanceStateProvider maintenanceState,
             IAuditService auditService,
             ICurrentUserService currentUser)
         {
             _dbContext = dbContext;
             _smsSettingsProvider = smsSettingsProvider;
+            _maintenanceState = maintenanceState;
             _auditService = auditService;
             _currentUser = currentUser;
         }
@@ -97,6 +101,22 @@ namespace Vitorize.Infrastructure.Services
             var key = request.Key.Trim();
             TrustSealRules.ValidateSetting(key, request.Value);
             VatSettings.ValidateSetting(key, request.Value);
+
+            // Reject an unsupported ordering rather than quietly coercing it. The query layer already
+            // falls back to the default, which is precisely why nobody noticed the admin control was a
+            // free-text box: whatever was typed simply had no effect. Saying so is more useful.
+            if (string.Equals(key, StorefrontProductSortModes.SettingKey, StringComparison.OrdinalIgnoreCase) &&
+                !StorefrontProductSortModes.IsSupported(request.Value))
+            {
+                throw new BusinessException(
+                    "ترتیب پیش‌فرض انتخاب‌شده معتبر نیست. یکی از گزینه‌های موجود را انتخاب کنید.");
+            }
+
+            // Store the canonical spelling. Codes are matched case-insensitively, so "newest" is
+            // accepted - but the admin select compares against the canonical "Newest", and a
+            // differently-cased row would leave the control showing nothing selected.
+            if (string.Equals(key, StorefrontProductSortModes.SettingKey, StringComparison.OrdinalIgnoreCase))
+                request.Value = StorefrontProductSortModes.Normalize(request.Value);
             if (key is "TrustBadgesJson" or "HomeFeaturesJson")
                 request.Value = LucideIconRules.NormalizeConfigurableBlocksJson(request.Value);
 
@@ -159,6 +179,11 @@ namespace Vitorize.Infrastructure.Services
             // باطل‌کردن کش تنظیمات پیامک تا تغییرات بلافاصله اعمال شود.
             if (key.StartsWith("Sms.", StringComparison.OrdinalIgnoreCase))
                 _smsSettingsProvider.Invalidate();
+
+            // Maintenance mode is enforced per request from a cached read, so the switch has to take
+            // effect now rather than when the cache happens to expire.
+            if (string.Equals(key, "MaintenanceMode", StringComparison.OrdinalIgnoreCase))
+                _maintenanceState.Invalidate();
 
             return Map(setting);
         }

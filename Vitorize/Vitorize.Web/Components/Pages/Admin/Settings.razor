@@ -437,6 +437,23 @@ else
                         </div>
                         break;
 
+                    case "sortmode":
+                        @* The storefront's default ordering is a fixed set of modes, not free text.
+                           It renders as a select here and on the Products page, both driven by the
+                           same StorefrontProductSortModes list, so the two controls cannot disagree. *@
+                        <div class="vz-setfield__row">
+                            <select class="vz-select" value="@s.Value" aria-label="@SettingLabel(s)"
+                                    data-testid="setting-storefront-default-sort"
+                                    @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }">
+                                @foreach (var mode in Vitorize.Shared.Storefront.StorefrontProductSortModes.All)
+                                {
+                                    <option value="@mode.Key">@mode.Value</option>
+                                }
+                            </select>
+                            @SaveInline(s)
+                        </div>
+                        break;
+
                     case "secret":
                         <div class="vz-setfield__row">
                             <input class="vz-input" type="password" autocomplete="new-password"

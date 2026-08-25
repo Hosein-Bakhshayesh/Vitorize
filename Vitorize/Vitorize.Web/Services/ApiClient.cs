@@ -303,8 +303,13 @@ namespace Vitorize.Web.Services
             var refresh = await _tokenProvider.GetRefreshTokenAsync();
             if (string.IsNullOrWhiteSpace(scheme) || string.IsNullOrWhiteSpace(refresh))
             {
-                // Nothing to rotate with: this really is the end of the session.
-                await EndLocalSessionAsync(scheme);
+                // Not a verdict from the provider - the local state simply is not available here,
+                // which happens in a circuit whose claims have not been read yet. Ending the session
+                // on that guess signed people out for no reason. Treat it as transient and let a later
+                // request, with a real HttpContext, decide.
+                _logger.LogWarning(
+                    "No local scheme or refresh token available to rotate with; keeping the session. EventType={EventType}",
+                    "TokenRefreshDeferred");
                 return false;
             }
 
@@ -334,10 +339,14 @@ namespace Vitorize.Web.Services
             // The rotation succeeded, so the previous refresh token is already spent at the provider -
             // discarding the new pair here would strand the browser holding a revoked one, which is
             // the state that only clearing cookies could recover from. The new tokens are live in this
-            // scope, so the request proceeds and the cookie is rewritten by the next request that owns
-            // a real HTTP response.
+            // scope, so the request proceeds; and the pair is parked against the token the browser
+            // still holds, so the next request that owns a real HTTP response adopts it and writes the
+            // cookies. Without that handover the divergence outlived this scope and resurfaced as a
+            // forced sign-out on the next page load.
+            _serviceProvider.GetService<ITokenRotationHandoff>()
+                ?.Remember(refresh!, scheme!, result.AccessToken, result.RefreshToken);
             _logger.LogWarning(
-                "Rotated tokens could not be written to the browser yet; the session continues with the new pair. EventType={EventType}",
+                "Rotated tokens could not be written to the browser yet; handed off for the next request. EventType={EventType}",
                 "TokenRotationPersistenceDeferred");
             return true;
         }

@@ -19,7 +19,6 @@ namespace Vitorize.Infrastructure.Services
         private const byte DeliveryTypeInstant = 1;
         // Unlimited is an inventory policy; it is compared as a mode, never as a quantity.
         private const byte StockModeUnlimited = (byte)ProductVariantStockMode.Unlimited;
-        private const byte DeliveryTypeManualTicket = 2;
         // Best-selling counts paid orders only, matching the admin dashboard's metric.
         private const byte PaymentStatusPaid = (byte)PaymentStatus.Paid;
 
@@ -135,11 +134,17 @@ namespace Vitorize.Infrastructure.Services
 
             if (filter.InStock == true)
             {
+                // The same availability expression the "availability" sort ranks by - one truth for
+                // "in stock". The previous shape predated the V0022 availability model: it passed
+                // every manual-delivery product regardless of variant stock, ignored Unlimited, and
+                // let ForceOutOfStock products through the "only available" filter.
                 query = query.Where(x =>
-                    x.DeliveryType == DeliveryTypeManualTicket ||
-                    _dbContext.GiftCodes.Any(g =>
-                        g.ProductId == x.Id &&
-                        g.Status == GiftCodeStatusAvailable));
+                    !x.ForceOutOfStock &&
+                    ((x.DeliveryType != DeliveryTypeInstant &&
+                      x.ProductVariants.Any(v => v.IsActive && v.StockMode == StockModeUnlimited)) ||
+                     (x.DeliveryType == DeliveryTypeInstant
+                         ? _dbContext.GiftCodes.Count(g => g.ProductId == x.Id && g.Status == GiftCodeStatusAvailable)
+                         : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0) > 0));
             }
 
             var productTypes = filter.ProductTypes?

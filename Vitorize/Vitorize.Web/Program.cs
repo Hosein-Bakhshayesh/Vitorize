@@ -37,6 +37,22 @@ var trustedProxies = builder.Configuration.GetSection("Hosting:TrustedProxies").
 var trustedProxyNetworks = builder.Configuration.GetSection("Hosting:TrustedProxyNetworks").Get<string[]>() ?? [];
 var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection");
 Directory.CreateDirectory(dataProtectionPath);
+// Prove the ring directory is actually writable, the way the API host does. When it is not,
+// DataProtection silently falls back to ephemeral in-process keys and every session cookie dies on
+// the next recycle - a misdeployment that then presents as random customer sign-outs. Better to
+// refuse to start, at deployment time, with an exact message.
+var dataProtectionProbe = Path.Combine(dataProtectionPath, $".vitorize-write-probe-{Guid.NewGuid():N}");
+try
+{
+    using (new FileStream(dataProtectionProbe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+}
+catch (Exception exception)
+{
+    throw new InvalidOperationException(
+        $"The DataProtection key directory is not writable: {dataProtectionPath}. " +
+        "Grant the application pool identity write access to App_Data, or customer sessions will not survive a recycle.",
+        exception);
+}
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
     .SetApplicationName("Vitorize");
@@ -97,10 +113,10 @@ builder.Services
     })
     .AddPolicyScheme(VitorizeAuthSchemes.SmartScheme, VitorizeAuthSchemes.SmartScheme, options =>
     {
+        // Path and cookie presence only. Request headers are deliberately not consulted: they are
+        // client-supplied and must not be able to steer which identity the server adopts.
         options.ForwardDefaultSelector = context => SmartSchemeResolver.Resolve(
             context.Request.Path.Value ?? string.Empty,
-            context.Request.Headers.Referer.ToString(),
-            context.Request.Headers.Origin.ToString(),
             context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.AdminAuthCookie),
             context.Request.Cookies.ContainsKey(VitorizeAuthSchemes.CustomerAuthCookie));
     })
@@ -126,6 +142,10 @@ builder.Services
         options.ExpireTimeSpan = TimeSpan.FromDays(14);
         options.SlidingExpiration = true;
     });
+
+// On the shared /_blazor transport the resolver picks one scheme, but the circuit renders BOTH
+// shells - so the principal there carries every valid session identity (see the enricher's doc).
+builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, SharedCircuitIdentityEnricher>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -154,6 +174,9 @@ builder.Services.AddScoped<IAccessTokenProvider, AccessTokenProvider>();
 builder.Services.AddScoped<GuestCartIdentityProvider>();
 builder.Services.AddScoped<GuestCartMergeService>();
 builder.Services.AddScoped<ITokenSessionPersistence, TokenSessionPersistence>();
+// Singleton: a rotation that could not reach the browser has to be claimable by a *later* request,
+// so the handover cannot live in the scope that created it.
+builder.Services.AddSingleton<ITokenRotationHandoff, TokenRotationHandoff>();
 builder.Services.AddHttpClient<SessionTokenRefreshCoordinator>(client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? throw new InvalidOperationException("ApiSettings:BaseUrl is required.");
@@ -249,8 +272,11 @@ app.UseMiddleware<LegacyRedirectMiddleware>();
 
 app.UseAuthentication();
 app.UseMiddleware<GuestCartCookieMiddleware>();
-app.UseAuthorization();
+// After authentication, so the administrator bypass can read the signed-in roles, but *before*
+// authorization: a closed shop should say it is closed rather than first redirecting an anonymous
+// visitor to a sign-in page for a customer area that is not serving anyone right now.
 app.UseMiddleware<StorefrontMaintenanceStatusMiddleware>();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 

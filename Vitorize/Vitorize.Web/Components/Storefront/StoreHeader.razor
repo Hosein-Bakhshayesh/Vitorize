@@ -4,6 +4,7 @@
 @inject CartState Cart
 @inject WishlistState Wishlist
 @using Vitorize.Web.Models.Store
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <header class="st-header">
     <div class="st-container">
@@ -12,38 +13,80 @@
 
             <nav class="st-nav">
                 <a href="/" class="@Active("/")">خانه</a>
-                <div class="st-nav__mega">
-                    <button class="st-nav__trigger @(_megaOpen ? "open" : null)" @onclick="ToggleMega" type="button">
-                        فروشگاه <span class="chev">▾</span>
+                <a href="/shop" class="@Active("/shop")">فروشگاه</a>
+                <div class="st-nav__mega" @onkeydown="OnCatsKeyDown">
+                    <button class="st-nav__trigger @(_catsOpen ? "open" : null)" type="button"
+                            aria-haspopup="true" aria-expanded="@(_catsOpen ? "true" : "false")"
+                            data-testid="catmenu-trigger"
+                            @onclick="ToggleCats" @onmouseover="OpenCats" @onmouseout="ScheduleCloseCats">
+                        دسته‌بندی‌ها <span class="chev">▾</span>
                     </button>
-                    @if (_megaOpen)
+                    @if (_catsOpen)
                     {
-                        <div class="st-scrim" @onclick="CloseMega"></div>
-                        <div class="st-mega">
-                            <div>
-                                <div class="st-mega__label">دسته‌بندی‌ها</div>
-                                <div class="st-mega__list">
-                                    @foreach (var c in _categories.Take(6))
-                                    {
-                                        <a class="st-mega__item" href="@($"/category/{c.Slug}")" @onclick="CloseMega">
-                                            <span class="st-mega__ic"><CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="16" /></span>
-                                            <div class="st-mega__t">@c.Title</div>
+                        <div class="st-scrim" @onclick="CloseCats"></div>
+                        <div class="st-catmenu" data-testid="catmenu"
+                             @onmouseover="CancelCloseCats" @onmouseout="ScheduleCloseCats">
+                            <aside class="st-catmenu__side">
+                                @foreach (var c in _categories)
+                                {
+                                    <a class="st-catmenu__cat @(c.Id == _activeCat?.Id ? "active" : null)"
+                                       href="@($"/category/{c.Slug}")"
+                                       @onmouseover="() => SelectCat(c)" @onfocus="() => SelectCat(c)" @onclick="CloseCats">
+                                        <span class="st-mega__ic"><CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="16" /></span>
+                                        <span class="st-catmenu__t">@c.Title</span>
+                                        <span class="st-catmenu__chev"><Icon Name="chevron-left" Size="14" /></span>
+                                    </a>
+                                }
+                                <a class="st-catmenu__all" href="/categories" @onclick="CloseCats">
+                                    <Icon Name="grid" Size="15" /> مشاهده همه دسته‌بندی‌ها
+                                </a>
+                            </aside>
+                            <section class="st-catmenu__panel">
+                                @if (_activeCat is not null)
+                                {
+                                    <div class="st-catmenu__head">
+                                        <div class="st-catmenu__title">@_activeCat.Title</div>
+                                        <a class="st-catmenu__more" href="@($"/category/{_activeCat.Slug}")" @onclick="CloseCats">
+                                            مشاهده همه <Icon Name="chevron-left" Size="14" />
                                         </a>
-                                    }
-                                    @if (_categories.Count == 0)
+                                    </div>
+                                    @if (_panelLoading)
                                     {
-                                        <a class="st-mega__item" href="/categories" @onclick="CloseMega"><span class="st-mega__ic"><Icon Name="grid" Size="16" /></span><div class="st-mega__t">همه دسته‌بندی‌ها</div></a>
+                                        <div class="st-catmenu__grid">
+                                            @for (var i = 0; i < 6; i++) { <div class="st-catmenu__skel"></div> }
+                                        </div>
                                     }
-                                </div>
-                            </div>
-                            <a class="st-mega__feat" href="/shop" @onclick="CloseMega">
-                                <div class="tag">ویژه</div>
-                                <div class="ttl">همه محصولات فروشگاه را ببینید ←</div>
-                            </a>
+                                    else if (ActiveCatProducts.Count == 0)
+                                    {
+                                        <div class="st-catmenu__empty">هنوز محصولی در این دسته ثبت نشده است.</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="st-catmenu__grid">
+                                            @foreach (var p in ActiveCatProducts)
+                                            {
+                                                <a class="st-catmenu__item" href="@($"/product/{p.Slug}")" @onclick="CloseCats">
+                                                    <span class="st-catmenu__thumb">
+                                                        <StoreImage Url="@p.ThumbnailImagePath" Alt="@(p.ThumbnailAltText ?? p.Title)" Icon="package" />
+                                                    </span>
+                                                    <span class="st-catmenu__name">@p.Title</span>
+                                                    <span class="st-catmenu__price">
+                                                        @AUI.Number((long)p.FinalPrice)
+                                                        <span class="unit">@(p.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان")</span>
+                                                    </span>
+                                                </a>
+                                            }
+                                            <a class="st-catmenu__seeall" href="@($"/category/{_activeCat.Slug}")" @onclick="CloseCats">
+                                                <Icon Name="arrow-left" Size="16" />
+                                                <span>مشاهده همه محصولات</span>
+                                            </a>
+                                        </div>
+                                    }
+                                }
+                            </section>
                         </div>
                     }
                 </div>
-                <a href="/categories" class="@Active("/categories")">دسته‌بندی‌ها</a>
                 <a href="/blog" class="@Active("/blog")">وبلاگ</a>
                 <a href="/faq" class="@Active("/faq")">سوالات متداول</a>
             </nav>
@@ -129,8 +172,15 @@
 
     private bool _authenticated;
     private bool _menuOpen;
-    private bool _megaOpen;
+    private bool _catsOpen;
     private bool _searchOpen;
+    private bool _panelLoading;
+    private StoreLookupModel? _activeCat;
+    private readonly Dictionary<Guid, List<StoreProductModel>> _catProducts = new();
+    private CancellationTokenSource? _closeCts;
+
+    private List<StoreProductModel> ActiveCatProducts =>
+        _activeCat is not null && _catProducts.TryGetValue(_activeCat.Id, out var items) ? items : new();
     private string _search = string.Empty;
     private string _name = "کاربر";
     private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
@@ -160,21 +210,93 @@
 
         if (AuthState is null) return;
 
+        // The CUSTOMER identity specifically - never Identity.IsAuthenticated. The circuit principal
+        // can be an administrator's while the customer is signed out (or carry both at once), and the
+        // storefront header must render the customer's state, not "any session exists".
         var state = await AuthState;
-        _authenticated = state.User.Identity?.IsAuthenticated == true;
+        var customer = state.User.CustomerIdentity();
+        _authenticated = customer is not null;
 
-        if (_authenticated)
+        if (customer is not null)
         {
-            _name = state.User.Identity?.Name ?? "کاربر";
+            _name = customer.Name ?? "کاربر";
             await RefreshWishlist();
         }
         await RefreshCartCount();
     }
 
-    private void ToggleMega() { _megaOpen = !_megaOpen; _searchOpen = false; }
-    private void CloseMega() => _megaOpen = false;
-    private void OpenSearch() { _searchOpen = true; _megaOpen = false; }
+    private void OpenSearch() { _searchOpen = true; CloseCats(); }
     private void CloseSearch() => _searchOpen = false;
+
+    // ---- Category mega menu -------------------------------------------------------------------
+    // Hover-open with a grace delay on the way out, click for touch and keyboard. Products per
+    // category are fetched lazily on first hover and cached for the circuit's lifetime; the request
+    // carries no sort key so the panel follows the admin-configured storefront default order.
+
+    private async Task OpenCats()
+    {
+        CancelCloseCats();
+        if (_catsOpen) return;
+        _catsOpen = true; _searchOpen = false; _menuOpen = false;
+        if (_activeCat is null && _categories.Count > 0) await SelectCat(_categories[0]);
+    }
+
+    private async Task ToggleCats()
+    {
+        if (_catsOpen) CloseCats();
+        else await OpenCats();
+    }
+
+    private void CloseCats() { CancelCloseCats(); _catsOpen = false; }
+
+    private void CancelCloseCats() => _closeCts?.Cancel();
+
+    /// <summary>Leaving the trigger or the panel closes the menu after a short grace period, so the
+    /// pointer can cross the gap between them without the panel flickering shut.</summary>
+    private void ScheduleCloseCats()
+    {
+        _closeCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _closeCts = cts;
+        _ = CloseAfterGraceAsync(cts.Token);
+    }
+
+    private async Task CloseAfterGraceAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token);
+            await InvokeAsync(() => { _catsOpen = false; StateHasChanged(); });
+        }
+        // Cancellation is routine; a disposed circuit mid-grace is equally uninteresting. This task
+        // is fire-and-forget, so nothing may escape it.
+        catch { }
+    }
+
+    private async Task SelectCat(StoreLookupModel category)
+    {
+        if (_activeCat?.Id == category.Id) return;
+        _activeCat = category;
+        if (!_catProducts.ContainsKey(category.Id))
+        {
+            _panelLoading = true;
+            try
+            {
+                var result = await Api.GetAsync<PagedResult<StoreProductModel>>(
+                    $"products?categoryId={category.Id}&pageSize=6");
+                _catProducts[category.Id] = result is { IsSuccess: true, Data: not null }
+                    ? result.Data.Items.ToList()
+                    : new List<StoreProductModel>();
+            }
+            catch { _catProducts[category.Id] = new List<StoreProductModel>(); }
+            _panelLoading = false;
+        }
+    }
+
+    private void OnCatsKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseCats();
+    }
 
     private async Task RefreshCartCount()
     {

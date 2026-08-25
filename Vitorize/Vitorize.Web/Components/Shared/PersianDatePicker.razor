@@ -3,14 +3,20 @@
 @using Vitorize.Application.Common
 @inject IJSRuntime JS
 
-<div class="vz-datepicker @((ReadOnly ? "is-readonly" : ""))">
+<div class="vz-datepicker st-datepicker @((ReadOnly ? "is-readonly" : ""))">
     <div class="vz-datepicker__entry">
         @* dir=ltr on the field itself keeps digit entry predictable inside the RTL page: the year is
            typed first and the caret advances rightwards, as it does on every date field. *@
-        <input @ref="_entryElement" class="vz-input" type="text" inputmode="numeric" autocomplete="bday"
-               dir="ltr" maxlength="10" data-testid="persian-date-input"
+        @* st-input, matching every other field on the identity form. This used to be vz-input, from
+           the admin stylesheet, so the birth date sat 2px shorter than its neighbours with a different
+           radius, border and focus colour - visible as soon as you looked at the row.
+
+           No autocomplete: the browser's "bday" autofill offers a Gregorian date, which is not what
+           this field holds. dir=ltr stays, so digits enter left-to-right inside the RTL page. *@
+        <input @ref="_entryElement" class="st-input st-datepicker__entry" type="text" inputmode="numeric"
+               autocomplete="off" dir="ltr" maxlength="10" data-testid="persian-date-input"
                aria-label="تاریخ تولد به تقویم شمسی (سال/ماه/روز)"
-               placeholder="۱۳۷۵/۰۶/۱۵" value="@_entry"
+               placeholder="@Placeholder" value="@_entry"
                @oninput="OnEntryInputAsync" @onchange="CommitEntryAsync" disabled="@ReadOnly" />
         <button type="button" class="vz-iconaction vz-datepicker__toggle" @onclick="Toggle" disabled="@ReadOnly"
                 aria-label="باز کردن تقویم تاریخ تولد" aria-expanded="@_open">
@@ -24,10 +30,8 @@
         }
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(_error))
-    {
-        <div class="vz-datepicker__error" role="alert">@_error</div>
-    }
+    @* The message is raised through ValidationChanged and rendered by the page, so rendering it here
+       as well showed an invalid date twice, stacked. *@
 
     @if (_open)
     {
@@ -86,7 +90,14 @@
     [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
     [Parameter] public EventCallback<string?> ValidationChanged { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
-    [Parameter] public string Placeholder { get; set; } = "انتخاب تاریخ";
+
+    /// <summary>
+    /// Hint text for the field. Six call sites were already passing one - the coupon and banner date
+    /// ranges, and both ends of the range picker - while the markup hardcoded a sample date and
+    /// ignored them, so "بدون محدودیت" never appeared. It is honoured now, with the sample date as the
+    /// default for callers that do not supply one.
+    /// </summary>
+    [Parameter] public string Placeholder { get; set; } = "۱۳۷۵/۰۶/۱۵";
 
     private readonly DateTime _minimum = VerificationBirthDateRules.Minimum.ToDateTime(TimeOnly.MinValue);
     private ElementReference _entryElement;
@@ -99,6 +110,8 @@
     private int _minYear;
     private int _maxYear;
     private string _entry = "";
+    /// <summary>True while the customer is typing, so the field is not reformatted under the caret.</summary>
+    private bool _editing;
     private string? _error;
     private DateTime? _lastValue;
 
@@ -143,7 +156,19 @@
         }
     }
 
-    private void SyncEntry() => _entry = HasValue ? PersianDateHelper.ToShortDate(Value) : "";
+    /// <summary>
+    /// The text shown in the field.
+    ///
+    /// Persian digits are the house style for a committed value, but rewriting the field to them the
+    /// instant the eighth digit lands replaced the text under the caret - and assigning value collapses
+    /// the selection to the end, so the caret jumped away exactly when someone finished typing and
+    /// might want to correct the month. While the field is being edited the ASCII form the mask
+    /// produces is kept; the Persian form appears once the value is committed from elsewhere.
+    /// </summary>
+    private void SyncEntry() =>
+        _entry = HasValue
+            ? (_editing ? PersianDateEntry.Mask(PersianDateHelper.ToShortDate(Value)) : PersianDateHelper.ToShortDate(Value))
+            : "";
 
     private void InitView()
     {
@@ -279,20 +304,29 @@
 
     private async Task OnEntryInputAsync(ChangeEventArgs args)
     {
+        // Typing is in progress, so a commit must not reformat the text under the caret.
+        _editing = true;
         var typed = args.Value?.ToString() ?? "";
         // Hold the masked form, so a field typed while the script is unavailable still shows the
         // separators and the two paths cannot diverge.
         _entry = PersianDateEntry.Mask(typed);
 
         if (PersianDateEntry.IsComplete(_entry))
-            await CommitEntryAsync();
+            await CommitEntryAsync(stillTyping: true);
         else if (_entry.Length == 0)
             await SetErrorAsync(null);
     }
 
-    private async Task CommitEntryAsync()
+    /// <summary>Blur committed the value, so the field may show the Persian form again.</summary>
+    private Task CommitEntryAsync() => CommitEntryAsync(stillTyping: false);
+
+    private async Task CommitEntryAsync(bool stillTyping)
     {
         if (ReadOnly) return;
+        // Auto-committing on the eighth digit must not switch the field to Persian numerals under the
+        // caret: assigning value collapses the selection to the end, so correcting the month afterwards
+        // would mean repositioning by hand. Only leaving the field settles the display.
+        _editing = stillTyping;
         if (string.IsNullOrWhiteSpace(_entry))
         {
             await ClearAsync();

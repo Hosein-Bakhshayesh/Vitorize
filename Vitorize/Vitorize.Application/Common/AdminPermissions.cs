@@ -11,10 +11,19 @@ public static class AdminPermissions
     public const string SettingsManage = "settings.manage";
     public const string UserManage = "users.manage";
 
+    /// <summary>
+    /// Setting another account's password. Separate from &lt;see cref="UserManage"/&gt; on purpose:
+    /// listing and suspending users is routine administration, while replacing someone's credentials
+    /// takes over their account and ends every session they hold, so it is worth being able to grant
+    /// the two independently. Changing one's <i>own</i> password needs no permission at all - that
+    /// endpoint is scoped to the caller.
+    /// </summary>
+    public const string UserPasswordReset = "users.password.reset";
+
     public static readonly string[] All =
     [
         FinanceManage, OrderFulfillment, KycReview, KycManage,
-        SecurityDiagnostics, SettingsManage, UserManage
+        SecurityDiagnostics, SettingsManage, UserManage, UserPasswordReset
     ];
 
     public static IEnumerable<string> ForRoles(IEnumerable<string> roles)
@@ -28,6 +37,12 @@ public static class AdminPermissions
             result.Add(KycReview);
             result.Add(KycManage);
             result.Add(SettingsManage);
+            // Administrators reach /admin/users through the page's role check, but the API behind it
+            // required users.manage, which only SuperAdmin held - so the page opened and every call on
+            // it returned 403. Granting it here closes that mismatch and makes the password reset
+            // below reachable by the role that actually administers users day to day.
+            result.Add(UserManage);
+            result.Add(UserPasswordReset);
         }
         // A deliberately read-only administration role for KYC policy review.
         // Mutations remain gated by kyc.manage.

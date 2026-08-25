@@ -1,7 +1,10 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using Vitorize.Web.Components.Storefront
 @using Vitorize.Web.Helpers
 @inject Vitorize.Web.Services.UI.StorefrontMaintenanceService Maintenance
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Nav
 
 @if (_maintenance)
 {
@@ -37,6 +40,31 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Re-evaluated on every in-circuit navigation too: a shopper who was already browsing when
+        // maintenance was switched on lands on the maintenance page at their next navigation instead
+        // of continuing through a closed shop (purchasing is refused by the API either way).
+        Nav.LocationChanged += OnLocationChanged;
+        await EvaluateAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // async void: anything escaping this handler is an unhandled exception that kills the whole
+        // process, not a rendering glitch. A transient branding/API failure during navigation must
+        // simply leave the current maintenance verdict in place.
+        try
+        {
+            var was = _maintenance;
+            await EvaluateAsync();
+            if (_maintenance != was) await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task EvaluateAsync()
+    {
         var user = AuthState is null ? null : (await AuthState).User;
         var state = await Maintenance.GetStateAsync(user);
         if (state is not null)
@@ -46,6 +74,19 @@ else
             {
                 Message = state.Branding.Get("MaintenanceMessage", state.Branding.Get("Error503Text", "سایت موقتاً در دسترس نیست."))
             };
+
+            // The layout renders the maintenance state instead of @Body, so the page component never
+            // runs and never sets its own status. Without this the document would be served as 200
+            // while showing "we are down", which is wrong for caches, crawlers and uptime checks alike.
+            var response = HttpContextAccessor.HttpContext?.Response;
+            if (response is not null && !response.HasStarted)
+                response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        }
+        else
+        {
+            _maintenance = false;
         }
     }
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
 }

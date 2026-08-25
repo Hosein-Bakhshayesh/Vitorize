@@ -4,77 +4,124 @@ using Xunit;
 namespace Vitorize.Tests;
 
 /// <summary>
-/// Regression coverage for the admin-panel authorization defect: when an admin session and a customer
-/// session coexist in one browser, the Blazor interactive circuit (/_blazor, bare Origin, no Referer)
-/// was downgraded to the customer scheme, so the admin dashboard returned "access denied". The admin
-/// session must win for ambiguous framework/circuit requests, while real customer-page navigations
-/// still resolve to the customer scheme.
+/// The scheme decision is path-based and deterministic. Two defects meet here, so both directions
+/// matter:
+///
+///   * the admin circuit must not be downgraded to the customer identity by a coexisting or stale
+///     customer cookie (the original reason this resolver exists);
+///   * a storefront page must not be upgraded to the admin identity just because an admin cookie
+///     exists — that is what made customer logout appear to do nothing.
+///
+/// Request headers are no longer part of the decision at all. They are client-supplied, and
+/// Referrer-Policy strips the path from them anyway, so they were both unsafe and unreliable.
 /// </summary>
 public sealed class SmartSchemeResolverTests
 {
-    private const string Bare = "https://vitorize.local";
+    // ---------------------------------------------------------------- admin paths
 
     [Theory]
-    [InlineData("/admin/dashboard")]
     [InlineData("/admin")]
-    public void Admin_panel_paths_always_resolve_to_admin_scheme(string path)
+    [InlineData("/admin/dashboard")]
+    [InlineData("/admin/users")]
+    [InlineData("/ADMIN/Settings")]
+    public void Admin_panel_paths_always_resolve_to_admin(string path)
     {
-        // Even with a customer cookie also present, an /admin page is the admin scheme.
-        var scheme = SmartSchemeResolver.Resolve(path, referer: null, origin: Bare, hasAdmin: true, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.AdminScheme, scheme);
+        // True whatever the cookie jar holds: the path alone settles it.
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: true));
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: false));
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: false, hasCustomer: true));
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: false, hasCustomer: false));
+    }
+
+    // ---------------------------------------------------------------- customer-facing paths
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/shop")]
+    [InlineData("/product/telegram-gifts")]
+    [InlineData("/cart")]
+    [InlineData("/checkout")]
+    [InlineData("/customer/dashboard")]
+    [InlineData("/login")]
+    public void Customer_facing_paths_never_resolve_to_admin(string path)
+    {
+        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, SmartSchemeResolver.Resolve(path, hasAdmin: false, hasCustomer: true));
+        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: true));
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/shop")]
+    [InlineData("/customer/profile")]
+    public void A_storefront_page_with_only_an_admin_cookie_is_anonymous_not_admin(string path)
+    {
+        // THE LOGOUT DEFECT: the customer cookie has just been deleted and an admin cookie remains.
+        // Resolving to the admin scheme here re-rendered the storefront header as signed in, so the
+        // logout looked like it had failed. The customer scheme with no customer cookie is anonymous,
+        // which is what a signed-out storefront must be.
+        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: false));
+    }
+
+    // ---------------------------------------------------------------- shared framework transport
+
+    [Theory]
+    [InlineData("/_blazor/negotiate")]
+    [InlineData("/_blazor")]
+    [InlineData("/_framework/blazor.web.js")]
+    // Protected media forwards the caller's own token to the API, which decides what they may see, so
+    // an administrator reviewing an identity document must not be treated as an anonymous customer.
+    [InlineData("/media/verification-documents/2db2279f-3436-4662-a904-f70319024390")]
+    public void Shared_area_paths_prefer_the_admin_session_when_one_exists(string path)
+    {
+        // /_blazor is one endpoint serving both shells, so the path carries no area. An admin cookie
+        // only exists after a validated admin sign-in, so preferring it cannot escalate anyone, and it
+        // keeps the admin circuit working when a stale customer cookie is also present.
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: true));
+        Assert.Equal(VitorizeAuthSchemes.AdminScheme, SmartSchemeResolver.Resolve(path, hasAdmin: true, hasCustomer: false));
+    }
+
+    [Theory]
+    [InlineData("/_blazor/negotiate")]
+    [InlineData("/_framework/blazor.web.js")]
+    [InlineData("/media/verification-documents/2db2279f-3436-4662-a904-f70319024390")]
+    public void Shared_area_paths_fall_back_to_customer_without_an_admin_cookie(string path)
+    {
+        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, SmartSchemeResolver.Resolve(path, hasAdmin: false, hasCustomer: true));
+        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, SmartSchemeResolver.Resolve(path, hasAdmin: false, hasCustomer: false));
+    }
+
+    // ---------------------------------------------------------------- the whole matrix is total
+
+    [Fact]
+    public void Every_path_and_cookie_combination_resolves_to_a_real_scheme()
+    {
+        string[] paths = ["", "/", "/admin", "/admin/users", "/shop", "/customer/orders", "/_blazor/negotiate", "/_framework/x.js", "/media/verification-documents/x", "/auth/customer/logout"];
+        foreach (var path in paths)
+        {
+            foreach (var admin in new[] { true, false })
+            {
+                foreach (var customer in new[] { true, false })
+                {
+                    var scheme = SmartSchemeResolver.Resolve(path, admin, customer);
+                    Assert.True(
+                        scheme == VitorizeAuthSchemes.AdminScheme || scheme == VitorizeAuthSchemes.CustomerScheme,
+                        $"'{path}' admin={admin} customer={customer} produced '{scheme}'");
+                }
+            }
+        }
     }
 
     [Fact]
-    public void Blazor_circuit_with_only_admin_cookie_resolves_to_admin()
+    public void The_decision_takes_no_header_input()
     {
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: null, origin: Bare, hasAdmin: true, hasCustomer: false);
-        Assert.Equal(VitorizeAuthSchemes.AdminScheme, scheme);
-    }
+        // Guards the security property rather than a behaviour: if someone reintroduces a Referer or
+        // Origin parameter, this fails and forces the conversation again.
+        var parameters = typeof(SmartSchemeResolver)
+            .GetMethod(nameof(SmartSchemeResolver.Resolve))!
+            .GetParameters()
+            .Select(p => p.Name)
+            .ToArray();
 
-    [Fact]
-    public void Blazor_circuit_with_both_cookies_and_bare_origin_resolves_to_admin()
-    {
-        // THE REGRESSION: a coexisting/stale customer cookie must NOT downgrade the admin circuit.
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: "", origin: Bare, hasAdmin: true, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.AdminScheme, scheme);
-    }
-
-    [Fact]
-    public void Blazor_circuit_with_only_customer_cookie_resolves_to_customer()
-    {
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: null, origin: Bare, hasAdmin: false, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, scheme);
-    }
-
-    [Fact]
-    public void Request_from_concrete_customer_page_keeps_customer_scheme_even_with_admin_cookie()
-    {
-        // Support staff validating a customer flow from an actual customer page (Referer has a real,
-        // non-admin path) still gets the customer identity.
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: $"{Bare}/cart", origin: Bare, hasAdmin: true, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, scheme);
-    }
-
-    [Fact]
-    public void Request_with_admin_referer_resolves_to_admin_even_with_customer_cookie()
-    {
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: $"{Bare}/admin/products", origin: Bare, hasAdmin: true, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.AdminScheme, scheme);
-    }
-
-    [Fact]
-    public void Bare_root_referer_is_not_treated_as_a_concrete_customer_page()
-    {
-        // Origin/root "/" has no page context, so it must not downgrade an admin session.
-        var scheme = SmartSchemeResolver.Resolve("/_blazor/negotiate", referer: $"{Bare}/", origin: Bare, hasAdmin: true, hasCustomer: true);
-        Assert.Equal(VitorizeAuthSchemes.AdminScheme, scheme);
-    }
-
-    [Fact]
-    public void No_session_cookies_default_to_customer_scheme()
-    {
-        // Anonymous access is denied by authorization, not by scheme selection; the default is customer.
-        var scheme = SmartSchemeResolver.Resolve("/some/page", referer: null, origin: Bare, hasAdmin: false, hasCustomer: false);
-        Assert.Equal(VitorizeAuthSchemes.CustomerScheme, scheme);
+        Assert.Equal(new[] { "requestPath", "hasAdmin", "hasCustomer" }, parameters);
     }
 }

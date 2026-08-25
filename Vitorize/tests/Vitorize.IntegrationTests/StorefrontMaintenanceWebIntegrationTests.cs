@@ -59,9 +59,19 @@ public sealed class StorefrontMaintenanceWebIntegrationTests : IAsyncLifetime
         (await client.GetAsync("/css/storefront.css")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await client.GetAsync("/admin/login")).StatusCode.Should().Be(HttpStatusCode.OK);
 
+        // Enhanced navigation is no longer exempt. Letting it through was how a customer who already
+        // had the site open kept browsing after maintenance was switched on - the flag only ever
+        // stopped fresh page loads. It is the same navigation to the same page, so it gets the same
+        // answer.
         using var enhancedNavigation = new HttpRequestMessage(HttpMethod.Get, "/shop");
         enhancedNavigation.Headers.Add("blazor-enhanced-nav", "on");
-        (await client.SendAsync(enhancedNavigation)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.SendAsync(enhancedNavigation)).StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+
+        // The customer panel is part of the shop, so it closes with it. Sign-in stays open because an
+        // administrator has to be able to get in and switch maintenance back off.
+        (await client.GetAsync("/customer/dashboard")).StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        (await client.GetAsync("/auth/session-expired?area=customer")).StatusCode
+            .Should().NotBe(HttpStatusCode.ServiceUnavailable);
     }
 }
 

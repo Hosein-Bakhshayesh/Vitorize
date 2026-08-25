@@ -11,10 +11,20 @@ namespace Vitorize.Infrastructure.Services
     public class AdminUserService : IAdminUserService
     {
         private readonly VitorizeDbContext _dbContext;
+        private readonly IAuditService _auditService;
+        private readonly ISecurityLogService _securityLogService;
+        private readonly ICurrentUserService _currentUser;
 
-        public AdminUserService(VitorizeDbContext dbContext)
+        public AdminUserService(
+            VitorizeDbContext dbContext,
+            IAuditService auditService,
+            ISecurityLogService securityLogService,
+            ICurrentUserService currentUser)
         {
             _dbContext = dbContext;
+            _auditService = auditService;
+            _securityLogService = securityLogService;
+            _currentUser = currentUser;
         }
 
         public async Task<PagedResult<AdminUserDto>> GetAllAsync(
@@ -162,6 +172,63 @@ namespace Vitorize.Infrastructure.Services
             user.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Sets another account's password.
+        ///
+        /// Two things make this different from the self-service change. There is no current-password
+        /// check, because an administrator does not have it - authorisation is the control here, and it
+        /// is enforced on the endpoint. And every one of that user's sessions is revoked: a password
+        /// reset that left existing refresh tokens alive would not actually take the account back,
+        /// which is usually the whole reason for doing it.
+        ///
+        /// The password itself is hashed immediately and never logged, returned or audited.
+        /// </summary>
+        public async Task<int> ResetPasswordAsync(Guid userId, string newPassword, string confirmPassword)
+        {
+            if (string.IsNullOrWhiteSpace(newPassword))
+                throw new BusinessException("رمز عبور جدید الزامی است.");
+
+            if (newPassword != confirmPassword)
+                throw new BusinessException("رمز عبور جدید و تکرار آن یکسان نیستند.");
+
+            var user = await GetUserAsync(userId);
+
+            user.PasswordHash = PasswordHasher.Hash(newPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            var active = await _dbContext.UserRefreshTokens
+                .Where(x => x.UserId == userId && x.RevokedAt == null && x.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync();
+
+            foreach (var token in active)
+            {
+                token.RevokedAt = DateTime.UtcNow;
+                token.RevocationReason = "PasswordResetByAdmin";
+            }
+
+            await _dbContext.SaveChangesAsync();
+
+            // An administrator acting on another account is an audit-trail event, so it is recorded
+            // against the user entity with who did it - never with any password material.
+            await _auditService.LogAsync(
+                _currentUser.UserId,
+                "UserPasswordReset",
+                nameof(Vitorize.Domain.Entities.User),
+                userId.ToString(),
+                $"sessionsRevoked:{active.Count}",
+                _currentUser.IpAddress,
+                _currentUser.UserAgent);
+
+            // And against the affected user in the security log, alongside their own password events.
+            await _securityLogService.LogAsync(
+                userId,
+                "RESET_PASSWORD",
+                true,
+                "Password reset by an administrator; all sessions revoked");
+
+            return active.Count;
         }
 
         public async Task AddRoleAsync(Guid userId, string roleName)

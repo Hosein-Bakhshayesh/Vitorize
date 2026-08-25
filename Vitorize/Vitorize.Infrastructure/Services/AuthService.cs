@@ -25,6 +25,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly ISmsService _smsService;
         private readonly ISmsSettingsProvider _smsSettingsProvider;
         private readonly ISmsHistoryService _smsHistory;
+        private readonly IRefreshTokenRotationCache _rotationCache;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
@@ -35,6 +36,7 @@ namespace Vitorize.Infrastructure.Services
             ISmsService smsService,
             ISmsSettingsProvider smsSettingsProvider,
             ISmsHistoryService smsHistory,
+            IRefreshTokenRotationCache rotationCache,
             ILogger<AuthService> logger)
         {
             _dbContext = dbContext;
@@ -44,6 +46,7 @@ namespace Vitorize.Infrastructure.Services
             _smsService = smsService;
             _smsSettingsProvider = smsSettingsProvider;
             _smsHistory = smsHistory;
+            _rotationCache = rotationCache;
             _logger = logger;
         }
 
@@ -380,9 +383,24 @@ namespace Vitorize.Infrastructure.Services
             return session;
         }
 
+        /// <summary>
+        /// Exchanges a refresh token for a new pair, rotating single-use tokens.
+        ///
+        /// Two things make this more than a lookup-and-replace. First it is serialized on the presented
+        /// token, so concurrent callers queue instead of interleaving; without that, two requests could
+        /// both see the token as active and each start its own token chain. Second, a rotation that has
+        /// just happened stays replayable for a short window: browser tabs race, and a reload can arrive
+        /// holding a token whose replacement never made it into the cookie jar. Answering 401 there
+        /// destroys a live session for no reason, so within the window every caller presenting the same
+        /// spent token gets back the same canonical pair. Outside the window a spent token is treated as
+        /// what it then is - a replay - and the whole family is revoked.
+        /// </summary>
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
         {
             var refreshTokenHash = HashToken(request.RefreshToken);
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"refresh:{refreshTokenHash}");
 
             var userRefreshToken = await _dbContext.UserRefreshTokens
                 .Include(x => x.User)
@@ -393,6 +411,43 @@ namespace Vitorize.Infrastructure.Services
 
             if (userRefreshToken == null)
             {
+                // Already rotated moments ago: hand back the same result rather than punishing a race.
+                if (_rotationCache.TryGet(refreshTokenHash, out var replayed) && replayed is not null)
+                {
+                    await transaction.CommitAsync();
+                    _logger.LogInformation(
+                        "Refresh token replayed inside the rotation grace window. EventType={EventType}",
+                        "TokenReusePresentedWithinGrace");
+                    return replayed;
+                }
+
+                // Spent, and past the window. Either a stolen token or a client stuck on an old one;
+                // both mean this family can no longer be trusted, so end every session it leads to.
+                var spent = await _dbContext.UserRefreshTokens
+                    .FirstOrDefaultAsync(x => x.TokenHash == refreshTokenHash && x.ReplacedByTokenHash != null);
+
+                if (spent != null)
+                {
+                    var revoked = await RevokeAllRefreshTokensAsync(spent.UserId, "RefreshTokenReuseDetected");
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    _logger.LogWarning(
+                        "Refresh token replayed outside the grace window; revoked {Count} token(s) for the user. EventType={EventType}",
+                        revoked,
+                        "TokenReuseDetected");
+
+                    await _securityLogService.LogAsync(
+                        spent.UserId,
+                        "REFRESH_TOKEN",
+                        false,
+                        "Refresh token reuse detected; all sessions revoked");
+
+                    throw new UnauthorizedException("Refresh Token نامعتبر است.");
+                }
+
+                await transaction.CommitAsync();
+
                 await _securityLogService.LogAsync(
                     null,
                     "REFRESH_TOKEN",
@@ -432,6 +487,7 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.UserRefreshTokens.AddAsync(newUserRefreshToken);
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             await _securityLogService.LogAsync(
                 user.Id,
@@ -441,7 +497,7 @@ namespace Vitorize.Infrastructure.Services
 
             var accessToken = _jwtTokenService.GenerateAccessToken(user);
 
-            return new AuthResponseDto
+            var response = new AuthResponseDto
             {
                 UserId = user.Id,
                 FullName = user.FullName,
@@ -451,6 +507,39 @@ namespace Vitorize.Infrastructure.Services
                 AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
                 RefreshTokenExpiresAt = newUserRefreshToken.ExpiresAt
             };
+
+            // Only after the rotation is durable, so a replay can never be answered with a pair that
+            // was rolled back.
+            _rotationCache.Remember(refreshTokenHash, response);
+
+            _logger.LogInformation(
+                "Refresh token rotated for user {UserId}. EventType={EventType}",
+                user.Id,
+                "TokenRotated");
+
+            return response;
+        }
+
+        /// <summary>
+        /// Revokes every live refresh token a user holds and returns how many were ended.
+        ///
+        /// The caller owns the SaveChanges, so this composes inside an existing transaction. Extracted
+        /// because password change, password reset, admin-initiated reset and reuse detection all need
+        /// exactly this and had been copying it.
+        /// </summary>
+        private async Task<int> RevokeAllRefreshTokensAsync(Guid userId, string reason)
+        {
+            var active = await _dbContext.UserRefreshTokens
+                .Where(x => x.UserId == userId && x.RevokedAt == null && x.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync();
+
+            foreach (var token in active)
+            {
+                token.RevokedAt = DateTime.UtcNow;
+                token.RevocationReason = reason;
+            }
+
+            return active.Count;
         }
 
         public async Task<CurrentUserDto> GetCurrentUserAsync(Guid userId)
@@ -607,18 +696,7 @@ namespace Vitorize.Infrastructure.Services
             user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
 
-            var activeRefreshTokens = await _dbContext.UserRefreshTokens
-                .Where(x =>
-                    x.UserId == user.Id &&
-                    x.RevokedAt == null &&
-                    x.ExpiresAt > DateTime.UtcNow)
-                .ToListAsync();
-
-            foreach (var token in activeRefreshTokens)
-            {
-                token.RevokedAt = DateTime.UtcNow;
-                token.RevocationReason = "PasswordChanged";
-            }
+            await RevokeAllRefreshTokensAsync(user.Id, "PasswordChanged");
 
             await _dbContext.SaveChangesAsync();
 
@@ -710,18 +788,7 @@ namespace Vitorize.Infrastructure.Services
             user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
 
-            var activeRefreshTokens = await _dbContext.UserRefreshTokens
-                .Where(x =>
-                    x.UserId == user.Id &&
-                    x.RevokedAt == null &&
-                    x.ExpiresAt > DateTime.UtcNow)
-                .ToListAsync();
-
-            foreach (var token in activeRefreshTokens)
-            {
-                token.RevokedAt = DateTime.UtcNow;
-                token.RevocationReason = "PasswordReset";
-            }
+            await RevokeAllRefreshTokensAsync(user.Id, "PasswordReset");
 
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();

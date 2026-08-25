@@ -191,7 +191,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260817-ui-hardening-1.0.0";
+    private const string AssetVersion = "20260824-client-fixes-1.2.0";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";
@@ -241,15 +241,20 @@
             var family = CssString(_b.FontFamily);
             var url = CssString(Versioned(Media.Resolve(_b.FontPath), _b.FontVersion));
             var selector = _b.FontScope switch { 1 => ".st-shell", 2 => ".vz-shell", _ => ":root" };
-            _fontFaceCss = $"@font-face{{font-family:'{family}';src:url('{url}') format('{CssString(_b.FontFormat)}');font-display:swap;}}{selector}{{--font:'{family}',Vazirmatn,Tahoma,sans-serif;--st-font:'{family}',Vazirmatn,Tahoma,sans-serif;}}";
+            // An uploaded font drives the same shared variable, so it reaches whichever shells its
+            // scope selects without needing to know about --font and --st-font separately.
+            _fontFaceCss = $"@font-face{{font-family:'{family}';src:url('{url}') format('{CssString(_b.FontFormat)}');font-display:swap;}}{selector}{{--vz-font:'{family}',var(--vz-font-en),Vazirmatn,Tahoma,sans-serif;--font:var(--vz-font);--st-font:var(--vz-font);}}";
         }
 
-        if (_isStorefront)
+        // Emitted on :root and for every area, not just the storefront. Scoping this to .st-shell was
+        // why an administrator could change the font and see the admin panel ignore it: the rule never
+        // applied there, and admin.css kept its own hard-coded face. Peyda is the default.
         {
-            // Vazirmatn is the application default; Peyda remains selectable in Admin - Settings.
-            var persian = CssFontFamily(_b.StorefrontPersianFont, "Vazirmatn");
+            var persian = CssFontFamily(_b.StorefrontPersianFont, "Peyda");
             var english = CssFontFamily(_b.StorefrontEnglishFont, "Funnel Display");
-            _storefrontTypographyCss = $".st-shell{{--font-fa:'{persian}';--font-en:'{english}','Manrope';--st-font:var(--font-fa),var(--font-en),'Vazirmatn',Tahoma,sans-serif;}}";
+            _storefrontTypographyCss =
+                $":root{{--vz-font-fa:'{persian}';--vz-font-en:'{english}','Manrope';" +
+                "--vz-font:var(--vz-font-fa),var(--vz-font-en),'Vazirmatn',Tahoma,sans-serif;}}";
         }
     }
 

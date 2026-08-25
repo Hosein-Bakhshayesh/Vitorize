@@ -25,9 +25,11 @@ test('storefront loads the configured Persian and Latin font families @smoke', a
     };
   });
 
-  // Vazirmatn is the application default (client batch 2). Peyda remains selectable, so the test
-  // pins the mechanism - the configured face resolves and loads - not one particular family name.
-  expect(typography.persian).toBe('Vazirmatn');
+  // Peyda is the application default again, and the typography contract is now shared: one setting
+  // governs the storefront, the customer panel and the admin panel, where Peyda previously was not
+  // even declared. The test still pins the mechanism - the configured face resolves and loads - as
+  // well as the default itself.
+  expect(typography.persian).toBe('Peyda');
   expect(typography.english).toContain('Funnel Display');
   expect(typography.english).toContain('Manrope');
   expect(typography.family).toContain(typography.persian);

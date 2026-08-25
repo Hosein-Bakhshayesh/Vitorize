@@ -19,11 +19,29 @@ public static class AuthSessionEndpoints
             .AllowAnonymous()
             .DisableAntiforgery();
 
+        // Anonymous by necessity - the session it reports on is already gone - but the area is only a
+        // hint from the query string, so it must not be trusted to decide what gets signed out. A link
+        // to ?area=admin from anywhere would otherwise end an administrator's session. The requested
+        // area is honoured only when the caller actually holds that area's cookie; otherwise the page
+        // still renders and redirects, it just does not sign anything out.
         app.MapGet("/auth/session-expired", async (HttpContext context, string? area, string? returnUrl) =>
         {
             var scheme = string.Equals(area, "admin", StringComparison.OrdinalIgnoreCase)
                 ? VitorizeAuthSchemes.AdminScheme
                 : VitorizeAuthSchemes.CustomerScheme;
+
+            var ownsRequestedArea = context.Request.Cookies.ContainsKey(
+                scheme == VitorizeAuthSchemes.AdminScheme
+                    ? VitorizeAuthSchemes.AdminAuthCookie
+                    : VitorizeAuthSchemes.CustomerAuthCookie);
+
+            if (!ownsRequestedArea)
+            {
+                var safeDestination = SafeRedirect.LocalOrDefault(returnUrl, scheme == VitorizeAuthSchemes.AdminScheme ? "/admin/dashboard" : "/customer/dashboard");
+                var safeLogin = scheme == VitorizeAuthSchemes.AdminScheme ? "/admin/login" : "/login";
+                context.Response.Redirect($"{safeLogin}?returnUrl={Uri.EscapeDataString(safeDestination)}");
+                return;
+            }
 
             await context.SignOutAsync(scheme);
             foreach (var cookie in VitorizeAuthSchemes.TokenCookiesFor(scheme))

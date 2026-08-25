@@ -1,0 +1,75 @@
+@page "/admin/account"
+@inject ApiClient Api
+@inject ToastService Toasts
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageTitle>حساب کاربری من | ویتورایز</PageTitle>
+
+<PageHeader Title="حساب کاربری من" Subtitle="رمز عبور حساب مدیریتی خود را تغییر دهید"
+            Icon="user" Breadcrumbs="@(new(){ ("حساب کاربری من", null) })" />
+
+<div class="vz-grid-2">
+    <div class="vz-card" data-testid="admin-own-password">
+        <div class="vz-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</div>
+        <div class="vz-card__body">
+            @* Changing your own password needs no special permission: the endpoint is scoped to the
+               signed-in user and the current password is the proof. *@
+            <div class="vz-field">
+                <label class="vz-label" for="admin-current-password">رمز عبور فعلی</label>
+                <input id="admin-current-password" class="vz-input" type="password"
+                       autocomplete="current-password" data-testid="admin-current-password" @bind="_current" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label" for="admin-new-password">رمز عبور جدید</label>
+                <input id="admin-new-password" class="vz-input" type="password"
+                       autocomplete="new-password" data-testid="admin-new-password" @bind="_new" />
+                <div class="vz-hint">حداقل ۸ کاراکتر.</div>
+            </div>
+            <div class="vz-field">
+                <label class="vz-label" for="admin-confirm-password">تکرار رمز عبور جدید</label>
+                <input id="admin-confirm-password" class="vz-input" type="password"
+                       autocomplete="new-password" data-testid="admin-confirm-password" @bind="_confirm" />
+            </div>
+            <div class="vz-hint" style="margin-bottom:12px">
+                با تغییر رمز عبور، سایر نشست‌های فعال شما پایان می‌یابد و همین نشست فعال باقی می‌ماند.
+            </div>
+            <button class="vz-btn vz-btn--primary" data-testid="admin-own-password-save"
+                    disabled="@_busy" @onclick="ChangePassword">
+                @if (_busy) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> }
+                <span>تغییر رمز عبور</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _current = "";
+    private string _new = "";
+    private string _confirm = "";
+    private bool _busy;
+
+    private async Task ChangePassword()
+    {
+        if (string.IsNullOrWhiteSpace(_current) || string.IsNullOrWhiteSpace(_new))
+        { Toasts.Error("رمز فعلی و جدید را وارد کنید."); return; }
+        if (_new != _confirm) { Toasts.Error("رمز جدید و تکرار آن یکسان نیست."); return; }
+
+        _busy = true;
+        // The same endpoint the customer panel uses; it authorises on the signed-in user, so it needs
+        // no admin-specific variant.
+        var result = await Api.PostAsync("auth/change-password", new
+        {
+            CurrentPassword = _current,
+            NewPassword = _new,
+            ConfirmNewPassword = _confirm
+        });
+        _busy = false;
+
+        if (result.IsSuccess)
+        {
+            Toasts.Success("رمز عبور با موفقیت تغییر کرد.");
+            _current = _new = _confirm = "";
+        }
+        else Toasts.Error(result.Message);
+    }
+}

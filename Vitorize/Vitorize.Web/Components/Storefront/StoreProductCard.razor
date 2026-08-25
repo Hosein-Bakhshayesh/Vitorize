@@ -89,7 +89,9 @@
         if (AuthState is not null)
         {
             var state = await AuthState;
-            if (state.User.Identity?.IsAuthenticated != true)
+            // Wishlist is a customer feature: only a customer session counts, whatever other
+            // sessions coexist in this browser.
+            if (state.User.CustomerIdentity() is null)
             {
                 Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Nav.ToBaseRelativePath(Nav.Uri))}");
                 return;

@@ -39,21 +39,22 @@ test.describe('Storefront default product sort @storefrontsort', () => {
   test('the saved default drives the shop, and an explicit customer sort overrides it', async ({ page, request }) => {
     await loginAdmin(page);
 
-    // ---- availability first: every out-of-stock card must sit after every in-stock one
+    // ---- availability first: every out-of-stock product must sit after every in-stock one
     await setDefaultSort(page, 'AvailabilityFirst');
-    await page.goto('/shop', { waitUntil: 'networkidle' });
-    const cards = page.locator('.st-pcard');
-    const total = await cards.count();
-    expect(total).toBeGreaterThan(1);
-    const unavailable: boolean[] = [];
-    for (let index = 0; index < total; index += 1) {
-      unavailable.push(await cards.nth(index).getByTestId('product-oos-badge').count() > 0);
-    }
-    // At least one of each, otherwise the assertion below proves nothing.
-    expect(unavailable).toContain(true);
-    expect(unavailable).toContain(false);
-    expect(unavailable.indexOf(true)).toBeGreaterThan(unavailable.lastIndexOf(false) - 1);
-    expect(unavailable.lastIndexOf(false)).toBeLessThan(unavailable.indexOf(true));
+    // The shop's first page follows the configured default order...
+    expect(await shopOrder(page)).toEqual(await apiOrder(request, 'availability'));
+    // ...and across the WHOLE catalogue the availability boundary is monotone. The available set
+    // comes from the server's own inStock filter, so the availability rule is never re-encoded
+    // here - and the check no longer depends on an out-of-stock product happening to fit on the
+    // first page, which stopped being true as the suite's fixture pool grew.
+    const everything = (((await (await request.get(`${apiBaseUrl}/products?page=1&pageSize=200`)).json())
+      .data.items) as Array<{ title: string }>).map(x => x.title);
+    const inStock = new Set((((await (await request.get(`${apiBaseUrl}/products?page=1&pageSize=200&inStock=true`)).json())
+      .data.items) as Array<{ title: string }>).map(x => x.title));
+    const available = everything.map(title => inStock.has(title));
+    expect(available).toContain(true);
+    expect(available).toContain(false);
+    expect(available.lastIndexOf(true)).toBeLessThan(available.indexOf(false));
 
     // ---- best selling: the only real ranking signal Vitorize stores
     await setDefaultSort(page, 'BestSelling');

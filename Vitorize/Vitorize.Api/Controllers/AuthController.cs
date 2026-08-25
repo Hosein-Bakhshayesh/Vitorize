@@ -149,13 +149,19 @@ namespace Vitorize.Api.Controllers
                 "پروفایل با موفقیت به‌روزرسانی شد."));
         }
 
-        [Authorize]
+        // Anonymous on purpose. The refresh token in the body is itself the proof of possession, and
+        // LogoutAsync uses nothing else - no user id from the principal. Requiring a live access token
+        // meant that logging out after the access token had expired silently skipped revocation and
+        // left the refresh token valid for the rest of its 30 days, because ApiClient never retries a
+        // POST after a 401. The operation only ever revokes and is idempotent, so the worst an
+        // attacker holding someone's refresh token could do here is end a session they could
+        // otherwise have used outright.
+        [AllowAnonymous]
         [HttpPost("logout")]
         [SwaggerOperation(
             Summary = "خروج از حساب",
             Description = "باطل کردن RefreshToken کاربر و خروج از حساب.")]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult>> Logout(LogoutRequestDto request)
         {
             await _authService.LogoutAsync(request);

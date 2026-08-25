@@ -55,6 +55,12 @@ namespace Vitorize.Web.Services.Auth
                 _refreshToken = httpContext.Request.Cookies[isAdminArea
                     ? VitorizeAuthSchemes.AdminRefreshTokenCookie
                     : VitorizeAuthSchemes.CustomerRefreshTokenCookie] ?? httpContext.User.FindFirst("refresh_token")?.Value;
+
+                // A rotation may have completed in a circuit that could not write cookies, leaving the
+                // browser holding the spent token it is presenting right now. This request has a real
+                // response, so it is the first opportunity to finish that handover. Doing it here, at
+                // the point the stale value is read, means nothing downstream ever sees the dead token.
+                await AdoptPendingRotationAsync(httpContext);
                 return _accessToken;
             }
 
@@ -102,5 +108,28 @@ namespace Vitorize.Web.Services.Auth
         }
 
         public void ClearTokens() => (_accessToken, _refreshToken, _scheme) = (null, null, null);
+
+        /// <summary>
+        /// Completes a rotation whose cookies never reached the browser.
+        ///
+        /// Keyed by the refresh token this request actually presented, so it can only ever apply to the
+        /// session that owns it. On a hit the new pair replaces the stale one in this scope and is
+        /// written to the browser, ending the divergence permanently rather than for one request.
+        /// </summary>
+        private async Task AdoptPendingRotationAsync(HttpContext httpContext)
+        {
+            if (string.IsNullOrWhiteSpace(_refreshToken)) return;
+
+            var handoff = _serviceProvider.GetService<ITokenRotationHandoff>();
+            if (handoff is null || !handoff.TryTake(_refreshToken, out var rotated) || rotated is null) return;
+
+            _scheme = rotated.Scheme;
+            _accessToken = rotated.AccessToken;
+            _refreshToken = rotated.RefreshToken;
+
+            if (!httpContext.Response.HasStarted)
+                await AuthSessionCookieWriter.PersistAsync(
+                    httpContext, rotated.Scheme, rotated.AccessToken, rotated.RefreshToken);
+        }
     }
 }
