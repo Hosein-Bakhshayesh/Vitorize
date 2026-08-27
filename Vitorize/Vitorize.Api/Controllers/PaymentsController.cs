@@ -25,13 +25,16 @@ namespace Vitorize.Api.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly TestingPaymentFaultService _testingPaymentFaults;
 
+        private readonly IConfiguration _configuration;
+
         public PaymentsController(
             IPaymentService paymentService,
             IWalletTopUpService walletTopUpService,
             ICurrentUserService currentUserService,
             IIdempotencyService idempotencyService,
             IWebHostEnvironment environment,
-            TestingPaymentFaultService testingPaymentFaults)
+            TestingPaymentFaultService testingPaymentFaults,
+            IConfiguration configuration)
         {
             _paymentService = paymentService;
             _walletTopUpService = walletTopUpService;
@@ -39,6 +42,7 @@ namespace Vitorize.Api.Controllers
             _idempotencyService = idempotencyService;
             _environment = environment;
             _testingPaymentFaults = testingPaymentFaults;
+            _configuration = configuration;
         }
 
         [HttpPost("start/{orderId:guid}")]
@@ -177,35 +181,60 @@ namespace Vitorize.Api.Controllers
             var authority = authority1 ?? authority2;
             var status = status1 ?? status2;
 
-            if (string.IsNullOrWhiteSpace(authority))
-                throw new BusinessException("Authority معتبر نیست.");
+            // Zarinpal sends the SHOPPER'S BROWSER here, so a browser navigation must end on the
+            // storefront's own result page, never on raw JSON. Non-browser clients (server-to-server
+            // checks, the integration suite) keep the JSON contract. The storefront origin comes from
+            // Cors:AllowedOrigins, which Production refuses to start without.
+            var wantsHtml = Request.Headers.Accept.Any(v =>
+                v?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true);
+            var storefront = (_configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+                .FirstOrDefault()?.TrimEnd('/');
 
-            if (string.IsNullOrWhiteSpace(status))
-                status = "NOK";
-
-            // Authority ممکن است متعلق به شارژ کیف پول باشد نه پرداخت سفارش
-            if (await _walletTopUpService.IsTopUpAuthorityAsync(authority))
+            try
             {
-                var topUpResult = await _walletTopUpService.VerifyZarinpalAsync(
+                if (string.IsNullOrWhiteSpace(authority))
+                    throw new BusinessException("Authority معتبر نیست.");
+
+                if (string.IsNullOrWhiteSpace(status))
+                    status = "NOK";
+
+                // Authority ممکن است متعلق به شارژ کیف پول باشد نه پرداخت سفارش
+                if (await _walletTopUpService.IsTopUpAuthorityAsync(authority))
+                {
+                    var topUpResult = await _walletTopUpService.VerifyZarinpalAsync(
+                        authority,
+                        status);
+
+                    if (wantsHtml && storefront is not null)
+                        return Redirect($"{storefront}/customer/wallet?topup={(topUpResult.IsPaid ? "1" : "0")}");
+
+                    return Ok(ApiResult<Vitorize.Application.DTOs.Wallet.WalletTopUpVerifyResultDto>.Success(
+                        topUpResult,
+                        topUpResult.IsPaid
+                            ? "شارژ کیف پول با موفقیت تایید شد."
+                            : "شارژ کیف پول تایید نشد."));
+                }
+
+                var result = await _paymentService.VerifyZarinpalPaymentAsync(
                     authority,
                     status);
 
-                return Ok(ApiResult<Vitorize.Application.DTOs.Wallet.WalletTopUpVerifyResultDto>.Success(
-                    topUpResult,
-                    topUpResult.IsPaid
-                        ? "شارژ کیف پول با موفقیت تایید شد."
-                        : "شارژ کیف پول تایید نشد."));
+                if (wantsHtml && storefront is not null)
+                    return Redirect($"{storefront}/payment/result?orderId={result.OrderId}&paid={(result.IsPaid ? "1" : "0")}");
+
+                return Ok(ApiResult<PaymentVerifyResultDto>.Success(
+                    result,
+                    result.IsPaid
+                        ? "پرداخت با موفقیت تایید شد."
+                        : "پرداخت تایید نشد."));
             }
-
-            var result = await _paymentService.VerifyZarinpalPaymentAsync(
-                authority,
-                status);
-
-            return Ok(ApiResult<PaymentVerifyResultDto>.Success(
-                result,
-                result.IsPaid
-                    ? "پرداخت با موفقیت تایید شد."
-                    : "پرداخت تایید نشد."));
+            catch (Exception exception) when (
+                exception is BusinessException or NotFoundException && wantsHtml && storefront is not null)
+            {
+                // A shopper must land on the branded failure state, not a JSON error document. The
+                // verification outcome is already persisted server-side; reconciliation stays intact.
+                return Redirect($"{storefront}/payment/result?paid=0");
+            }
         }
 
         [Authorize(Policy = "FinanceManage")]

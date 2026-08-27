@@ -92,7 +92,15 @@ else
     private decimal _amount = 500_000;
     private List<CustomerWalletTransactionModel> _transactions = new();
 
-    protected override async Task OnInitializedAsync() => await Load();
+    /// <summary>Set when the Zarinpal top-up callback redirects the browser back here.</summary>
+    [SupplyParameterFromQuery(Name = "topup")] public string? TopupOutcome { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TopupOutcome == "1") Toasts.Success("شارژ کیف پول با موفقیت انجام شد.");
+        else if (TopupOutcome == "0") Toasts.Error("شارژ کیف پول تایید نشد. در صورت کسر مبلغ، حداکثر تا ۷۲ ساعت بازگشت داده می‌شود.");
+        await Load();
+    }
 
     private async Task Load()
     {
