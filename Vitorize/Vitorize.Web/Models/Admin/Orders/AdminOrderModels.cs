@@ -24,6 +24,8 @@
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }
+        public bool RequiresVerification { get; set; }
+        public bool VerificationCompleted { get; set; }
         public List<AdminOrderItemModel> Items { get; set; } = new();
         public List<AdminOrderItemModel> OrderItems { get; set; } = new();
     }

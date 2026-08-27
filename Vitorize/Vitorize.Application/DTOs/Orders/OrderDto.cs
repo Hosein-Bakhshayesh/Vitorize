@@ -24,6 +24,10 @@ namespace Vitorize.Application.DTOs.Orders
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime? CompletedAt { get; set; }
+        // Aggregate KYC status for administrative order lists. The per-item
+        // lifecycle remains available in Items for detailed views.
+        public bool RequiresVerification { get; set; }
+        public bool VerificationCompleted { get; set; }
         public List<OrderItemDto> Items { get; set; } = new();
 
         // Customer self-service, decided by the server only. The web UI must never infer these from

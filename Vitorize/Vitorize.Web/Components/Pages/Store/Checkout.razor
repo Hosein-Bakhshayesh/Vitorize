@@ -5,6 +5,7 @@
 @inject MediaUrlResolver Media
 @inject IJSRuntime JS
 @using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
 @using Vitorize.Web.Models.Customer
 @using Vitorize.Web.Models.Store
 @using Vitorize.Web.Services.UI
@@ -44,33 +45,13 @@ else
                 </div>
             </div>
 
-            @* KYC here is post-payment: the customer pays now and delivery of the affected items
-               waits for verification. That makes the explanation informational, but the customer
-               still needs a way to act on it, so the panel always ends in a real link into the
-               existing /customer/verification flow. The action follows the request's actual state
-               so a customer whose documents are already under review is not told to submit again. *@
-            @if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
+            @if (OrderKycRequired && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
             {
                 <div data-testid="checkout-kyc-information" class="st-alert st-alert--info st-checkout-kyc">
                     <Icon Name="shield" Size="20" />
                     <div>
                         <div style="font-weight:700">احراز هویت</div>
-                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-top:4px">برای تحویل برخی اقلام این سفارش، پس از پرداخت تکمیل احراز هویت لازم است. پرداخت انجام می‌شود، اما تحویل این اقلام تا تکمیل احراز هویت در انتظار می‌ماند.</div>
-                        <div data-testid="checkout-kyc-state" class="st-muted" style="font-size:12.5px;margin-top:6px">
-                            وضعیت فعلی: <StoreBadge Text="@KycStateLabel" Intent="@KycStateIntent" Dot="false" />
-                        </div>
-                        @if (KycAwaitingReview)
-                        {
-                            <div style="font-size:12.5px;margin-top:6px">مدارک شما ارسال شده و در حال بررسی است؛ در حال حاضر اقدام دیگری لازم نیست.</div>
-                            <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px"
-                               data-testid="checkout-kyc-status-link" href="/customer/verification">مشاهده وضعیت احراز هویت</a>
-                        }
-                        else
-                        {
-                            <div style="font-size:12.5px;margin-top:6px">@KycActionHint</div>
-                            <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:8px"
-                               data-testid="checkout-kyc-cta" href="/customer/verification">@KycCtaLabel</a>
-                        }
+                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-top:4px">با توجه به جمع مبلغ سبد خرید، پس از پرداخت باید احراز هویت خود را تکمیل کنید. پس از بازگشت از درگاه، فرم احراز هویت به‌صورت مستقیم نمایش داده می‌شود.</div>
                     </div>
                 </div>
             }
@@ -286,6 +267,7 @@ else
     private decimal _discount;
     private string? _couponMsg;
     private string _method = "gateway";
+    private OrderKycSettingsModel? _kycSettings;
 
     // Server-computed pricing only. VAT and the payable total are never derived in Razor, so the
     // amount shown before payment is exactly the amount the order will be created with.
@@ -296,34 +278,15 @@ else
     private decimal VatAmount => _couponPricing?.VatAmount ?? _cart?.VatAmount ?? 0m;
     private decimal Payable => _couponPricing?.FinalAmount ?? _cart?.FinalAmount ?? 0m;
     private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
-    private bool RequiresKyc => _cart?.Items.Any(x => x.RequiresKyc) == true;
+    // The setting is managed in Toman. Rial carts are evaluated in Rial on the server,
+    // so keep the pre-payment note on this page consistent with the checkout snapshot.
+    private decimal OrderKycThreshold => _kycSettings?.ThresholdToman is > 0
+        ? _cart?.Items.FirstOrDefault()?.CurrencyType == (byte)CurrencyType.Rial
+            ? _kycSettings.ThresholdToman * 10m
+            : _kycSettings.ThresholdToman
+        : 0m;
 
-    // The customer's own verification request, used only to choose between "submit" and
-    // "already under review". Null means nothing has been submitted yet.
-    private CustomerVerificationModel? _verification;
-
-    /// <summary>True once documents are submitted and still awaiting an administrator's decision.</summary>
-    private bool KycAwaitingReview =>
-        _verification is not null &&
-        _verification.SubmittedAt.HasValue &&
-        _verification.Status == (byte)VerificationStatus.Pending;
-
-    private bool KycRejected =>
-        _verification?.Status == (byte)VerificationStatus.Rejected ||
-        _user?.VerificationStatus == (byte)VerificationStatus.Rejected;
-
-    private string KycStateLabel =>
-        KycRejected ? "نیازمند ارسال مجدد"
-        : KycAwaitingReview ? "در حال بررسی"
-        : "ثبت نشده";
-
-    private string KycStateIntent => KycRejected ? "danger" : KycAwaitingReview ? "warning" : "muted";
-
-    private string KycCtaLabel => KycRejected ? "ارسال مجدد مدارک" : "تکمیل احراز هویت";
-
-    private string KycActionHint => KycRejected
-        ? "مدارک قبلی تأیید نشد. برای تحویل این اقلام، مدارک را دوباره ارسال کنید."
-        : "برای تحویل این اقلام، احراز هویت خود را تکمیل کنید.";
+    private bool OrderKycRequired => OrderKycThreshold > 0 && Payable >= OrderKycThreshold;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -337,20 +300,14 @@ else
         var cartTask = Api.GetAsync<CartModel>("cart");
         var meTask = Api.GetAsync<CustomerProfileModel>("auth/me");
         var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
-        await Task.WhenAll(cartTask, meTask, walletTask);
+        var kycSettingsTask = Api.GetAsync<OrderKycSettingsModel>("checkout/kyc-settings");
+        await Task.WhenAll(cartTask, meTask, walletTask, kycSettingsTask);
 
         _cart = cartTask.Result.Data;
         _user = meTask.Result.Data;
         _walletBalance = walletTask.Result.Data?.Balance ?? 0;
+        _kycSettings = kycSettingsTask.Result.Data;
         _loading = false;
-
-        // Only needed to pick the right KYC action, so it is fetched after the page can render and
-        // a failure degrades to the "submit" action rather than blocking checkout.
-        if (RequiresKyc && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
-        {
-            var verification = await Api.GetAsync<CustomerVerificationModel>("verification/me");
-            _verification = verification.IsSuccess ? verification.Data : null;
-        }
 
         // Re-validate a coupon carried over from the cart so its discount shows on the summary.
         if (!string.IsNullOrWhiteSpace(CouponFromQuery) && _cart is not null && _cart.Items.Count > 0)

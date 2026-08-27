@@ -97,53 +97,28 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
     }
 
     [Fact]
-    public async Task Admin_product_api_rejects_invalid_kyc_configurations_and_normalizes_none()
+    public async Task Admin_product_api_creates_products_without_a_kyc_configuration()
     {
         var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
         using var client = _fixture.CreateClient(token);
         Guid categoryId;
-        Guid publishedVersionId;
-        Guid draftVersionId;
         await using (var db = _fixture.CreateDbContext())
         {
             var category = new Category { Id = Guid.NewGuid(), Title = "FIX-09 validation", Slug = $"fix09-validation-{Guid.NewGuid():N}", IsActive = true, CreatedAt = DateTime.UtcNow };
-            var policy = new KycPolicy { Id = Guid.NewGuid(), Code = $"fix09-validation-{Guid.NewGuid():N}", Name = "FIX-09 validation", IsActive = true, CreatedAt = DateTime.UtcNow };
-            var published = new KycPolicyVersion { Id = Guid.NewGuid(), KycPolicyId = policy.Id, Version = 1, Status = (byte)KycPolicyVersionStatus.Published, CustomerTitle = "published", CreatedAt = DateTime.UtcNow, PublishedAt = DateTime.UtcNow };
-            var draft = new KycPolicyVersion { Id = Guid.NewGuid(), KycPolicyId = policy.Id, Version = 2, Status = (byte)KycPolicyVersionStatus.Draft, CustomerTitle = "draft", CreatedAt = DateTime.UtcNow };
-            policy.Versions.Add(published); policy.Versions.Add(draft); db.Categories.Add(category); db.KycPolicies.Add(policy); await db.SaveChangesAsync();
-            categoryId = category.Id; publishedVersionId = published.Id; draftVersionId = draft.Id;
+            db.Categories.Add(category); await db.SaveChangesAsync();
+            categoryId = category.Id;
         }
 
-        CreateProductRequestDto Request(KycRequirementMode mode, decimal? threshold, Guid? version) => new()
+        var request = new CreateProductRequestDto
         {
             CategoryId = categoryId, Title = $"FIX-09 validation {Guid.NewGuid():N}", Slug = $"fix09-validation-{Guid.NewGuid():N}",
             ProductType = (byte)ProductType.Other, DeliveryType = (byte)DeliveryType.Manual, BasePrice = 100m, CurrencyType = (byte)CurrencyType.Toman,
-            IsActive = true, KycRequirementMode = (byte)mode, KycThresholdAmount = threshold, KycPolicyVersionId = version
+            IsActive = true
         };
-        async Task<HttpStatusCode> CreateStatus(KycRequirementMode mode, decimal? threshold, Guid? version)
-            => (await client.PostAsJsonAsync("/api/admin/products", Request(mode, threshold, version))).StatusCode;
-
-        foreach (var invalid in new[]
-                 {
-                     (KycRequirementMode.AboveThreshold, (decimal?)null, publishedVersionId),
-                     (KycRequirementMode.AboveThreshold, 0m, publishedVersionId),
-                     (KycRequirementMode.AboveThreshold, -1m, publishedVersionId),
-                     (KycRequirementMode.AboveThreshold, 1m, (Guid?)null),
-                     (KycRequirementMode.AboveThreshold, 1m, draftVersionId),
-                     (KycRequirementMode.Always, (decimal?)null, (Guid?)null),
-                     (KycRequirementMode.Always, (decimal?)null, draftVersionId),
-                     (KycRequirementMode.Always, (decimal?)null, Guid.NewGuid())
-                 })
-            (await CreateStatus(invalid.Item1, invalid.Item2, invalid.Item3)).Should().Be(HttpStatusCode.BadRequest);
-
-        (await CreateStatus(KycRequirementMode.Always, null, publishedVersionId)).Should().Be(HttpStatusCode.OK);
-        (await CreateStatus(KycRequirementMode.AboveThreshold, 1m, publishedVersionId)).Should().Be(HttpStatusCode.OK);
-        var noneResponse = await client.PostAsJsonAsync("/api/admin/products", Request(KycRequirementMode.None, 999m, publishedVersionId));
-        noneResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var created = (await noneResponse.Content.ReadFromJsonAsync<ApiResult<AdminProductDto>>())!.Data!;
-        created.KycRequirementMode.Should().Be((byte)KycRequirementMode.None);
-        created.KycThresholdAmount.Should().BeNull();
-        created.KycPolicyVersionId.Should().BeNull();
+        var response = await client.PostAsJsonAsync("/api/admin/products", request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var created = (await response.Content.ReadFromJsonAsync<ApiResult<AdminProductDto>>())!.Data!;
+        created.Title.Should().Be(request.Title);
     }
 
     [Fact]

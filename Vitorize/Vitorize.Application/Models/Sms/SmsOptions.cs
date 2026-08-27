@@ -30,6 +30,9 @@ namespace Vitorize.Application.Models.Sms
 
         public bool LogSensitiveData { get; init; }
         public bool UseOutbox { get; init; } = true;
+        /// <summary>Whether administrators may mirror manually written notifications as SMS text.</summary>
+        public bool CanSendNotificationText =>
+            IsOperational && DefaultLineNumber is > 0 && UseOutbox;
 
         public int? GetTemplateId(string templateKey) =>
             TemplateIds.TryGetValue(templateKey, out var id) && id > 0 ? id : null;

@@ -14,6 +14,10 @@
 
         public DateOnly? BirthDate { get; set; }
 
+        public bool? RegisteredMobileBelongsToCardHolder { get; set; }
+
+        public string? CardHolderMobile { get; set; }
+
         public string? BankCardNumber { get; set; }
 
         public string? ShabaNumber { get; set; }

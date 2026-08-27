@@ -89,7 +89,7 @@ else
                                         @if (AllPageSelected) { <Icon Name="check" Size="12" /> }
                                     </span>
                                 </th>
-                                <th>شماره سفارش</th><th>مشتری</th><th>مبلغ نهایی</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th>
+                                <th>شماره سفارش</th><th>مشتری</th><th>مبلغ نهایی</th><th>پرداخت</th><th>احراز هویت</th><th>وضعیت</th><th>تاریخ</th><th class="col-actions">عملیات</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -117,6 +117,16 @@ else
                                     </td>
                                     <td><MoneyDisplay Amount="o.FinalAmount" /></td>
                                     <td><StatusBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" /></td>
+                                    <td>
+                                        @if (o.RequiresVerification)
+                                        {
+                                            <StatusBadge Text="@(o.VerificationCompleted ? "انجام شده" : "نیازمند اقدام")" Intent="@(o.VerificationCompleted ? "success" : "warning")" />
+                                        }
+                                        else
+                                        {
+                                            <span class="vz-muted">نیاز ندارد</span>
+                                        }
+                                    </td>
                                     <td><StatusBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
                                     <td><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></td>
                                     <td class="col-actions">

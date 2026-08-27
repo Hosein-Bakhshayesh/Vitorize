@@ -265,7 +265,6 @@ else if (_product is not null)
                 <div class="vz-card__body vz-stack" style="gap:12px">
                     <div class="vz-spread"><span class="vz-muted">محصول فعال</span><StatusBadge Text="@(p.IsActive ? "بله" : "خیر")" Intent="@(p.IsActive ? "success" : "muted")" /></div>
                     <div class="vz-spread"><span class="vz-muted">محصول ویژه</span><StatusBadge Text="@(p.IsFeatured ? "بله" : "خیر")" Intent="@(p.IsFeatured ? "warning" : "muted")" /></div>
-                    <div class="vz-spread"><span class="vz-muted">نیازمند احراز هویت</span><StatusBadge Text="@(p.RequiresVerification ? "بله" : "خیر")" Intent="@(p.RequiresVerification ? "info" : "muted")" /></div>
                     <div class="vz-spread"><span class="vz-muted">نیازمند پیام پشتیبانی</span><StatusBadge Text="@(p.RequiresSupportMessage ? "بله" : "خیر")" Intent="@(p.RequiresSupportMessage ? "info" : "muted")" /></div>
                 </div>
             </div>

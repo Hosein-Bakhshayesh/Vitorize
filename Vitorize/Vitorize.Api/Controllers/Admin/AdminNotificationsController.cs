@@ -14,13 +14,16 @@ namespace Vitorize.Api.Controllers.Admin
     {
         private readonly IAdminNotificationReadService _service;
         private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUser;
 
         public AdminNotificationsController(
             IAdminNotificationReadService service,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ICurrentUserService currentUser)
         {
             _service = service;
             _notificationService = notificationService;
+            _currentUser = currentUser;
         }
         [HttpGet]
         public async Task<ActionResult<ApiResult<List<AdminNotificationDto>>>> GetAll([FromQuery] AdminQueryFilterDto filter)
@@ -53,9 +56,13 @@ namespace Vitorize.Api.Controllers.Admin
             await _notificationService.SendSystemNotificationAsync(
                 request.UserId,
                 request.Title,
-                request.Message);
+                request.Message,
+                request.SendSms,
+                _currentUser.UserId);
 
-            return Ok(ApiResult.Success("اعلان برای کاربر ارسال شد."));
+            return Ok(ApiResult.Success(request.SendSms
+                ? "اعلان ثبت و پیامک در صف ارسال قرار گرفت."
+                : "اعلان برای کاربر ارسال شد."));
         }
     }
 }

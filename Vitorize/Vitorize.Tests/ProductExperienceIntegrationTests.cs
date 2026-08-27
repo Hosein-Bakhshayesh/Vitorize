@@ -76,13 +76,13 @@ public sealed class ProductExperienceIntegrationTests
         var matching = new Product
         {
             Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = "Matching", Slug = $"matching-{Guid.NewGuid():N}",
-            ProductType = 2, DeliveryType = 1, RequiresVerification = true, BasePrice = 100m, DiscountPrice = 70m,
+            ProductType = 2, DeliveryType = 1, BasePrice = 100m, DiscountPrice = 70m,
             CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
         };
         var excluded = new Product
         {
             Id = Guid.NewGuid(), Category = category, CategoryId = category.Id, Title = "Excluded", Slug = $"excluded-{Guid.NewGuid():N}",
-            ProductType = 2, DeliveryType = 2, RequiresVerification = true, BasePrice = 100m, DiscountPrice = 70m,
+            ProductType = 2, DeliveryType = 2, BasePrice = 100m, DiscountPrice = 70m,
             CurrencyType = 2, MinOrderQuantity = 1, IsActive = true, CreatedAt = DateTime.UtcNow
         };
         db.AddRange(category, matching, excluded);
@@ -90,7 +90,7 @@ public sealed class ProductExperienceIntegrationTests
 
         var result = await new ProductService(db, new StrictHtmlContentSanitizer()).GetProductsAsync(new ProductFilterDto
         {
-            ProductTypes = new List<byte> { 2 }, DeliveryType = 1, RequiresVerification = true,
+            ProductTypes = new List<byte> { 2 }, DeliveryType = 1,
             MinDiscountPercent = 25m, Page = 1, PageSize = 1
         });
 

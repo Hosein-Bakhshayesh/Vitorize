@@ -4,8 +4,10 @@ using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Notifications;
 using Vitorize.Application.DTOs.Outbox;
 using Vitorize.Application.Interfaces;
+using Vitorize.Application.Models.Sms;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
+using Vitorize.Infrastructure.Services.Sms;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Exceptions;
 
@@ -15,13 +17,19 @@ namespace Vitorize.Infrastructure.Services
     {
         private readonly VitorizeDbContext _dbContext;
         private readonly IOutboxService _outboxService;
+        private readonly ISmsOutboxEnqueuer _smsOutbox;
+        private readonly ISmsSettingsProvider _smsSettings;
 
         public NotificationService(
             VitorizeDbContext dbContext,
-            IOutboxService outboxService)
+            IOutboxService outboxService,
+            ISmsOutboxEnqueuer smsOutbox,
+            ISmsSettingsProvider smsSettings)
         {
             _dbContext = dbContext;
             _outboxService = outboxService;
+            _smsOutbox = smsOutbox;
+            _smsSettings = smsSettings;
         }
 
         public async Task CreateAsync(
@@ -71,7 +79,10 @@ namespace Vitorize.Infrastructure.Services
         public async Task SendSystemNotificationAsync(
             Guid userId,
             string title,
-            string message)
+            string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
+            CancellationToken cancellationToken = default)
         {
             if (userId == Guid.Empty)
                 throw new BusinessException("کاربر مقصد معتبر نیست.");
@@ -82,18 +93,47 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(message))
                 throw new BusinessException("متن اعلان الزامی است.");
 
-            var userExists = await _dbContext.Users
+            var mobile = await _dbContext.Users
                 .AsNoTracking()
-                .AnyAsync(x => x.Id == userId);
+                .Where(x => x.Id == userId)
+                .Select(x => x.Mobile)
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (!userExists)
+            if (mobile is null)
                 throw new NotFoundException("کاربر یافت نشد.");
 
-            await CreateAsync(
-                userId,
-                (byte)NotificationType.SystemMessage,
-                title.Trim(),
-                message.Trim());
+            var normalizedTitle = title.Trim();
+            var normalizedMessage = message.Trim();
+            if (sendSms)
+                await EnsureSmsTextEnabledAsync(cancellationToken);
+
+            var now = DateTime.UtcNow;
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Type = (byte)NotificationType.SystemMessage,
+                Title = normalizedTitle,
+                Message = normalizedMessage,
+                IsRead = false,
+                CreatedAt = now
+            };
+
+            await _dbContext.Notifications.AddAsync(notification, cancellationToken);
+            await AddCreatedEventAsync(notification, cancellationToken);
+
+            if (sendSms)
+            {
+                if (!IranMobile.TryNormalize(mobile, out _))
+                    throw new BusinessException("شماره موبایل کاربر برای ارسال پیامک معتبر نیست.");
+
+                await _smsOutbox.EnqueueTextAsync(
+                    mobile, normalizedMessage, "AdminNotificationSms", notification.Id, cancellationToken,
+                    userId, smsCreatedByUserId, nameof(Notification), notification.Id.ToString("N"),
+                    $"sms:admin-notification:{notification.Id:N}");
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<int> CreateBulkAsync(
@@ -101,12 +141,27 @@ namespace Vitorize.Infrastructure.Services
             IReadOnlyCollection<Guid> recipientUserIds,
             string title,
             string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
             CancellationToken cancellationToken = default)
         {
             if (broadcastId == Guid.Empty)
                 throw new BusinessException("شناسه ارسال گروهی معتبر نیست.");
             if (recipientUserIds is null || recipientUserIds.Count == 0)
                 return 0;
+
+            var mobiles = new Dictionary<Guid, string>();
+            if (sendSms)
+            {
+                await EnsureSmsTextEnabledAsync(cancellationToken);
+                mobiles = await _dbContext.Users.AsNoTracking()
+                    .Where(x => recipientUserIds.Contains(x.Id))
+                    .Select(x => new { x.Id, x.Mobile })
+                    .ToDictionaryAsync(x => x.Id, x => x.Mobile, cancellationToken);
+
+                if (mobiles.Count != recipientUserIds.Count || mobiles.Values.Any(x => !IranMobile.TryNormalize(x, out _)))
+                    throw new BusinessException("شماره موبایل یکی از گیرندگان برای ارسال پیامک معتبر نیست.");
+            }
 
             var now = DateTime.UtcNow;
             var created = 0;
@@ -128,6 +183,17 @@ namespace Vitorize.Infrastructure.Services
                 }).ToList();
 
                 await _dbContext.Notifications.AddRangeAsync(notifications, cancellationToken);
+
+                if (sendSms)
+                {
+                    foreach (var notification in notifications)
+                    {
+                        await _smsOutbox.EnqueueTextAsync(
+                            mobiles[notification.UserId], message, "AdminNotificationSms", notification.Id, cancellationToken,
+                            notification.UserId, smsCreatedByUserId, nameof(NotificationBroadcast), broadcastId.ToString("N"),
+                            $"sms:admin-notification:{notification.Id:N}");
+                    }
+                }
                 await _dbContext.SaveChangesAsync(cancellationToken);
 
                 // Keep the tracker from growing across batches on a 5,000-recipient send.
@@ -204,6 +270,32 @@ namespace Vitorize.Infrastructure.Services
             }
 
             await _dbContext.SaveChangesAsync();
+        }
+
+        private async Task EnsureSmsTextEnabledAsync(CancellationToken cancellationToken)
+        {
+            var options = await _smsSettings.GetAsync(cancellationToken);
+            if (!options.CanSendNotificationText)
+                throw new BusinessException("ارسال پیامک متنی برای اعلان‌ها در تنظیمات پیامک فعال یا آماده نیست.");
+        }
+
+        private async Task AddCreatedEventAsync(Notification notification, CancellationToken cancellationToken)
+        {
+            var payload = JsonSerializer.Serialize(new NotificationCreatedEventDto
+            {
+                NotificationId = notification.Id,
+                UserId = notification.UserId,
+                Type = notification.Type,
+                Title = notification.Title,
+                Message = notification.Message,
+                CreatedAt = notification.CreatedAt
+            });
+
+            await _outboxService.AddAsync(
+                messageType: "NotificationCreated",
+                payload: payload,
+                aggregateId: notification.Id,
+                aggregateType: "Notification");
         }
     }
 }

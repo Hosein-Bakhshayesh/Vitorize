@@ -93,8 +93,7 @@ namespace Vitorize.Infrastructure.Services
                     ThumbnailImagePath = x.ThumbnailImagePath,
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
-                    IsFeatured = x.IsFeatured,
-                    RequiresVerification = x.RequiresVerification
+                    IsFeatured = x.IsFeatured
                 })
                 .ToListAsync();
 

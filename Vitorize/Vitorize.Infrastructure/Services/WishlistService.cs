@@ -44,7 +44,6 @@ namespace Vitorize.Infrastructure.Services
                     ProductType = x.Product.ProductType,
                     DeliveryType = x.Product.DeliveryType,
                     CurrencyType = x.Product.CurrencyType,
-                    RequiresVerification = x.Product.RequiresVerification,
                     CategoryTitle = x.Product.Category.Title,
                     BrandTitle = x.Product.Brand != null ? x.Product.Brand.Title : null,
                     HasVariants = x.Product.ProductVariants.Any(v => v.IsActive),

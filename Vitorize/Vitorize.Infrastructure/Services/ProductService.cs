@@ -157,9 +157,6 @@ namespace Vitorize.Infrastructure.Services
             if (filter.DeliveryType.HasValue)
                 query = query.Where(x => x.DeliveryType == filter.DeliveryType.Value);
 
-            if (filter.RequiresVerification.HasValue)
-                query = query.Where(x => x.RequiresVerification == filter.RequiresVerification.Value);
-
             if (filter.MinDiscountPercent is > 0)
             {
                 var minimumDiscount = filter.MinDiscountPercent.Value / 100m;
@@ -257,7 +254,6 @@ namespace Vitorize.Infrastructure.Services
                     ProductType = x.ProductType,
                     DeliveryType = x.DeliveryType,
                     CurrencyType = x.CurrencyType,
-                    RequiresVerification = x.RequiresVerification,
                     IsFeatured = x.IsFeatured,
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
@@ -397,7 +393,6 @@ namespace Vitorize.Infrastructure.Services
                     ProductType = x.ProductType,
                     DeliveryType = x.DeliveryType,
                     CurrencyType = x.CurrencyType,
-                    RequiresVerification = x.RequiresVerification,
                     IsFeatured = x.IsFeatured,
                     CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand != null ? x.Brand.Title : null,
@@ -511,10 +506,6 @@ namespace Vitorize.Infrastructure.Services
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
                     CurrencyType = x.CurrencyType,
-                    RequiresVerification = x.RequiresVerification,
-                    KycRequirementMode = x.KycRequirementMode,
-                    KycThresholdAmount = x.KycThresholdAmount,
-                    KycPolicyVersionId = x.KycPolicyVersionId,
                     RequiresSupportMessage = x.RequiresSupportMessage,
                     MinOrderQuantity = x.MinOrderQuantity,
                     MaxOrderQuantity = x.MaxOrderQuantity,

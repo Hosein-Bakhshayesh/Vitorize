@@ -389,13 +389,10 @@ public class CartService : ICartService
     {
         var items = cart.CartItems.OrderBy(x => x.CreatedAt).Select(x =>
         {
+            // Product-level KYC has been retired. The order-total rule is introduced separately;
+            // until then, carts must never present a product-derived verification requirement.
             var kyc = KycRequirementEvaluator.Evaluate(
-                x.Product.RequiresVerification,
-                x.Product.KycRequirementMode,
-                x.Product.KycThresholdAmount,
-                x.Product.KycPolicyVersionId,
-                x.UnitPrice,
-                x.Quantity);
+                (byte)KycRequirementMode.None, null, null, x.UnitPrice, x.Quantity);
             return new CartItemDto
             {
                 Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,

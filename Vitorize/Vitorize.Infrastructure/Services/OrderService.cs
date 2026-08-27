@@ -261,6 +261,9 @@ namespace Vitorize.Infrastructure.Services
                 DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
                 VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
                 VatTaxableAmount = x.VatTaxableAmount, VatAmount = x.VatAmount,
+                RequiresVerification = x.OrderItems.Any(i => i.RequiresVerification),
+                VerificationCompleted = !x.OrderItems.Any(i => i.RequiresVerification) ||
+                    x.User.VerificationStatus == (byte)VerificationStatus.Verified,
                 CreatedAt = x.CreatedAt, PaidAt = x.PaidAt, CompletedAt = x.CompletedAt
             }).ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<OrderDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
@@ -281,7 +284,11 @@ namespace Vitorize.Infrastructure.Services
                 Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
                 DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
                 VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
-                VatTaxableAmount = x.VatTaxableAmount, VatAmount = x.VatAmount, CreatedAt = x.CreatedAt
+                VatTaxableAmount = x.VatTaxableAmount, VatAmount = x.VatAmount,
+                RequiresVerification = x.OrderItems.Any(i => i.RequiresVerification),
+                VerificationCompleted = !x.OrderItems.Any(i => i.RequiresVerification) ||
+                    x.User.VerificationStatus == (byte)VerificationStatus.Verified,
+                CreatedAt = x.CreatedAt
             }).ToListAsync(cancellationToken);
         }
 

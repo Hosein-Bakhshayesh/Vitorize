@@ -10,6 +10,12 @@
 
         public DateOnly? BirthDate { get; set; }
 
+        /// <summary>Whether the mobile used to register the account belongs to the bank-card holder.</summary>
+        public bool? RegisteredMobileBelongsToCardHolder { get; set; }
+
+        /// <summary>Required only when the registered account mobile belongs to somebody else.</summary>
+        public string? CardHolderMobile { get; set; }
+
         public string? BankCardNumber { get; set; }
 
         public string? ShabaNumber { get; set; }

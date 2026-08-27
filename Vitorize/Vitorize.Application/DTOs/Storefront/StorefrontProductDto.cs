@@ -16,6 +16,5 @@
 
         public bool IsFeatured { get; set; }
 
-        public bool RequiresVerification { get; set; }
     }
 }

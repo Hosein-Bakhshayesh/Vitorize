@@ -19,15 +19,30 @@ namespace Vitorize.Api.Controllers
         private readonly ICheckoutService _checkoutService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdempotencyService _idempotencyService;
+        private readonly IOrderKycSettingsProvider _orderKycSettingsProvider;
 
         public CheckoutController(
             ICheckoutService checkoutService,
             ICurrentUserService currentUserService,
-            IIdempotencyService idempotencyService)
+            IIdempotencyService idempotencyService,
+            IOrderKycSettingsProvider orderKycSettingsProvider)
         {
             _checkoutService = checkoutService;
             _currentUserService = currentUserService;
             _idempotencyService = idempotencyService;
+            _orderKycSettingsProvider = orderKycSettingsProvider;
+        }
+
+        [HttpGet("kyc-settings")]
+        [ProducesResponseType(typeof(ApiResult<OrderKycSettingsDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResult<OrderKycSettingsDto>>> GetKycSettings()
+        {
+            var settings = await _orderKycSettingsProvider.GetAsync();
+            return Ok(ApiResult<OrderKycSettingsDto>.Success(new OrderKycSettingsDto
+            {
+                ThresholdToman = settings.ThresholdToman,
+                CustomerNotice = settings.CustomerNotice
+            }));
         }
 
         [HttpPost]

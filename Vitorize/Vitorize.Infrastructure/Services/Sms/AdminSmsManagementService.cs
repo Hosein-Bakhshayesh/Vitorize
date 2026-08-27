@@ -164,8 +164,6 @@ namespace Vitorize.Infrastructure.Services.Sms
                 NotificationTemplateId = options.GetTemplateId(SmsTemplateKeys.UniversalNotification),
                 PendingOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && (x.Status == 0 || x.Status == 1), cancellationToken),
                 FailedOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && x.Status == 3, cancellationToken),
-                CustomSendEnabled = await GetBoolSettingAsync(SmsSettingKeys.CustomSendEnabled, false, cancellationToken),
-                CustomTextEnabled = await GetBoolSettingAsync(SmsSettingKeys.CustomTextEnabled, false, cancellationToken),
                 AllowImmediateSend = await GetBoolSettingAsync(SmsSettingKeys.AllowImmediateSend, false, cancellationToken),
                 AllowRetryFailed = await GetBoolSettingAsync(SmsSettingKeys.AllowRetryFailed, true, cancellationToken),
                 Message = account.IsSuccess ? "اتصال به SMS.ir برقرار است." : account.UserMessage ?? message
@@ -188,7 +186,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             Guid adminUserId,
             CancellationToken cancellationToken = default)
         {
-            await EnsureCustomAllowedAsync(adminUserId, textMode: false, cancellationToken);
+            await EnsureCustomAllowedAsync(adminUserId, cancellationToken);
             var mobile = await ResolveMobileAsync(request.Mobile, request.UserId, cancellationToken);
             var reference = request.OrderNumber?.Trim() ?? string.Empty;
             if (!SafeReference.IsMatch(reference))
@@ -240,7 +238,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             Guid adminUserId,
             CancellationToken cancellationToken = default)
         {
-            await EnsureCustomAllowedAsync(adminUserId, textMode: true, cancellationToken);
+            await EnsureCustomAllowedAsync(adminUserId, cancellationToken);
             var mobile = await ResolveMobileAsync(request.Mobile, request.UserId, cancellationToken);
             var text = request.Text?.Trim() ?? string.Empty;
             var maxLength = await GetIntSettingAsync(SmsSettingKeys.MaxCustomTextLength, 500, cancellationToken);
@@ -371,13 +369,9 @@ namespace Vitorize.Infrastructure.Services.Sms
             return query;
         }
 
-        private async Task EnsureCustomAllowedAsync(Guid adminUserId, bool textMode, CancellationToken ct)
+        private async Task EnsureCustomAllowedAsync(Guid adminUserId, CancellationToken ct)
         {
             if (adminUserId == Guid.Empty) throw new UnauthorizedException("مدیر احراز هویت نشده است.");
-            if (!await GetBoolSettingAsync(SmsSettingKeys.CustomSendEnabled, false, ct))
-                throw new BusinessException("ارسال سفارشی پیامک غیرفعال است.");
-            if (textMode && !await GetBoolSettingAsync(SmsSettingKeys.CustomTextEnabled, false, ct))
-                throw new BusinessException("ارسال پیامک متنی غیرفعال است.");
             var since = DateTime.UtcNow.AddMinutes(-1);
             if (await _db.SmsMessages.CountAsync(x => x.CreatedByUserId == adminUserId && x.CreatedAt >= since, ct) >= 10)
                 throw new BusinessException("تعداد ارسال‌های سفارشی بیش از حد مجاز است. یک دقیقه بعد تلاش کنید.");

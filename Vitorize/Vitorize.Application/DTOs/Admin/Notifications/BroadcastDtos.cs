@@ -22,6 +22,8 @@ namespace Vitorize.Application.DTOs.Admin.Notifications
         public List<Guid> SelectedCustomerIds { get; set; } = new();
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
+        /// <summary>When enabled, queue the same notification body for every recipient by SMS.</summary>
+        public bool SendSms { get; set; }
         /// <summary>Optional internal, relative path. Validated by NotificationActionUrlRules.</summary>
         public string? ActionUrl { get; set; }
     }

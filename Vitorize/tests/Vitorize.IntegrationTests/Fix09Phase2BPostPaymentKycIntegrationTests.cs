@@ -214,8 +214,8 @@ public sealed class Fix09Phase2BPostPaymentKycIntegrationTests
     private sealed class TestNotifications : INotificationService
     {
         public Task CreateAsync(Guid userId, byte type, string title, string message) => Task.CompletedTask;
-        public Task SendSystemNotificationAsync(Guid userId, string title, string message) => Task.CompletedTask;
-        public Task<int> CreateBulkAsync(Guid broadcastId, IReadOnlyCollection<Guid> recipientUserIds, string title, string message, CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task SendSystemNotificationAsync(Guid userId, string title, string message, bool sendSms = false, Guid? smsCreatedByUserId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CreateBulkAsync(Guid broadcastId, IReadOnlyCollection<Guid> recipientUserIds, string title, string message, bool sendSms = false, Guid? smsCreatedByUserId = null, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<List<Vitorize.Application.DTOs.Notifications.NotificationDto>> GetMyNotificationsAsync(Guid userId) => Task.FromResult(new List<Vitorize.Application.DTOs.Notifications.NotificationDto>());
         public Task<int> GetUnreadCountAsync(Guid userId) => Task.FromResult(0);
         public Task MarkAsReadAsync(Guid userId, Guid notificationId) => Task.CompletedTask;

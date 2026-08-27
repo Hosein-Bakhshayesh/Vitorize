@@ -103,7 +103,7 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.SaveChangesAsync(cancellationToken);
 
                 var delivered = await _notificationService.CreateBulkAsync(
-                    broadcast.Id, recipients, title, message, cancellationToken);
+                    broadcast.Id, recipients, title, message, request.SendSms, actorUserId, cancellationToken);
 
                 if (delivered != recipients.Count)
                     throw new BusinessException("ارسال گروهی کامل نشد؛ عملیات لغو شد.");
@@ -120,7 +120,7 @@ namespace Vitorize.Infrastructure.Services
                     "NotificationBroadcastSent",
                     nameof(NotificationBroadcast),
                     broadcast.Id.ToString(),
-                    $"audience={audience}; recipients={delivered}; title={title}" +
+                    $"audience={audience}; recipients={delivered}; sms={request.SendSms}; title={title}" +
                     (actionUrl is null ? string.Empty : $"; actionUrl={actionUrl}"),
                     _currentUser.IpAddress,
                     _currentUser.UserAgent);

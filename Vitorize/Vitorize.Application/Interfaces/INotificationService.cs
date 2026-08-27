@@ -16,7 +16,10 @@ namespace Vitorize.Application.Interfaces
         Task SendSystemNotificationAsync(
             Guid userId,
             string title,
-            string message);
+            string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// FIX-15 bulk delivery for one broadcast. Inserts announcement rows in bounded batches
@@ -30,6 +33,8 @@ namespace Vitorize.Application.Interfaces
             IReadOnlyCollection<Guid> recipientUserIds,
             string title,
             string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
             CancellationToken cancellationToken = default);
 
         Task<List<NotificationDto>> GetMyNotificationsAsync(

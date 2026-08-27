@@ -16,7 +16,6 @@
         public byte ProductType { get; set; }
         public byte DeliveryType { get; set; }
         public byte CurrencyType { get; set; }
-        public bool RequiresVerification { get; set; }
         public bool IsFeatured { get; set; }
         public string CategoryTitle { get; set; } = string.Empty;
         public string? BrandTitle { get; set; }
@@ -84,10 +83,6 @@
         public decimal BasePrice { get; set; }
         public decimal? DiscountPrice { get; set; }
         public byte CurrencyType { get; set; }
-        public bool RequiresVerification { get; set; }
-        public byte KycRequirementMode { get; set; }
-        public decimal? KycThresholdAmount { get; set; }
-        public Guid? KycPolicyVersionId { get; set; }
         public bool RequiresSupportMessage { get; set; }
         public int MinOrderQuantity { get; set; } = 1;
         public int? MaxOrderQuantity { get; set; }

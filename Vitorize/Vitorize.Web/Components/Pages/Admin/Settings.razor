@@ -161,6 +161,7 @@ else
         new("texts",    "متن‌ها و پیام‌ها", "message",      "متن حالت‌های خالی و صفحات خطا", new[] { "Empty", "Errors" }),
         new("email",    "ایمیل",            "mail",         "پیکربندی SMTP", new[] { "Email" }),
         new("payment",  "پرداخت",           "credit-card",  "درگاه پرداخت زرین‌پال و مالیات بر ارزش افزوده", new[] { "Payment", "Tax" }),
+        new("verification", "احراز هویت", "shield-check", "آستانه مبلغ سفارش و متن راهنمای مشتری", new[] { "Verification" }),
         new("security", "امنیت",            "shield",       "قوانین ورود و رمز عبور", new[] { "Security" }),
         new("uploads",  "آپلودها",          "upload",       "محدودیت حجم و فرمت تصاویر", new[] { "Uploads" }),
         new("notif",    "اعلان‌ها",          "bell",         "پیامک و اعلان‌ها", new[] { "SMS" }),
@@ -174,12 +175,14 @@ else
         ["Contact"] = "اطلاعات تماس", ["Support"] = "پشتیبانی",
         ["Scripts"] = "اسکریپت سفارشی", ["Wallet"] = "کیف پول",
         ["Payment"] = "درگاه پرداخت", ["Tax"] = "مالیات بر ارزش افزوده",
+        ["Verification"] = "احراز هویت سفارش",
     };
 
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
     private static readonly string[] FieldOrder =
     {
         "Sms.OtpTemplateId", "Sms.NotificationTemplateId",
+        OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.Keys.CustomerNotice,
         "SiteName", "SiteDescription", "SiteTagline",
         "HeroKicker", "HeroTitle", "HeroSubtitle", "HeroCtaText", "HeroCtaUrl", "HeroSecondaryCtaText", "HeroSecondaryCtaUrl",
         "NewsletterTitle", "NewsletterSubtitle", "NewsletterPlaceholder", "NewsletterCtaText",
@@ -344,7 +347,7 @@ else
     {
         if (string.Equals(s.ValueType, "json", StringComparison.OrdinalIgnoreCase)) return true;
         var k = s.Key ?? "";
-        if (k.Contains("Description") || k.Contains("Subtitle") || k.Contains("Message") || k.Contains("Html") || k.Contains("About")) return true;
+        if (k.Contains("Description") || k.Contains("Subtitle") || k.Contains("Message") || k.Contains("Notice") || k.Contains("Html") || k.Contains("About")) return true;
         return (s.Value?.Length ?? 0) > 55;
     }
 

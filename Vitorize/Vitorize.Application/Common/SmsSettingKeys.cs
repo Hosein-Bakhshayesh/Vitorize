@@ -84,8 +84,6 @@ namespace Vitorize.Application.Common
         public const string DailySmsLimitPerMobile = "Sms.DailySmsLimitPerMobile";
         public const string LogSensitiveData = "Sms.LogSensitiveData";
         public const string UseOutbox = "Sms.UseOutbox";
-        public const string CustomSendEnabled = "Sms.CustomSendEnabled";
-        public const string CustomTextEnabled = "Sms.CustomTextEnabled";
         public const string MaxCustomRecipients = "Sms.MaxCustomRecipients";
         public const string MaxCustomTextLength = "Sms.MaxCustomTextLength";
         public const string RequireConfirmation = "Sms.RequireConfirmation";
@@ -94,6 +92,13 @@ namespace Vitorize.Application.Common
         public const string MaskMobileInAdmin = "Sms.MaskMobileInAdmin";
         public const string AllowAdminViewFullMobile = "Sms.AllowAdminViewFullMobile";
         public const string AllowRetryFailed = "Sms.AllowRetryFailed";
+
+        /// <summary>Deprecated switches. Custom admin SMS is always available when SMS.ir itself is configured.</summary>
+        public static readonly IReadOnlySet<string> DeprecatedKeys = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "Sms.CustomSendEnabled",
+            "Sms.CustomTextEnabled"
+        };
 
         /// <summary>
         /// کلیدهای محرمانه یا داخلی که نباید در پاسخ عمومی/کلاینت آشکار شوند.

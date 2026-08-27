@@ -76,6 +76,7 @@ namespace Vitorize.Infrastructure
             services.AddSingleton<IRefreshTokenRotationCache, RefreshTokenRotationCache>();
             services.AddSingleton<IMaintenanceStateProvider, MaintenanceStateProvider>();
             services.AddScoped<IVatSettingsProvider, VatSettingsProvider>();
+            services.AddScoped<IOrderKycSettingsProvider, OrderKycSettingsProvider>();
             services.AddScoped<IZarinpalPaymentConfigurationProvider, ZarinpalPaymentConfigurationProvider>();
 
             // Testing-environment-only fault injection (Off by default; guarded by IHostEnvironment).

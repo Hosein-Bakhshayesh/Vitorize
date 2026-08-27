@@ -263,6 +263,10 @@ namespace Vitorize.Infrastructure.Services
                 S("MaintenanceMode", "false", "General", "bool", "حالت تعمیر و نگهداری (نمایش صفحه ۵۰۳ به بازدیدکنندگان)"),
                 S("MaintenanceMessage", "به‌زودی با نسخه‌ای بهتر برمی‌گردیم. از صبوری شما سپاسگزاریم.", "General", "string", "پیام صفحه حالت تعمیر"),
 
+                // ───────────── Order total KYC ─────────────
+                S(OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.DefaultThresholdToman.ToString(System.Globalization.CultureInfo.InvariantCulture), "Verification", "decimal", "آستانه مبلغ نهایی سفارش برای احراز هویت (تومان؛ صفر = غیرفعال)"),
+                S(OrderKycSettings.Keys.CustomerNotice, OrderKycSettings.DefaultCustomerNotice, "Verification", "string", "متن راهنمای قابل جمع شدن در فرم احراز هویت سفارش"),
+
                 // ───────────── Branding ─────────────
                 S("SiteTagline", "بازارگاه دیجیتال گیمینگ و خدمات آنلاین", "Branding", "string", "شعار سایت (کنار لوگو و عنوان صفحات)"),
                 S("SiteLogoPath", "", "Branding", "string", "مسیر لوگوی سایت (خالی = لوگوی پیش‌فرض)"),
@@ -462,8 +466,6 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.MaxRetryCount, "5", "SMS", "int", "حداکثر تعداد بازتلاش ارسال"),
                 S(SmsSettingKeys.RetryDelaySeconds, "30", "SMS", "int", "پایه تأخیر بازتلاش (ثانیه)"),
                 S(SmsSettingKeys.UseOutbox, "true", "SMS", "bool", "ارسال پیامک رویدادهای تجاری از طریق Outbox"),
-                S(SmsSettingKeys.CustomSendEnabled, "false", "SMS", "bool", "فعال‌سازی ارسال پیامک سفارشی توسط مدیر"),
-                S(SmsSettingKeys.CustomTextEnabled, "false", "SMS", "bool", "فعال‌سازی پیامک متنی سفارشی"),
                 S(SmsSettingKeys.MaxCustomRecipients, "1", "SMS", "int", "حداکثر گیرنده در هر ارسال سفارشی"),
                 S(SmsSettingKeys.MaxCustomTextLength, "500", "SMS", "int", "حداکثر طول پیامک متنی سفارشی"),
                 S(SmsSettingKeys.RequireConfirmation, "true", "SMS", "bool", "نیاز به تایید نهایی پیش از ارسال سفارشی"),

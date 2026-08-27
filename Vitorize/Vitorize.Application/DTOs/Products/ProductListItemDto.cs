@@ -29,8 +29,6 @@
 
         public byte CurrencyType { get; set; }
 
-        public bool RequiresVerification { get; set; }
-
         public bool IsFeatured { get; set; }
 
         public string CategoryTitle { get; set; } = string.Empty;

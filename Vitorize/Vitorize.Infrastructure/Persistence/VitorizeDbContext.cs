@@ -985,7 +985,6 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.BasePrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.DiscountPrice).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.KycThresholdAmount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             // Existing products must keep behaving exactly as before the override existed.
             entity.Property(e => e.ForceOutOfStock).HasDefaultValue(false);
@@ -999,9 +998,6 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.ThumbnailAltText).HasMaxLength(250);
             entity.Property(e => e.Title).HasMaxLength(250);
 
-            entity.HasIndex(e => e.KycPolicyVersionId, "IX_Products_KycPolicyVersionId")
-                .HasFilter("([KycPolicyVersionId] IS NOT NULL)");
-
             entity.HasOne(d => d.Brand).WithMany(p => p.Products)
                 .HasForeignKey(d => d.BrandId)
                 .HasConstraintName("FK_Products_Brands");
@@ -1010,11 +1006,6 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.CategoryId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Products_Categories");
-
-            entity.HasOne(d => d.KycPolicyVersion).WithMany()
-                .HasForeignKey(d => d.KycPolicyVersionId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_Products_KycPolicyVersions");
 
             entity.HasMany(d => d.Tags).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(

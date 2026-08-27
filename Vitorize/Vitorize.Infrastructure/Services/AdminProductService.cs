@@ -58,11 +58,7 @@ namespace Vitorize.Infrastructure.Services
                             ? x.DiscountPrice.Value
                             : x.BasePrice,
                     CurrencyType = x.CurrencyType,
-                    RequiresVerification = x.RequiresVerification,
-                    KycRequirementMode = x.KycRequirementMode,
-                    KycThresholdAmount = x.KycThresholdAmount,
                     ForceOutOfStock = x.ForceOutOfStock,
-                    KycPolicyVersionId = x.KycPolicyVersionId,
                     CategoryIds = x.ProductCategories.Select(pc => pc.CategoryId).ToList(),
                     CategoryTitles = x.ProductCategories.OrderBy(pc => pc.Category.Title).Select(pc => pc.Category.Title).ToList(),
                     RequiresSupportMessage = x.RequiresSupportMessage,
@@ -151,9 +147,7 @@ namespace Vitorize.Infrastructure.Services
                     Id = x.Id, CategoryId = x.CategoryId, BrandId = x.BrandId, Title = x.Title, Slug = x.Slug,
                     ProductType = x.ProductType, DeliveryType = x.DeliveryType, BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice, CurrencyType = x.CurrencyType, IsActive = x.IsActive,
-                    RequiresVerification = x.RequiresVerification, KycRequirementMode = x.KycRequirementMode,
-                    KycThresholdAmount = x.KycThresholdAmount,
-                    ForceOutOfStock = x.ForceOutOfStock, KycPolicyVersionId = x.KycPolicyVersionId,
+                    ForceOutOfStock = x.ForceOutOfStock,
                     IsFeatured = x.IsFeatured, ThumbnailImagePath = x.ThumbnailImagePath, CategoryTitle = x.Category.Title,
                     BrandTitle = x.Brand == null ? null : x.Brand.Title, CreatedAt = x.CreatedAt,
                     FinalPrice = x.DiscountPrice != null && x.DiscountPrice > 0 && x.DiscountPrice < x.BasePrice ? x.DiscountPrice.Value : x.BasePrice,
@@ -223,11 +217,7 @@ namespace Vitorize.Infrastructure.Services
                             ? x.DiscountPrice.Value
                             : x.BasePrice,
                     CurrencyType = x.CurrencyType,
-                    RequiresVerification = x.RequiresVerification,
-                    KycRequirementMode = x.KycRequirementMode,
-                    KycThresholdAmount = x.KycThresholdAmount,
                     ForceOutOfStock = x.ForceOutOfStock,
-                    KycPolicyVersionId = x.KycPolicyVersionId,
                     CategoryIds = x.ProductCategories.Select(pc => pc.CategoryId).ToList(),
                     CategoryTitles = x.ProductCategories.OrderBy(pc => pc.Category.Title).Select(pc => pc.Category.Title).ToList(),
                     RequiresSupportMessage = x.RequiresSupportMessage,
@@ -384,7 +374,6 @@ namespace Vitorize.Infrastructure.Services
         {
             NormalizeRequest(request);
 
-            await NormalizeKycConfigurationAsync(request);
             await ValidateAsync(request, null);
 
             var product = new Product
@@ -401,10 +390,6 @@ namespace Vitorize.Infrastructure.Services
                 BasePrice = request.BasePrice,
                 DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice),
                 CurrencyType = request.CurrencyType,
-                RequiresVerification = request.RequiresVerification,
-                KycRequirementMode = request.KycRequirementMode,
-                KycThresholdAmount = request.KycThresholdAmount,
-                KycPolicyVersionId = request.KycPolicyVersionId,
                 ForceOutOfStock = request.ForceOutOfStock,
                 RequiresSupportMessage = request.RequiresSupportMessage,
                 MinOrderQuantity = request.MinOrderQuantity,
@@ -438,8 +423,6 @@ namespace Vitorize.Infrastructure.Services
         {
             NormalizeRequest(request);
 
-            await NormalizeKycConfigurationAsync(request);
-
             var product = await _dbContext.Products
                 .Include(x => x.ProductFeatures)
                 .Include(x => x.ProductInputFields)
@@ -462,10 +445,6 @@ namespace Vitorize.Infrastructure.Services
             product.BasePrice = request.BasePrice;
             product.DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice);
             product.CurrencyType = request.CurrencyType;
-            product.RequiresVerification = request.RequiresVerification;
-            product.KycRequirementMode = request.KycRequirementMode;
-            product.KycThresholdAmount = request.KycThresholdAmount;
-            product.KycPolicyVersionId = request.KycPolicyVersionId;
             product.RequiresSupportMessage = request.RequiresSupportMessage;
             product.MinOrderQuantity = request.MinOrderQuantity;
             product.MaxOrderQuantity = request.MaxOrderQuantity;
@@ -530,9 +509,6 @@ namespace Vitorize.Infrastructure.Services
             CreateProductRequestDto request,
             Guid? currentId)
         {
-            if (!Enum.IsDefined(typeof(KycRequirementMode), request.KycRequirementMode))
-                throw new BusinessException("حالت احراز هویت محصول معتبر نیست.");
-
             if (string.IsNullOrWhiteSpace(request.Title))
                 throw new BusinessException("عنوان محصول الزامی است.");
 
@@ -632,52 +608,6 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("نام داخلی فیلدهای اطلاعات خریدار باید یکتا باشد.");
             foreach (var field in request.InputFields) ProductInputRules.ValidateDefinition(field);
             foreach (var feature in request.Features) ProductFeatureRules.Validate(feature);
-        }
-
-        private async Task NormalizeKycConfigurationAsync(CreateProductRequestDto request)
-        {
-            var mode = (KycRequirementMode)request.KycRequirementMode;
-
-            // Old API clients only send RequiresVerification.  Resolve them to the
-            // migration-created policy rather than perpetuating a policy-less state.
-            if (mode == KycRequirementMode.None && request.RequiresVerification && !request.KycPolicyVersionId.HasValue)
-            {
-                var legacyPolicyVersionId = await _dbContext.KycPolicyVersions
-                    .Where(x => x.KycPolicy.Code == "legacy-profile-verification" &&
-                                x.Status == (byte)KycPolicyVersionStatus.Published)
-                    .OrderByDescending(x => x.Version)
-                    .Select(x => (Guid?)x.Id)
-                    .FirstOrDefaultAsync();
-                if (!legacyPolicyVersionId.HasValue)
-                    throw new BusinessException("سیاست پیش‌فرض احراز هویت هنوز برای استفاده آماده نیست.");
-                request.KycRequirementMode = (byte)KycRequirementMode.Always;
-                request.KycPolicyVersionId = legacyPolicyVersionId;
-                mode = KycRequirementMode.Always;
-            }
-
-            if (mode == KycRequirementMode.None)
-            {
-                request.KycThresholdAmount = null;
-                request.KycPolicyVersionId = null;
-                request.RequiresVerification = false;
-                return;
-            }
-
-            if (mode == KycRequirementMode.Always)
-                request.KycThresholdAmount = null;
-            else if (!request.KycThresholdAmount.HasValue || request.KycThresholdAmount.Value <= 0)
-                throw new BusinessException("برای احراز هویت بر اساس مبلغ، آستانه‌ای بیشتر از صفر تعیین کنید.");
-
-            if (!request.KycPolicyVersionId.HasValue || request.KycPolicyVersionId == Guid.Empty)
-                throw new BusinessException("یک نسخه منتشرشده از سیاست احراز هویت را انتخاب کنید.");
-
-            var isPublishedActiveVersion = await _dbContext.KycPolicyVersions.AnyAsync(x =>
-                x.Id == request.KycPolicyVersionId.Value &&
-                x.Status == (byte)KycPolicyVersionStatus.Published && x.KycPolicy.IsActive);
-            if (!isPublishedActiveVersion)
-                throw new BusinessException("نسخه انتخاب‌شده برای استفاده در محصول منتشرشده و فعال نیست.");
-
-            request.RequiresVerification = true;
         }
 
         private async Task SyncMetadataAsync(Product product, IReadOnlyList<ProductFeatureDto> features, IReadOnlyList<ProductInputFieldDto> fields, IReadOnlyList<Guid> tagIds)

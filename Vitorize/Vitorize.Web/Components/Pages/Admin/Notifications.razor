@@ -2,6 +2,7 @@
 @inject ApiClient Api
 @inject ToastService Toasts
 @using Vitorize.Web.Models.Admin.Notifications
+@using Vitorize.Web.Models.Admin.Sms
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="اعلان‌ها" Subtitle="اعلان‌های سیستمی و ارسال پیام به کاربران"
@@ -92,6 +93,14 @@
                 <label class="vz-label">متن پیام <span class="req">*</span></label>
                 <textarea class="vz-textarea" @bind="_sendMessage"></textarea>
             </div>
+            <label class="sms-mirror-option">
+                <input type="checkbox" @bind="_sendSms" disabled="@(!SmsTextAvailable)" />
+                <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با SMS.ir ارسال می‌شود.</small></span>
+            </label>
+            @if (!SmsTextAvailable)
+            {
+                <div class="vz-hint">برای فعال‌شدن این گزینه، اتصال SMS.ir را در تنظیمات کامل کنید.</div>
+            }
         </div>
     </ChildContent>
     <Footer>
@@ -196,6 +205,14 @@
                 @* Plain text only: notifications are never rendered as HTML. *@
                 <textarea class="vz-textarea" rows="5" data-testid="broadcast-message" @bind="_bcMessage"></textarea>
             </div>
+            <label class="sms-mirror-option">
+                <input type="checkbox" data-testid="broadcast-send-sms" @bind="_bcSendSms" disabled="@(!SmsTextAvailable)" />
+                <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن اعلان برای هر گیرنده پیامک می‌شود.</small></span>
+            </label>
+            @if (!SmsTextAvailable)
+            {
+                <div class="vz-hint">ارسال پیامک از تنظیمات SMS غیرفعال است.</div>
+            }
             <div class="vz-field">
                 <label class="vz-label">لینک داخلی</label>
                 <input class="vz-input" dir="ltr" placeholder="/page/summer-sale" data-testid="broadcast-action-url" @bind="_bcActionUrl" />
@@ -237,7 +254,7 @@
 </SlidePanel>
 
 <ConfirmDialog Visible="_bcConfirm" Title="ارسال گروهی اعلان" Intent="primary" Icon="megaphone"
-               Message="@($"این اعلان برای {AUI.Number(_bcPreview?.RecipientCount ?? 0)} کاربر ارسال می‌شود. ادامه می‌دهید؟")"
+               Message="@($"این اعلان برای {AUI.Number(_bcPreview?.RecipientCount ?? 0)} کاربر ارسال می‌شود.{(_bcSendSms ? " همین متن به‌صورت پیامک هم صف می‌شود." : string.Empty)} ادامه می‌دهید؟")"
                ConfirmText="ارسال" Busy="_bcSending"
                OnConfirm="SendBroadcast" OnCancel="() => _bcConfirm = false" />
 
@@ -263,7 +280,7 @@
     };
 
     private List<AdminUserModel> _users = new();
-    private bool _sendOpen, _sending;
+    private bool _sendOpen, _sending, _sendSms;
     private Guid _sendUserId;
     private string _sendTitle = string.Empty, _sendMessage = string.Empty;
 
@@ -271,7 +288,7 @@
     private const byte AudienceAll = 1;
     private const byte AudienceSelected = 2;
 
-    private bool _broadcastOpen, _bcSending, _bcPreviewing, _bcConfirm;
+    private bool _broadcastOpen, _bcSending, _bcPreviewing, _bcConfirm, _bcSendSms;
     private byte _bcAudience = AudienceAll;
     private string _bcTitle = string.Empty, _bcMessage = string.Empty, _bcActionUrl = string.Empty;
     private string _bcSearch = string.Empty;
@@ -280,6 +297,8 @@
     private readonly List<BroadcastRecipientChip> _bcSelected = new();
     private BroadcastPreviewResultModel? _bcPreview;
     private List<AdminBroadcastModel> _broadcasts = new();
+    private SmsHealthModel? _smsHealth;
+    private bool SmsTextAvailable => _smsHealth is { IsEnabled: true, IsConfigured: true };
 
     private static string AudienceTitle(byte audience) =>
         audience == AudienceSelected ? "مشتریان انتخاب‌شده" : "همه مشتریان";
@@ -301,6 +320,8 @@
         await Load();
         var u = await Api.GetAsync<PagedResult<AdminUserModel>>("admin/users?page=1&pageSize=300");
         _users = u.Data?.Items.ToList() ?? new();
+        var sms = await Api.GetAsync<SmsHealthModel>("admin/sms/health");
+        _smsHealth = sms.IsSuccess ? sms.Data : null;
         await LoadBroadcasts();
     }
 
@@ -314,6 +335,7 @@
     {
         _bcAudience = AudienceAll;
         _bcTitle = _bcMessage = _bcActionUrl = _bcSearch = string.Empty;
+        _bcSendSms = false;
         _bcSelected.Clear();
         _bcSearchResults.Clear();
         _bcPreview = null;
@@ -409,7 +431,8 @@
             SelectedCustomerIds = _bcSelected.Select(x => x.Id).ToList(),
             Title = _bcTitle.Trim(),
             Message = _bcMessage.Trim(),
-            ActionUrl = string.IsNullOrWhiteSpace(_bcActionUrl) ? null : _bcActionUrl.Trim()
+            ActionUrl = string.IsNullOrWhiteSpace(_bcActionUrl) ? null : _bcActionUrl.Trim(),
+            SendSms = _bcSendSms
         };
         var headers = new Dictionary<string, string> { ["Idempotency-Key"] = $"broadcast-{Guid.NewGuid():N}" };
         var r = await Api.PostAsync<AdminBroadcastModel>("admin/notification-broadcasts", payload, headers);
@@ -419,7 +442,9 @@
         if (r.IsSuccess && r.Data is not null)
         {
             // Report the server's actual delivered count, never the preview estimate.
-            Toasts.Success($"اعلان برای {AUI.Number(r.Data.RecipientCount)} کاربر ارسال شد.");
+            Toasts.Success(_bcSendSms
+                ? $"اعلان و پیامک برای {AUI.Number(r.Data.RecipientCount)} کاربر در صف ارسال قرار گرفت."
+                : $"اعلان برای {AUI.Number(r.Data.RecipientCount)} کاربر ارسال شد.");
             _broadcastOpen = false;
             await LoadBroadcasts();
             await Load();
@@ -453,7 +478,7 @@
 
     private void OpenSend()
     {
-        _sendUserId = Guid.Empty; _sendTitle = string.Empty; _sendMessage = string.Empty;
+        _sendUserId = Guid.Empty; _sendTitle = string.Empty; _sendMessage = string.Empty; _sendSms = false;
         _sendOpen = true;
     }
 
@@ -464,10 +489,10 @@
 
         _sending = true;
         var r = await Api.PostAsync("admin/notifications/send",
-            new { UserId = _sendUserId, Title = _sendTitle, Message = _sendMessage });
+            new { UserId = _sendUserId, Title = _sendTitle, Message = _sendMessage, SendSms = _sendSms });
         _sending = false;
 
-        if (r.IsSuccess) { Toasts.Success("اعلان برای کاربر ارسال شد."); _sendOpen = false; await Load(); }
+        if (r.IsSuccess) { Toasts.Success(_sendSms ? "اعلان ثبت و پیامک در صف ارسال قرار گرفت." : "اعلان برای کاربر ارسال شد."); _sendOpen = false; await Load(); }
         else Toasts.Error(r.Message);
     }
 }

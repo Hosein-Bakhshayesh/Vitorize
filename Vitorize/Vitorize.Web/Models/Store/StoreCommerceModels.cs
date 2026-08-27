@@ -28,6 +28,7 @@ namespace Vitorize.Web.Models.Store
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public byte CurrencyType { get; set; }
         public bool RequiresKyc { get; set; }
         public byte KycRequirementMode { get; set; }
         public decimal? KycThresholdAmount { get; set; }
@@ -52,6 +53,12 @@ namespace Vitorize.Web.Models.Store
         public byte OrderStatus { get; set; }
         public byte PaymentStatus { get; set; }
         public List<Guid> ReservationIds { get; set; } = new();
+    }
+
+    public class OrderKycSettingsModel
+    {
+        public decimal ThresholdToman { get; set; }
+        public string CustomerNotice { get; set; } = string.Empty;
     }
 
     public class ValidateCouponResultModel

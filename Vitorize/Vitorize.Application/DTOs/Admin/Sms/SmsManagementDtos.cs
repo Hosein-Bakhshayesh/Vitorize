@@ -89,8 +89,6 @@ namespace Vitorize.Application.DTOs.Admin.Sms
         public int? NotificationTemplateId { get; set; }
         public int PendingOutboxCount { get; set; }
         public int FailedOutboxCount { get; set; }
-        public bool CustomSendEnabled { get; set; }
-        public bool CustomTextEnabled { get; set; }
         public bool AllowImmediateSend { get; set; }
         public bool AllowRetryFailed { get; set; }
         public string Message { get; set; } = string.Empty;

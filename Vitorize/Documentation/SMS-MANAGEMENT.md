@@ -51,8 +51,6 @@ EF migration ایجاد نشده است. ترتیب اجرای SQL Server:
 
 تنظیمات جدید با پیش‌فرض امن seed می‌شوند:
 
-- `Sms.CustomSendEnabled=false`
-- `Sms.CustomTextEnabled=false`
 - `Sms.MaxCustomRecipients=1`
 - `Sms.MaxCustomTextLength=500`
 - `Sms.RequireConfirmation=true`

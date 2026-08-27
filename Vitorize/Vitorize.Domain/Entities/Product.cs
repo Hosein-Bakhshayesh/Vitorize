@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Vitorize.Domain.Entities;
 
@@ -29,10 +30,18 @@ public partial class Product
 
     public byte CurrencyType { get; set; }
 
+    // Backward-compatible source-only members while product-level KYC is retired.
+    // They are not persisted and no checkout path reads them.
+    [NotMapped]
     public bool RequiresVerification { get; set; }
 
+    [NotMapped]
     public byte KycRequirementMode { get; set; }
+
+    [NotMapped]
     public decimal? KycThresholdAmount { get; set; }
+
+    [NotMapped]
     public Guid? KycPolicyVersionId { get; set; }
 
     public bool RequiresSupportMessage { get; set; }
@@ -102,6 +111,8 @@ public partial class Product
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();
 
     public virtual ICollection<WishList> WishLists { get; set; } = new List<WishList>();
+
+    [NotMapped]
     public virtual KycPolicyVersion? KycPolicyVersion { get; set; }
 
     public virtual ICollection<ProductTag> Tags { get; set; } = new List<ProductTag>();

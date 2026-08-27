@@ -66,7 +66,8 @@ namespace Vitorize.Api.Controllers.Admin
                     .Distinct().OrderBy(x => x).ToList(),
                 Title = request.Title?.Trim(),
                 Message = request.Message?.Trim(),
-                ActionUrl = request.ActionUrl?.Trim()
+                ActionUrl = request.ActionUrl?.Trim(),
+                request.SendSms
             });
 
             await _idempotencyService.StartAsync(actorUserId, idempotencyKey, requestHash);

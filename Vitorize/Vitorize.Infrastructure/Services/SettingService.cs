@@ -47,6 +47,7 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync();
 
             return settings
+                .Where(x => !SmsSettingKeys.DeprecatedKeys.Contains(x.Key))
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.GroupName) ? "General" : x.GroupName)
                 .Select(x => new SettingGroupDto
                 {
@@ -86,6 +87,9 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(key))
                 throw new BusinessException("کلید تنظیمات معتبر نیست.");
 
+            if (SmsSettingKeys.DeprecatedKeys.Contains(key.Trim()))
+                return null;
+
             var setting = await _dbContext.Settings
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Key == key.Trim());
@@ -99,8 +103,18 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("کلید تنظیمات الزامی است.");
 
             var key = request.Key.Trim();
+            if (SmsSettingKeys.DeprecatedKeys.Contains(key))
+                throw new BusinessException("این تنظیم دیگر استفاده نمی‌شود؛ ارسال پیامک سفارشی همیشه فعال است.");
             TrustSealRules.ValidateSetting(key, request.Value);
             VatSettings.ValidateSetting(key, request.Value);
+            try
+            {
+                OrderKycSettings.ValidateSetting(key, request.Value);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new BusinessException(ex.Message);
+            }
 
             // Reject an unsupported ordering rather than quietly coercing it. The query layer already
             // falls back to the default, which is precisely why nobody noticed the admin control was a

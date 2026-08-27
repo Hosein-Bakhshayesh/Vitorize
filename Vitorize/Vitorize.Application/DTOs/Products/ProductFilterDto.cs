@@ -25,8 +25,6 @@ namespace Vitorize.Application.DTOs.Products
 
         public byte? DeliveryType { get; set; }
 
-        public bool? RequiresVerification { get; set; }
-
         /// <summary>Minimum effective discount percentage (0-100).</summary>
         [Range(typeof(decimal), "0", "100")]
         public decimal? MinDiscountPercent { get; set; }

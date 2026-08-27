@@ -20,10 +20,6 @@
 
         public byte CurrencyType { get; set; }
 
-        public bool RequiresVerification { get; set; }
-        public byte KycRequirementMode { get; set; }
-        public decimal? KycThresholdAmount { get; set; }
-        public Guid? KycPolicyVersionId { get; set; }
         public bool RequiresSupportMessage { get; set; }
 
         public int MinOrderQuantity { get; set; }

@@ -1440,6 +1440,16 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 .vz-catpick__opt:hover { border-color: var(--primary); color: var(--primary); }
 .vz-catpick__opt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+.sms-mirror-option {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+    padding: 12px 13px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface-2); color: var(--text);
+}
+.sms-mirror-option input { margin-top: 3px; accent-color: var(--primary); }
+.sms-mirror-option:has(input:disabled) { cursor: not-allowed; opacity: .68; }
+.sms-mirror-option span { display: grid; gap: 3px; }
+.sms-mirror-option small { color: var(--text-3); font-size: 12px; }
+
 @media (max-width: 640px) {
     .vz-catpick__list { max-height: 148px; }
 }

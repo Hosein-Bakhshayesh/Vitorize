@@ -29,8 +29,6 @@ namespace Vitorize.Application.DTOs.Wishlist
 
         public byte CurrencyType { get; set; }
 
-        public bool RequiresVerification { get; set; }
-
         public string CategoryTitle { get; set; } = string.Empty;
 
         public string? BrandTitle { get; set; }

@@ -47,7 +47,6 @@ namespace Vitorize.Web.Models.Customer
         public byte ProductType { get; set; }
         public byte DeliveryType { get; set; }
         public byte CurrencyType { get; set; }
-        public bool RequiresVerification { get; set; }
         public string CategoryTitle { get; set; } = string.Empty;
         public string? BrandTitle { get; set; }
         public bool HasVariants { get; set; }
@@ -101,6 +100,8 @@ namespace Vitorize.Web.Models.Customer
         public string LastName { get; set; } = string.Empty;
         public string NationalCode { get; set; } = string.Empty;
         public DateTime? BirthDate { get; set; }
+        public bool? RegisteredMobileBelongsToCardHolder { get; set; }
+        public string? CardHolderMobile { get; set; }
         public string? BankCardNumber { get; set; }
         public string? ShabaNumber { get; set; }
         public string? Address { get; set; }

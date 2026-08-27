@@ -12,6 +12,8 @@ namespace Vitorize.Web.Models.Admin.Verification
         public string LastName { get; set; } = string.Empty;
         public string NationalCode { get; set; } = string.Empty;
         public DateTime? BirthDate { get; set; }
+        public bool? RegisteredMobileBelongsToCardHolder { get; set; }
+        public string? CardHolderMobile { get; set; }
         public string? BankCardNumber { get; set; }
         public string? ShabaNumber { get; set; }
         public string? Address { get; set; }

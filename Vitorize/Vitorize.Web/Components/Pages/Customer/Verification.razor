@@ -4,11 +4,12 @@
 @inject ToastService Toasts
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 @using Vitorize.Web.Models.Store
+@using Vitorize.Application.Common
 
 <PageTitle>احراز هویت | ویتورایز</PageTitle>
 
 <h1 style="font-size:22px;margin-bottom:6px">احراز هویت (KYC)</h1>
-<p class="st-muted" style="font-size:13px;margin-bottom:18px">برای خرید برخی محصولات، تکمیل احراز هویت الزامی است.</p>
+<p class="st-muted" style="font-size:13px;margin-bottom:18px">برای ادامه فرایند تحویل سفارش، اطلاعات و مدارک صاحب کارت بانکی را ثبت کنید.</p>
 
 @if (_loading)
 {
@@ -16,6 +17,10 @@
 }
 else
 {
+    <details class="st-card" style="margin-bottom:18px">
+        <summary style="cursor:pointer;padding:14px 16px;font-weight:700;display:flex;align-items:center;gap:8px"><Icon Name="info" Size="18" /> چرا احراز هویت لازم است؟</summary>
+        <div class="st-card__pad" style="padding-top:0;white-space:pre-line;line-height:2;color:var(--st-text-2)">@(_kycSettings?.CustomerNotice ?? OrderKycSettings.DefaultCustomerNotice)</div>
+    </details>
     @if (_orderItemContext is not null)
     {
         <div class="st-alert st-alert--info" style="margin-bottom:18px">
@@ -65,16 +70,23 @@ else
                 <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی</div>
                 <div class="st-card__pad">
                     <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
-                        <div class="st-field"><label class="st-label">نام</label><input class="st-input" aria-label="نام" @bind="_firstName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">نام خانوادگی</label><input class="st-input" aria-label="نام خانوادگی" @bind="_lastName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">کد ملی</label><input class="st-input st-mono" aria-label="کد ملی" @bind="_nationalCode" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">تاریخ تولد</label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
+                        <div class="st-field"><label class="st-label">نام صاحب کارت بانکی</label><input class="st-input" aria-label="نام صاحب کارت بانکی" @bind="_firstName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">نام خانوادگی صاحب کارت بانکی</label><input class="st-input" aria-label="نام خانوادگی صاحب کارت بانکی" @bind="_lastName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد ملی صاحب کارت بانکی</label><input class="st-input st-mono" aria-label="کد ملی صاحب کارت بانکی" @bind="_nationalCode" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">تاریخ تولد صاحب کارت بانکی</label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
                             @if (!string.IsNullOrWhiteSpace(_birthDateError)) { <div class="st-field__error" role="alert">@_birthDateError</div> }
                         </div>
-                        <div class="st-field"><label class="st-label">شماره کارت بانکی</label><input class="st-input st-mono" aria-label="شماره کارت بانکی" @bind="_bankCard" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">شماره شبا</label><input class="st-input st-mono" aria-label="شماره شبا" @bind="_shaba" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">کد پستی</label><input class="st-input st-mono" aria-label="کد پستی" @bind="_postalCode" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">آدرس</label><input class="st-input" aria-label="آدرس" @bind="_address" disabled="@ReadOnly" /></div>
+                        <div class="st-field" style="grid-column:1 / -1">
+                            <label class="st-label">آیا شماره‌ تماسی که با آن داخل سایت ثبت‌نام کرده‌اید به نام صاحب کارت بانکی است؟</label>
+                            <div style="display:flex;gap:18px;margin-top:8px">
+                                <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == true)" @onchange="() => SetRegisteredMobileOwner(true)" disabled="@ReadOnly" /> بله</label>
+                                <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == false)" @onchange="() => SetRegisteredMobileOwner(false)" disabled="@ReadOnly" /> خیر</label>
+                            </div>
+                            @if (_registeredMobileBelongsToCardHolder == false)
+                            {
+                                <div class="st-field" style="margin-top:12px"><label class="st-label">لطفاً یک شماره تماسی که به نام صاحب کارت بانکی است وارد نمایید</label><input class="st-input st-mono" inputmode="tel" dir="ltr" @bind="_cardHolderMobile" disabled="@ReadOnly" /></div>
+                            }
+                        </div>
                     </div>
                     @if (!ReadOnly)
                     {
@@ -136,13 +148,16 @@ else
 
 @code {
     [SupplyParameterFromQuery(Name = "orderItem")] public Guid? OrderItemId { get; set; }
+    [SupplyParameterFromQuery(Name = "orderId")] public Guid? OrderId { get; set; }
     private bool _loading = true, _submitting;
     private CustomerVerificationModel? _profile;
     private StoreOrderItemKycModel? _orderItemContext;
+    private OrderKycSettingsModel? _kycSettings;
 
     private string _firstName = "", _lastName = "", _nationalCode = "";
     private DateTime? _birthDate;
-    private string? _bankCard, _shaba, _postalCode, _address;
+    private bool? _registeredMobileBelongsToCardHolder;
+    private string? _cardHolderMobile;
     private string? _birthDateError;
 
     private bool CustomerActionExpired => _orderItemContext?.CustomerAction == "DeadlineExpired" ||
@@ -161,14 +176,21 @@ else
 
     private static readonly Dictionary<byte, string> DocTypes = new()
     {
-        { 1, "روی کارت ملی" }, { 2, "پشت کارت ملی" }, { 3, "سلفی با کارت ملی" }, { 4, "کارت بانکی" }
+        { 1, "تصویر مدرک هویتی دارنده کارت" }, { 4, "تصویر کارت بانکی دارنده کارت" }
     };
 
     private IEnumerable<DocumentSlot> DocumentSlots =>
         _orderItemContext?.Documents.Count > 0
             ? _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
                 (byte)(index + 1), document.Title, document.DocumentTypeId, document.Instructions, document.RedactionMode, document.RedactionInstructions))
-            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, null, 0, null));
+            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, DocumentInstructions(document.Key), 0, null));
+
+    private static string? DocumentInstructions(byte documentType) => documentType switch
+    {
+        1 => "لطفاً تصویر کارت ملی خود را بارگذاری کنید. در صورتی که به کارت ملی خود دسترسی ندارید، می‌توانید تصویر دیگر مدارک هویتی (از جمله شناسنامه، پاسپورت، گواهینامه رانندگی، کارت سوخت و ...) را نیز بارگذاری کنید.",
+        4 => "در صورت نیاز، می‌توانید اطلاعات حساس کارت خود را (از جمله CVV و تاریخ انقضا) با یک تکه کاغذ یا انگشتان خود بپوشانید.",
+        _ => null
+    };
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -176,8 +198,16 @@ else
     {
         _loading = true;
         var result = await Api.GetAsync<CustomerVerificationModel>("verification/me");
+        var settingsResult = await Api.GetAsync<OrderKycSettingsModel>("checkout/kyc-settings");
         _profile = result.IsSuccess ? result.Data : null;
+        _kycSettings = settingsResult.IsSuccess ? settingsResult.Data : null;
         _orderItemContext = null;
+        if (!OrderItemId.HasValue && OrderId.HasValue)
+        {
+            var order = await Api.GetAsync<StoreOrderModel>($"orders/{OrderId.Value}");
+            OrderItemId = order.Data?.Items.FirstOrDefault(x =>
+                x.Kyc?.CustomerAction is "SubmitVerification" or "ResubmitVerification")?.Id;
+        }
         if (OrderItemId.HasValue)
         {
             var context = await Api.GetAsync<StoreOrderItemKycModel>($"orders/items/{OrderItemId.Value}/kyc-context");
@@ -190,10 +220,8 @@ else
             _lastName = _profile.LastName;
             _nationalCode = _profile.NationalCode;
             _birthDate = _profile.BirthDate;
-            _bankCard = _profile.BankCardNumber;
-            _shaba = _profile.ShabaNumber;
-            _postalCode = _profile.PostalCode;
-            _address = _profile.Address;
+            _registeredMobileBelongsToCardHolder = _profile.RegisteredMobileBelongsToCardHolder;
+            _cardHolderMobile = _profile.CardHolderMobile;
         }
         _loading = false;
     }
@@ -202,8 +230,10 @@ else
     {
         if (!string.IsNullOrWhiteSpace(_birthDateError))
         { Toasts.Error(_birthDateError); return; }
-        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode))
-        { Toasts.Error("نام، نام خانوادگی و کد ملی الزامی است."); return; }
+        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode) || !_registeredMobileBelongsToCardHolder.HasValue)
+        { Toasts.Error("نام، نام خانوادگی، کد ملی و وضعیت شماره تماس الزامی است."); return; }
+        if (_registeredMobileBelongsToCardHolder == false && string.IsNullOrWhiteSpace(_cardHolderMobile))
+        { Toasts.Error("شماره تماس صاحب کارت بانکی را وارد کنید."); return; }
 
         _submitting = true;
         var result = await Api.PostAsync<CustomerVerificationModel>("verification/submit", new
@@ -212,10 +242,8 @@ else
             LastName = _lastName,
             NationalCode = _nationalCode,
             BirthDate = _birthDate?.ToString("yyyy-MM-dd"),
-            BankCardNumber = _bankCard,
-            ShabaNumber = _shaba,
-            Address = _address,
-            PostalCode = _postalCode
+            RegisteredMobileBelongsToCardHolder = _registeredMobileBelongsToCardHolder,
+            CardHolderMobile = _cardHolderMobile
         });
         _submitting = false;
 
@@ -243,6 +271,12 @@ else
     {
         _birthDateError = message;
         return Task.CompletedTask;
+    }
+
+    private void SetRegisteredMobileOwner(bool value)
+    {
+        _registeredMobileBelongsToCardHolder = value;
+        if (value) _cardHolderMobile = null;
     }
 
     private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, string? Instructions, byte RedactionMode, string? RedactionInstructions);

@@ -76,6 +76,12 @@
             var order = await Api.GetAsync<StoreOrderModel>($"orders/{orderId}");
             _kycActionRequired = order.IsSuccess && order.Data?.Items.Any(x =>
                 x.Kyc?.CustomerAction is "SubmitVerification" or "ResubmitVerification") == true;
+            if (_kycActionRequired)
+            {
+                // A qualifying paid order goes straight into the customer form rather than making
+                // the customer discover a second action on this callback page.
+                Nav.NavigateTo($"/customer/verification?orderId={orderId}", replace: true);
+            }
             return;
         }
         var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{orderId}");

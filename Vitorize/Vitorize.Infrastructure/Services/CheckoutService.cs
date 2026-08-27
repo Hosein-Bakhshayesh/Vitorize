@@ -22,6 +22,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly IEncryptionService _encryptionService;
         private readonly IVatSettingsProvider _vatSettingsProvider;
+        private readonly IOrderKycSettingsProvider? _orderKycSettingsProvider;
         private readonly ILogger<CheckoutService> _logger;
         private readonly PaymentTimingOptions _paymentTiming;
 
@@ -31,6 +32,7 @@ namespace Vitorize.Infrastructure.Services
             INotificationService notificationService,
             IEncryptionService encryptionService,
             IVatSettingsProvider vatSettingsProvider,
+            IOrderKycSettingsProvider? orderKycSettingsProvider = null,
             ILogger<CheckoutService>? logger = null,
             IOptions<PaymentTimingOptions>? paymentTiming = null)
         {
@@ -39,6 +41,7 @@ namespace Vitorize.Infrastructure.Services
             _notificationService = notificationService;
             _encryptionService = encryptionService;
             _vatSettingsProvider = vatSettingsProvider;
+            _orderKycSettingsProvider = orderKycSettingsProvider;
             _logger = logger ?? NullLogger<CheckoutService>.Instance;
             _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
         }
@@ -95,7 +98,7 @@ namespace Vitorize.Infrastructure.Services
                 // Cart prices are display caches; authoritative catalog state is reloaded and
                 // repriced inside this serializable transaction.
                 var cart = await _dbContext.Carts
-                    .Include(x => x.CartItems).ThenInclude(x => x.Product).ThenInclude(x => x.KycPolicyVersion)
+                    .Include(x => x.CartItems).ThenInclude(x => x.Product)
                     .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
                     .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
                     .Include(x => x.CartItems).ThenInclude(x => x.Product)
@@ -179,6 +182,14 @@ namespace Vitorize.Infrastructure.Services
                 discountAmount = pricing.DiscountAmount;
                 var finalAmount = pricing.FinalAmount;
 
+                // KYC is evaluated once from the final, discount-and-VAT-inclusive payable total.
+                // The resulting snapshot is copied to every item only because the existing
+                // fulfillment lifecycle is item-based; it is never derived from a product.
+                var orderKycSettings = _orderKycSettingsProvider is null
+                    ? OrderKycSettings.Resolve("0", null)
+                    : await _orderKycSettingsProvider.GetAsync();
+                var kyc = await EvaluateOrderKycAsync(finalAmount, currencyType, orderKycSettings);
+
                 // There is no zero-value payment/fulfilment workflow.  Reject this before creating an
                 // order or reserving stock, rather than stranding a pending order that no payment path
                 // can settle. The guard deliberately uses the product amount after discount and BEFORE
@@ -214,7 +225,6 @@ namespace Vitorize.Infrastructure.Services
 
                 foreach (var cartItem in cart.CartItems)
                 {
-                    var kyc = EvaluateProductKyc(cartItem.Product, cartItem.UnitPrice, cartItem.Quantity);
                     var suppliedValues = cartItem.InputValues.ToDictionary(
                         x => x.FieldKey,
                         x => x.IsSensitive && x.EncryptedValue is not null
@@ -444,16 +454,28 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
-        private static KycRequirementEvaluation EvaluateProductKyc(Product product, decimal unitPrice, int quantity)
+        private async Task<KycRequirementEvaluation> EvaluateOrderKycAsync(
+            decimal finalAmount,
+            byte currencyType,
+            OrderKycSettingsSnapshot settings)
         {
-            var evaluation = KycRequirementEvaluator.Evaluate(product.RequiresVerification, product.KycRequirementMode,
-                product.KycThresholdAmount, product.KycPolicyVersionId, unitPrice, quantity);
-            return evaluation with
-            {
-                CustomerActionDeadlineHours = evaluation.RequiresKyc
-                    ? product.KycPolicyVersion?.CustomerActionDeadlineHours
-                    : null
-            };
+            var threshold = OrderKycSettings.ThresholdForCurrency(settings, currencyType);
+            if (!settings.IsEnabled || finalAmount < threshold)
+                return new KycRequirementEvaluation(false, KycRequirementMode.None, null, finalAmount, null);
+
+            var policy = await _dbContext.KycPolicyVersions.AsNoTracking()
+                .Where(x => x.KycPolicy.Code == "order-total-verification" &&
+                            x.KycPolicy.IsActive &&
+                            x.Status == (byte)KycPolicyVersionStatus.Published)
+                .OrderByDescending(x => x.Version)
+                .Select(x => new { x.Id, x.CustomerActionDeadlineHours })
+                .FirstOrDefaultAsync();
+            if (policy is null)
+                throw new BusinessException("سیاست احراز هویت سفارش فعال نیست. ابتدا مهاجرت تنظیمات احراز هویت را اعمال کنید.");
+
+            return new KycRequirementEvaluation(
+                true, KycRequirementMode.AboveThreshold, threshold, finalAmount,
+                policy.Id, policy.CustomerActionDeadlineHours);
         }
 
         private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>

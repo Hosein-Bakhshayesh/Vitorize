@@ -81,6 +81,17 @@ namespace Vitorize.Infrastructure.Services
                     throw new BusinessException("تاریخ تولد واردشده معتبر نیست.");
             }
 
+            if (!request.RegisteredMobileBelongsToCardHolder.HasValue)
+                throw new BusinessException("مشخص کنید شماره ثبت‌نام به نام صاحب کارت بانکی است یا خیر.");
+
+            string? cardHolderMobile = null;
+            if (!request.RegisteredMobileBelongsToCardHolder.Value)
+            {
+                if (!IranMobile.TryNormalize(request.CardHolderMobile, out var normalizedMobile))
+                    throw new BusinessException("شماره تماس صاحب کارت بانکی معتبر نیست.");
+                cardHolderMobile = normalizedMobile;
+            }
+
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:user:{userId:N}");
             var committed = false;
@@ -125,7 +136,8 @@ namespace Vitorize.Infrastructure.Services
             var protectedData = new ProtectedVerificationData(
                 request.FirstName.Trim(), request.LastName.Trim(), request.NationalCode.Trim(),
                 request.BirthDate, request.BankCardNumber?.Trim(), request.ShabaNumber?.Trim(),
-                request.Address?.Trim(), request.PostalCode?.Trim());
+                request.Address?.Trim(), request.PostalCode?.Trim(),
+                request.RegisteredMobileBelongsToCardHolder, cardHolderMobile);
             profile.EncryptedPayload = _encryptionService.Encrypt(JsonSerializer.Serialize(protectedData));
             profile.EncryptionVersion = 2;
             profile.FirstName = "[protected]";
@@ -396,6 +408,37 @@ namespace Vitorize.Infrastructure.Services
                 throw new ConcurrencyConflictException("وضعیت احراز هویت در همین فاصله تغییر کرده است. اطلاعات را تازه‌سازی کنید.");
             }
 
+            // A manager must not approve an order-total verification before the
+            // policy's required images are actually present. Identity details
+            // are saved before document upload, so this guard is intentionally
+            // here (rather than in SubmitAsync) to preserve that two-step UI.
+            if (request.Approve)
+            {
+                var policyIds = await _dbContext.OrderItems.AsNoTracking()
+                    .Where(x => x.Order.UserId == profile.UserId &&
+                                x.Order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                                x.RequiresVerification && x.KycPolicyVersionId.HasValue)
+                    .Select(x => x.KycPolicyVersionId!.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (policyIds.Count > 0)
+                {
+                    var requiredDocumentIds = await _dbContext.KycPolicyDocumentRequirements.AsNoTracking()
+                        .Where(x => policyIds.Contains(x.KycPolicyVersionId) && x.IsRequired)
+                        .Select(x => x.KycDocumentTypeId)
+                        .Distinct()
+                        .ToListAsync();
+                    var uploadedDocumentIds = profile.VerificationDocuments
+                        .Where(x => x.Status == (byte)VerificationStatus.Pending && x.KycDocumentTypeId.HasValue)
+                        .Select(x => x.KycDocumentTypeId!.Value)
+                        .ToHashSet();
+
+                    if (!requiredDocumentIds.All(uploadedDocumentIds.Contains))
+                        throw new BusinessException("پیش از تأیید احراز هویت، همه مدارک الزامی سفارش باید بارگذاری شوند.");
+                }
+            }
+
             var user = await _dbContext.Users
                 .FirstOrDefaultAsync(x => x.Id == profile.UserId);
 
@@ -502,6 +545,8 @@ namespace Vitorize.Infrastructure.Services
                 LastName = data.LastName,
                 NationalCode = data.NationalCode,
                 BirthDate = data.BirthDate,
+                RegisteredMobileBelongsToCardHolder = data.RegisteredMobileBelongsToCardHolder,
+                CardHolderMobile = data.CardHolderMobile,
                 BankCardNumber = data.BankCardNumber,
                 ShabaNumber = data.ShabaNumber,
                 Address = data.Address,
@@ -525,7 +570,7 @@ namespace Vitorize.Infrastructure.Services
             }
             return new ProtectedVerificationData(profile.FirstName, profile.LastName,
                 profile.NationalCode, profile.BirthDate, profile.BankCardNumber,
-                profile.ShabaNumber, profile.Address, profile.PostalCode);
+                profile.ShabaNumber, profile.Address, profile.PostalCode, null, null);
         }
 
         private static VerificationDocumentDto MapDocument(VerificationDocument document)
@@ -543,6 +588,7 @@ namespace Vitorize.Infrastructure.Services
 
         private sealed record ProtectedVerificationData(
             string FirstName, string LastName, string NationalCode, DateOnly? BirthDate,
-            string? BankCardNumber, string? ShabaNumber, string? Address, string? PostalCode);
+            string? BankCardNumber, string? ShabaNumber, string? Address, string? PostalCode,
+            bool? RegisteredMobileBelongsToCardHolder = null, string? CardHolderMobile = null);
     }
 }
