@@ -152,7 +152,7 @@ else
         new("branding", "برند",             "palette",      "شعار، لوگوی اصلی و رنگ برند", new[] { "Branding" }),
         new("logos",    "لوگو و تصاویر",    "image",        "لوگوها، فاوآیکون، تصاویر اشتراک‌گذاری و ماسکات", new[] { "Logos" }),
         new("typography", "تایپوگرافی / فونت", "type", "آپلود، پیش‌نمایش و انتخاب فونت سراسری", new[] { "Typography" }),
-        new("trustseals", "مجوزها و نمادهای اعتماد", "shield-check", "تنظیم امن Enamad، اتحادیه و ساماندهی؛ بدون اسکریپت اجرایی", new[] { "TrustSeals" }),
+        new("trustseals", "مجوزها و نمادهای اعتماد", "shield-check", "کد رسمی اینماد، زرین‌پال، ایمالز، ترب و دیگر نمادها در فوتر", new[] { "TrustSeals" }),
         new("seo",      "سئو",              "search",       "عنوان، توضیح و کلمات کلیدی پیش‌فرض", new[] { "SEO" }),
         new("homepage", "صفحه اصلی",        "grid",         "Hero، خبرنامه، درباره ما و نشان‌های اعتماد", new[] { "Homepage", "About", "Trust" }),
         new("footer",   "فوتر",             "layout",       "متن و توضیحات فوتر", new[] { "Footer" }),
@@ -368,6 +368,14 @@ else
                 {
                     <div class="vz-hint">با فعال‌سازی این گزینه، بخش محبوب‌ترین کالاها در صفحه اصلی فروشگاه نمایش داده می‌شود.</div>
                 }
+                else if (s.Key == "TrustSeal.FooterHtml")
+                {
+                    <div class="vz-hint">کدهای رسمی را پشت سر هم وارد کنید؛ نیازی به واردکردن URL، تصویر یا فعال‌سازی جداگانه نیست.</div>
+                }
+                else if (s.Key is "CustomHeadHtml" or "CustomFooterHtml")
+                {
+                    <div class="vz-hint">این کد فقط در صفحات فروشگاه اجرا می‌شود، نه پنل مدیریت. فقط کد مورداعتماد وارد کنید.</div>
+                }
             </div>
             <div class="vz-setfield__ctl">
                 @if (s.Key is "TrustBadgesJson" or "HomeFeaturesJson")
@@ -483,6 +491,13 @@ else
 
                     case "icon":
                         <LucideIconPicker Value="@s.Value" ValueChanged="v => OnSettingIconChanged(s, v)" Placeholder="انتخاب آیکون" />
+                        <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
+                        break;
+
+                    case "trustedhtml":
+                        <textarea class="vz-textarea vz-code-input" rows="10" spellcheck="false" value="@s.Value"
+                                  aria-label="@SettingLabel(s)" placeholder="کد رسمی دریافتی را اینجا وارد کنید"
+                                  @oninput="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }"></textarea>
                         <div class="vz-setfield__row" style="justify-content:flex-end">@SaveInline(s)</div>
                         break;
 

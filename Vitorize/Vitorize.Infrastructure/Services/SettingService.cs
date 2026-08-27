@@ -64,7 +64,7 @@ namespace Vitorize.Infrastructure.Services
         {
             "General", "Branding", "Logos", "SEO", "Homepage", "About", "Trust",
             "Footer", "Social", "Contact", "Support", "Empty", "Errors",
-            "Features", "Typography", "TrustSeals"
+            "Features", "Typography", "TrustSeals", "Scripts"
         };
 
         public async Task<List<SettingDto>> GetPublicSettingsAsync()
@@ -105,7 +105,7 @@ namespace Vitorize.Infrastructure.Services
             var key = request.Key.Trim();
             if (SmsSettingKeys.DeprecatedKeys.Contains(key))
                 throw new BusinessException("این تنظیم دیگر استفاده نمی‌شود؛ ارسال پیامک سفارشی همیشه فعال است.");
-            TrustSealRules.ValidateSetting(key, request.Value);
+            TrustedSiteMarkupRules.ValidateSetting(key, request.Value);
             VatSettings.ValidateSetting(key, request.Value);
             try
             {

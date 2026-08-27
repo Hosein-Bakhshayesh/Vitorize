@@ -302,28 +302,8 @@ namespace Vitorize.Infrastructure.Services
                 S("StorefrontPersianFont", "Peyda", "Typography", "font", "فونت پیش‌فرض فارسی فروشگاه"),
                 S("StorefrontEnglishFont", "Funnel Display", "Typography", "font", "فونت پیش‌فرض انگلیسی فروشگاه"),
 
-                // ───────────── Iranian trust seals (safe link + image only) ─────────────
-                S("TrustSeal.Enamad.Enabled", "false", "TrustSeals", "bool", "نمایش نماد اعتماد الکترونیکی"),
-                S("TrustSeal.Enamad.Title", "نماد اعتماد الکترونیکی", "TrustSeals", "string", "عنوان نماد"),
-                S("TrustSeal.Enamad.Url", "", "TrustSeals", "string", "نشانی تأیید Enamad؛ فقط دامنه enamad.ir"),
-                S("TrustSeal.Enamad.ImagePath", "", "TrustSeals", "image", "تصویر نماد Enamad"),
-                S("TrustSeal.Enamad.Alt", "نماد اعتماد الکترونیکی", "TrustSeals", "string", "متن جایگزین تصویر"),
-                S("TrustSeal.Enamad.SortOrder", "10", "TrustSeals", "int", "ترتیب نمایش"),
-                S("TrustSeal.Enamad.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
-                S("TrustSeal.Ecunion.Enabled", "false", "TrustSeals", "bool", "نمایش مجوز اتحادیه کشوری کسب‌وکارهای مجازی"),
-                S("TrustSeal.Ecunion.Title", "اتحادیه کسب‌وکارهای مجازی", "TrustSeals", "string", "عنوان مجوز"),
-                S("TrustSeal.Ecunion.Url", "", "TrustSeals", "string", "نشانی تأیید؛ فقط دامنه ecunion.ir"),
-                S("TrustSeal.Ecunion.ImagePath", "", "TrustSeals", "image", "تصویر مجوز ecunion"),
-                S("TrustSeal.Ecunion.Alt", "مجوز اتحادیه کسب‌وکارهای مجازی", "TrustSeals", "string", "متن جایگزین تصویر"),
-                S("TrustSeal.Ecunion.SortOrder", "20", "TrustSeals", "int", "ترتیب نمایش"),
-                S("TrustSeal.Ecunion.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
-                S("TrustSeal.Samandehi.Enabled", "false", "TrustSeals", "bool", "نمایش نشان ساماندهی"),
-                S("TrustSeal.Samandehi.Title", "نشان ملی ثبت رسانه‌های دیجیتال", "TrustSeals", "string", "عنوان نشان"),
-                S("TrustSeal.Samandehi.Url", "", "TrustSeals", "string", "نشانی تأیید؛ فقط دامنه samandehi.ir"),
-                S("TrustSeal.Samandehi.ImagePath", "", "TrustSeals", "image", "تصویر نشان ساماندهی"),
-                S("TrustSeal.Samandehi.Alt", "نشان ساماندهی", "TrustSeals", "string", "متن جایگزین تصویر"),
-                S("TrustSeal.Samandehi.SortOrder", "30", "TrustSeals", "int", "ترتیب نمایش"),
-                S("TrustSeal.Samandehi.NewTab", "true", "TrustSeals", "bool", "باز شدن در زبانه جدید"),
+                // ───────────── Trust seals (official provider snippets) ─────────────
+                S("TrustSeal.FooterHtml", "", "TrustSeals", "trustedhtml", "کدهای رسمی نمادهای اعتماد در فوتر (اینماد، زرین‌پال، ایمالز، ترب و ...)"),
 
                 // ───────────── SEO ─────────────
                 S("MetaTitle", "ویتورایز | بازارگاه دیجیتال گیمینگ و خدمات آنلاین", "SEO", "string", "عنوان متای پیش‌فرض"),
@@ -423,8 +403,8 @@ namespace Vitorize.Infrastructure.Services
                 S("PageRemovedText", "محتوایی که دنبال آن بودید دیگر در دسترس نیست.", "Errors", "string", "متن صفحه حذف‌شده"),
 
                 // ───────────── Custom scripts (public head/footer) ─────────────
-                S("CustomHeadHtml", "", "Scripts", "string", "کد سفارشی داخل <head> (تحلیل، تگ‌ها)"),
-                S("CustomFooterHtml", "", "Scripts", "string", "کد سفارشی انتهای صفحه"),
+                S("CustomHeadHtml", "", "Scripts", "trustedhtml", "کد سفارشی داخل <head> (فقط کد مورداعتماد مانند تحلیل و تگ‌ها)"),
+                S("CustomFooterHtml", "", "Scripts", "trustedhtml", "کد سفارشی انتهای سایت (فقط کد مورداعتماد)"),
 
                 // ───────────── Features (public flags) ─────────────
                 S("EnableRegistration", "true", "Features", "bool", "ثبت‌نام کاربران"),

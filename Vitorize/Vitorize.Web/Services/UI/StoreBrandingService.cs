@@ -228,6 +228,7 @@ namespace Vitorize.Web.Services.UI
         public string FacebookUrl => Get("FacebookUrl", "");
 
         // ── Custom scripts ──
+        public string TrustSealFooterHtml => Get("TrustSeal.FooterHtml", "");
         public string CustomHeadHtml => Get("CustomHeadHtml", "");
         public string CustomFooterHtml => Get("CustomFooterHtml", "");
 

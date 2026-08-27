@@ -65,15 +65,10 @@
                 <a href="/terms">قوانین و مقررات</a>
                 <a href="/privacy">حریم خصوصی</a>
             </div>
-            @if (_b.TrustSeals.Count > 0)
+            @if (!string.IsNullOrWhiteSpace(_b.TrustSealFooterHtml))
             {
                 <div class="st-footer__seals" aria-label="مجوزها و نمادهای اعتماد">
-                    @foreach (var seal in _b.TrustSeals)
-                    {
-                        <a href="@seal.Url" target="@(seal.NewTab ? "_blank" : null)" rel="noopener noreferrer" title="@seal.Title">
-                            <img src="@Media.Resolve(seal.ImagePath)" alt="@seal.Alt" loading="lazy" width="96" height="96" />
-                        </a>
-                    }
+                    @((MarkupString)_b.TrustSealFooterHtml)
                 </div>
             }
         </div>

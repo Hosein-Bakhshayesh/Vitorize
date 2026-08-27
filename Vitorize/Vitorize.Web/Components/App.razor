@@ -131,6 +131,10 @@
     @if (!string.IsNullOrWhiteSpace(_storefrontTypographyCss)) { <style>@((MarkupString)_storefrontTypographyCss)</style> }
 
     <HeadOutlet @rendermode="PageRenderMode" />
+    @if (_isStorefront && !string.IsNullOrWhiteSpace(_b.CustomHeadHtml))
+    {
+        @((MarkupString)_b.CustomHeadHtml)
+    }
 </head>
 
 <body>
@@ -182,6 +186,10 @@
     <script src="js/storefront-theme.js?v=@AssetVersion"></script>
     <script src="js/form-validation.js?v=@AssetVersion"></script>
     <script src="js/document-redaction.js?v=@AssetVersion"></script>
+    @if (_isStorefront && !string.IsNullOrWhiteSpace(_b.CustomFooterHtml))
+    {
+        @((MarkupString)_b.CustomFooterHtml)
+    }
 </body>
 
 </html>
