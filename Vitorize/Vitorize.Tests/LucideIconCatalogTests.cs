@@ -27,6 +27,18 @@ public sealed class LucideIconCatalogTests
     }
 
     [Fact]
+    public void Multi_collection_catalog_resolves_every_selectable_icon_to_its_own_sprite()
+    {
+        var icons = IconCatalog.Search(null, null, 5000);
+
+        Assert.Equal(1912, icons.Count);
+        Assert.Equal(3, IconCatalog.Collections.Count);
+        Assert.Contains(icons, x => x.Id == "tabler:brand-steam");
+        Assert.Contains(icons, x => x.Id == "ph:game-controller-fill");
+        Assert.All(icons, icon => Assert.True(IconCatalog.Resolve(icon.Id).Found, $"Unresolvable icon: {icon.Id}"));
+    }
+
+    [Fact]
     public void Every_existing_fixed_ui_icon_resolves_to_official_lucide_key()
     {
         var currentKeys = "activity alert arrow-down arrow-left arrow-right arrow-up bar-chart bell box calendar cart check check-circle chevron-down chevron-left chevron-right chevron-up clock copy credit-card dashboard dots download edit external eye file-text filter folder gamepad gift grid headphones heart home image inbox info key layers list lock log-in logout mail map-pin menu message package package-check percent phone plus refresh save search send settings shield shield-check shield-lock shopping-bag sliders star tag trash trending-up upload user user-check user-plus users wallet x x-circle zap"
@@ -90,6 +102,8 @@ public sealed class LucideIconCatalogTests
     {
         Assert.Null(LucideIconRules.NormalizeOptional(null));
         Assert.Equal("shopping-cart", LucideIconRules.NormalizeRequired("cart"));
+        Assert.Equal("tabler:brand-steam", LucideIconRules.NormalizeRequired("TABLER:BRAND-STEAM"));
+        Assert.Equal("ph:game-controller-fill", LucideIconRules.NormalizeRequired("ph:game-controller-fill"));
         Assert.Throws<BusinessException>(() => LucideIconRules.NormalizeRequired(null));
         Assert.Throws<BusinessException>(() => LucideIconRules.NormalizeOptional("<script>"));
 
@@ -101,9 +115,9 @@ public sealed class LucideIconCatalogTests
     [Fact]
     public void Configurable_settings_json_normalizes_icons_and_rejects_unknown_keys()
     {
-        var json = LucideIconRules.NormalizeConfigurableBlocksJson("[{\"icon\":\"grid\",\"title\":\"انتخاب\",\"text\":\"توضیح\"}]");
+        var json = LucideIconRules.NormalizeConfigurableBlocksJson("[{\"icon\":\"TABLER:BRAND-STEAM\",\"title\":\"انتخاب\",\"text\":\"توضیح\"}]");
         using var document = JsonDocument.Parse(json);
-        Assert.Equal("layout-grid", document.RootElement[0].GetProperty("icon").GetString());
+        Assert.Equal("tabler:brand-steam", document.RootElement[0].GetProperty("icon").GetString());
         Assert.Throws<BusinessException>(() => LucideIconRules.NormalizeConfigurableBlocksJson("[{\"icon\":\"raw-svg\",\"title\":\"x\",\"text\":\"\"}]"));
     }
 
@@ -119,6 +133,14 @@ public sealed class LucideIconCatalogTests
 
         Assert.Equal("shopping-cart", created.Icon);
         Assert.Equal("shopping-cart", await db.Categories.Where(x => x.Id == created.Id).Select(x => x.Icon).SingleAsync());
+
+        var extra = await service.CreateAsync(new CreateCategoryRequestDto
+        {
+            Title = "استیم", Slug = $"steam-{Guid.NewGuid():N}", Icon = "TABLER:BRAND-STEAM", IsActive = true
+        });
+        Assert.Equal("tabler:brand-steam", extra.Icon);
+        Assert.Equal("tabler:brand-steam", await db.Categories.Where(x => x.Id == extra.Id).Select(x => x.Icon).SingleAsync());
+
         await Assert.ThrowsAsync<BusinessException>(() => service.CreateAsync(new CreateCategoryRequestDto
         {
             Title = "نامعتبر", Slug = $"invalid-{Guid.NewGuid():N}", Icon = "javascript:alert(1)"

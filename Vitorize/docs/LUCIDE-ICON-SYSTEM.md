@@ -27,7 +27,7 @@ Review the Lucide changelog and run all tests before committing an upgrade.
 
 ## Storage and security
 
-Configurable records store only a normalized official kebab-case key such as `gamepad-2`. Raw SVG, HTML, JavaScript, URLs and uploaded SVG are not accepted. The renderer resolves a key through `LucideIconCatalog` and references only a symbol bundled in the local sprite. Unknown historical values render the configured fallback rather than becoming markup.
+Configurable records store only a normalized catalog key: Lucide values remain bare (for example, `gamepad-2`) and the other collections use a namespace (for example, `tabler:brand-steam` or `ph:game-controller-fill`). Raw SVG, HTML, JavaScript, URLs and uploaded SVG are not accepted. The renderer resolves every key through `IconCatalog` and references only a symbol bundled in a local sprite. Unknown historical values render the configured fallback rather than becoming markup.
 
 No schema change was required: `Categories.Icon`, `ProductFeatures.IconKey`, and JSON setting `icon` properties already hold strings. `Database/2026-07-14_optional_normalize_legacy_lucide_icons.sql` is an optional, idempotent data cleanup; the application does not require it and does not silently rewrite existing data.
 
@@ -41,7 +41,7 @@ No schema change was required: `Categories.Icon`, `ProductFeatures.IconKey`, and
             Decorative="false" AriaLabel="نوع محصول" />
 ```
 
-`LucideIcon` supports `IconKey`, `Size`, `StrokeWidth`, `CssClass`, `Title`, `AriaLabel`, `FallbackIconKey`, and `Decorative`. It preserves `currentColor`. The old `Icon` component is now a compatibility façade over this renderer so fixed application icons also use the official sprite.
+`LucideIcon` supports `IconKey`, `Size`, `StrokeWidth`, `CssClass`, `Title`, `AriaLabel`, `FallbackIconKey`, and `Decorative`. It preserves `currentColor` and accepts an icon from any bundled collection. The old `Icon` component is now a compatibility façade over this renderer so fixed application icons also use the same resolver.
 
 ### Picker
 
@@ -57,7 +57,7 @@ Future configurable icon fields must use `LucideIconPicker`; do not add a text i
 
 ## Catalog, search and Persian aliases
 
-`Vitorize.Shared.Icons.LucideIconCatalog` is the shared source of truth for rendering, validation, picker results, search and fallbacks. Official keys/tags are generated from the pinned package. Hand-maintained Persian aliases, popularity and category heuristics live in `LucideIconCatalog.cs`.
+`Vitorize.Shared.Icons.IconCatalog` is the shared source of truth for rendering, validation, picker results, search and fallbacks. It exposes the Lucide, Tabler and Phosphor collections. Lucide keys/tags are generated from the pinned package; extra collections are curated and self-hosted in their own sprites.
 
 Search normalizes Persian/Arabic `ی/ي`, `ک/ك`, zero-width joiners, spaces, underscores and hyphens. It supports multi-token, partial, compact and fuzzy-subsequence matching, with exact keys ranked first. To add a Persian term, add it to the `PersianAliases` entry for an existing official key and add a unit test.
 
@@ -96,4 +96,4 @@ The native modal `dialog` supplies the top layer and focus trap. Escape, outside
 
 ## Server validation
 
-`LucideIconRules` performs server normalization and validation for categories, product features, and JSON-backed homepage/trust cards. Optional values may be empty; required values must resolve to an official key. Settings JSON is bounded to 24 cards and validates title/text lengths. Client selection is never treated as sufficient validation.
+`LucideIconRules` (kept under its established name) performs server normalization and validation for categories, product features, and JSON-backed homepage/trust cards. Optional values may be empty; required values must resolve to a known icon in any bundled collection. Settings JSON is bounded to 24 cards and validates title/text lengths. Client selection is never treated as sufficient validation.

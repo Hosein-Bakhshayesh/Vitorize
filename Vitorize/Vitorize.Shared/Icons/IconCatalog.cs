@@ -90,6 +90,29 @@ public static class IconCatalog
     /// <summary>True when the value maps to a known icon in any collection (not just the fallback).</summary>
     public static bool IsKnown(string? value) => Resolve(value).Found;
 
+    /// <summary>
+    /// Validates an icon value from an untrusted request and returns its canonical
+    /// stored form. Lucide values remain bare to preserve existing database
+    /// values; icons from other collections retain their <c>prefix:name</c> form.
+    /// </summary>
+    public static bool TryNormalizeKey(string? value, out string normalized)
+    {
+        normalized = string.Empty;
+        if (!TryParse(value, out var prefix, out var name)) return false;
+
+        if (prefix == LucidePrefix)
+            return LucideIconCatalog.TryNormalizeKey(name, out normalized);
+
+        if (ExtraByPrefix.TryGetValue(prefix, out var collection)
+            && collection.ByName.TryGetValue(name, out var icon))
+        {
+            normalized = icon.Id;
+            return true;
+        }
+
+        return false;
+    }
+
     public static IconRef? Find(string? value)
     {
         if (!TryParse(value, out var prefix, out var name)) return null;

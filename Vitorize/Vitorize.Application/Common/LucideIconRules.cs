@@ -11,8 +11,8 @@ public static class LucideIconRules
     public static string? NormalizeOptional(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (LucideIconCatalog.TryNormalizeKey(value, out var normalized)) return normalized;
-        throw new BusinessException("آیکون انتخاب‌شده در کاتالوگ رسمی Lucide وجود ندارد.");
+        if (IconCatalog.TryNormalizeKey(value, out var normalized)) return normalized;
+        throw new BusinessException("آیکون انتخاب‌شده در کاتالوگ آیکون‌ها وجود ندارد.");
     }
 
     public static string NormalizeRequired(string? value)
