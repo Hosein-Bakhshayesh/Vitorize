@@ -136,6 +136,29 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task SendKycReminderAsync(
+            Guid userId,
+            string title,
+            string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var isEligible = await _dbContext.Users.AsNoTracking()
+                .Where(BroadcastRecipientRules.IsEligibleCustomer)
+                .AnyAsync(user => user.Id == userId &&
+                    user.VerificationStatus != (byte)VerificationStatus.Verified &&
+                    user.Orders.Any(order => order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                        order.OrderItems.Any(item => item.RequiresVerification &&
+                            (item.KycLifecycleState == null ||
+                             item.KycLifecycleState.Status != (byte)OrderItemKycStatus.Satisfied))),
+                    cancellationToken);
+            if (!isEligible)
+                throw new BusinessException("این کاربر سفارش پرداخت‌شدهٔ نیازمند احراز هویت ندارد یا احراز هویت او تکمیل شده است.");
+
+            await SendSystemNotificationAsync(userId, title, message, sendSms, smsCreatedByUserId, cancellationToken);
+        }
+
         public async Task<int> CreateBulkAsync(
             Guid broadcastId,
             IReadOnlyCollection<Guid> recipientUserIds,

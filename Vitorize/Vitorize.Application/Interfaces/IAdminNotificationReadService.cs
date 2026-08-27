@@ -9,5 +9,6 @@ namespace Vitorize.Application.Interfaces
         Task<Vitorize.Shared.Common.PagedResult<AdminNotificationDto>> GetPagedAsync(AdminQueryFilterDto filter, CancellationToken cancellationToken = default);
         Task<AdminNotificationDto> GetByIdAsync(Guid id);
         Task MarkAsReadAsync(Guid id);
+        Task<List<KycReminderRecipientDto>> GetKycReminderRecipientsAsync(CancellationToken cancellationToken = default);
     }
 }

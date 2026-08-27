@@ -21,6 +21,16 @@ namespace Vitorize.Application.Interfaces
             Guid? smsCreatedByUserId = null,
             CancellationToken cancellationToken = default);
 
+        /// <summary>Direct message for a customer with an outstanding, paid order KYC action.</summary>
+        Task SendKycReminderAsync(
+            Guid userId,
+            string title,
+            string message,
+            bool sendSms = false,
+            Guid? smsCreatedByUserId = null,
+            CancellationToken cancellationToken = default) =>
+            SendSystemNotificationAsync(userId, title, message, sendSms, smsCreatedByUserId, cancellationToken);
+
         /// <summary>
         /// FIX-15 bulk delivery for one broadcast. Inserts announcement rows in bounded batches
         /// with a single SaveChanges per batch — deliberately not a loop over

@@ -11,4 +11,13 @@ namespace Vitorize.Application.DTOs.Admin.Notifications
         /// <summary>When enabled, queue the notification body as an SMS as well.</summary>
         public bool SendSms { get; set; }
     }
+
+    /// <summary>Customer eligible for a direct KYC-completion reminder.</summary>
+    public class KycReminderRecipientDto
+    {
+        public Guid UserId { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Mobile { get; set; } = string.Empty;
+        public string OrderNumber { get; set; } = string.Empty;
+    }
 }

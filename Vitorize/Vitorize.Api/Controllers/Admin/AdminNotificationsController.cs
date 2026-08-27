@@ -50,6 +50,13 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult.Success("اطلاعیه خوانده شد."));
         }
 
+        [HttpGet("kyc-reminder-recipients")]
+        public async Task<ActionResult<ApiResult<List<KycReminderRecipientDto>>>> GetKycReminderRecipients(CancellationToken cancellationToken)
+        {
+            var result = await _service.GetKycReminderRecipientsAsync(cancellationToken);
+            return Ok(ApiResult<List<KycReminderRecipientDto>>.Success(result, "فهرست کاربران نیازمند احراز هویت دریافت شد."));
+        }
+
         [HttpPost("send")]
         public async Task<ActionResult<ApiResult>> Send(SendNotificationRequestDto request)
         {
@@ -63,6 +70,22 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult.Success(request.SendSms
                 ? "اعلان ثبت و پیامک در صف ارسال قرار گرفت."
                 : "اعلان برای کاربر ارسال شد."));
+        }
+
+        [HttpPost("kyc-reminder")]
+        public async Task<ActionResult<ApiResult>> SendKycReminder(SendNotificationRequestDto request, CancellationToken cancellationToken)
+        {
+            await _notificationService.SendKycReminderAsync(
+                request.UserId,
+                request.Title,
+                request.Message,
+                request.SendSms,
+                _currentUser.UserId,
+                cancellationToken);
+
+            return Ok(ApiResult.Success(request.SendSms
+                ? "یادآوری احراز هویت ثبت و پیامک در صف ارسال قرار گرفت."
+                : "یادآوری احراز هویت برای کاربر ارسال شد."));
         }
     }
 }

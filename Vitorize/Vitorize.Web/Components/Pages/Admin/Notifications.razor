@@ -10,6 +10,7 @@
     <Actions>
         <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
         <button class="vz-btn vz-btn--outline" data-testid="broadcast-open" @onclick="OpenBroadcast"><Icon Name="megaphone" Size="17" /> ارسال گروهی</button>
+        <button class="vz-btn vz-btn--outline" data-testid="kyc-reminder-open" @onclick="OpenKycReminder"><Icon Name="shield" Size="17" /> یادآوری احراز هویت</button>
         <button class="vz-btn vz-btn--primary" @onclick="OpenSend"><Icon Name="send" Size="17" /> ارسال اعلان</button>
     </Actions>
 </PageHeader>
@@ -107,6 +108,58 @@
         <button class="vz-btn vz-btn--outline" @onclick="() => _sendOpen = false" disabled="@_sending">انصراف</button>
         <button class="vz-btn vz-btn--primary" @onclick="DoSend" disabled="@_sending">
             @if (_sending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال اعلان</span> }
+        </button>
+    </Footer>
+</SlidePanel>
+
+<SlidePanel Visible="_kycReminderOpen" Title="یادآوری احراز هویت" Subtitle="فقط کاربران دارای سفارش پرداخت‌شده و احراز هویتِ ناقص"
+            Icon="shield" OnClose="() => _kycReminderOpen = false">
+    <ChildContent>
+        @if (_kycReminderLoading)
+        {
+            <LoadingState />
+        }
+        else if (_kycReminderRecipients.Count == 0)
+        {
+            <EmptyState Title="کاربر نیازمند احراز هویت یافت نشد" Text="همه سفارش‌های مشمول، احراز هویت تأییدشده دارند یا سفارشی پرداخت نشده است." Icon="shield-check" />
+        }
+        else
+        {
+            <div class="vz-form-grid one">
+                <div class="vz-alert vz-alert--info">
+                    فقط کاربرانی نمایش داده می‌شوند که سفارش پرداخت‌شدهٔ نیازمند احراز هویت دارند و احراز هویت آن‌ها هنوز تأیید نشده است.
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">کاربر گیرنده <span class="req">*</span></label>
+                    <select class="vz-select" value="@(_kycReminderUserId == Guid.Empty ? "" : _kycReminderUserId.ToString())"
+                            @onchange="e => _kycReminderUserId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
+                        <option value="">— انتخاب کاربر —</option>
+                        @foreach (var user in _kycReminderRecipients)
+                        {
+                            <option value="@user.UserId">@user.FullName — @user.Mobile — سفارش @user.OrderNumber</option>
+                        }
+                    </select>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">عنوان <span class="req">*</span></label>
+                    <input class="vz-input" maxlength="250" @bind="_kycReminderTitle" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">متن پیام <span class="req">*</span></label>
+                    <textarea class="vz-textarea" rows="5" @bind="_kycReminderMessage"></textarea>
+                </div>
+                <label class="sms-mirror-option">
+                    <input type="checkbox" @bind="_kycReminderSms" disabled="@(!SmsTextAvailable)" />
+                    <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با SMS.ir ارسال می‌شود.</small></span>
+                </label>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="() => _kycReminderOpen = false" disabled="@_kycReminderSending">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="SendKycReminder"
+                disabled="@(_kycReminderLoading || _kycReminderRecipients.Count == 0 || _kycReminderSending)">
+            @if (_kycReminderSending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال یادآوری</span> }
         </button>
     </Footer>
 </SlidePanel>
@@ -283,6 +336,11 @@
     private bool _sendOpen, _sending, _sendSms;
     private Guid _sendUserId;
     private string _sendTitle = string.Empty, _sendMessage = string.Empty;
+
+    private bool _kycReminderOpen, _kycReminderLoading, _kycReminderSending, _kycReminderSms;
+    private Guid _kycReminderUserId;
+    private string _kycReminderTitle = string.Empty, _kycReminderMessage = string.Empty;
+    private List<KycReminderRecipientModel> _kycReminderRecipients = new();
 
     // ── FIX-15 broadcast state ────────────────────────────────────────────────
     private const byte AudienceAll = 1;
@@ -494,5 +552,51 @@
 
         if (r.IsSuccess) { Toasts.Success(_sendSms ? "اعلان ثبت و پیامک در صف ارسال قرار گرفت." : "اعلان برای کاربر ارسال شد."); _sendOpen = false; await Load(); }
         else Toasts.Error(r.Message);
+    }
+
+    private async Task OpenKycReminder()
+    {
+        _kycReminderUserId = Guid.Empty;
+        _kycReminderTitle = "یادآوری تکمیل احراز هویت";
+        _kycReminderMessage = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.";
+        _kycReminderSms = false;
+        _kycReminderRecipients = new();
+        _kycReminderOpen = true;
+        _kycReminderLoading = true;
+        var result = await Api.GetAsync<List<KycReminderRecipientModel>>("admin/notifications/kyc-reminder-recipients");
+        _kycReminderRecipients = result.IsSuccess ? result.Data ?? new() : new();
+        _kycReminderLoading = false;
+        if (!result.IsSuccess) Toasts.Error(result.Message);
+    }
+
+    private async Task SendKycReminder()
+    {
+        if (_kycReminderUserId == Guid.Empty)
+        {
+            Toasts.Error("انتخاب کاربر الزامی است.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_kycReminderTitle) || string.IsNullOrWhiteSpace(_kycReminderMessage))
+        {
+            Toasts.Error("عنوان و متن پیام الزامی است.");
+            return;
+        }
+
+        _kycReminderSending = true;
+        var result = await Api.PostAsync("admin/notifications/kyc-reminder", new
+        {
+            UserId = _kycReminderUserId,
+            Title = _kycReminderTitle.Trim(),
+            Message = _kycReminderMessage.Trim(),
+            SendSms = _kycReminderSms
+        });
+        _kycReminderSending = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_kycReminderSms ? "یادآوری و پیامک در صف ارسال قرار گرفت." : "یادآوری احراز هویت ارسال شد.");
+            _kycReminderOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
     }
 }

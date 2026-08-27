@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Notifications;
 using Vitorize.Application.DTOs.Admin.System;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -78,6 +80,34 @@ namespace Vitorize.Infrastructure.Services
                 item.ReadAt = DateTime.UtcNow;
                 await _dbContext.SaveChangesAsync();
             }
+        }
+
+        public async Task<List<KycReminderRecipientDto>> GetKycReminderRecipientsAsync(CancellationToken cancellationToken = default)
+        {
+            var eligibleCustomer = BroadcastRecipientRules.IsEligibleCustomer;
+            return await _dbContext.Users.AsNoTracking()
+                .Where(eligibleCustomer)
+                .Where(user => user.VerificationStatus != (byte)VerificationStatus.Verified &&
+                    user.Orders.Any(order => order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                        order.OrderItems.Any(item => item.RequiresVerification &&
+                            (item.KycLifecycleState == null ||
+                             item.KycLifecycleState.Status != (byte)OrderItemKycStatus.Satisfied))))
+                .OrderBy(user => user.FullName).ThenBy(user => user.Mobile)
+                .Select(user => new KycReminderRecipientDto
+                {
+                    UserId = user.Id,
+                    FullName = user.FullName,
+                    Mobile = user.Mobile,
+                    OrderNumber = user.Orders
+                        .Where(order => order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                            order.OrderItems.Any(item => item.RequiresVerification &&
+                                (item.KycLifecycleState == null ||
+                                 item.KycLifecycleState.Status != (byte)OrderItemKycStatus.Satisfied)))
+                        .OrderByDescending(order => order.PaidAt ?? order.CreatedAt)
+                        .Select(order => order.OrderNumber)
+                        .FirstOrDefault() ?? string.Empty
+                })
+                .ToListAsync(cancellationToken);
         }
     }
 }
