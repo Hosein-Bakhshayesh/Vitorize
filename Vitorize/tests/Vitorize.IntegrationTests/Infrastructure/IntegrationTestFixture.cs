@@ -406,8 +406,8 @@ internal sealed class FakeZarinpalGateway : IZarinpalGatewayService
         return Task.FromResult((true, authority, $"https://payment.test/{authority}"));
     }
 
-    public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
-        Task.FromResult((true, 123456789L));
+    public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount) =>
+        Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(true, 123456789L, "603799******1234"));
 
     public Task<string> BuildPaymentUrlAsync(string authority) =>
         Task.FromResult($"https://payment.test/{authority}");

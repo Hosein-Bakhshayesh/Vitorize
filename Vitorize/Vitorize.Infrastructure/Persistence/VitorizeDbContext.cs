@@ -847,6 +847,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.Gateway).HasMaxLength(100);
             entity.Property(e => e.GatewayTrackingCode).HasMaxLength(300);
             entity.Property(e => e.IdempotencyKey).HasMaxLength(200);
+            entity.Property(e => e.MaskedCardPan).HasMaxLength(32);
             entity.Property(e => e.ProviderStatusCode).HasMaxLength(100);
             entity.Property(e => e.ReferenceNumber).HasMaxLength(200);
             entity.Property(e => e.RequestedAt).HasDefaultValueSql("(sysutcdatetime())");

@@ -469,6 +469,7 @@ namespace Vitorize.Infrastructure.Services
             // a network request is in flight; reconciliation can reclaim a stale marker.
             var verifyResult = await _zarinpalGatewayService.VerifyPaymentAsync(authority, amount);
             string? verifiedProviderReference = verifyResult.Success ? verifyResult.RefId.ToString() : null;
+            string? verifiedMaskedCardPan = verifyResult.Success ? verifyResult.CardPan : null;
 
             await using var finalizeTransaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             try
@@ -552,6 +553,7 @@ namespace Vitorize.Infrastructure.Services
                         ? "پرداخت موفق دیرهنگام برای سفارش لغو‌شده؛ نیازمند بازپرداخت و بررسی مالی."
                         : "پرداخت موفق دیرهنگام پس از تعیین تکلیف سفارش؛ نیازمند بررسی مالی.";
                     payment.ReferenceNumber = verifiedProviderReference;
+                    payment.MaskedCardPan = verifiedMaskedCardPan;
                     payment.TransactionId = authority;
                     payment.GatewayTrackingCode = verifiedProviderReference;
                     payment.VerifiedAt = DateTime.UtcNow;
@@ -573,6 +575,7 @@ namespace Vitorize.Infrastructure.Services
                 payment.VerifiedAt = now;
                 payment.UpdatedAt = now;
                 payment.ReferenceNumber = verifiedProviderReference;
+                payment.MaskedCardPan = verifiedMaskedCardPan;
                 payment.TransactionId = authority;
                 payment.GatewayTrackingCode = verifiedProviderReference;
                 payment.ProviderStatusCode = "100";
@@ -596,7 +599,7 @@ namespace Vitorize.Infrastructure.Services
                 catch (BusinessException ex)
                 {
                     await finalizeTransaction.RollbackAsync();
-                    return await CompensateVerifiedPaymentAsync(payment.Id, verifiedProviderReference!, ex.Message);
+                    return await CompensateVerifiedPaymentAsync(payment.Id, verifiedProviderReference!, verifiedMaskedCardPan, ex.Message);
                 }
                 await finalizeTransaction.CommitAsync();
                 await finalizeTransaction.DisposeAsync();
@@ -934,6 +937,7 @@ namespace Vitorize.Infrastructure.Services
         private async Task<PaymentVerifyResultDto> CompensateVerifiedPaymentAsync(
             Guid paymentId,
             string providerReference,
+            string? maskedCardPan,
             string failureReason)
         {
             _dbContext.ChangeTracker.Clear();
@@ -956,6 +960,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 var now = DateTime.UtcNow;
                 payment.ReferenceNumber = providerReference;
+                payment.MaskedCardPan = maskedCardPan;
                 payment.TransactionId ??= payment.Authority;
                 payment.CallbackVerified = true;
                 payment.VerifiedAt ??= now;

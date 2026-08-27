@@ -27,6 +27,9 @@ public partial class Payment
 
     public string? ReferenceNumber { get; set; }
 
+    /// <summary>Masked card PAN returned by the payment provider, e.g. 603799******1234.</summary>
+    public string? MaskedCardPan { get; set; }
+
     public byte Status { get; set; }
 
     public string? ProviderStatusCode { get; set; }

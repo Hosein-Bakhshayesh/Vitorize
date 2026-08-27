@@ -28,6 +28,7 @@ namespace Vitorize.Application.DTOs.Orders
         // lifecycle remains available in Items for detailed views.
         public bool RequiresVerification { get; set; }
         public bool VerificationCompleted { get; set; }
+        public List<OrderPaymentDto> Payments { get; set; } = new();
         public List<OrderItemDto> Items { get; set; } = new();
 
         // Customer self-service, decided by the server only. The web UI must never infer these from

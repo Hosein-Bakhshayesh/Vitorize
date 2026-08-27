@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Vitorize.Application.Interfaces;
+using Vitorize.Application.Models.Payments;
 using Vitorize.Infrastructure.Common.Zarinpal;
 using Vitorize.Infrastructure.Common.Zarinpal.Models;
 using Vitorize.Infrastructure.Services.Testing;
@@ -165,21 +166,21 @@ namespace Vitorize.Infrastructure.Services
             }
         }
 
-        public async Task<(bool Success, long RefId)> VerifyPaymentAsync(
+        public async Task<ZarinpalVerificationResult> VerifyPaymentAsync(
             string authority,
             decimal amount)
         {
             if (PaymentFaultEnabled("VerifyFail"))
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
             var configuration = await _configurationProvider.GetAsync();
 
             if (ZarinpalPaymentConfigurationRules.IsDeploymentPlaceholder(configuration.MerchantId))
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
             var validation = await _configurationProvider.ValidateAsync();
             if (!validation.IsValid || configuration.BaseUri is null)
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
             var baseUrl = configuration.BaseUri.AbsoluteUri.TrimEnd('/');
 
@@ -197,18 +198,28 @@ namespace Vitorize.Infrastructure.Services
             var responseText = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
             var result = Deserialize<ZarinpalVerifyResultDto>(responseText);
 
             if (result?.data == null)
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
             if (result.data.code != 100 &&
                 result.data.code != 101)
-                return (false, 0);
+                return new ZarinpalVerificationResult(false, 0);
 
-            return (true, result.data.ref_id);
+            return new ZarinpalVerificationResult(
+                true,
+                result.data.ref_id,
+                NormalizeMaskedCardPan(result.data.card_pan));
+        }
+
+        private static string? NormalizeMaskedCardPan(string? cardPan)
+        {
+            if (string.IsNullOrWhiteSpace(cardPan)) return null;
+            var normalized = new string(cardPan.Where(c => char.IsAsciiDigit(c) || c == '*').ToArray());
+            return normalized.Length is >= 12 and <= 19 && normalized.Contains('*') ? normalized : null;
         }
 
     private static T? Deserialize<T>(string json)

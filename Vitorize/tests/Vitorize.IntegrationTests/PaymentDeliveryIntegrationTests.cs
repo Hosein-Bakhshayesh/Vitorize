@@ -773,16 +773,16 @@ public sealed class PaymentDeliveryIntegrationTests
         public int VerifyCount { get; private set; }
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((true, $"A-{Guid.NewGuid():N}", "https://payment.test"));
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount)
-        { VerifyCount++; return Task.FromResult((true, 12345L)); }
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount)
+        { VerifyCount++; return Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(true, 12345L)); }
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
     }
     private sealed class FailingGateway : IZarinpalGatewayService
     {
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((false, string.Empty, string.Empty));
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
-            Task.FromResult((false, 0L));
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount) =>
+            Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(false, 0));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult(string.Empty);
     }
     private sealed class SlowSuccessfulGateway : IZarinpalGatewayService
@@ -795,7 +795,7 @@ public sealed class PaymentDeliveryIntegrationTests
             await Task.Delay(250);
             return (true, $"SLOW-{Guid.NewGuid():N}", "https://payment.test");
         }
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) => Task.FromResult((true, 1L));
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount) => Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(true, 1L));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
     }
     private sealed class NullGiftDelivery : IGiftCodeDeliveryService

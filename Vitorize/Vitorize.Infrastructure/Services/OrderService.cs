@@ -164,6 +164,7 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.KycLifecycleState)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycFinanceResolution)
+                .Include(x => x.Payments)
                 .FirstOrDefaultAsync(x => x.Id == orderId);
 
             if (order == null)
@@ -812,6 +813,16 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = order.CreatedAt,
                 PaidAt = order.PaidAt,
                 CompletedAt = order.CompletedAt,
+                Payments = order.Payments.OrderByDescending(x => x.RequestedAt).Select(x => new OrderPaymentDto
+                {
+                    Id = x.Id,
+                    Amount = x.Amount,
+                    Gateway = x.Gateway,
+                    ReferenceNumber = x.ReferenceNumber,
+                    MaskedCardPan = x.MaskedCardPan,
+                    Status = x.Status,
+                    VerifiedAt = x.VerifiedAt
+                }).ToList(),
                 Items = order.OrderItems.Select(i => new OrderItemDto
                 {
                     Id = i.Id,
@@ -852,6 +863,16 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = order.CreatedAt,
                 PaidAt = order.PaidAt,
                 CompletedAt = order.CompletedAt,
+                Payments = order.Payments.OrderByDescending(x => x.RequestedAt).Select(x => new OrderPaymentDto
+                {
+                    Id = x.Id,
+                    Amount = x.Amount,
+                    Gateway = x.Gateway,
+                    ReferenceNumber = x.ReferenceNumber,
+                    MaskedCardPan = x.MaskedCardPan,
+                    Status = x.Status,
+                    VerifiedAt = x.VerifiedAt
+                }).ToList(),
                 Items = order.OrderItems.Select(i => new OrderItemDto
                 {
                     Id = i.Id,

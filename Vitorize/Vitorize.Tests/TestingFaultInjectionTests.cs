@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Net;
+using System.Text;
 using NSubstitute;
 using Vitorize.Application.Interfaces;
 using Vitorize.Application.Models.Sms;
@@ -105,6 +107,29 @@ public sealed class TestingFaultInjectionTests
     }
 
     [Fact]
+    public async Task Zarinpal_verify_returns_the_provider_masked_card_pan()
+    {
+        var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
+        configuration.GetAsync(Arg.Any<CancellationToken>()).Returns(new ZarinpalPaymentConfiguration(
+            Guid.NewGuid().ToString(), false,
+            new Uri("https://payment.zarinpal.com/pg/v4/payment"),
+            new Uri("https://payment.zarinpal.com/pg/StartPay"),
+            new Uri("https://vitorize.example/api/payments/zarinpal/callback")));
+        configuration.ValidateAsync(Arg.Any<CancellationToken>()).Returns(ZarinpalConfigurationValidation.Valid);
+        var http = new HttpClient(new StaticJsonHandler("""
+            {"data":{"code":100,"ref_id":8768201,"card_pan":"603799******1234","card_hash":"not-persisted"}}
+            """));
+        var gateway = new ZarinpalGatewayService(http, configuration, Env("Production"),
+            Faults(new TestingFaultInjectionOptions()), NullLogger<ZarinpalGatewayService>.Instance);
+
+        var result = await gateway.VerifyPaymentAsync("authority", 100m);
+
+        Assert.True(result.Success);
+        Assert.Equal(8768201L, result.RefId);
+        Assert.Equal("603799******1234", result.CardPan);
+    }
+
+    [Fact]
     public async Task Production_deployment_placeholder_never_invokes_gateway()
     {
         var configuration = Substitute.For<IZarinpalPaymentConfigurationProvider>();
@@ -121,5 +146,14 @@ public sealed class TestingFaultInjectionTests
 
         Assert.False(result.Success);
         await configuration.DidNotReceive().ValidateAsync(Arg.Any<CancellationToken>());
+    }
+
+    private sealed class StaticJsonHandler(string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
     }
 }

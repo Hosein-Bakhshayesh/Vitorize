@@ -26,8 +26,20 @@
         public DateTime? CompletedAt { get; set; }
         public bool RequiresVerification { get; set; }
         public bool VerificationCompleted { get; set; }
+        public List<AdminOrderPaymentModel> Payments { get; set; } = new();
         public List<AdminOrderItemModel> Items { get; set; } = new();
         public List<AdminOrderItemModel> OrderItems { get; set; } = new();
+    }
+
+    public class AdminOrderPaymentModel
+    {
+        public Guid Id { get; set; }
+        public decimal Amount { get; set; }
+        public string Gateway { get; set; } = string.Empty;
+        public string? ReferenceNumber { get; set; }
+        public string? MaskedCardPan { get; set; }
+        public byte Status { get; set; }
+        public DateTime? VerifiedAt { get; set; }
     }
 
     public class AdminOrderItemModel

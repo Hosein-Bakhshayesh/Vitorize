@@ -362,7 +362,7 @@ public sealed class InstantMultiQuantityCheckoutTests
     private sealed class UnusedGateway : IZarinpalGatewayService
     {
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal a, CurrencyType currency, string d, string? m = null, string? e = null, string? o = null) => throw new NotSupportedException();
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string a, decimal amount) => throw new NotSupportedException();
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string a, decimal amount) => throw new NotSupportedException();
         public Task<string> BuildPaymentUrlAsync(string authority) => throw new NotSupportedException();
     }
     private sealed class NullSmsOutbox : ISmsOutboxEnqueuer

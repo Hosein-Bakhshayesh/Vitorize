@@ -188,6 +188,35 @@ else
                     </div>
                 </div>
 
+                <div>
+                    <div class="vz-card__title" style="margin-bottom:10px">اطلاعات تراکنش</div>
+                    @if (d.Payments.Count == 0)
+                    {
+                        <span class="vz-muted" style="font-size:13px">تراکنشی برای این سفارش ثبت نشده است.</span>
+                    }
+                    else
+                    {
+                        <div class="vz-table-wrap">
+                            <table class="vz-table">
+                                <thead><tr><th>درگاه</th><th>مبلغ</th><th>شماره مرجع</th><th>شماره کارت ماسک‌شده</th><th>وضعیت</th><th>زمان تأیید</th></tr></thead>
+                                <tbody>
+                                    @foreach (var payment in d.Payments)
+                                    {
+                                        <tr>
+                                            <td>@payment.Gateway</td>
+                                            <td><MoneyDisplay Amount="payment.Amount" /></td>
+                                            <td class="vz-mono">@(payment.ReferenceNumber ?? "—")</td>
+                                            <td class="vz-mono">@(payment.MaskedCardPan ?? "—")</td>
+                                            <td><StatusBadge Text="@AUI.PaymentStatus(payment.Status)" Intent="@AUI.StatusBadgeIntent(payment.Status, "payment")" /></td>
+                                            <td><PersianDateDisplay Value="payment.VerifiedAt" WithTime="true" /></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
                 <div id="completion-reason" class="vz-alert @(CanComplete(d) ? "vz-alert--success" : "vz-alert--warning")">
                     <Icon Name="package-check" Size="16" />
                     <span><b>وضعیت تحویل:</b> @FulfillmentSummary(d)</span>

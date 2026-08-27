@@ -55,6 +55,7 @@ namespace Vitorize.Infrastructure.Services
                     GatewayTrackingCode = x.GatewayTrackingCode,
                     TransactionId = x.TransactionId,
                     ReferenceNumber = x.ReferenceNumber,
+                    MaskedCardPan = x.MaskedCardPan,
                     Status = x.Status,
                     ProviderStatusCode = x.ProviderStatusCode,
                     CallbackVerified = x.CallbackVerified,
@@ -111,7 +112,8 @@ namespace Vitorize.Infrastructure.Services
             Id = x.Id, OrderId = x.OrderId, OrderNumber = x.Order.OrderNumber, UserId = x.UserId,
             UserFullName = x.User.FullName, UserMobile = x.User.Mobile, Amount = x.Amount, Gateway = x.Gateway,
             Authority = x.Authority, GatewayTrackingCode = x.GatewayTrackingCode, TransactionId = x.TransactionId,
-            ReferenceNumber = x.ReferenceNumber, Status = x.Status, ProviderStatusCode = x.ProviderStatusCode,
+            ReferenceNumber = x.ReferenceNumber, MaskedCardPan = x.MaskedCardPan,
+            Status = x.Status, ProviderStatusCode = x.ProviderStatusCode,
             CallbackVerified = x.CallbackVerified, RequestedAt = x.RequestedAt, VerifiedAt = x.VerifiedAt,
             UpdatedAt = x.UpdatedAt, ErrorMessage = x.ErrorMessage
         };
@@ -135,6 +137,7 @@ namespace Vitorize.Infrastructure.Services
                     GatewayTrackingCode = x.GatewayTrackingCode,
                     TransactionId = x.TransactionId,
                     ReferenceNumber = x.ReferenceNumber,
+                    MaskedCardPan = x.MaskedCardPan,
                     Status = x.Status,
                     ProviderStatusCode = x.ProviderStatusCode,
                     CallbackVerified = x.CallbackVerified,

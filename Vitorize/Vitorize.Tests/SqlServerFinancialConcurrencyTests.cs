@@ -416,7 +416,7 @@ public sealed class SqlServerFinancialConcurrencyTests
     {
         public int VerifyCount { get; private set; }
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal a, CurrencyType currency, string d, string? m = null, string? e = null, string? o = null) => throw new NotSupportedException();
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string a, decimal amount) { VerifyCount++; return Task.FromResult((true, 12345L)); }
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string a, decimal amount) { VerifyCount++; return Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(true, 12345L)); }
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://example.invalid");
     }
     private sealed class NullGiftDelivery : IGiftCodeDeliveryService

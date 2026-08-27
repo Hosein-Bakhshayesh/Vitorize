@@ -14,6 +14,7 @@
         public string? GatewayTrackingCode { get; set; }
         public string? TransactionId { get; set; }
         public string? ReferenceNumber { get; set; }
+        public string? MaskedCardPan { get; set; }
         public byte Status { get; set; }
         public string? ProviderStatusCode { get; set; }
         public bool CallbackVerified { get; set; }

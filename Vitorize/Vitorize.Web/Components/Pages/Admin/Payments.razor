@@ -109,6 +109,7 @@
                 <dt>کد رهگیری</dt><dd>@CopyCell(d.GatewayTrackingCode)</dd>
                 <dt>شناسه تراکنش</dt><dd>@CopyCell(d.TransactionId)</dd>
                 <dt>شماره مرجع</dt><dd>@CopyCell(d.ReferenceNumber)</dd>
+                <dt>شماره کارت ماسک‌شده</dt><dd class="vz-mono">@(d.MaskedCardPan ?? "—")</dd>
                 <dt>تأیید بازگشت</dt><dd>@(d.CallbackVerified ? "بله" : "خیر")</dd>
             </dl>
 

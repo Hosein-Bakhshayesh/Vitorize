@@ -10,7 +10,7 @@
             string? email = null,
             string? orderId = null);
 
-        Task<(bool Success, long RefId)> VerifyPaymentAsync(
+        Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(
             string authority,
             decimal amount);
 

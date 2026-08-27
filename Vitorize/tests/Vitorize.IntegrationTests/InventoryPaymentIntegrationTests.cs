@@ -560,8 +560,8 @@ public sealed class InventoryPaymentIntegrationTests
     {
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((true, $"A-{Guid.NewGuid():N}", "https://payment.test"));
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
-            Task.FromResult((true, 12345L));
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount) =>
+            Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(true, 12345L));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult("https://payment.test");
     }
 
@@ -569,8 +569,8 @@ public sealed class InventoryPaymentIntegrationTests
     {
         public Task<(bool Success, string Authority, string PaymentUrl)> CreatePaymentAsync(decimal amount, CurrencyType currency, string description, string? mobile = null, string? email = null, string? orderId = null) =>
             Task.FromResult((false, string.Empty, string.Empty));
-        public Task<(bool Success, long RefId)> VerifyPaymentAsync(string authority, decimal amount) =>
-            Task.FromResult((false, 0L));
+        public Task<Vitorize.Application.Models.Payments.ZarinpalVerificationResult> VerifyPaymentAsync(string authority, decimal amount) =>
+            Task.FromResult(new Vitorize.Application.Models.Payments.ZarinpalVerificationResult(false, 0));
         public Task<string> BuildPaymentUrlAsync(string authority) => Task.FromResult(string.Empty);
     }
 
