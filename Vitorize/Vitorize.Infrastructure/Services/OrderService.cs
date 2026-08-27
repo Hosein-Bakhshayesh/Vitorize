@@ -23,6 +23,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly IEncryptionService _encryptionService;
         private readonly ILogger<OrderService> _logger;
         private readonly TimeProvider _timeProvider;
+        private readonly ISmsOutboxEnqueuer? _smsOutbox;
         // Only for reading how long a gateway attempt stays live, so cancellability agrees with the
         // payment service's own expiry rule instead of guessing a second timeout.
         private readonly PaymentTimingOptions _paymentTiming;
@@ -33,7 +34,8 @@ namespace Vitorize.Infrastructure.Services
             IEncryptionService encryptionService,
             ILogger<OrderService>? logger = null,
             TimeProvider? timeProvider = null,
-            Microsoft.Extensions.Options.IOptions<PaymentTimingOptions>? paymentTiming = null)
+            Microsoft.Extensions.Options.IOptions<PaymentTimingOptions>? paymentTiming = null,
+            ISmsOutboxEnqueuer? smsOutbox = null)
         {
             _dbContext = dbContext;
             _notificationService = notificationService;
@@ -41,6 +43,7 @@ namespace Vitorize.Infrastructure.Services
             _logger = logger ?? NullLogger<OrderService>.Instance;
             _timeProvider = timeProvider ?? TimeProvider.System;
             _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
+            _smsOutbox = smsOutbox;
         }
 
         public async Task<List<OrderDto>> GetMyOrdersAsync(Guid userId)
@@ -373,6 +376,8 @@ namespace Vitorize.Infrastructure.Services
                 "سفارش لغو شد",
                 $"سفارش {order.OrderNumber} لغو شد. جزئیات در صفحه سفارش قابل مشاهده است.");
 
+            await QueueOrderSmsAsync(order, OrderSmsMessages.Cancelled(order.OrderNumber), "OrderCancelled");
+
             await _dbContext.SaveChangesAsync();
         }
 
@@ -478,6 +483,8 @@ namespace Vitorize.Infrastructure.Services
                     "سفارش لغو شد",
                     $"سفارش {order.OrderNumber} به درخواست شما لغو شد.");
 
+                await QueueOrderSmsAsync(order, OrderSmsMessages.Cancelled(order.OrderNumber), "OrderCancelledByCustomer");
+
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -572,7 +579,28 @@ namespace Vitorize.Infrastructure.Services
                 "سفارش تکمیل شد",
                 $"سفارش {order.OrderNumber} تکمیل شد و جزئیات آن در حساب کاربری شما در دسترس است.");
 
+            await QueueOrderSmsAsync(order, OrderSmsMessages.Completed(order.OrderNumber), "OrderCompleted");
+
             await _dbContext.SaveChangesAsync();
+        }
+
+        private async Task QueueOrderSmsAsync(Order order, string text, string purpose)
+        {
+            if (_smsOutbox is null)
+                return;
+
+            var mobile = order.User?.Mobile ?? await _dbContext.Users
+                .Where(user => user.Id == order.UserId)
+                .Select(user => user.Mobile)
+                .FirstOrDefaultAsync();
+            await _smsOutbox.EnqueueTextAsync(
+                mobile,
+                text,
+                purpose,
+                order.Id,
+                userId: order.UserId,
+                relatedEntityType: "Order",
+                relatedEntityReference: order.OrderNumber);
         }
 
         public async Task DeliverManualAsync(

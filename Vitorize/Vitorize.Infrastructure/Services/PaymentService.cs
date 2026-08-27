@@ -1124,13 +1124,12 @@ namespace Vitorize.Infrastructure.Services
                 "پرداخت موفق",
                 $"پرداخت سفارش {order.OrderNumber} با موفقیت انجام شد.");
 
-            // پیامک رویداد تجاری از طریق Outbox؛ شکست ارسال هرگز پرداخت را برنمی‌گرداند.
-            await _smsOutbox.EnqueueTemplateAsync(
+            // پیامک وضعیت سفارش از طریق Outbox؛ متن اختصاصی است تا به قالب عمومی
+            // «اطلاع‌رسانی جدید» SMS.ir وابسته نباشد و شکست ارسال هم پرداخت را برنگرداند.
+            await _smsOutbox.EnqueueTextAsync(
                 mobile,
-                Vitorize.Application.Common.SmsTemplateKeys.OrderPaid,
-                Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.OrderPaid(
-                    order.OrderNumber),
-                purpose: "OrderPaid",
+                OrderSmsMessages.Processing(order.OrderNumber),
+                purpose: "OrderProcessing",
                 aggregateId: order.Id,
                 userId: userId,
                 relatedEntityType: "Order",
