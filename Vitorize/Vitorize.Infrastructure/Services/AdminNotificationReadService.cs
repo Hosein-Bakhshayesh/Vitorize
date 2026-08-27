@@ -95,6 +95,14 @@ namespace Vitorize.Infrastructure.Services
                 .OrderBy(user => user.FullName).ThenBy(user => user.Mobile)
                 .Select(user => new KycReminderRecipientDto
                 {
+                    OrderId = user.Orders
+                        .Where(order => order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                            order.OrderItems.Any(item => item.RequiresVerification &&
+                                (item.KycLifecycleState == null ||
+                                 item.KycLifecycleState.Status != (byte)OrderItemKycStatus.Satisfied)))
+                        .OrderByDescending(order => order.PaidAt ?? order.CreatedAt)
+                        .Select(order => order.Id)
+                        .FirstOrDefault(),
                     UserId = user.Id,
                     FullName = user.FullName,
                     Mobile = user.Mobile,

@@ -4,6 +4,7 @@
 @inject IJSRuntime JS
 @using System.Text
 @using Vitorize.Web.Helpers
+@using Vitorize.Web.Models.Admin.Notifications
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="مدیریت پیامک" Subtitle="تاریخچه، سلامت سرویس، ارسال امن و عملیات پیامک SMS.ir"
@@ -11,7 +12,8 @@
     <Actions>
         <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="RefreshAll"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
-        <button class="vz-btn vz-btn--primary" disabled="@(_health is not { IsEnabled: true, IsConfigured: true })" title="@(_health is { IsEnabled: true, IsConfigured: true } ? null : "ابتدا اتصال SMS.ir را در تنظیمات کامل کنید")" @onclick="() => _sendOpen = true"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
+        <button class="vz-btn vz-btn--outline" disabled="@(_health is not { IsEnabled: true, IsConfigured: true })" title="@(_health is { IsEnabled: true, IsConfigured: true } ? null : "ابتدا اتصال SMS.ir را در تنظیمات کامل کنید")" @onclick="OpenKycTemplate"><Icon Name="shield" Size="17" /> قالب احراز هویت</button>
+        <button class="vz-btn vz-btn--primary" disabled="@(_health is not { IsEnabled: true, IsConfigured: true })" title="@(_health is { IsEnabled: true, IsConfigured: true } ? null : "ابتدا اتصال SMS.ir را در تنظیمات کامل کنید")" @onclick="OpenCustomSend"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
     </Actions>
 </PageHeader>
 
@@ -150,20 +152,40 @@ else
 
 <SlidePanel Visible="_sendOpen" Title="ارسال پیامک سفارشی" Subtitle="ارسال کنترل‌شده و ثبت‌شده توسط مدیر" Icon="send" OnClose="CloseSend">
     <ChildContent>
-        <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">قالب اطلاع‌رسانی</button><button class="@(_sendMode == "text" ? "active" : null)" @onclick="SelectTextMode">متن سفارشی</button></div>
-        <div class="vz-field"><label class="vz-label">شماره موبایل</label><input class="vz-input" @bind="_sendMobile" inputmode="tel" placeholder="09123456789" /></div>
-        <div class="vz-field"><label class="vz-label">شناسه کاربر موجود (اختیاری)</label><input class="vz-input ltr-cell" @bind="_sendUserId" placeholder="GUID؛ در صورت ورود، موبایل کاربر استفاده می‌شود" /></div>
-        @if (_sendMode == "notification")
+        <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">قالب اطلاع‌رسانی</button><button class="@(_sendMode == "text" ? "active" : null)" @onclick="SelectTextMode">متن سفارشی</button><button class="@(_sendMode == "kyc" ? "active" : null)" @onclick="SelectKycReminderMode">قالب احراز هویت</button></div>
+        @if (_sendMode == "kyc")
         {
-            <div class="vz-field"><label class="vz-label">ORDER_NUMBER / کد پیگیری</label><input class="vz-input ltr-cell" @bind="_orderNumber" maxlength="150" placeholder="VT-20260713-ABC123" /></div>
-            <div class="sms-preview" style="white-space:pre-line">@NotificationPreview</div>
+            @if (_kycRecipientsLoading)
+            {
+                <LoadingState />
+            }
+            else if (_kycRecipients.Count == 0)
+            {
+                <div class="sms-warning"><Icon Name="info" Size="17" /> کاربر واجدشرایطی برای یادآوری احراز هویت وجود ندارد.</div>
+            }
+            else
+            {
+                <div class="vz-field"><label class="vz-label">کاربر و سفارش نیازمند احراز هویت</label><select class="vz-input" @bind="_kycReminderOrderId"><option value="@Guid.Empty">انتخاب کنید</option>@foreach (var recipient in _kycRecipients) { <option value="@recipient.OrderId">@recipient.FullName — @recipient.Mobile — سفارش @recipient.OrderNumber</option> }</select></div>
+                <div class="vz-field"><label class="vz-label">متن پیامک</label><textarea class="vz-textarea" rows="6" maxlength="500" @bind="_kycReminderText"></textarea><div class="vz-hint">@_kycReminderText.Length نویسه · حدود @KycSegmentCount بخش پیامک</div></div>
+                <div class="sms-warning"><Icon Name="shield" Size="17" /> پیام فقط برای شماره کاربرِ سفارش پرداخت‌شده و نیازمند احراز هویت ارسال می‌شود.</div>
+            }
         }
         else
         {
-            <div class="vz-field"><label class="vz-label">متن پیامک</label><textarea class="vz-textarea" rows="6" maxlength="500" @bind="_customText"></textarea><div class="vz-hint">@_customText.Length نویسه · حدود @SegmentCount بخش پیامک</div></div>
+            <div class="vz-field"><label class="vz-label">شماره موبایل</label><input class="vz-input" @bind="_sendMobile" inputmode="tel" placeholder="09123456789" /></div>
+            <div class="vz-field"><label class="vz-label">شناسه کاربر موجود (اختیاری)</label><input class="vz-input ltr-cell" @bind="_sendUserId" placeholder="GUID؛ در صورت ورود، موبایل کاربر استفاده می‌شود" /></div>
+            @if (_sendMode == "notification")
+            {
+                <div class="vz-field"><label class="vz-label">ORDER_NUMBER / کد پیگیری</label><input class="vz-input ltr-cell" @bind="_orderNumber" maxlength="150" placeholder="VT-20260713-ABC123" /></div>
+                <div class="sms-preview" style="white-space:pre-line">@NotificationPreview</div>
+            }
+            else
+            {
+                <div class="vz-field"><label class="vz-label">متن پیامک</label><textarea class="vz-textarea" rows="6" maxlength="500" @bind="_customText"></textarea><div class="vz-hint">@_customText.Length نویسه · حدود @SegmentCount بخش پیامک</div></div>
+            }
         }
-        <div class="vz-field"><label class="vz-label">یادداشت داخلی (ارسال نمی‌شود)</label><textarea class="vz-textarea" rows="2" @bind="_internalNote" maxlength="500"></textarea></div>
-        <label class="sms-checkbox"><input type="checkbox" disabled="@(_health?.AllowImmediateSend != true)" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label>
+        @if (_sendMode != "kyc") { <div class="vz-field"><label class="vz-label">یادداشت داخلی (ارسال نمی‌شود)</label><textarea class="vz-textarea" rows="2" @bind="_internalNote" maxlength="500"></textarea></div> }
+        @if (_sendMode != "kyc") { <label class="sms-checkbox"><input type="checkbox" disabled="@(_health?.AllowImmediateSend != true)" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label> }
         <div class="sms-warning"><Icon Name="alert" Size="17" /> پیش از ارسال، شماره و محتوای پیام را بررسی کنید. این عملیات در تاریخچه و لاگ امنیتی ثبت می‌شود.</div>
     </ChildContent>
     <Footer><button class="vz-btn vz-btn--primary" disabled="@_sending" @onclick="SendCustom">@if (_sending) { <span class="vz-spinner sm"></span> }<span>تایید و ارسال</span></button><button class="vz-btn vz-btn--ghost" @onclick="CloseSend">انصراف</button></Footer>
@@ -202,10 +224,16 @@ else
     private SmsHealthModel? _health;
     private string _sendMode = "notification", _sendMobile = "", _sendUserId = "", _orderNumber = "VT-", _customText = "", _internalNote = "";
     private bool _immediate;
+    private bool _kycRecipientsLoading;
+    private Guid _kycReminderOrderId;
+    private List<KycReminderRecipientModel> _kycRecipients = new();
+    private string _kycReminderText = KycReminderDefaultText;
+    private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
     private static readonly Dictionary<byte,string> Statuses = new() { [0]="در انتظار",[1]="در حال ارسال",[2]="ارسال‌شده",[3]="ناموفق",[4]="بازتلاش",[5]="متوقف‌شده",[6]="غیرفعال",[7]="لغوشده" };
 
     private string NotificationPreview => $"ویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n{_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
     private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
+    private int KycSegmentCount => string.IsNullOrEmpty(_kycReminderText) ? 0 : (int)Math.Ceiling(_kycReminderText.Length / (_kycReminderText.Any(c => c > 127) ? 67d : 153d));
 
     protected override Task OnInitializedAsync() => RefreshAll();
     private async Task RefreshAll() { await Task.WhenAll(LoadHistory(), LoadSummary(), LoadHealth()); }
@@ -233,8 +261,21 @@ else
     private async Task ApplyFilters(){_page=1;await LoadHistory();}
     private void ShowHistory() => _tab = "history";
     private void ShowTest() => _tab = "test";
+    private void OpenCustomSend() { _sendMode = "notification"; _sendOpen = true; }
+    private async Task OpenKycTemplate() { _sendOpen = true; await SelectKycReminderMode(); }
     private void SelectNotificationMode() => _sendMode = "notification";
     private void SelectTextMode() => _sendMode = "text";
+    private async Task SelectKycReminderMode()
+    {
+        _sendMode = "kyc";
+        _kycReminderOrderId = Guid.Empty;
+        _kycReminderText = KycReminderDefaultText;
+        _kycRecipientsLoading = true;
+        var result = await Api.GetAsync<List<KycReminderRecipientModel>>("admin/notifications/kyc-reminder-recipients");
+        _kycRecipients = result.IsSuccess ? result.Data ?? new() : new();
+        _kycRecipientsLoading = false;
+        if (!result.IsSuccess) Toasts.Error(result.Message);
+    }
     private async Task ClearFilters(){_search=_status=_type=_purpose=_from=_to="";_onlyFailed=_onlyPending=_onlyCustom=false;await ApplyFilters();}
     private async Task ChangePage(int p){_page=p;await LoadHistory();}
     private async Task OpenDetails(Guid id){_detailOpen=true;_detailLoading=true;var r=await Api.GetAsync<SmsHistoryModel>($"admin/sms/{id}");if(r.IsSuccess)_current=r.Data;else Toasts.Error(r.Message);_detailLoading=false;}
@@ -247,12 +288,41 @@ else
     private void CloseSend(){_sendOpen=false;_sending=false;}
     private async Task SendCustom()
     {
+        if (_sendMode == "kyc")
+        {
+            await SendKycReminder();
+            return;
+        }
         var modeName = _sendMode == "text" ? "متنی" : "اطلاع‌رسانی";
         if(!await JS.InvokeAsync<bool>("confirm",$"پیامک {modeName} به گیرنده انتخاب‌شده ارسال شود؟"))return;
         _sending=true;Guid? uid=Guid.TryParse(_sendUserId,out var parsed)?parsed:null;Vitorize.Shared.Common.ApiResult<SmsActionResultModel> r;
         if(_sendMode=="notification") r=await Api.PostAsync<SmsActionResultModel>("admin/sms/send-notification",new{Mobile=_sendMobile,UserId=uid,OrderNumber=_orderNumber,InternalNote=_internalNote,SendImmediately=_immediate,IdempotencyKey=Guid.NewGuid().ToString("N")});
         else r=await Api.PostAsync<SmsActionResultModel>("admin/sms/send-text",new{Mobile=_sendMobile,UserId=uid,Text=_customText,InternalNote=_internalNote,SendImmediately=_immediate,IdempotencyKey=Guid.NewGuid().ToString("N")});
         _sending=false;if(r.IsSuccess){Toasts.Success(r.Data?.Message??"درخواست ثبت شد.");CloseSend();await RefreshAll();}else Toasts.Error(r.Message);
+    }
+    private async Task SendKycReminder()
+    {
+        if (_kycReminderOrderId == Guid.Empty)
+        {
+            Toasts.Error("کاربر و سفارش را انتخاب کنید.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_kycReminderText))
+        {
+            Toasts.Error("متن پیامک الزامی است.");
+            return;
+        }
+        if (!await JS.InvokeAsync<bool>("confirm", "یادآوری احراز هویت برای مشتری این سفارش ارسال شود؟")) return;
+        _sending = true;
+        var result = await Api.PostAsync<object>("admin/notifications/kyc-reminder/order", new { OrderId = _kycReminderOrderId, Message = _kycReminderText });
+        _sending = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success("یادآوری احراز هویت و پیامک در صف ارسال قرار گرفت.");
+            CloseSend();
+            await RefreshAll();
+        }
+        else Toasts.Error(result.Message);
     }
     private async Task Export(){var r=await Api.GetRawTextAsync(BuildFilterUrl("admin/sms/export?masked=true"));if(!r.IsSuccess||r.Data is null){Toasts.Error(r.Message);return;}await JS.InvokeVoidAsync("vzAdmin.downloadText",$"sms-history-{DateTime.Now:yyyyMMdd-HHmm}.csv",r.Data,"text/csv");}
 }

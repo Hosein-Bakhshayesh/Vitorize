@@ -1,9 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Notifications;
 using Vitorize.Application.DTOs.Admin.System;
 using Vitorize.Application.Interfaces;
+using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Common;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Api.Controllers.Admin
 {
@@ -15,15 +19,18 @@ namespace Vitorize.Api.Controllers.Admin
         private readonly IAdminNotificationReadService _service;
         private readonly INotificationService _notificationService;
         private readonly ICurrentUserService _currentUser;
+        private readonly VitorizeDbContext _dbContext;
 
         public AdminNotificationsController(
             IAdminNotificationReadService service,
             INotificationService notificationService,
-            ICurrentUserService currentUser)
+            ICurrentUserService currentUser,
+            VitorizeDbContext dbContext)
         {
             _service = service;
             _notificationService = notificationService;
             _currentUser = currentUser;
+            _dbContext = dbContext;
         }
         [HttpGet]
         public async Task<ActionResult<ApiResult<List<AdminNotificationDto>>>> GetAll([FromQuery] AdminQueryFilterDto filter)
@@ -86,6 +93,40 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult.Success(request.SendSms
                 ? "یادآوری احراز هویت ثبت و پیامک در صف ارسال قرار گرفت."
                 : "یادآوری احراز هویت برای کاربر ارسال شد."));
+        }
+
+        [HttpPost("kyc-reminder/order")]
+        public async Task<ActionResult<ApiResult>> SendOrderKycReminder(
+            SendOrderKycReminderRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            if (request.OrderId == Guid.Empty || string.IsNullOrWhiteSpace(request.Message))
+                return BadRequest(ApiResult.Failure("سفارش و متن پیامک الزامی است."));
+
+            var eligibleCustomer = BroadcastRecipientRules.IsEligibleCustomer;
+            var userId = await _dbContext.Users.AsNoTracking()
+                .Where(eligibleCustomer)
+                .Where(user => user.VerificationStatus != (byte)VerificationStatus.Verified &&
+                    user.Orders.Any(order => order.Id == request.OrderId &&
+                        order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                        order.OrderItems.Any(item => item.RequiresVerification &&
+                            (item.KycLifecycleState == null ||
+                             item.KycLifecycleState.Status != (byte)OrderItemKycStatus.Satisfied))))
+                .Select(user => (Guid?)user.Id)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (!userId.HasValue)
+                return BadRequest(ApiResult.Failure("این سفارش در حال حاضر نیازمند تکمیل احراز هویت نیست."));
+
+            await _notificationService.SendKycReminderAsync(
+                userId.Value,
+                "یادآوری تکمیل احراز هویت",
+                request.Message,
+                sendSms: true,
+                smsCreatedByUserId: _currentUser.UserId,
+                cancellationToken);
+
+            return Ok(ApiResult.Success("یادآوری احراز هویت و پیامک برای مشتری در صف ارسال قرار گرفت."));
         }
     }
 }

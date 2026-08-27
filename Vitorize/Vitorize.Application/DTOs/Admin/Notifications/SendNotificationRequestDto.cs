@@ -15,9 +15,17 @@ namespace Vitorize.Application.DTOs.Admin.Notifications
     /// <summary>Customer eligible for a direct KYC-completion reminder.</summary>
     public class KycReminderRecipientDto
     {
+        public Guid OrderId { get; set; }
         public Guid UserId { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string Mobile { get; set; } = string.Empty;
         public string OrderNumber { get; set; } = string.Empty;
+    }
+
+    /// <summary>Direct KYC reminder for one specific eligible order.</summary>
+    public class SendOrderKycReminderRequestDto
+    {
+        public Guid OrderId { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 }

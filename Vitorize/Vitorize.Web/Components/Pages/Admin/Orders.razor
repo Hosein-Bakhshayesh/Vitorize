@@ -132,6 +132,10 @@ else
                                     <td class="col-actions">
                                         <AdminContextMenu>
                                                     <button class="vz-ctx__item" @onclick="() => OpenDetails(o.Id)"><Icon Name="eye" Size="15" /> مشاهده جزئیات</button>
+                                                    @if (CanSendKycReminder(o))
+                                                    {
+                                                        <button class="vz-ctx__item" @onclick="() => OpenKycReminder(o)"><Icon Name="message" Size="15" /> ارسال پیامک احراز هویت</button>
+                                                    }
                                                     @if (CanAct(o.Status))
                                                     {
                                                         <button class="vz-ctx__item" @onclick="() => QuickCancel(o)"><Icon Name="x-circle" Size="15" /> لغو سفارش</button>
@@ -315,6 +319,10 @@ else
         }
     </ChildContent>
     <Footer>
+        @if (_detail is not null && CanSendKycReminder(_detail))
+        {
+            <button class="vz-btn vz-btn--outline" @onclick="() => OpenKycReminder(_detail)" disabled="@_acting"><Icon Name="message" Size="16" /> ارسال پیامک احراز هویت</button>
+        }
         @if (_detail is not null && CanAct(_detail.Status))
         {
             <button class="vz-btn vz-btn--danger-soft" @onclick="OpenCancel" disabled="@_acting">لغو سفارش</button>
@@ -323,6 +331,29 @@ else
             </button>
         }
         <button class="vz-btn vz-btn--outline" @onclick="() => _detailOpen = false">بستن</button>
+    </Footer>
+</Modal>
+
+<Modal Visible="_kycSmsOpen" Title="ارسال پیامک احراز هویت" Icon="shield" Size="sm" OnClose="CloseKycReminder">
+    <ChildContent>
+        @if (_kycSmsOrder is not null)
+        {
+            <div class="vz-alert vz-alert--info" style="margin-bottom:14px">
+                پیامک فقط برای شماره <b class="vz-mono">@_kycSmsOrder.UserMobile</b> و سفارش <b>@_kycSmsOrder.OrderNumber</b> ارسال می‌شود.
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">متن پیامک</label>
+                <textarea class="vz-textarea" rows="7" maxlength="500" @bind="_kycSmsMessage"></textarea>
+                <div class="vz-hint">@_kycSmsMessage.Length نویسه</div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseKycReminder" disabled="@_kycSmsSending">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="SendOrderKycReminder" disabled="@_kycSmsSending">
+            @if (_kycSmsSending) { <span class="vz-spinner sm"></span> } else { <Icon Name="send" Size="15" /> }
+            ارسال پیامک
+        </button>
     </Footer>
 </Modal>
 
@@ -398,6 +429,10 @@ else
     private AdminOrderModel? _manualDeliveryOrder;
     private AdminOrderItemModel? _manualDeliveryItem;
     private readonly Dictionary<Guid, string> _kycDeadlineInputs = new();
+    private bool _kycSmsOpen, _kycSmsSending;
+    private AdminOrderModel? _kycSmsOrder;
+    private string _kycSmsMessage = KycReminderDefaultText;
+    private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
 
     private DotNetObjectReference<Orders>? _selfRef;
 
@@ -443,6 +478,10 @@ else
     private int CountStatus(byte status) => _items.Count(o => o.Status == status);
     private static bool CanAct(byte status) => status is not (byte)OrderStatus.Completed
         and not (byte)OrderStatus.Cancelled and not (byte)OrderStatus.Refunded;
+
+    private static bool CanSendKycReminder(AdminOrderModel order) =>
+        order.RequiresVerification && !order.VerificationCompleted &&
+        order.PaymentStatus == (byte)PaymentStatus.Paid;
 
     private static bool CanComplete(AdminOrderModel order) =>
         CanAct(order.Status) && OrderFulfillmentRules.CanComplete(order.PaymentStatus, Items(order).Select(x => x.DeliveryStatus));
@@ -574,6 +613,45 @@ else
             await BuildTimeline(_detail);
         }
         else Toasts.Error(result.Message);
+    }
+
+    private void OpenKycReminder(AdminOrderModel order)
+    {
+        CloseMenu();
+        _kycSmsOrder = order;
+        _kycSmsMessage = KycReminderDefaultText;
+        _kycSmsOpen = true;
+    }
+
+    private void CloseKycReminder()
+    {
+        _kycSmsOpen = false;
+        _kycSmsSending = false;
+        _kycSmsOrder = null;
+    }
+
+    private async Task SendOrderKycReminder()
+    {
+        if (_kycSmsOrder is null || string.IsNullOrWhiteSpace(_kycSmsMessage))
+        {
+            Toasts.Error("متن پیامک الزامی است.");
+            return;
+        }
+        if (!await JS.InvokeAsync<bool>("confirm", "پیامک یادآوری احراز هویت برای این سفارش ارسال شود؟")) return;
+
+        _kycSmsSending = true;
+        var result = await Api.PostAsync<object>("admin/notifications/kyc-reminder/order", new { OrderId = _kycSmsOrder.Id, Message = _kycSmsMessage });
+        _kycSmsSending = false;
+        if (!result.IsSuccess)
+        {
+            Toasts.Error(result.Message);
+            return;
+        }
+
+        Toasts.Success("یادآوری احراز هویت و پیامک در صف ارسال قرار گرفت.");
+        CloseKycReminder();
+        await Load();
+        if (_detail is not null) await RefreshDetail(_detail.Id);
     }
 
     private async Task RevealInput(Guid orderId, AdminOrderInputValueModel value)
