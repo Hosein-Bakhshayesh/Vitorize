@@ -235,14 +235,12 @@ namespace Vitorize.Infrastructure.Services
             if (review.UserId != userId)
                 throw new UnauthorizedException("شما اجازه ویرایش این نظر را ندارید.");
 
-            if (review.IsApproved)
-                throw new BusinessException("نظر تأییدشده قابل ویرایش نیست.");
-
             review.Title = title;
             review.Comment = comment;
             review.Rating = request.Rating;
-            // پس از ویرایش، نظر مجدداً در صف بررسی قرار می‌گیرد.
-            review.IsApproved = false;
+            // Customer reviews are published by default, including an owner's edit. A moderator can
+            // still reject a problematic revision explicitly; an edit also clears an older rejection.
+            review.IsApproved = true;
             review.IsRejected = false;
             review.RejectionReason = null;
             review.UpdatedAt = DateTime.UtcNow;

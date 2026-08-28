@@ -18,7 +18,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
     public Fix09Phase2DVerificationLifecycleIntegrationTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
     [Fact]
-    public async Task Required_document_completion_after_identity_submission_moves_item_to_review_without_a_second_submit()
+    public async Task Required_documents_across_a_pending_profile_move_items_to_review_without_a_second_submit()
     {
         var seed = await SeedAsync();
         Guid profileId;
@@ -27,12 +27,13 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
             profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
+            await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
         }
 
         await using (var afterSubmission = _fixture.CreateDbContext())
         {
             (await afterSubmission.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.AwaitingReview);
-            (await afterSubmission.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V2Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.AwaitingSubmission);
+            (await afterSubmission.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V2Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.AwaitingReview);
         }
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -43,6 +44,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         var v1 = await approved.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id);
         v1.Status.Should().Be((byte)OrderItemKycStatus.Satisfied);
         v1.SatisfiedByVerificationProfileId.Should().Be(profileId);
+        (await approved.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V2Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.Satisfied);
         (await approved.OrderItemDeliveries.CountAsync(x => x.OrderItemId == seed.V1Item.Id || x.OrderItemId == seed.V2Item.Id)).Should().Be(0);
         (await approved.Orders.SingleAsync(x => x.Id == seed.Order.Id)).Status.Should().Be((byte)OrderStatus.Processing);
     }
@@ -281,5 +283,9 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         return (user, userToken, admin, adminToken, order, item1, item2, docA, docB);
     }
 
-    private static SubmitVerificationRequestDto Request() => new() { FirstName = "Test", LastName = "User", NationalCode = "1234567890" };
+    private static SubmitVerificationRequestDto Request() => new()
+    {
+        FirstName = "Test", LastName = "User", NationalCode = "1234567890",
+        RegisteredMobileBelongsToCardHolder = true
+    };
 }

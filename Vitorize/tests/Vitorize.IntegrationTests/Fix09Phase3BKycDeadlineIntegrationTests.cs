@@ -165,7 +165,8 @@ public sealed class Fix09Phase3BKycDeadlineIntegrationTests
         {
             var submit = await customerClient.PostAsJsonAsync("/api/verification/submit", new SubmitVerificationRequestDto
             {
-                FirstName = "Expiry", LastName = "Customer", NationalCode = "1234567890"
+                FirstName = "Expiry", LastName = "Customer", NationalCode = "1234567890",
+                RegisteredMobileBelongsToCardHolder = true
             });
             submit.StatusCode.Should().Be(HttpStatusCode.Conflict);
         }

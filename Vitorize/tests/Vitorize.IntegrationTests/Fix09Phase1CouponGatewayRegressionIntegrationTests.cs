@@ -18,13 +18,13 @@ namespace Vitorize.IntegrationTests;
 
 /// <summary>
 /// Verifies that coupons affect the payable gateway amount only: the persisted
-/// pre-payment KYC snapshot must retain the undiscounted item evaluation.
+/// pre-payment KYC snapshot must retain the final payable order-total evaluation.
 /// </summary>
 [Collection(SqlServerIntegrationCollection.Name)]
 public sealed class Fix09Phase1CouponGatewayRegressionIntegrationTests
 {
     private const decimal UnitPrice = 5_000m;
-    private const decimal KycThreshold = 4_000m;
+    private const decimal KycThreshold = 3_000m;
     private const decimal CouponDiscount = 2_000m;
     private const decimal FinalPayable = UnitPrice - CouponDiscount;
 
@@ -36,7 +36,7 @@ public sealed class Fix09Phase1CouponGatewayRegressionIntegrationTests
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         await SetVerifiedAsync(customer.Id);
-        var policyVersionId = await CreatePublishedPolicyVersionAsync();
+        var policyVersionId = await _fixture.ConfigureOrderTotalKycAsync(KycThreshold);
         var (product, plaintextCode) = await CreateInstantKycProductAsync(policyVersionId);
         var coupon = await CreateCouponAsync();
         using var client = _fixture.CreateClient(token);
@@ -166,7 +166,7 @@ public sealed class Fix09Phase1CouponGatewayRegressionIntegrationTests
     private static void AssertKycSnapshot(OrderItem item, Guid policyVersionId) =>
         item.Should().Match<OrderItem>(x => x.RequiresVerification &&
             x.KycRequirementMode == (byte)KycRequirementMode.AboveThreshold &&
-            x.KycThresholdAmount == KycThreshold && x.KycEvaluatedAmount == UnitPrice &&
+            x.KycThresholdAmount == KycThreshold && x.KycEvaluatedAmount == FinalPayable &&
             x.KycPolicyVersionId == policyVersionId);
 
     private async Task SetVerifiedAsync(Guid userId)

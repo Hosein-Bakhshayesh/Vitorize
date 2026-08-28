@@ -32,6 +32,7 @@ public sealed class Fix09Phase1OrderHistoryIntegrationTests
         var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
         await SetVerifiedAsync(owner.Id);
         var (policyId, v1, v2) = await CreateVersionsAsync();
+        var orderTotalPolicyVersion = await _fixture.ConfigureOrderTotalKycAsync(5_000m);
         var product = await CreateProductAsync("history", v1, 5_000m);
         var retryProduct = await CreateProductAsync("retry", v1, 5_000m);
         var legacy = await CreateLegacyCompatibleProductAsync();
@@ -43,15 +44,19 @@ public sealed class Fix09Phase1OrderHistoryIntegrationTests
         await DeliverAsync(adminClient, v1Order, "FIX09 delivered V1");
 
         await SetProductPolicyAsync(product.Id, v2, 4_000m);
+        await _fixture.ConfigureOrderTotalKycAsync(4_000m);
         var v2Order = await CheckoutAndPayAsync(ownerClient, product.Id);
 
+        await _fixture.ConfigureOrderTotalKycAsync(5_000m);
         var retryOrder = await CheckoutAsync(ownerClient, retryProduct.Id);
         var cancelled = await StartAsync(ownerClient, retryOrder);
         (await ownerClient.GetAsync($"/api/payments/zarinpal/callback?Authority={Uri.EscapeDataString(cancelled.Authority!)}&Status=NOK"))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         await SetProductPolicyAsync(retryProduct.Id, v2, 10_000m);
+        await _fixture.ConfigureOrderTotalKycAsync(10_000m);
         await PayAsync(ownerClient, retryOrder, retry: true);
 
+        await _fixture.ConfigureOrderTotalKycAsync(1m);
         var legacyOrder = await CheckoutAndPayAsync(ownerClient, legacy.Id);
 
         foreach (var orderId in new[] { v1Order, v2Order, retryOrder, legacyOrder })
@@ -71,11 +76,14 @@ public sealed class Fix09Phase1OrderHistoryIntegrationTests
         await using var verify = _fixture.CreateDbContext();
         var items = await verify.OrderItems.Where(x => new[] { v1Order, v2Order, retryOrder, legacyOrder }.Contains(x.OrderId))
             .ToDictionaryAsync(x => x.OrderId);
-        items[v1Order].Should().Match<OrderItem>(x => x.KycPolicyVersionId == v1 && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
-        items[v2Order].Should().Match<OrderItem>(x => x.KycPolicyVersionId == v2 && x.KycThresholdAmount == 4_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
-        items[retryOrder].Should().Match<OrderItem>(x => x.KycPolicyVersionId == v1 && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
-        items[legacyOrder].Should().Match<OrderItem>(x => x.KycRequirementMode == (byte)KycRequirementMode.Always && x.KycThresholdAmount == null && x.KycEvaluatedAmount == 5_000m && x.KycPolicyVersionId != null);
-        (await verify.Products.SingleAsync(x => x.Id == retryProduct.Id)).Should().Match<Product>(x => x.KycPolicyVersionId == v2 && x.KycThresholdAmount == 10_000m);
+        items[v1Order].Should().Match<OrderItem>(x => x.KycPolicyVersionId == orderTotalPolicyVersion && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
+        items[v2Order].Should().Match<OrderItem>(x => x.KycPolicyVersionId == orderTotalPolicyVersion && x.KycThresholdAmount == 4_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
+        items[retryOrder].Should().Match<OrderItem>(x => x.KycPolicyVersionId == orderTotalPolicyVersion && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
+        items[legacyOrder].Should().Match<OrderItem>(x => x.KycRequirementMode == (byte)KycRequirementMode.AboveThreshold && x.KycThresholdAmount == 1m && x.KycEvaluatedAmount == 5_000m && x.KycPolicyVersionId == orderTotalPolicyVersion);
+        // Product records intentionally no longer carry KYC policy state; retries use the
+        // snapshot captured from the store-wide rule at the original checkout.
+        (await verify.Products.SingleAsync(x => x.Id == retryProduct.Id)).Should().Match<Product>(x =>
+            x.KycPolicyVersionId == null && x.KycThresholdAmount == null && !x.RequiresVerification);
         (await verify.Payments.CountAsync(x => x.OrderId == retryOrder)).Should().Be(2);
         (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItem.OrderId == v1Order)).Should().Be(1);
         (await verify.KycPolicyVersions.SingleAsync(x => x.Id == v1)).KycPolicyId.Should().Be(policyId);

@@ -50,6 +50,8 @@ DECLARE @UniversalNotificationTemplateId nvarchar(50) = N'';
         (N'Sms.MaxRetryCount',                 N'5',       N'SMS', N'int',    N'حداکثر تعداد بازتلاش ارسال'),
         (N'Sms.RetryDelaySeconds',             N'30',      N'SMS', N'int',    N'پایه تأخیر بازتلاش (ثانیه)'),
         (N'Sms.UseOutbox',                     N'true',    N'SMS', N'bool',   N'ارسال پیامک رویدادهای تجاری از طریق Outbox'),
+        (N'Sms.CustomSendEnabled',              N'false',   N'SMS', N'bool',   N'فعال‌سازی ارسال پیامک سفارشی توسط مدیر'),
+        (N'Sms.CustomTextEnabled',              N'false',   N'SMS', N'bool',   N'فعال‌سازی پیامک متنی سفارشی'),
         (N'Sms.MaxCustomRecipients',            N'1',       N'SMS', N'int',    N'حداکثر گیرنده در هر ارسال سفارشی'),
         (N'Sms.MaxCustomTextLength',            N'500',     N'SMS', N'int',    N'حداکثر طول پیامک متنی سفارشی'),
         (N'Sms.RequireConfirmation',            N'true',    N'SMS', N'bool',   N'نیاز به تایید نهایی پیش از ارسال سفارشی'),

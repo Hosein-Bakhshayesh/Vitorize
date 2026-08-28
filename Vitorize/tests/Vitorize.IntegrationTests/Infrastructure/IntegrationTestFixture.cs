@@ -270,6 +270,27 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         ((FakeSmsSender)Factory.Services.GetRequiredService<ISmsSender>()).Clear();
     }
 
+    /// <summary>
+    /// Configures the production order-total KYC rule for a test. Product-level KYC was retired,
+    /// so integration tests must set this store-wide threshold instead of mutating a Product.
+    /// </summary>
+    public async Task<Guid> ConfigureOrderTotalKycAsync(decimal thresholdToman)
+    {
+        await using var db = CreateDbContext();
+        var threshold = await db.Settings.SingleAsync(x => x.Key == "Verification.OrderAmountThresholdToman");
+        threshold.Value = thresholdToman.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        threshold.UpdatedAt = DateTime.UtcNow;
+        var versionId = await db.KycPolicyVersions.AsNoTracking()
+            .Where(x => x.KycPolicy.Code == "order-total-verification" &&
+                        x.KycPolicy.IsActive &&
+                        x.Status == (byte)Vitorize.Shared.Enums.KycPolicyVersionStatus.Published)
+            .OrderByDescending(x => x.Version)
+            .Select(x => x.Id)
+            .FirstAsync();
+        await db.SaveChangesAsync();
+        return versionId;
+    }
+
     private async Task AssertSqlServer2022OrLaterAsync()
     {
         var master = new SqlConnectionStringBuilder(ConnectionString) { InitialCatalog = "master" }.ConnectionString;

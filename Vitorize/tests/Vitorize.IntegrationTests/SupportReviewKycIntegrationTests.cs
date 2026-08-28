@@ -212,7 +212,8 @@ public sealed class SupportReviewKycIntegrationTests
 
         var review = await PostDataAsync<ProductReviewDto>(authorClient, "/api/product-reviews",
             new CreateProductReviewRequestDto { ProductId = product.Id, Title = "Good", Comment = "Useful review", Rating = 4 });
-        review.IsApproved.Should().BeFalse();
+        // New customer reviews are published immediately; an administrator can still reject them.
+        review.IsApproved.Should().BeTrue();
         (await authorClient.PostAsJsonAsync("/api/product-reviews",
             new CreateProductReviewRequestDto { ProductId = product.Id, Comment = "Duplicate", Rating = 3 }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -271,7 +272,8 @@ public sealed class SupportReviewKycIntegrationTests
         await PostDataAsync<VerificationProfileDto>(client, "/api/verification/submit", new SubmitVerificationRequestDto
         {
             FirstName = "Integration", LastName = "Customer", NationalCode = nationalCode,
-            BirthDate = new DateOnly(1990, 1, 1), Address = "Private address", PostalCode = "1234567890"
+            BirthDate = new DateOnly(1990, 1, 1), Address = "Private address", PostalCode = "1234567890",
+            RegisteredMobileBelongsToCardHolder = true
         });
 
     private async Task<(Category Category, Product Product)> SeedProductAsync()

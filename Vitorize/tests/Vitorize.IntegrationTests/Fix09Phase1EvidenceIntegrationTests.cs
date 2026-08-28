@@ -24,15 +24,15 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
     public Fix09Phase1EvidenceIntegrationTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
     [Fact]
-    public async Task Checkout_persists_threshold_quantity_coupon_and_mixed_cart_kyc_snapshots()
+    public async Task Checkout_persists_order_total_threshold_quantity_coupon_and_mixed_cart_snapshots()
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         await SetVerifiedAsync(customer.Id);
-        var policyVersionId = await CreatePublishedPolicyVersionAsync("matrix-v1");
-        var below = await CreateProductAsync("below", 4_999m, KycRequirementMode.AboveThreshold, 5_000m, policyVersionId);
-        var equal = await CreateProductAsync("equal", 5_000m, KycRequirementMode.AboveThreshold, 5_000m, policyVersionId);
-        var above = await CreateProductAsync("above", 5_001m, KycRequirementMode.AboveThreshold, 5_000m, policyVersionId);
-        var quantity = await CreateProductAsync("quantity", 2_500m, KycRequirementMode.AboveThreshold, 4_000m, policyVersionId);
+        var policyVersionId = await _fixture.ConfigureOrderTotalKycAsync(5_000m);
+        var below = await CreateProductAsync("below", 4_999m, KycRequirementMode.None, null, null);
+        var equal = await CreateProductAsync("equal", 5_000m, KycRequirementMode.None, null, null);
+        var above = await CreateProductAsync("above", 5_001m, KycRequirementMode.None, null, null);
+        var quantity = await CreateProductAsync("quantity", 2_500m, KycRequirementMode.None, null, null);
         var none = await CreateProductAsync("none", 250m, KycRequirementMode.None, null, null);
         var always = await CreateProductAsync("always", 250m, KycRequirementMode.Always, null, policyVersionId);
         using var client = _fixture.CreateClient(token);
@@ -43,57 +43,46 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
         var quantityOneOrder = await CheckoutAsync(client, [(quantity.Id, 1)]);
         var quantityTwoOrder = await CheckoutAsync(client, [(quantity.Id, 2)]);
 
-        (await GetItemAsync(belowOrder)).Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycEvaluatedAmount == 4_999m && x.KycThresholdAmount == 5_000m && x.KycPolicyVersionId == policyVersionId);
+        (await GetItemAsync(belowOrder)).Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycEvaluatedAmount == 4_999m && x.KycThresholdAmount == null && x.KycPolicyVersionId == null);
         (await GetItemAsync(equalOrder)).Should().Match<OrderItem>(x => x.RequiresVerification && x.KycEvaluatedAmount == 5_000m && x.KycThresholdAmount == 5_000m && x.KycPolicyVersionId == policyVersionId);
         (await GetItemAsync(aboveOrder)).Should().Match<OrderItem>(x => x.RequiresVerification && x.KycEvaluatedAmount == 5_001m && x.KycThresholdAmount == 5_000m && x.KycPolicyVersionId == policyVersionId);
-        (await GetItemAsync(quantityOneOrder)).Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycEvaluatedAmount == 2_500m && x.KycThresholdAmount == 4_000m);
-        (await GetItemAsync(quantityTwoOrder)).Should().Match<OrderItem>(x => x.RequiresVerification && x.KycEvaluatedAmount == 5_000m && x.KycThresholdAmount == 4_000m);
+        (await GetItemAsync(quantityOneOrder)).Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycEvaluatedAmount == 2_500m && x.KycThresholdAmount == null);
+        (await GetItemAsync(quantityTwoOrder)).Should().Match<OrderItem>(x => x.RequiresVerification && x.KycEvaluatedAmount == 5_000m && x.KycThresholdAmount == 5_000m);
 
         var coupon = new Coupon { Id = Guid.NewGuid(), Code = $"KYC{Guid.NewGuid():N}", Title = "KYC evidence", DiscountType = (byte)DiscountType.Percentage, DiscountValue = 10, MaxUsageCount = 10, MaxUsagePerUser = 10, IsActive = true, CreatedAt = DateTime.UtcNow };
         await using (var db = _fixture.CreateDbContext()) { db.Coupons.Add(coupon); await db.SaveChangesAsync(); }
         var couponOrder = await CheckoutAsync(client, [(equal.Id, 1)], coupon.Code);
         var couponItem = await GetItemAsync(couponOrder);
-        couponItem.RequiresVerification.Should().BeTrue();
-        couponItem.KycEvaluatedAmount.Should().Be(5_000m, "coupons affect payment, never the item KYC evaluation amount");
+        couponItem.RequiresVerification.Should().BeFalse();
+        couponItem.KycEvaluatedAmount.Should().Be(4_500m, "the order-total rule evaluates the final payable amount after a coupon");
         await using (var db = _fixture.CreateDbContext())
             (await db.Orders.SingleAsync(x => x.Id == couponOrder)).FinalAmount.Should().Be(4_500m);
 
         var mixedOrder = await CheckoutAsync(client, [(none.Id, 1), (below.Id, 1), (above.Id, 1), (always.Id, 1)]);
         await using var verify = _fixture.CreateDbContext();
         var mixed = await verify.OrderItems.Where(x => x.OrderId == mixedOrder).ToDictionaryAsync(x => x.ProductId);
-        mixed[none.Id].Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycRequirementMode == (byte)KycRequirementMode.None && x.KycPolicyVersionId == null && x.KycThresholdAmount == null);
-        mixed[below.Id].Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycRequirementMode == (byte)KycRequirementMode.AboveThreshold && x.KycPolicyVersionId == policyVersionId && x.KycEvaluatedAmount == 4_999m);
-        mixed[above.Id].Should().Match<OrderItem>(x => x.RequiresVerification && x.KycRequirementMode == (byte)KycRequirementMode.AboveThreshold && x.KycPolicyVersionId == policyVersionId && x.KycEvaluatedAmount == 5_001m);
-        mixed[always.Id].Should().Match<OrderItem>(x => x.RequiresVerification && x.KycRequirementMode == (byte)KycRequirementMode.Always && x.KycPolicyVersionId == policyVersionId && x.KycEvaluatedAmount == 250m);
+        mixed.Values.Should().OnlyContain(x => x.RequiresVerification && x.KycRequirementMode == (byte)KycRequirementMode.AboveThreshold && x.KycPolicyVersionId == policyVersionId && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 10_500m);
     }
 
     [Fact]
-    public async Task Checkout_snapshots_v1_v2_and_threshold_history_without_mutating_the_first_order()
+    public async Task Checkout_snapshots_storewide_threshold_history_without_mutating_the_first_order()
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         await SetVerifiedAsync(customer.Id);
-        var (policyId, v1) = await CreatePublishedPolicyAsync("history-v1");
-        var product = await CreateProductAsync("history", 5_000m, KycRequirementMode.AboveThreshold, 5_000m, v1);
+        var v1 = await _fixture.ConfigureOrderTotalKycAsync(5_000m);
+        var product = await CreateProductAsync("history", 5_000m, KycRequirementMode.None, null, null);
         using var client = _fixture.CreateClient(token);
 
         var firstOrder = await CheckoutAsync(client, [(product.Id, 1)]);
-        var v2 = await CreatePublishedPolicyVersionAsync("history-v2", policyId, 2);
-        await using (var db = _fixture.CreateDbContext())
-        {
-            var stored = await db.Products.SingleAsync(x => x.Id == product.Id);
-            stored.KycPolicyVersionId = v2;
-            stored.KycThresholdAmount = 10_000m;
-            await db.SaveChangesAsync();
-        }
+        await _fixture.ConfigureOrderTotalKycAsync(10_000m);
         var secondOrder = await CheckoutAsync(client, [(product.Id, 1)]);
 
         var first = await GetItemAsync(firstOrder);
         var second = await GetItemAsync(secondOrder);
         first.Should().Match<OrderItem>(x => x.KycPolicyVersionId == v1 && x.KycThresholdAmount == 5_000m && x.KycEvaluatedAmount == 5_000m && x.RequiresVerification);
-        second.Should().Match<OrderItem>(x => x.KycPolicyVersionId == v2 && x.KycThresholdAmount == 10_000m && x.KycEvaluatedAmount == 5_000m && !x.RequiresVerification);
+        second.Should().Match<OrderItem>(x => x.KycPolicyVersionId == null && x.KycThresholdAmount == null && x.KycEvaluatedAmount == 5_000m && !x.RequiresVerification);
         await using var verify = _fixture.CreateDbContext();
         (await verify.KycPolicyVersions.Include(x => x.DocumentRequirements).SingleAsync(x => x.Id == v1)).Version.Should().Be(1);
-        (await verify.KycPolicyVersions.SingleAsync(x => x.Id == v2)).Version.Should().Be(2);
     }
 
     [Fact]
@@ -153,8 +142,8 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         await SetVerifiedAsync(customer.Id);
-        var (policyId, v1) = await CreatePublishedPolicyAsync("retry-v1");
-        var product = await CreateProductAsync("retry", 5_000m, KycRequirementMode.AboveThreshold, 5_000m, v1);
+        var v1 = await _fixture.ConfigureOrderTotalKycAsync(5_000m);
+        var product = await CreateProductAsync("retry", 5_000m, KycRequirementMode.None, null, null);
         using var client = _fixture.CreateClient(token);
         var orderId = await CheckoutAsync(client, [(product.Id, 1)]);
         var initial = await GetItemAsync(orderId);
@@ -166,14 +155,7 @@ public sealed class Fix09Phase1EvidenceIntegrationTests
         var cancelled = await client.GetAsync($"/api/payments/zarinpal/callback?Authority={Uri.EscapeDataString(firstPayment.Authority!)}&Status=NOK");
         cancelled.StatusCode.Should().Be(HttpStatusCode.OK, await cancelled.Content.ReadAsStringAsync());
 
-        var v2 = await CreatePublishedPolicyVersionAsync("retry-v2", policyId, 2);
-        await using (var db = _fixture.CreateDbContext())
-        {
-            var current = await db.Products.SingleAsync(x => x.Id == product.Id);
-            current.KycThresholdAmount = 10_000m;
-            current.KycPolicyVersionId = v2;
-            await db.SaveChangesAsync();
-        }
+        await _fixture.ConfigureOrderTotalKycAsync(10_000m);
 
         var retry = await client.PostAsync($"/api/payments/retry/{orderId}", null);
         retry.StatusCode.Should().Be(HttpStatusCode.OK, await retry.Content.ReadAsStringAsync());

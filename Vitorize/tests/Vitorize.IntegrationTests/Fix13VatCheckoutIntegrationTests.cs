@@ -256,12 +256,13 @@ public sealed class Fix13VatCheckoutIntegrationTests
     }
 
     [Fact]
-    public async Task Vat_does_not_change_the_kyc_threshold_evaluation()
+    public async Task Vat_is_included_in_the_final_order_total_kyc_evaluation()
     {
         await SetVatAsync(enabled: true, 10m, VatCalculationMode.BeforeDiscount);
         var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");
-        // Threshold sits between the pre-VAT total (1,000) and the VAT-inclusive total (1,100).
-        // Including VAT would wrongly trip the threshold; FIX-09 semantics must be preserved.
+        // The configured threshold sits between the pre-VAT and final payable totals.
+        // The order-total rule deliberately uses the amount the customer actually pays.
+        await _fixture.ConfigureOrderTotalKycAsync(1_050m);
         var product = await CreateProductAsync(price: 1_000m, kycThreshold: 1_050m);
 
         var checkout = await CheckoutAsync(token, product.Id, quantity: 1);
@@ -269,8 +270,8 @@ public sealed class Fix13VatCheckoutIntegrationTests
 
         await using var db = _fixture.CreateDbContext();
         var item = await db.OrderItems.SingleAsync(x => x.OrderId == checkout.OrderId);
-        item.KycEvaluatedAmount.Should().Be(1_000m, "KYC evaluates unit price x quantity, VAT-exclusive");
-        item.RequiresVerification.Should().BeFalse("1,000 is below the 1,050 threshold even though the payable is 1,100");
+        item.KycEvaluatedAmount.Should().Be(1_100m, "KYC evaluates the final VAT-inclusive payable total");
+        item.RequiresVerification.Should().BeTrue("the final 1,100 payable amount reaches the 1,050 threshold");
     }
 
     private async Task<CheckoutResultDto> CheckoutAsync(string token, Guid productId, int quantity, string? couponCode = null)

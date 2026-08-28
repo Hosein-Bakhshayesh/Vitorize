@@ -100,7 +100,7 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
     }
 
     [Fact]
-    public async Task Coupon_gateway_and_duplicate_callback_keep_the_undiscounted_snapshot_and_one_held_allocation()
+    public async Task Coupon_gateway_and_duplicate_callback_evaluate_the_final_payable_total_once()
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var setup = await CreateProductAsync(DeliveryType.Instant, 10_000m, KycRequirementMode.AboveThreshold, 8_000m, giftCodes: 1);
@@ -113,12 +113,12 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
 
         await using var verify = _fixture.CreateDbContext();
         var item = await verify.OrderItems.SingleAsync(x => x.OrderId == orderId);
-        item.Should().Match<OrderItem>(x => x.RequiresVerification && x.KycEvaluatedAmount == 10_000m && x.KycThresholdAmount == 8_000m);
+        item.Should().Match<OrderItem>(x => !x.RequiresVerification && x.KycEvaluatedAmount == 5_000m && x.KycThresholdAmount == null);
         (await verify.CouponUsages.Where(x => x.OrderId == orderId).ToListAsync()).Should().ContainSingle(x => x.UserId == customer.Id && x.CouponId == coupon.Id);
         (await verify.Payments.CountAsync(x => x.OrderId == orderId && x.Status == (byte)PaymentStatus.Paid)).Should().Be(1);
-        (await verify.OrderItemKycStates.Where(x => x.OrderItemId == item.Id).ToListAsync()).Should().ContainSingle(x => x.Status == (byte)OrderItemKycStatus.AwaitingSubmission);
+        (await verify.OrderItemKycStates.Where(x => x.OrderItemId == item.Id).ToListAsync()).Should().ContainSingle(x => x.Status == (byte)OrderItemKycStatus.NotRequired);
         (await verify.GiftCodeReservations.CountAsync(x => x.OrderItemId == item.Id && x.Status == (byte)GiftCodeReservationStatus.Sold)).Should().Be(1);
-        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == item.Id)).Should().Be(0);
+        (await verify.OrderItemDeliveries.CountAsync(x => x.OrderItemId == item.Id)).Should().Be(1);
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
     }
 
     [Fact]
-    public async Task Mixed_order_fulfills_only_no_kyc_item_until_the_shared_policy_is_satisfied()
+    public async Task Mixed_order_uses_one_order_total_kyc_lifecycle_for_all_items()
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
@@ -214,9 +214,9 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
             var items = await held.OrderItems.Where(x => x.OrderId == orderId).ToListAsync();
             var normal = items.Single(x => x.ProductId == noKyc.Product.Id);
             var heldInstant = items.Single(x => x.ProductId == instant.Product.Id);
-            (await held.OrderItemDeliveries.CountAsync(x => x.OrderItemId == normal.Id)).Should().Be(1);
+            (await held.OrderItemDeliveries.CountAsync(x => x.OrderItemId == normal.Id)).Should().Be(0);
             (await held.OrderItemDeliveries.CountAsync(x => x.OrderItemId == heldInstant.Id)).Should().Be(0);
-            (await held.OrderItemKycStates.Where(x => x.OrderItemId != normal.Id && x.OrderItem.OrderId == orderId).ToListAsync()).Should().OnlyContain(x => x.Status == (byte)OrderItemKycStatus.AwaitingSubmission);
+            (await held.OrderItemKycStates.Where(x => x.OrderItem.OrderId == orderId).ToListAsync()).Should().OnlyContain(x => x.Status == (byte)OrderItemKycStatus.AwaitingSubmission);
             (await held.Tickets.CountAsync(x => x.OrderId == orderId && x.IsFulfillmentTicket)).Should().Be(0);
             (await held.Orders.SingleAsync(x => x.Id == orderId)).Status.Should().NotBe((byte)OrderStatus.Completed);
         }
@@ -384,6 +384,14 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
 
     private async Task<ProductSetup> CreateProductAsync(DeliveryType deliveryType, decimal price, KycRequirementMode mode, decimal? threshold, int giftCodes = 0, bool requiresDocument = false, KycSetup? setup = null)
     {
+        // The real checkout ignores product KYC fields. Keep the old fixture shape only for
+        // product construction, while configuring the production store-wide rule per scenario.
+        await _fixture.ConfigureOrderTotalKycAsync(mode switch
+        {
+            KycRequirementMode.None => 1_000_000m,
+            KycRequirementMode.AboveThreshold => threshold ?? 1m,
+            _ => 1m
+        });
         setup ??= await CreateKycSetupAsync(requiresDocument);
         var now = DateTime.UtcNow;
         var category = new Category { Id = Guid.NewGuid(), Title = "Phase2G", Slug = $"p2g-{Guid.NewGuid():N}", IsActive = true, CreatedAt = now };
@@ -406,16 +414,16 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
 
     private async Task<KycSetup> CreateKycSetupAsync(bool requiresDocument)
     {
-        var now = DateTime.UtcNow;
-        var policy = new KycPolicy { Id = Guid.NewGuid(), Code = $"p2g-{Guid.NewGuid():N}", Name = "Phase2G", IsActive = true, CreatedAt = now };
-        var version = new KycPolicyVersion { Id = Guid.NewGuid(), KycPolicyId = policy.Id, Version = 1, Status = (byte)KycPolicyVersionStatus.Published, CustomerTitle = "Phase2G", CreatedAt = now, PublishedAt = now };
-        policy.Versions.Add(version);
-        KycDocumentType? document = requiresDocument ? new KycDocumentType { Id = Guid.NewGuid(), Code = $"p2g-doc-{Guid.NewGuid():N}", Title = "Identity", IsActive = true, CreatedAt = now } : null;
         await using var db = _fixture.CreateDbContext();
-        db.KycPolicies.Add(policy);
-        if (document is not null)
-            db.AddRange(document, new KycPolicyDocumentRequirement { Id = Guid.NewGuid(), KycPolicyVersionId = version.Id, KycDocumentTypeId = document.Id, IsRequired = true });
-        await db.SaveChangesAsync();
+        var version = await db.KycPolicyVersions
+            .Include(x => x.DocumentRequirements).ThenInclude(x => x.KycDocumentType)
+            .Where(x => x.KycPolicy.Code == "order-total-verification" &&
+                        x.Status == (byte)KycPolicyVersionStatus.Published)
+            .OrderByDescending(x => x.Version).FirstAsync();
+        var document = requiresDocument
+            ? version.DocumentRequirements.Where(x => x.IsRequired).OrderBy(x => x.SortOrder)
+                .Select(x => x.KycDocumentType).FirstOrDefault()
+            : null;
         return new KycSetup(version, document);
     }
 
@@ -437,24 +445,31 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
 
     private async Task<Guid> SubmitForReviewAsync(Guid userId, KycDocumentType document)
     {
-        Guid orderItemId;
+        List<(Guid OrderItemId, Guid DocumentTypeId)> requiredDocuments;
         await using (var db = _fixture.CreateDbContext())
         {
-            orderItemId = await db.OrderItems
+            requiredDocuments = await db.OrderItems
                 .Where(x => x.Order.UserId == userId && x.KycPolicyVersionId != null)
                 .Join(db.KycPolicyDocumentRequirements,
                     item => item.KycPolicyVersionId,
                     requirement => (Guid?)requirement.KycPolicyVersionId,
-                    (item, requirement) => new { item.Id, requirement.KycDocumentTypeId })
-                .Where(x => x.KycDocumentTypeId == document.Id)
-                .Select(x => x.Id)
-                .FirstAsync();
+                    (item, requirement) => new
+                    {
+                        OrderItemId = item.Id,
+                        PolicyCode = item.KycPolicyVersion!.KycPolicy.Code,
+                        requirement.KycDocumentTypeId,
+                        requirement.IsRequired
+                    })
+                .Where(x => x.PolicyCode == "order-total-verification" && x.IsRequired)
+                .Select(x => new ValueTuple<Guid, Guid>(x.OrderItemId, x.KycDocumentTypeId))
+                .Distinct().ToListAsync();
         }
         using var scope = _fixture.Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-        var profile = await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890" });
-        await service.AddDocumentAsync(userId, 1, $"kyc-private:{userId:N}/{Guid.NewGuid():N}.jpg", document.Id, orderItemId);
-        await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890" });
+        var profile = await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
+        foreach (var (orderItemId, documentTypeId) in requiredDocuments)
+            await service.AddDocumentAsync(userId, 1, $"kyc-private:{userId:N}/{Guid.NewGuid():N}.jpg", documentTypeId, orderItemId);
+        await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
         return profile.Id;
     }
 

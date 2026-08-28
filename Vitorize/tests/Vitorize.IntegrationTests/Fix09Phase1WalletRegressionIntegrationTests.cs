@@ -35,7 +35,7 @@ public sealed class Fix09Phase1WalletRegressionIntegrationTests
     {
         var (customer, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         await SetVerifiedWalletBalanceAsync(customer.Id, InitialWalletBalance);
-        var policyVersionId = await CreatePublishedPolicyVersionAsync();
+        var policyVersionId = await _fixture.ConfigureOrderTotalKycAsync(ProductPrice);
         var (product, plaintextCode) = await CreateKycInstantProductAsync(policyVersionId);
         using var client = _fixture.CreateClient(token);
 

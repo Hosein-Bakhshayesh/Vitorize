@@ -217,7 +217,12 @@ DECLARE @RequiredVersions TABLE (Version nvarchar(50) PRIMARY KEY);
 INSERT @RequiredVersions VALUES
     (N'V0001'), (N'V0002'), (N'H20260713-SMS-SCHEMA'),
     (N'H20260714-PRODUCT-SCHEMA'), (N'V0003'), (N'V0004'), (N'V0005'), (N'H20260708-UI'),
-    (N'H20260713-SMS-SEED'), (N'H20260714-PRODUCT-SEED');
+    (N'H20260713-SMS-SEED'), (N'H20260714-PRODUCT-SEED'),
+    (N'V0006'), (N'V0007'), (N'V0008'), (N'V0009'), (N'V0010'), (N'V0011'),
+    (N'V0012'), (N'V0013'), (N'V0014'), (N'V0015'), (N'V0016'), (N'V0017'),
+    (N'V0018'), (N'V0019'), (N'V0020'), (N'V0021'), (N'V0022'), (N'V0023'),
+    (N'V0024'), (N'V0025'), (N'V0026'), (N'V0027'), (N'V0028'), (N'V0029'),
+    (N'V0030');
 
 IF @LedgerCompatible = 1
 BEGIN

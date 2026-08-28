@@ -232,23 +232,11 @@ public sealed class CommerceIntegrationTests
     }
 
     [Fact]
-    public async Task Product_threshold_kyc_is_snapshotted_at_checkout_without_pre_payment_rejection()
+    public async Task Order_total_kyc_is_snapshotted_at_checkout_without_pre_payment_rejection()
     {
         var (user, token) = await _fixture.CreateUserAndTokenAsync("Customer");
         var product = await CreateProductAsync(active: true, withSensitiveRequiredField: false, price: 250m);
-        Guid policyVersionId;
-        await using (var db = _fixture.CreateDbContext())
-        {
-            policyVersionId = await db.KycPolicyVersions
-                .Where(x => x.KycPolicy.Code == "legacy-profile-verification")
-                .Select(x => x.Id).SingleAsync();
-            var stored = await db.Products.SingleAsync(x => x.Id == product.Id);
-            stored.KycRequirementMode = (byte)KycRequirementMode.AboveThreshold;
-            stored.KycThresholdAmount = 500m;
-            stored.KycPolicyVersionId = policyVersionId;
-            stored.RequiresVerification = true;
-            await db.SaveChangesAsync();
-        }
+        var policyVersionId = await _fixture.ConfigureOrderTotalKycAsync(500m);
 
         using var client = _fixture.CreateClient(token);
         (await client.PostAsJsonAsync("/api/cart/items", new AddToCartRequestDto { ProductId = product.Id, Quantity = 2 }))
@@ -257,7 +245,7 @@ public sealed class CommerceIntegrationTests
         client.DefaultRequestHeaders.Add("Idempotency-Key", $"kyc-threshold-{Guid.NewGuid():N}");
         var response = await client.PostAsJsonAsync("/api/checkout", new CheckoutRequestDto());
         response.StatusCode.Should().Be(HttpStatusCode.OK,
-            "the KYC threshold is reached at UnitPrice × Quantity before a payment attempt is created");
+            "the KYC threshold is reached from the final payable order total before a payment attempt is created");
 
         var checkout = (await response.Content.ReadFromJsonAsync<ApiResult<CheckoutResultDto>>())!.Data!;
 

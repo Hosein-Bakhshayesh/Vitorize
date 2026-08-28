@@ -15,7 +15,10 @@ public sealed class OrderKycSettingsProvider : IOrderKycSettingsProvider
     public async Task<OrderKycSettingsSnapshot> GetAsync(CancellationToken cancellationToken = default)
     {
         var values = await _dbContext.Settings.AsNoTracking()
-            .Where(x => OrderKycSettings.Keys.All.Contains(x.Key))
+            // Keep this predicate SQL-translatable. IReadOnlySet<T>.Contains is
+            // not translated by EF Core's SQL Server provider.
+            .Where(x => x.Key == OrderKycSettings.Keys.ThresholdToman ||
+                        x.Key == OrderKycSettings.Keys.CustomerNotice)
             .Select(x => new { x.Key, x.Value })
             .ToListAsync(cancellationToken);
 

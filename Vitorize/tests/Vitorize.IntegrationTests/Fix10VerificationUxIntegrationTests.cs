@@ -113,7 +113,8 @@ public sealed class Fix10VerificationUxIntegrationTests
 
     private static SubmitVerificationRequestDto Request(DateOnly birthDate) => new()
     {
-        FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = birthDate
+        FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = birthDate,
+        RegisteredMobileBelongsToCardHolder = true
     };
 
     private static async Task<AdminKycDocumentTypeDto> CreateDocumentAsync(HttpClient client, string suffix)

@@ -19,7 +19,8 @@ INSERT @RequiredTables (Name) VALUES
     (N'ProductFeatures'), (N'ProductInputFields'),
     (N'CartItemInputValues'), (N'OrderItemInputValues'), (N'FontAssets'),
     (N'DatabaseScriptHistory'), (N'PaymentRefunds'), (N'FinancialAuditLogs'),
-    (N'OrderItemKycStates');
+    (N'OrderItemKycStates'), (N'KycPolicies'), (N'KycPolicyVersions'),
+    (N'KycDocumentTypes'), (N'KycPolicyDocumentRequirements');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required table', N'dbo.' + expected.Name + N' is missing.'
@@ -37,7 +38,8 @@ INSERT @RequiredColumns VALUES
     (N'OrderItemDeliveries', N'EncryptionVersion'), (N'OutboxMessages', N'LockedAt'),
     (N'OrderItemKycStates', N'RowVersion'), (N'OrderItemKycStates', N'Status'), (N'OrderItemKycStates', N'CustomerActionDeadlineAt'),
     (N'OrderItems', N'KycCustomerActionDeadlineHours'), (N'KycPolicyVersions', N'CustomerActionDeadlineHours'),
-    (N'KycPolicyDocumentRequirements', N'RedactionMode'), (N'KycPolicyDocumentRequirements', N'RedactionInstructions');
+    (N'KycPolicyDocumentRequirements', N'RedactionMode'), (N'KycPolicyDocumentRequirements', N'RedactionInstructions'),
+    (N'Payments', N'MaskedCardPan');
 
 INSERT @Issues
 SELECT 'ERROR', N'Required column', N'dbo.' + TableName + N'.' + ColumnName + N' is missing.'
@@ -70,6 +72,21 @@ BEGIN
         (N'V0013', N'V0013__kyc_document_redaction_configuration.sql', '714524653dbbb8a03e304ad10de1bd7664d643e4f0f9b5904c122c0653e87e98'),
         (N'V0014', N'V0014__kyc_customer_action_deadline.sql', '10f71bfaea811724ed1a7008ceaf80ba70a0c3b077377dee354d2dc66e23468f'),
         (N'V0015', N'V0015__kyc_finance_resolution.sql', '29a1af41c42b655785f6c90b419921992bb3029d41f943ebe3a721dc2ed9241a'),
+        (N'V0016', N'V0016__order_vat_snapshot.sql', 'e44e9af54422816c603c87ef1812e54a2bd817f2ea815cbf20ae30959f21b16e'),
+        (N'V0017', N'V0017__cms_system_pages_seed.sql', '7929e2007087f635eed95ecaa1b75b205e5cc34a45621e4a5f999d8b2eb538a1'),
+        (N'V0018', N'V0018__notification_broadcasts.sql', '4e331e3b0475f07b4af8f623fcdf49b98cf21a04b62890148ca04916605b1473'),
+        (N'V0019', N'V0019__loading_media_setting_seed.sql', '2397e2acba47a1af09d214d815118b04db61c557b45bac0f2557ae46add0711e'),
+        (N'V0020', N'V0020__product_variant_managed_stock.sql', '1c87108b7e3ae8e762aeb1c3763c558a9adf269e8fb5d22e18805914a3cacdfe'),
+        (N'V0021', N'V0021__default_variants_for_managed_products.sql', 'e0640d9ca8c6292bd69d7b53672f6b9cb20f1c832dee1c755d1239ffdb2cd587'),
+        (N'V0022', N'V0022__force_out_of_stock_and_product_faqs.sql', 'd1d4e22e1afcde5188c51dc87a43467dd4cd2f1d77175f2ec1553e50ed973fff'),
+        (N'V0023', N'V0023__product_categories_and_default_font.sql', 'c0e4ac5aca4fc1b76ce62b136038836a75a66ac3943eed95a7523ee3d751f4d0'),
+        (N'V0024', N'V0024__customer_order_visibility.sql', 'b762994c35f64fdd0e779e91536fd28ca4091d8a5b821f8c4d18a13b72a8921b'),
+        (N'V0025', N'V0025__peyda_default_and_sortmode_setting_type.sql', 'ad21b18d3918da4ab56221e1b00b1fd4c455de9f58cc50d1adc28513a713d5c6'),
+        (N'V0026', N'V0026__remove_product_level_kyc.sql', 'ae1fe1f5313da1f65193864f3763eb642967d869c752d4e2ceb770fc80f73e53'),
+        (N'V0027', N'V0027__order_total_kyc_settings_and_policy.sql', '9720ffb6a52cc72101db3ebcfe272982f95f8347350879dd9b9b1037f11f867e'),
+        (N'V0028', N'V0028__payment_masked_card_pan.sql', 'f2cde7ef5bfab578f390bf76e8b436bee1057e0709039f8c028da04327b51881'),
+        (N'V0029', N'V0029__trusted_footer_seals_and_custom_markup.sql', '7eccbfbf0ccb451a67b151b9bc2d79fca68d84ff00d67c92d825044e3a8324f0'),
+        (N'V0030', N'V0030__remove_deprecated_custom_sms_settings.sql', '828eb33a554293092ed47ffddb946cf5c4cf0b511fe8100183dc73824477a53c'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -123,7 +140,8 @@ BEGIN
         (N'HeaderLogoPath'), (N'FaviconPath'), (N'Sms.OtpTemplateId'),
         (N'Sms.NotificationTemplateId'), (N'Typography.FontFamily'),
         (N'StorefrontPersianFont'), (N'StorefrontEnglishFont'),
-        (N'Branding.AssetVersion'), (N'TrustSeal.Enamad.Enabled');
+        (N'Branding.AssetVersion'), (N'Verification.OrderAmountThresholdToman'),
+        (N'Verification.CustomerNotice'), (N'TrustSeal.FooterHtml');
 
     INSERT @Issues
     SELECT 'ERROR', N'Required setting', N'Setting ' + expected.[Key] + N' is missing.'
@@ -144,7 +162,7 @@ END;
 
 IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL
 AND EXISTS (SELECT 1 FROM dbo.Users WHERE Mobile IN (N'09123456789', N'09378149896'))
-    INSERT @Issues VALUES ('ERROR', N'Known legacy users', N'A historical default/demo mobile still exists. Verify ownership, disable the account if unsafe, and revoke its refresh tokens.');
+    INSERT @Issues VALUES ('WARN', N'Known legacy users', N'A historical default/demo mobile still exists. Verify ownership, disable the account if unsafe, and revoke its refresh tokens.');
 
 IF OBJECT_ID(N'dbo.OtpCodes', N'U') IS NOT NULL
 AND EXISTS
@@ -170,6 +188,10 @@ AND NOT EXISTS (SELECT 1 FROM dbo.FontAssets WHERE FamilyName = N'Vazirmatn' AND
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Payments') AND name = N'UX_Payments_Gateway_Authority' AND is_unique = 1)
     INSERT @Issues VALUES ('ERROR', N'Payment authority', N'Unique gateway/authority index is missing.');
+IF COL_LENGTH(N'dbo.Products', N'RequiresVerification') IS NOT NULL
+    INSERT @Issues VALUES ('ERROR', N'Product-level KYC', N'Products.RequiresVerification must be removed; final order amount controls KYC.');
+IF EXISTS (SELECT 1 FROM dbo.Settings WHERE [Key] IN (N'Sms.CustomSendEnabled', N'Sms.CustomTextEnabled'))
+    INSERT @Issues VALUES ('ERROR', N'Deprecated custom-SMS settings', N'Custom SMS is always enabled; legacy toggle settings must be removed.');
 IF COL_LENGTH(N'dbo.CartItems', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.Orders', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.OrderItems', N'CurrencyType') IS NULL OR

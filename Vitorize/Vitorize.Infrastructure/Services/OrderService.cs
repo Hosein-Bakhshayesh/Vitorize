@@ -953,7 +953,19 @@ namespace Vitorize.Infrastructure.Services
             // legacy AES-CBC format and must be decrypted just like version 2.
             if (string.IsNullOrEmpty(value) || encryptionVersion is null)
                 return value;
-            return _encryptionService.Decrypt(value);
+
+            try
+            {
+                return _encryptionService.Decrypt(value);
+            }
+            catch (BusinessException)
+            {
+                // A legacy delivery encrypted under a retired key must not make
+                // the complete order projection (including payment references)
+                // unavailable. Its sensitive content remains concealed until the
+                // original key is restored.
+                return null;
+            }
         }
     }
 }

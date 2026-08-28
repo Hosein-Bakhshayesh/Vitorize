@@ -609,6 +609,93 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 110,
+      "version": "V0026",
+      "name": "V0026__remove_product_level_kyc.sql",
+      "path": "Versioned/V0026__remove_product_level_kyc.sql",
+      "sha256": "ae1fe1f5313da1f65193864f3763eb642967d869c752d4e2ceb770fc80f73e53",
+      "classification": "required",
+      "dependencies": [
+        "V0025",
+        "dbo.Products"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 111,
+      "version": "V0027",
+      "name": "V0027__order_total_kyc_settings_and_policy.sql",
+      "path": "Versioned/V0027__order_total_kyc_settings_and_policy.sql",
+      "sha256": "9720ffb6a52cc72101db3ebcfe272982f95f8347350879dd9b9b1037f11f867e",
+      "classification": "required",
+      "dependencies": [
+        "V0026",
+        "dbo.Settings",
+        "dbo.KycPolicies",
+        "dbo.KycDocumentTypes"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 112,
+      "version": "V0028",
+      "name": "V0028__payment_masked_card_pan.sql",
+      "path": "Versioned/V0028__payment_masked_card_pan.sql",
+      "sha256": "f2cde7ef5bfab578f390bf76e8b436bee1057e0709039f8c028da04327b51881",
+      "classification": "required",
+      "dependencies": [
+        "V0027",
+        "dbo.Payments"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 113,
+      "version": "V0029",
+      "name": "V0029__trusted_footer_seals_and_custom_markup.sql",
+      "path": "Versioned/V0029__trusted_footer_seals_and_custom_markup.sql",
+      "sha256": "7eccbfbf0ccb451a67b151b9bc2d79fca68d84ff00d67c92d825044e3a8324f0",
+      "classification": "required",
+      "dependencies": [
+        "V0028",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 114,
+      "version": "V0030",
+      "name": "V0030__remove_deprecated_custom_sms_settings.sql",
+      "path": "Versioned/V0030__remove_deprecated_custom_sms_settings.sql",
+      "sha256": "828eb33a554293092ed47ffddb946cf5c4cf0b511fe8100183dc73824477a53c",
+      "classification": "required",
+      "dependencies": [
+        "V0029",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }
