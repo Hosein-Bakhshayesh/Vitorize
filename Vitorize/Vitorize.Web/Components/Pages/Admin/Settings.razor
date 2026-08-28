@@ -93,7 +93,8 @@ else
                             برای SMS.ir فقط دو شناسه قالب وارد کنید: «قالب یکپارچه OTP» با پارامترهای
                             <code>CODE</code> و <code>EXPIRE</code>، و «قالب یکپارچه اعلان تجاری» با پارامترهای
                             فقط <code>ORDER_NUMBER</code>.
-                            کلیدهای قدیمی به‌صورت داخلی با این دو مقدار همگام می‌شوند.
+                            برای «متن سفارشی» و «ارسال پیامک هم‌زمانِ اعلان»، شماره خط اختصاصی SMS.ir نیز الزامی است؛
+                            این مورد کلید فعال‌سازی جداگانه ندارد.
                         </div>
                     }
                     @if (items.Count == 0)
@@ -181,6 +182,7 @@ else
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
     private static readonly string[] FieldOrder =
     {
+        SmsSettingKeys.IsEnabled, SmsSettingKeys.ApiKey, SmsSettingKeys.DefaultLineNumber,
         "Sms.OtpTemplateId", "Sms.NotificationTemplateId",
         OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.Keys.CustomerNotice,
         "SiteName", "SiteDescription", "SiteTagline",
@@ -378,6 +380,10 @@ else
                 else if (s.Key == "Sms.NotificationTemplateId")
                 {
                     <div class="vz-hint">این قالب فقط از متغیر ORDER_NUMBER استفاده می‌کند.</div>
+                }
+                else if (s.Key == SmsSettingKeys.DefaultLineNumber)
+                {
+                    <div class="vz-hint">برای پیامک متنی سفارشی و «ارسال پیامک هم‌زمان» الزامی است. شماره خط ارسال SMS.ir را وارد کنید، نه شماره موبایل یا آدرس سایت.</div>
                 }
                 else if (s.Key == "HomePopularProductsEnabled")
                 {

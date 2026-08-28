@@ -299,7 +299,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var options = await _smsSettings.GetAsync(cancellationToken);
             if (!options.CanSendNotificationText)
-                throw new BusinessException("ارسال پیامک متنی برای اعلان‌ها در تنظیمات پیامک فعال یا آماده نیست.");
+                throw new BusinessException(SmsOptions.TextSendingNotReadyMessage);
         }
 
         private async Task AddCreatedEventAsync(Notification notification, CancellationToken cancellationToken)

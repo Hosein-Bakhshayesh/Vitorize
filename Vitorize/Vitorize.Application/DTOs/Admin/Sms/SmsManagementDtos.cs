@@ -91,6 +91,8 @@ namespace Vitorize.Application.DTOs.Admin.Sms
         public int FailedOutboxCount { get; set; }
         public bool AllowImmediateSend { get; set; }
         public bool AllowRetryFailed { get; set; }
+        public bool CanSendText { get; set; }
+        public string TextSendingMessage { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
     }
 

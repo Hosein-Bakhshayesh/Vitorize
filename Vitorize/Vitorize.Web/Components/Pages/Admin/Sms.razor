@@ -153,6 +153,10 @@ else
 <SlidePanel Visible="_sendOpen" Title="ارسال پیامک سفارشی" Subtitle="ارسال کنترل‌شده و ثبت‌شده توسط مدیر" Icon="send" OnClose="CloseSend">
     <ChildContent>
         <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">قالب اطلاع‌رسانی</button><button class="@(_sendMode == "text" ? "active" : null)" @onclick="SelectTextMode">متن سفارشی</button><button class="@(_sendMode == "kyc" ? "active" : null)" @onclick="SelectKycReminderMode">قالب احراز هویت</button></div>
+        @if (SelectedModeNeedsTextLine && !CanSendText)
+        {
+            <div class="sms-warning"><Icon Name="info" Size="17" /> @TextSendingSetupHint</div>
+        }
         @if (_sendMode == "kyc")
         {
             @if (_kycRecipientsLoading)
@@ -215,7 +219,7 @@ else
         @if (_sendMode != "kyc") { <label class="sms-checkbox"><input type="checkbox" disabled="@(_health?.AllowImmediateSend != true)" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label> }
         <div class="sms-warning"><Icon Name="alert" Size="17" /> پیش از ارسال، شماره و محتوای پیام را بررسی کنید. این عملیات در تاریخچه و لاگ امنیتی ثبت می‌شود.</div>
     </ChildContent>
-    <Footer><button class="vz-btn vz-btn--primary" disabled="@_sending" @onclick="SendCustom">@if (_sending) { <span class="vz-spinner sm"></span> }<span>تایید و ارسال</span></button><button class="vz-btn vz-btn--ghost" @onclick="CloseSend">انصراف</button></Footer>
+    <Footer><button class="vz-btn vz-btn--primary" disabled="@(_sending || (SelectedModeNeedsTextLine && !CanSendText))" @onclick="SendCustom">@if (_sending) { <span class="vz-spinner sm"></span> }<span>تایید و ارسال</span></button><button class="vz-btn vz-btn--ghost" @onclick="CloseSend">انصراف</button></Footer>
 </SlidePanel>
 
 <style>
@@ -262,6 +266,11 @@ else
     private string NotificationPreview => $"ویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n{_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
     private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
     private int KycSegmentCount => string.IsNullOrEmpty(_kycReminderText) ? 0 : (int)Math.Ceiling(_kycReminderText.Length / (_kycReminderText.Any(c => c > 127) ? 67d : 153d));
+    private bool CanSendText => _health?.CanSendText == true;
+    private bool SelectedModeNeedsTextLine => _sendMode is "text" or "kyc";
+    private string TextSendingSetupHint => string.IsNullOrWhiteSpace(_health?.TextSendingMessage)
+        ? "برای ارسال پیامک متنی، تنظیمات SMS.ir را کامل کنید."
+        : _health.TextSendingMessage;
 
     protected override Task OnInitializedAsync() => RefreshAll();
     private async Task RefreshAll() { await Task.WhenAll(LoadHistory(), LoadSummary(), LoadHealth()); }
@@ -338,6 +347,11 @@ else
     private void CloseSend(){_sendOpen=false;_sending=false;}
     private async Task SendCustom()
     {
+        if (SelectedModeNeedsTextLine && !CanSendText)
+        {
+            Toasts.Error(TextSendingSetupHint);
+            return;
+        }
         if (_sendMode == "kyc")
         {
             await SendKycReminder();

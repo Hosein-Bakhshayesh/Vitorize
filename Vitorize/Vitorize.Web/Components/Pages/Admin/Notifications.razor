@@ -120,7 +120,7 @@
             </label>
             @if (!SmsTextAvailable)
             {
-                <div class="vz-hint">برای فعال‌شدن این گزینه، اتصال SMS.ir را در تنظیمات کامل کنید.</div>
+                <div class="vz-hint">@SmsTextUnavailableMessage</div>
             }
         </div>
     </ChildContent>
@@ -189,6 +189,10 @@
                     <input type="checkbox" @bind="_kycReminderSms" disabled="@(!SmsTextAvailable)" />
                     <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با SMS.ir ارسال می‌شود.</small></span>
                 </label>
+                @if (!SmsTextAvailable)
+                {
+                    <div class="vz-hint">@SmsTextUnavailableMessage</div>
+                }
             </div>
         }
     </ChildContent>
@@ -301,7 +305,7 @@
             </label>
             @if (!SmsTextAvailable)
             {
-                <div class="vz-hint">ارسال پیامک از تنظیمات SMS غیرفعال است.</div>
+                <div class="vz-hint">@SmsTextUnavailableMessage</div>
             }
             <div class="vz-field">
                 <label class="vz-label">لینک داخلی</label>
@@ -397,7 +401,11 @@
     private BroadcastPreviewResultModel? _bcPreview;
     private List<AdminBroadcastModel> _broadcasts = new();
     private SmsHealthModel? _smsHealth;
-    private bool SmsTextAvailable => _smsHealth is { IsEnabled: true, IsConfigured: true };
+    private bool SmsTextAvailable => _smsHealth?.CanSendText == true;
+    private string SmsTextUnavailableMessage =>
+        string.IsNullOrWhiteSpace(_smsHealth?.TextSendingMessage)
+            ? "برای ارسال پیامک متنی، تنظیمات SMS.ir را کامل کنید."
+            : _smsHealth.TextSendingMessage;
 
     private static string AudienceTitle(byte audience) =>
         audience == AudienceSelected ? "مشتریان انتخاب‌شده" : "همه مشتریان";

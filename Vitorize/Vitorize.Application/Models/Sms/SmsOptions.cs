@@ -30,9 +30,18 @@ namespace Vitorize.Application.Models.Sms
 
         public bool LogSensitiveData { get; init; }
         public bool UseOutbox { get; init; } = true;
-        /// <summary>Whether administrators may mirror manually written notifications as SMS text.</summary>
-        public bool CanSendNotificationText =>
-            IsOperational && DefaultLineNumber is > 0 && UseOutbox;
+        /// <summary>
+        /// پیامک متنی آزاد (متن سفارشی یا متنِ هم‌زمانِ اعلان) در SMS.ir به خط ارسال
+        /// اختصاصی نیاز دارد. این یک مجوز قابل خاموش/روشن‌شدن نیست؛ فقط وضعیت آماده‌بودن
+        /// پیکربندی ارائه‌دهنده است.
+        /// </summary>
+        public bool CanSendText => IsOperational && DefaultLineNumber is > 0;
+
+        // نام قبلی برای مصرف‌کننده‌های موجود حفظ شده است؛ منطق آن دیگر به UseOutbox وابسته نیست.
+        public bool CanSendNotificationText => CanSendText;
+
+        public const string TextSendingNotReadyMessage =
+            "برای ارسال پیامک متنی سفارشی، «شماره خط اختصاصی SMS.ir» را در تنظیمات ← اعلان‌ها وارد کنید. این مورد گزینهٔ فعال‌سازی جداگانه ندارد.";
 
         public int? GetTemplateId(string templateKey) =>
             TemplateIds.TryGetValue(templateKey, out var id) && id > 0 ? id : null;

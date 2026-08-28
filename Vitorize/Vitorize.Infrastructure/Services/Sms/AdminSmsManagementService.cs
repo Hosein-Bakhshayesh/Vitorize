@@ -166,6 +166,10 @@ namespace Vitorize.Infrastructure.Services.Sms
                 FailedOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && x.Status == 3, cancellationToken),
                 AllowImmediateSend = await GetBoolSettingAsync(SmsSettingKeys.AllowImmediateSend, false, cancellationToken),
                 AllowRetryFailed = await GetBoolSettingAsync(SmsSettingKeys.AllowRetryFailed, true, cancellationToken),
+                CanSendText = options.CanSendText,
+                TextSendingMessage = options.CanSendText
+                    ? "ارسال پیامک متنی سفارشی آماده است."
+                    : SmsOptions.TextSendingNotReadyMessage,
                 Message = account.IsSuccess ? "اتصال به SMS.ir برقرار است." : account.UserMessage ?? message
             };
         }
@@ -187,6 +191,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             CancellationToken cancellationToken = default)
         {
             await EnsureCustomAllowedAsync(adminUserId, cancellationToken);
+            await EnsureTextSendingReadyAsync(cancellationToken);
             var mobile = await ResolveMobileAsync(request.Mobile, request.UserId, cancellationToken);
             var reference = request.OrderNumber?.Trim() ?? string.Empty;
             if (!SafeReference.IsMatch(reference))
@@ -375,6 +380,13 @@ namespace Vitorize.Infrastructure.Services.Sms
             var since = DateTime.UtcNow.AddMinutes(-1);
             if (await _db.SmsMessages.CountAsync(x => x.CreatedByUserId == adminUserId && x.CreatedAt >= since, ct) >= 10)
                 throw new BusinessException("تعداد ارسال‌های سفارشی بیش از حد مجاز است. یک دقیقه بعد تلاش کنید.");
+        }
+
+        private async Task EnsureTextSendingReadyAsync(CancellationToken ct)
+        {
+            var options = await _smsSettings.GetAsync(ct);
+            if (!options.CanSendText)
+                throw new BusinessException(SmsOptions.TextSendingNotReadyMessage);
         }
 
         private async Task<string> ResolveMobileAsync(string input, Guid? userId, CancellationToken ct)

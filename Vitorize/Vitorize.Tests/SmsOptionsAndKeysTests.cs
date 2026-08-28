@@ -40,6 +40,26 @@ public class SmsOptionsAndKeysTests
         Assert.Equal(expected, opts.IsOperational);
     }
 
+    [Theory]
+    [InlineData(true, "key", 30001234, true)]
+    [InlineData(true, "key", null, false)]
+    [InlineData(true, "key", 0, false)]
+    [InlineData(false, "key", 30001234, false)]
+    public void CanSendText_RequiresOperationalSmsAndDedicatedLine(
+        bool enabled, string? apiKey, int? lineNumber, bool expected)
+    {
+        var opts = new SmsOptions
+        {
+            IsEnabled = enabled,
+            ApiKey = apiKey,
+            DefaultLineNumber = lineNumber,
+            UseOutbox = false
+        };
+
+        Assert.Equal(expected, opts.CanSendText);
+        Assert.Equal(expected, opts.CanSendNotificationText);
+    }
+
     [Fact]
     public void SecretKeys_IncludeApiKeyAndLineNumber()
     {
