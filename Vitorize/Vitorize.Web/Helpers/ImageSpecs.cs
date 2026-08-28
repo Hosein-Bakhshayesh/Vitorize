@@ -24,7 +24,7 @@ namespace Vitorize.Web.Helpers
         public static readonly ImageSpec ProductGallery = new("۱۶۰۰×۱۶۰۰", "۱:۱", "WebP", "۲ مگابایت");
         public static readonly ImageSpec Brand = new("۴۰۰×۲۰۰", "۲:۱", "PNG شفاف", "۵۱۲ کیلوبایت");
         public static readonly ImageSpec Category = new("۸۰۰×۸۰۰", "۱:۱", "WebP", "۱ مگابایت");
-        public static readonly ImageSpec BannerDesktop = new("۱۹۲۰×۶۴۰", "۳:۱", "WebP", "۲ مگابایت");
+        public static readonly ImageSpec BannerDesktop = new("۱۴۰۰×۷۰۰", "۲:۱", "WebP", "۲ مگابایت", "نسخه دسکتاپ؛ بخش‌های مهم تصویر را در مرکز نگه دارید");
         public static readonly ImageSpec BannerMobile = new("۸۰۰×۱۰۰۰", "۴:۵", "WebP", "۱ مگابایت");
         public static readonly ImageSpec BlogCover = new("۱۲۰۰×۶۳۰", "۱.۹۱:۱", "WebP یا JPG", "۱ مگابایت");
         public static readonly ImageSpec Avatar = new("۴۰۰×۴۰۰", "۱:۱", "PNG یا JPG", "۵۱۲ کیلوبایت");

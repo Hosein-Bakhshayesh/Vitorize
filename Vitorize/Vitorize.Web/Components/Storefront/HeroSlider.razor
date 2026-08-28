@@ -5,7 +5,7 @@
     @if (Active is not null)
     {
         <div class="st-hslider__img">
-            <StoreImage Url="@Active.ImagePath" Alt="@(Active.AltText ?? Active.Title)" Icon="gamepad" Loading="eager" FetchPriority="high" Width="1600" Height="720" />
+            <StoreImage Url="@Active.ImagePath" MobileUrl="@Active.MobileImagePath" Alt="@(Active.AltText ?? Active.Title)" Icon="gamepad" Loading="eager" FetchPriority="high" Width="1400" Height="700" />
         </div>
     }
     <span class="st-hslider__aurora a1"></span>

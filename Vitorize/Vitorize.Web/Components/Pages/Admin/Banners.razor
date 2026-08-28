@@ -85,9 +85,10 @@
                     <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
                 </div>
                 <div class="vz-field">
-                    <label class="vz-label">تصویر موبایل</label>
+                    <label class="vz-label">تصویر موبایل <span class="vz-muted">(اختیاری)</span></label>
                     <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" Endpoint="admin/uploads/banner-image" />
                     <ImageGuideline Spec="ImageSpecs.BannerMobile" />
+                    <small class="vz-hint">اگر خالی بماند، تصویر دسکتاپ در موبایل نمایش داده می‌شود.</small>
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>
@@ -152,9 +153,6 @@
     {
         new("home-hero", "اسلایدر اصلی صفحه نخست"),
         new("home-secondary", "بنر فرعی صفحه نخست"),
-        new("category-top", "بالای صفحه دسته‌بندی"),
-        new("sidebar", "نوار کناری"),
-        new("footer", "فوتر"),
     };
 
     private static string PositionTitle(string value) =>

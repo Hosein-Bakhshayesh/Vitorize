@@ -3,8 +3,19 @@
 <div class="st-img @(Contain ? "st-img--contain" : "") @Class">
     @if (!string.IsNullOrWhiteSpace(Url))
     {
-        <img src="@Media.Resolve(Url)" alt="@Alt" loading="@Loading" fetchpriority="@FetchPriority" width="@Width" height="@Height"
-             onerror="this.style.display='none';var p=this.nextElementSibling;if(p)p.style.display='flex';" />
+        @if (!string.IsNullOrWhiteSpace(MobileUrl))
+        {
+            <picture>
+                <source media="(max-width: 767px)" srcset="@Media.Resolve(MobileUrl)" />
+                <img src="@Media.Resolve(Url)" alt="@Alt" loading="@Loading" fetchpriority="@FetchPriority" width="@Width" height="@Height"
+                     onerror="this.style.display='none';var p=this.parentElement.nextElementSibling;if(p)p.style.display='flex';" />
+            </picture>
+        }
+        else
+        {
+            <img src="@Media.Resolve(Url)" alt="@Alt" loading="@Loading" fetchpriority="@FetchPriority" width="@Width" height="@Height"
+                 onerror="this.style.display='none';var p=this.nextElementSibling;if(p)p.style.display='flex';" />
+        }
         <div class="st-img__ph" style="display:none"><Icon Name="@Icon" Size="@IconSize" /></div>
     }
     else
@@ -15,6 +26,8 @@
 
 @code {
     [Parameter] public string? Url { get; set; }
+    /// <summary>تصویر جایگزین برای نمایشگرهای موبایل؛ در صورت خالی بودن همان تصویر اصلی استفاده می‌شود.</summary>
+    [Parameter] public string? MobileUrl { get; set; }
     [Parameter] public string Alt { get; set; } = "";
     [Parameter] public string Icon { get; set; } = "box";
     [Parameter] public int IconSize { get; set; } = 34;

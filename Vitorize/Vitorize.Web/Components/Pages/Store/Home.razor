@@ -118,7 +118,7 @@ else
     {
         <section class="st-section st-reveal">
             <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
-                <StoreImage Url="@CampaignBanner.ImagePath" Alt="@CampaignBanner.Title" Icon="gift" />
+                <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@CampaignBanner.Title" Icon="gift" Width="1400" Height="700" />
             </a>
         </section>
     }
@@ -272,7 +272,9 @@ else
         .ToList();
 
     private StoreBannerModel? CampaignBanner => _data.Banners
-        .FirstOrDefault(b => !string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath));
+        .Where(b => string.Equals(b.Position, "home-secondary", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
+        .OrderBy(b => b.SortOrder)
+        .FirstOrDefault();
 
     private List<string> MarqueeItems
     {
