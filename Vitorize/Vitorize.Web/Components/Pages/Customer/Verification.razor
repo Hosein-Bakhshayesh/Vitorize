@@ -70,14 +70,14 @@ else
                 <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی</div>
                 <div class="st-card__pad">
                     <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
-                        <div class="st-field"><label class="st-label">نام صاحب کارت بانکی</label><input class="st-input" aria-label="نام صاحب کارت بانکی" @bind="_firstName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">نام خانوادگی صاحب کارت بانکی</label><input class="st-input" aria-label="نام خانوادگی صاحب کارت بانکی" @bind="_lastName" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">کد ملی صاحب کارت بانکی</label><input class="st-input st-mono" aria-label="کد ملی صاحب کارت بانکی" @bind="_nationalCode" disabled="@ReadOnly" /></div>
-                        <div class="st-field"><label class="st-label">تاریخ تولد صاحب کارت بانکی</label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
+                        <div class="st-field"><label class="st-label">نام صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input" aria-label="نام صاحب کارت بانکی" @bind="_firstName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">نام خانوادگی صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input" aria-label="نام خانوادگی صاحب کارت بانکی" @bind="_lastName" disabled="@ReadOnly" /></div>
+                        <div class="st-field"><label class="st-label">کد ملی صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input st-mono" aria-label="کد ملی صاحب کارت بانکی" value="@_nationalCode" @oninput="OnNationalCodeInput" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" dir="ltr" disabled="@ReadOnly" /><div class="st-muted" style="font-size:11.5px;margin-top:4px">کد ملی باید دقیقاً ۱۰ رقم باشد.</div></div>
+                        <div class="st-field"><label class="st-label">تاریخ تولد صاحب کارت بانکی <span class="st-required">*</span></label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
                             @if (!string.IsNullOrWhiteSpace(_birthDateError)) { <div class="st-field__error" role="alert">@_birthDateError</div> }
                         </div>
                         <div class="st-field" style="grid-column:1 / -1">
-                            <label class="st-label">آیا شماره‌ تماسی که با آن داخل سایت ثبت‌نام کرده‌اید به نام صاحب کارت بانکی است؟</label>
+                            <label class="st-label">آیا شماره‌ تماسی که با آن داخل سایت ثبت‌نام کرده‌اید به نام صاحب کارت بانکی است؟ <span class="st-required">*</span></label>
                             <div style="display:flex;gap:18px;margin-top:8px">
                                 <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == true)" @onchange="() => SetRegisteredMobileOwner(true)" disabled="@ReadOnly" /> بله</label>
                                 <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == false)" @onchange="() => SetRegisteredMobileOwner(false)" disabled="@ReadOnly" /> خیر</label>
@@ -88,17 +88,11 @@ else
                             }
                         </div>
                     </div>
-                    @if (!ReadOnly)
-                    {
-                        <button class="st-btn st-btn--primary" style="margin-top:8px" @onclick="Submit" disabled="@_submitting">
-                            @if (_submitting) { <span class="st-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>ثبت اطلاعات احراز هویت</span> }
-                        </button>
-                    }
                 </div>
             </div>
 
             <div class="st-card">
-                <div class="st-card__head"><Icon Name="image" Size="18" /> مدارک</div>
+                <div class="st-card__head"><Icon Name="image" Size="18" /> مدارک تصویری الزامی</div>
                 <div class="st-card__pad">
                     <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
                         @foreach (var document in DocumentSlots)
@@ -130,8 +124,15 @@ else
                             </div>
                         }
                     </div>
+                    <div class="st-muted" style="font-size:12px;margin-top:14px">همه مدارک ستاره‌دار باید پیش از ثبت نهایی احراز هویت بارگذاری شوند.</div>
                 </div>
             </div>
+            @if (!ReadOnly)
+            {
+                <button class="st-btn st-btn--primary" style="align-self:start" @onclick="Submit" disabled="@_submitting">
+                    @if (_submitting) { <span class="st-spinner sm"></span> } else { <Icon Name="check" Size="16" /> <span>ثبت نهایی احراز هویت</span> }
+                </button>
+            }
         </div>
 
         <div class="st-card st-card__pad" style="align-self:start">
@@ -172,7 +173,7 @@ else
 
     private bool ReadOnly => CustomerActionExpired || (_profile is not null &&
         (_profile.Status == (byte)VerificationStatus.Verified ||
-         (_profile.Status == (byte)VerificationStatus.Pending && !HasActiveCustomerSubmission)));
+         (_profile.Status == (byte)VerificationStatus.Pending && _profile.SubmittedAt.HasValue && !HasActiveCustomerSubmission)));
 
     private static readonly Dictionary<byte, string> DocTypes = new()
     {
@@ -182,8 +183,8 @@ else
     private IEnumerable<DocumentSlot> DocumentSlots =>
         _orderItemContext?.Documents.Count > 0
             ? _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
-                (byte)(index + 1), document.Title, document.DocumentTypeId, document.Instructions, document.RedactionMode, document.RedactionInstructions))
-            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, DocumentInstructions(document.Key), 0, null));
+                (byte)(index + 1), document.Title, document.DocumentTypeId, document.IsRequired, document.Instructions, document.RedactionMode, document.RedactionInstructions))
+            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, true, DocumentInstructions(document.Key), 0, null));
 
     private static string? DocumentInstructions(byte documentType) => documentType switch
     {
@@ -194,7 +195,7 @@ else
 
     protected override Task OnInitializedAsync() => Load();
 
-    private async Task Load()
+    private async Task Load(bool preserveForm = false)
     {
         _loading = true;
         var result = await Api.GetAsync<CustomerVerificationModel>("verification/me");
@@ -214,7 +215,7 @@ else
             if (context.IsSuccess) _orderItemContext = context.Data;
             else Toasts.Warning("اطلاعات احراز هویت این آیتم در دسترس نیست.");
         }
-        if (_profile is not null)
+        if (_profile is not null && !preserveForm)
         {
             _firstName = _profile.FirstName;
             _lastName = _profile.LastName;
@@ -230,10 +231,14 @@ else
     {
         if (!string.IsNullOrWhiteSpace(_birthDateError))
         { Toasts.Error(_birthDateError); return; }
-        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode) || !_registeredMobileBelongsToCardHolder.HasValue)
-        { Toasts.Error("نام، نام خانوادگی، کد ملی و وضعیت شماره تماس الزامی است."); return; }
+        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName) || string.IsNullOrWhiteSpace(_nationalCode) || !_birthDate.HasValue || !_registeredMobileBelongsToCardHolder.HasValue)
+        { Toasts.Error("همه فیلدهای ستاره‌دار الزامی هستند."); return; }
+        if (_nationalCode.Length != 10 || _nationalCode.Any(value => value is < '0' or > '9'))
+        { Toasts.Error("کد ملی باید دقیقاً ۱۰ رقم باشد."); return; }
         if (_registeredMobileBelongsToCardHolder == false && string.IsNullOrWhiteSpace(_cardHolderMobile))
         { Toasts.Error("شماره تماس صاحب کارت بانکی را وارد کنید."); return; }
+        if (DocumentSlots.Where(document => document.IsRequired).Any(document => !HasUploadedDocument(document)))
+        { Toasts.Error("پیش از ثبت نهایی، همه مدارک تصویری الزامی را بارگذاری کنید."); return; }
 
         _submitting = true;
         var result = await Api.PostAsync<CustomerVerificationModel>("verification/submit", new
@@ -256,7 +261,7 @@ else
         if (string.IsNullOrWhiteSpace(path)) return;
         var result = await Api.PostAsync<CustomerVerificationDocumentModel>("verification/documents",
             new { DocumentType = docType, KycDocumentTypeId = kycDocumentTypeId, OrderItemId, FilePath = path, IsRedacted = isRedacted });
-        if (result.IsSuccess) { Toasts.Success("مدرک ثبت شد."); await Load(); }
+        if (result.IsSuccess) { Toasts.Success("مدرک ثبت شد."); await Load(preserveForm: true); }
         else Toasts.Error(result.Message);
     }
 
@@ -265,6 +270,24 @@ else
         var result = await Api.DeleteAsync($"verification/documents/{id}");
         if (result.IsSuccess) { Toasts.Success("مدرک حذف شد."); await Load(); }
         else Toasts.Error(result.Message);
+    }
+
+    private bool HasUploadedDocument(DocumentSlot slot) => _profile?.Documents.Any(document =>
+        slot.KycDocumentTypeId.HasValue
+            ? document.KycDocumentTypeId == slot.KycDocumentTypeId
+            : document.KycDocumentTypeId is null && document.DocumentType == slot.DocumentType) == true;
+
+    private void OnNationalCodeInput(ChangeEventArgs args)
+    {
+        var entered = args.Value?.ToString() ?? string.Empty;
+        _nationalCode = string.Concat(entered.Select(character => character switch
+        {
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            _ => character
+        }).Where(character => character is >= '0' and <= '9').Take(10));
     }
 
     private Task OnBirthDateValidationChanged(string? message)
@@ -279,5 +302,5 @@ else
         if (value) _cardHolderMobile = null;
     }
 
-    private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, string? Instructions, byte RedactionMode, string? RedactionInstructions);
+    private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, bool IsRequired, string? Instructions, byte RedactionMode, string? RedactionInstructions);
 }

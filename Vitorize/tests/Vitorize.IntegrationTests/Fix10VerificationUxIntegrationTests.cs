@@ -31,7 +31,9 @@ public sealed class Fix10VerificationUxIntegrationTests
         {
             var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
             using var scope = _fixture.Factory.Services.CreateScope();
-            var result = await Service(scope, Today).SubmitAsync(user.Id, Request(birthDate));
+            var service = Service(scope, Today);
+            await AddGenericDocumentsAsync(service, user.Id);
+            var result = await service.SubmitAsync(user.Id, Request(birthDate));
             result.BirthDate.Should().Be(birthDate);
         }
     }
@@ -116,6 +118,12 @@ public sealed class Fix10VerificationUxIntegrationTests
         FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = birthDate,
         RegisteredMobileBelongsToCardHolder = true
     };
+
+    private static async Task AddGenericDocumentsAsync(IVerificationService service, Guid userId)
+    {
+        await service.AddDocumentAsync(userId, 1, $"kyc-private:{userId:N}/identity.jpg");
+        await service.AddDocumentAsync(userId, 4, $"kyc-private:{userId:N}/card.jpg");
+    }
 
     private static async Task<AdminKycDocumentTypeDto> CreateDocumentAsync(HttpClient client, string suffix)
     {

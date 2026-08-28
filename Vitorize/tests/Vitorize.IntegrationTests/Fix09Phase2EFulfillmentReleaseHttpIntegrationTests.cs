@@ -171,9 +171,8 @@ public sealed class Fix09Phase2EFulfillmentReleaseHttpIntegrationTests
         }
         await db.SaveChangesAsync();
         var verification = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-        var profile = await verification.SubmitAsync(user.Id, new SubmitVerificationRequestDto { FirstName = "Test", LastName = "User", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
         await verification.AddDocumentAsync(user.Id, 1, $"kyc-private:{user.Id:N}/identity.jpg", doc.Id, items[0].Id);
-        await verification.SubmitAsync(user.Id, new SubmitVerificationRequestDto { FirstName = "Test", LastName = "User", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
+        var profile = await verification.SubmitAsync(user.Id, new SubmitVerificationRequestDto { FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = new DateOnly(1990, 1, 1), RegisteredMobileBelongsToCardHolder = true });
         return (user, userToken, adminToken, profile.Id, order, items, codeIds, secret);
     }
 

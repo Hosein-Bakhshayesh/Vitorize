@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="8c02b8db-338f-4f5c-bdc9-9a0b955fd4a7" name="Bakhshayesh.Hossein@UMS001N10068 2026-08-28 23:35:47" runUser="GIG\Bakhshayesh.Hossein" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-28T23:35:47.6278397+03:30" queuing="2026-08-28T23:35:47.6278405+03:30" start="2026-08-28T23:33:48.9200942+03:30" finish="2026-08-28T23:35:49.6448763+03:30" />
+  <TestSettings name="default" id="1483e051-c008-4e6e-b7d4-79d9318aaee9">
+    <Deployment runDeploymentRoot="Bakhshayesh.Hossein_UMS001N10068_2026-08-28_23_35_47" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="aeba843c-6357-4428-b674-910fa208ecd2" testId="d11f93d8-1009-2002-1c2c-8bf541738d09" testName="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Required_documents_across_a_pending_profile_move_items_to_review_without_a_second_submit" computerName="UMS001N10068" duration="00:00:03.3396499" startTime="2026-08-28T23:35:46.4252649+03:30" endTime="2026-08-28T23:35:46.4252799+03:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="aeba843c-6357-4428-b674-910fa208ecd2" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Required_documents_across_a_pending_profile_move_items_to_review_without_a_second_submit" storage="d:\vitorize\vitorize\tests\vitorize.integrationtests\bin\release\net8.0\vitorize.integrationtests.dll" id="d11f93d8-1009-2002-1c2c-8bf541738d09">
+      <Execution id="aeba843c-6357-4428-b674-910fa208ecd2" />
+      <TestMethod codeBase="D:\Vitorize\Vitorize\tests\Vitorize.IntegrationTests\bin\Release\net8.0\Vitorize.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests" name="Required_documents_across_a_pending_profile_move_items_to_review_without_a_second_submit" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="d11f93d8-1009-2002-1c2c-8bf541738d09" executionId="aeba843c-6357-4428-b674-910fa208ecd2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.28)&#xD;
+[xUnit.net 00:00:00.47]   Discovering: Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.81]   Discovered:  Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.82]   Starting:    Vitorize.IntegrationTests&#xD;
+[23:35:38 INF] Vitorize API bootstrap starting&#xD;
+[2026-08-28 23:35:42.165 +03:30 WRN] [Vitorize.Api] [SeqDisabled] [CorrelationId:] [TraceId:] Seq is disabled; console and file sinks remain active. EventType=SeqDisabled&#xD;
+[2026-08-28 23:35:42.268 +03:30 INF] [Vitorize.Api] [ApplicationStarted] [CorrelationId:] [TraceId:] Vitorize API started in Testing. EventType=ApplicationStarted&#xD;
+[2026-08-28 23:35:45.079 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information and examples. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.&#xD;
+[2026-08-28 23:35:45.106 +03:30 INF] [Vitorize.Api] [KycUploaded] [CorrelationId:] [TraceId:] KYC document registered. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d FileId=e4c4bda2-96fd-4407-b344-beb5e652e7fd DocumentType=1 EventType=KycUploaded&#xD;
+[2026-08-28 23:35:45.126 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information and examples. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.&#xD;
+[2026-08-28 23:35:45.159 +03:30 INF] [Vitorize.Api] [KycUploaded] [CorrelationId:] [TraceId:] KYC document registered. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d FileId=d7714bb9-f3a0-4e02-ab52-24f08da926fb DocumentType=2 EventType=KycUploaded&#xD;
+[2026-08-28 23:35:45.581 +03:30 INF] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Order item KYC moved to review after complete policy submission. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d OrderItemId=bfdd4301-b282-4f2f-b346-77b8fa74d53a&#xD;
+[2026-08-28 23:35:45.582 +03:30 INF] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Order item KYC moved to review after complete policy submission. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d OrderItemId=2ff0fc7b-fc0c-47bb-8f58-900e11fae064&#xD;
+[2026-08-28 23:35:45.643 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information and examples. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.&#xD;
+[2026-08-28 23:35:45.714 +03:30 INF] [Vitorize.Api] [KycUploaded] [CorrelationId:] [TraceId:] KYC profile submitted. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d DocumentCount=2 EventType=KycUploaded&#xD;
+[2026-08-28 23:35:46.078 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information and examples. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.&#xD;
+[2026-08-28 23:35:46.159 +03:30 INF] [Vitorize.Api] [KycApproved] [CorrelationId:] [TraceId:] KYC review completed. UserId=720b32e9-188d-4464-92e0-ef8c79f7a707 ProfileId=446d1e77-4d84-4dbf-8039-d2af82e6cf9d AdminUserId=f3d7a431-c481-4c49-babd-3c0115653e55 DocumentCount=2 Approved=True EventType=KycApproved&#xD;
+[2026-08-28 23:35:46.262 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Compiling a query which loads related collections for more than one collection navigation, either via 'Include' or through projection, but no 'QuerySplittingBehavior' has been configured. By default, Entity Framework will use 'QuerySplittingBehavior.SingleQuery', which can potentially result in slow query performance. See https://go.microsoft.com/fwlink/?linkid=2134277 for more information. To identify the query that's triggering this warning call 'ConfigureWarnings(w =&gt; w.Throw(RelationalEventId.MultipleCollectionIncludeWarning))'.&#xD;
+[2026-08-28 23:35:46.369 +03:30 ERR] [Vitorize.Api] [] [CorrelationId:] [TraceId:] KYC fulfillment release failed and remains retryable. OrderItemId=bfdd4301-b282-4f2f-b346-77b8fa74d53a&#xD;
+Vitorize.Shared.Exceptions.BusinessException: ????? ?????????? ?? ???? ??? ???? ???? ???? ? ???? ?? ????? ????.&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 235&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 297&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 297&#xD;
+   at Vitorize.Infrastructure.Services.OrderItemFulfillmentReleaseService.ReleaseSatisfiedOrderItemAsync(Guid orderItemId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\OrderItemFulfillmentReleaseService.cs:line 87&#xD;
+   at Vitorize.Infrastructure.Services.OrderItemFulfillmentReleaseService.ReleaseSatisfiedItemsForVerificationAsync(Guid verificationProfileId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\OrderItemFulfillmentReleaseService.cs:line 55&#xD;
+[2026-08-28 23:35:46.382 +03:30 ERR] [Vitorize.Api] [] [CorrelationId:] [TraceId:] KYC fulfillment release failed and remains retryable. OrderItemId=2ff0fc7b-fc0c-47bb-8f58-900e11fae064&#xD;
+Vitorize.Shared.Exceptions.BusinessException: ????? ?????????? ?? ???? ??? ???? ???? ???? ? ???? ?? ????? ????.&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 235&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 297&#xD;
+   at Vitorize.Infrastructure.Services.GiftCodeDeliveryService.DeliverSatisfiedOrderItemAsync(Guid orderItemId, Nullable`1 deliveredByUserId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\GiftCodeDeliveryService.cs:line 297&#xD;
+   at Vitorize.Infrastructure.Services.OrderItemFulfillmentReleaseService.ReleaseSatisfiedOrderItemAsync(Guid orderItemId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\OrderItemFulfillmentReleaseService.cs:line 87&#xD;
+   at Vitorize.Infrastructure.Services.OrderItemFulfillmentReleaseService.ReleaseSatisfiedItemsForVerificationAsync(Guid verificationProfileId, CancellationToken cancellationToken) in D:\Vitorize\Vitorize\Vitorize.Infrastructure\Services\OrderItemFulfillmentReleaseService.cs:line 55&#xD;
+[2026-08-28 23:35:46.431 +03:30 INF] [Vitorize.Api] [ApplicationStopping] [CorrelationId:] [TraceId:] Vitorize API is stopping. EventType=ApplicationStopping&#xD;
+[xUnit.net 00:01:58.72]   Finished:    Vitorize.IntegrationTests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

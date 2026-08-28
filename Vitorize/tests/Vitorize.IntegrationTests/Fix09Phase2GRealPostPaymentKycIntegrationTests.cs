@@ -466,10 +466,9 @@ public sealed class Fix09Phase2GRealPostPaymentKycIntegrationTests
         }
         using var scope = _fixture.Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-        var profile = await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
         foreach (var (orderItemId, documentTypeId) in requiredDocuments)
             await service.AddDocumentAsync(userId, 1, $"kyc-private:{userId:N}/{Guid.NewGuid():N}.jpg", documentTypeId, orderItemId);
-        await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890", RegisteredMobileBelongsToCardHolder = true });
+        var profile = await service.SubmitAsync(userId, new SubmitVerificationRequestDto { FirstName = "Phase", LastName = "TwoG", NationalCode = "1234567890", BirthDate = new DateOnly(1990, 1, 1), RegisteredMobileBelongsToCardHolder = true });
         return profile.Id;
     }
 

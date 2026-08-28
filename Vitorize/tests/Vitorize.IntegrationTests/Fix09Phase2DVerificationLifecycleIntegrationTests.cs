@@ -25,9 +25,12 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
+            await using var beforeSubmit = _fixture.CreateDbContext();
+            (await beforeSubmit.UserVerificationProfiles.SingleAsync(x => x.UserId == seed.User.Id)).SubmittedAt.Should().BeNull();
+            (await beforeSubmit.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.AwaitingSubmission);
+            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
         }
 
         await using (var afterSubmission = _fixture.CreateDbContext())
@@ -57,10 +60,9 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a1.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b1.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-            await service.SubmitAsync(seed.User.Id, Request());
+            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
             await service.ReviewAsync(profileId, seed.Admin.Id, new ReviewVerificationRequestDto { Approve = false });
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a2.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b2.jpg", seed.DocumentB.Id, seed.V2Item.Id);
@@ -88,10 +90,9 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/con-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/con-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-            await service.SubmitAsync(seed.User.Id, Request());
+            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
         }
 
         int profileAuditsBeforeRace;
@@ -133,7 +134,6 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            await service.SubmitAsync(seed.User.Id, Request());
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/submit-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/submit-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
         }
@@ -249,10 +249,9 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
     {
         using var scope = _fixture.Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-        var profile = await service.SubmitAsync(seed.User.Id, Request());
         await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/review-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
         await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/review-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-        await service.SubmitAsync(seed.User.Id, Request());
+        var profile = await service.SubmitAsync(seed.User.Id, Request());
         return profile.Id;
     }
 
@@ -285,7 +284,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
 
     private static SubmitVerificationRequestDto Request() => new()
     {
-        FirstName = "Test", LastName = "User", NationalCode = "1234567890",
+        FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = new DateOnly(1990, 1, 1),
         RegisteredMobileBelongsToCardHolder = true
     };
 }

@@ -250,8 +250,8 @@ public sealed class SupportReviewKycIntegrationTests
         using var rejectedClient = _fixture.CreateClient(rejectedToken);
         using var admin = _fixture.CreateClient(adminToken);
 
-        var approvedProfile = await SubmitKycAsync(approvedClient, "0013546789");
-        var rejectedProfile = await SubmitKycAsync(rejectedClient, "0013546797");
+        var approvedProfile = await SubmitKycAsync(approvedClient, approvedUser.Id, "0013546789");
+        var rejectedProfile = await SubmitKycAsync(rejectedClient, rejectedUser.Id, "0013546797");
         (await approvedClient.GetAsync("/api/admin/verifications")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await admin.GetAsync($"/api/admin/verifications/{approvedProfile.Id}")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await admin.PostAsJsonAsync($"/api/admin/verifications/{approvedProfile.Id}/review",
@@ -268,13 +268,23 @@ public sealed class SupportReviewKycIntegrationTests
             .Should().Be(2);
     }
 
-    private async Task<VerificationProfileDto> SubmitKycAsync(HttpClient client, string nationalCode) =>
-        await PostDataAsync<VerificationProfileDto>(client, "/api/verification/submit", new SubmitVerificationRequestDto
+    private async Task<VerificationProfileDto> SubmitKycAsync(HttpClient client, Guid userId, string nationalCode)
+    {
+        await PostDataAsync<VerificationDocumentDto>(client, "/api/verification/documents", new AddVerificationDocumentRequestDto
+        {
+            DocumentType = 1, FilePath = $"kyc-private:{userId:N}/identity.jpg"
+        });
+        await PostDataAsync<VerificationDocumentDto>(client, "/api/verification/documents", new AddVerificationDocumentRequestDto
+        {
+            DocumentType = 4, FilePath = $"kyc-private:{userId:N}/card.jpg"
+        });
+        return await PostDataAsync<VerificationProfileDto>(client, "/api/verification/submit", new SubmitVerificationRequestDto
         {
             FirstName = "Integration", LastName = "Customer", NationalCode = nationalCode,
             BirthDate = new DateOnly(1990, 1, 1), Address = "Private address", PostalCode = "1234567890",
             RegisteredMobileBelongsToCardHolder = true
         });
+    }
 
     private async Task<(Category Category, Product Product)> SeedProductAsync()
     {

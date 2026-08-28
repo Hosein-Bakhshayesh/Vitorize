@@ -74,12 +74,16 @@ namespace Vitorize.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(request.NationalCode))
                 throw new BusinessException("کد ملی الزامی است.");
 
-            if (request.BirthDate.HasValue)
-            {
-                var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().Date);
-                if (!VerificationBirthDateRules.IsWithinRange(request.BirthDate.Value, today))
-                    throw new BusinessException("تاریخ تولد واردشده معتبر نیست.");
-            }
+            if (!request.BirthDate.HasValue)
+                throw new BusinessException("تاریخ تولد الزامی است.");
+
+            var today = DateOnly.FromDateTime(_timeProvider.GetLocalNow().Date);
+            if (!VerificationBirthDateRules.IsWithinRange(request.BirthDate.Value, today))
+                throw new BusinessException("تاریخ تولد واردشده معتبر نیست.");
+
+            var nationalCode = NormalizeNationalCode(request.NationalCode);
+            if (nationalCode.Length != 10 || nationalCode.Any(static value => !char.IsAsciiDigit(value)))
+                throw new BusinessException("کد ملی باید دقیقاً ۱۰ رقم باشد.");
 
             if (!request.RegisteredMobileBelongsToCardHolder.HasValue)
                 throw new BusinessException("مشخص کنید شماره ثبت‌نام به نام صاحب کارت بانکی است یا خیر.");
@@ -120,6 +124,8 @@ namespace Vitorize.Infrastructure.Services
                 .Include(x => x.VerificationDocuments)
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
+            await EnsureRequiredDocumentsUploadedAsync(userId, profile);
+
             if (profile == null)
             {
                 profile = new UserVerificationProfile
@@ -134,7 +140,7 @@ namespace Vitorize.Infrastructure.Services
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
 
             var protectedData = new ProtectedVerificationData(
-                request.FirstName.Trim(), request.LastName.Trim(), request.NationalCode.Trim(),
+                request.FirstName.Trim(), request.LastName.Trim(), nationalCode,
                 request.BirthDate, request.BankCardNumber?.Trim(), request.ShabaNumber?.Trim(),
                 request.Address?.Trim(), request.PostalCode?.Trim(),
                 request.RegisteredMobileBelongsToCardHolder, cardHolderMobile);
@@ -212,8 +218,25 @@ namespace Vitorize.Infrastructure.Services
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
             if (profile == null)
-                throw new BusinessException("ابتدا اطلاعات احراز هویت را ثبت کنید.");
+            {
+                // Documents may be uploaded before the textual form is submitted.
+                // A draft never advances order KYC and cannot be reviewed by staff.
+                profile = new UserVerificationProfile
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    FirstName = string.Empty,
+                    LastName = string.Empty,
+                    NationalCode = string.Empty,
+                    Status = (byte)VerificationStatus.Pending,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _dbContext.UserVerificationProfiles.AddAsync(profile);
+            }
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
+
+            if (profile.Status == (byte)VerificationStatus.Verified)
+                throw new BusinessException("پرونده تأیید شده است و مدرک جدید نمی‌توان ثبت کرد.");
 
             if (orderItemId.HasValue && _deadlineService is not null)
             {
@@ -274,11 +297,11 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.VerificationDocuments.AddAsync(document);
             await _dbContext.SaveChangesAsync();
 
-            // The Customer UI persists identity details before it can upload the
-            // policy documents. Once the final required document is present,
-            // advance the paid item from AwaitingSubmission without requiring a
-            // redundant second identity submission.
-            if (_lifecycleCoordinator is not null)
+            // A draft accepts images first, but it must not move the paid item
+            // to review until the customer has submitted every required text
+            // field. SubmitAsync performs that final transition.
+            if (_lifecycleCoordinator is not null && profile.SubmittedAt.HasValue &&
+                !string.IsNullOrWhiteSpace(profile.EncryptedPayload))
             {
                 await _lifecycleCoordinator.SynchronizeSubmissionAsync(userId, profile.Id);
                 await _dbContext.SaveChangesAsync();
@@ -394,6 +417,9 @@ namespace Vitorize.Infrastructure.Services
 
             if (profile == null)
                 throw new NotFoundException("پرونده احراز هویت یافت نشد.");
+
+            if (!profile.SubmittedAt.HasValue || string.IsNullOrWhiteSpace(profile.EncryptedPayload))
+                throw new BusinessException("کاربر هنوز اطلاعات و مدارک احراز هویت را به‌طور کامل ثبت نکرده است.");
 
             var requestedStatus = request.Approve
                 ? (byte)VerificationStatus.Verified
@@ -585,6 +611,45 @@ namespace Vitorize.Infrastructure.Services
                 AdminNote = document.AdminNote
             };
         }
+
+        private async Task EnsureRequiredDocumentsUploadedAsync(Guid userId, UserVerificationProfile? profile)
+        {
+            var pendingDocuments = profile?.VerificationDocuments
+                .Where(document => document.Status == (byte)VerificationStatus.Pending)
+                .ToList() ?? [];
+
+            var requiredDocumentTypeIds = await _dbContext.OrderItems.AsNoTracking()
+                .Where(item => item.Order.UserId == userId &&
+                               item.Order.PaymentStatus == (byte)PaymentStatus.Paid &&
+                               item.RequiresVerification &&
+                               item.KycPolicyVersionId.HasValue)
+                .Join(_dbContext.KycPolicyDocumentRequirements,
+                    item => item.KycPolicyVersionId,
+                    requirement => (Guid?)requirement.KycPolicyVersionId,
+                    (_, requirement) => requirement)
+                .Where(requirement => requirement.IsRequired)
+                .Select(requirement => requirement.KycDocumentTypeId)
+                .Distinct()
+                .ToListAsync();
+
+            var complete = requiredDocumentTypeIds.Count > 0
+                ? requiredDocumentTypeIds.All(requiredId => pendingDocuments.Any(document => document.KycDocumentTypeId == requiredId))
+                : new byte[] { 1, 4 }.All(requiredType => pendingDocuments.Any(document =>
+                    document.KycDocumentTypeId is null && document.DocumentType == requiredType));
+
+            if (!complete)
+                throw new BusinessException("پیش از ثبت احراز هویت، همه مدارک تصویری الزامی را بارگذاری کنید.");
+        }
+
+        private static string NormalizeNationalCode(string value) =>
+            string.Concat(value.Trim().Select(static character => character switch
+            {
+                '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+                '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+                '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+                '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+                _ => character
+            }));
 
         private sealed record ProtectedVerificationData(
             string FirstName, string LastName, string NationalCode, DateOnly? BirthDate,
