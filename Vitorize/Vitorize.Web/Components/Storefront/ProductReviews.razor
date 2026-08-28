@@ -164,8 +164,10 @@
 
         if (result.IsSuccess)
         {
-            Toasts.Success("نظر شما ثبت شد و پس از بررسی منتشر می‌شود.");
+            Toasts.Success("نظر شما ثبت و منتشر شد.");
             _writing = false; _newTitle = string.Empty; _newComment = string.Empty; _newRating = 5;
+            _reviews.Clear(); _page = 1;
+            await Load();
         }
         else Toasts.Error(result.Message);
     }

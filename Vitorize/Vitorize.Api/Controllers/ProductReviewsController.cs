@@ -76,7 +76,7 @@ namespace Vitorize.Api.Controllers
 
             return Ok(ApiResult<ProductReviewDto>.Success(
                 result,
-                "نظر شما ثبت شد و پس از بررسی منتشر می‌شود."));
+                "نظر شما ثبت و منتشر شد."));
         }
 
         [HttpPut("{reviewId:guid}")]

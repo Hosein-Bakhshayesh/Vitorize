@@ -120,6 +120,25 @@ else
                             </div>
                         }
                     }
+
+                    @if (CanReview(item))
+                    {
+                        <div class="st-divider"></div>
+                        @if (_reviewsByProduct.TryGetValue(item.ProductId, out var existingReview))
+                        {
+                            <div class="st-alert st-alert--info" style="align-items:center">
+                                <Icon Name="star" Size="16" />
+                                <span>نظر شما برای این محصول ثبت شده است: <b>@AUI.ReviewStatusText(existingReview.IsApproved, existingReview.IsRejected)</b></span>
+                                <a class="st-btn st-btn--ghost st-btn--sm" href="/customer/reviews">مشاهده نظر</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="st-btn st-btn--outline st-btn--sm" @onclick="() => OpenReview(item)">
+                                <Icon Name="star" Size="15" /> ثبت نظر برای این خرید
+                            </button>
+                        }
+                    }
                 </div>
             }
 
@@ -176,6 +195,36 @@ else
     </div>
 }
 
+<Modal Visible="_reviewOpen" Title="ثبت نظر برای خرید" Icon="star" Size="sm" OnClose="CloseReview">
+    <ChildContent>
+        @if (_reviewTarget is not null)
+        {
+            <div class="st-alert st-alert--info" style="margin-bottom:14px">
+                نظر شما پس از ثبت، در سایت نمایش داده می‌شود. مدیر در صورت وجود مشکل می‌تواند آن را رد کند.
+            </div>
+            <div class="st-field">
+                <label class="st-label">امتیاز شما</label>
+                <div class="st-stars" style="font-size:27px;cursor:pointer;direction:ltr;text-align:right">
+                    @for (byte i = 1; i <= 5; i++)
+                    {
+                        var star = i;
+                        <span @onclick="() => _reviewRating = star">@(_reviewRating >= star ? "★" : "☆")</span>
+                    }
+                </div>
+            </div>
+            <div class="st-field"><label class="st-label">عنوان (اختیاری)</label><input class="st-input" maxlength="200" @bind="_reviewTitle" /></div>
+            <div class="st-field"><label class="st-label">نظر شما</label><textarea class="st-textarea" rows="6" maxlength="2000" @bind="_reviewComment" placeholder="تجربه خرید خود را بنویسید..."></textarea></div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="st-btn st-btn--ghost" @onclick="CloseReview" disabled="@_reviewSending">انصراف</button>
+        <button class="st-btn st-btn--primary" @onclick="SubmitReview" disabled="@_reviewSending">
+            @if (_reviewSending) { <span class="st-spinner sm"></span> }
+            ثبت نظر
+        </button>
+    </Footer>
+</Modal>
+
 <ConfirmDialog Visible="_confirmKind is not null"
                Title="@(_confirmKind == ConfirmKind.Cancel ? "لغو سفارش" : "حذف از لیست")"
                Message="@ConfirmMessage"
@@ -192,6 +241,11 @@ else
     private bool _canRetry;
     private bool _retrying;
     private bool _busy;
+    private readonly Dictionary<Guid, CustomerReviewModel> _reviewsByProduct = new();
+    private bool _reviewOpen, _reviewSending;
+    private StoreOrderItemModel? _reviewTarget;
+    private byte _reviewRating = 5;
+    private string _reviewTitle = string.Empty, _reviewComment = string.Empty;
 
     private enum ConfirmKind { Cancel, Hide }
     private ConfirmKind? _confirmKind;
@@ -214,9 +268,16 @@ else
 
     private async Task LoadAsync()
     {
-        var result = await Api.GetAsync<StoreOrderModel>($"orders/{Id}");
+        var orderTask = Api.GetAsync<StoreOrderModel>($"orders/{Id}");
+        var reviewsTask = Api.GetAsync<List<CustomerReviewModel>>("product-reviews/mine");
+        await Task.WhenAll(orderTask, reviewsTask);
+        var result = orderTask.Result;
         _order = result.IsSuccess ? result.Data : null;
         _canRetry = false;
+        _reviewsByProduct.Clear();
+        if (reviewsTask.Result.IsSuccess && reviewsTask.Result.Data is not null)
+            foreach (var review in reviewsTask.Result.Data)
+                _reviewsByProduct[review.ProductId] = review;
 
         if (_order is null) return;
 
@@ -224,6 +285,53 @@ else
 
         var eligibility = await Api.GetAsync<PaymentRetryEligibilityModel>($"payments/retry-eligibility/{Id}");
         _canRetry = eligibility.IsSuccess && eligibility.Data?.CanRetry == true;
+    }
+
+    private bool CanReview(StoreOrderItemModel item) =>
+        _order?.Status == (byte)OrderStatus.Completed && item.ProductId != Guid.Empty;
+
+    private void OpenReview(StoreOrderItemModel item)
+    {
+        _reviewTarget = item;
+        _reviewRating = 5;
+        _reviewTitle = string.Empty;
+        _reviewComment = string.Empty;
+        _reviewOpen = true;
+    }
+
+    private void CloseReview()
+    {
+        _reviewOpen = false;
+        _reviewSending = false;
+        _reviewTarget = null;
+    }
+
+    private async Task SubmitReview()
+    {
+        if (_reviewTarget is null || string.IsNullOrWhiteSpace(_reviewComment))
+        {
+            Toasts.Error("متن نظر الزامی است.");
+            return;
+        }
+
+        _reviewSending = true;
+        var result = await Api.PostAsync<CustomerReviewModel>("product-reviews", new
+        {
+            ProductId = _reviewTarget.ProductId,
+            Title = string.IsNullOrWhiteSpace(_reviewTitle) ? null : _reviewTitle,
+            Comment = _reviewComment,
+            Rating = _reviewRating
+        });
+        _reviewSending = false;
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Toasts.Error(result.Message);
+            return;
+        }
+
+        _reviewsByProduct[result.Data.ProductId] = result.Data;
+        CloseReview();
+        Toasts.Success("نظر شما ثبت و منتشر شد.");
     }
 
     private async Task RunConfirmed()

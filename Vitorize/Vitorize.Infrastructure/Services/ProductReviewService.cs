@@ -194,7 +194,9 @@ namespace Vitorize.Infrastructure.Services
                 Title = title,
                 Comment = comment,
                 Rating = request.Rating,
-                IsApproved = false,
+                // Reviews are public immediately; administrators retain the ability to reject a
+                // problematic review, which removes it from the public query.
+                IsApproved = true,
                 IsRejected = false,
                 IsBuyer = isBuyer,
                 LikeCount = 0,
