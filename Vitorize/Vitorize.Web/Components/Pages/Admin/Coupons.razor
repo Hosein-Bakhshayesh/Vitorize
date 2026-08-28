@@ -135,7 +135,15 @@
                     <div class="vz-field">
                         <label class="vz-label">مقدار تخفیف <span class="req">*</span></label>
                         <div class="vz-input-group">
-                            <InputNumber class="vz-input" @bind-Value="_model.DiscountValue" />
+                            @if (_model.DiscountType == 1)
+                            {
+                                <InputNumber class="vz-input" @bind-Value="_model.DiscountValue" />
+                            }
+                            else
+                            {
+                                <AmountInput Class="vz-input" AriaLabel="مقدار تخفیف"
+                                             Value="_model.DiscountValue" ValueChanged="value => _model.DiscountValue = value ?? 0" />
+                            }
                             <span class="suffix">@(_model.DiscountType == 1 ? "درصد" : "تومان")</span>
                         </div>
                     </div>
@@ -153,7 +161,7 @@
                 <div class="vz-field">
                     <label class="vz-label">حداقل مبلغ سفارش</label>
                     <div class="vz-input-group">
-                        <InputNumber class="vz-input" @bind-Value="_model.MinOrderAmount" placeholder="بدون محدودیت" />
+                        <AmountInput Class="vz-input" AriaLabel="حداقل مبلغ سفارش" Placeholder="بدون محدودیت" @bind-Value="_model.MinOrderAmount" />
                         <span class="suffix">تومان</span>
                     </div>
                 </div>

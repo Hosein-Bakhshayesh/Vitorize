@@ -254,12 +254,13 @@ else
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">قیمت پایه <span class="req">*</span></label>
-                                <InputNumber class="vz-input" data-testid="product-base-price" aria-label="قیمت پایه" @bind-Value="_model.BasePrice" />
+                                <AmountInput Class="vz-input" data-testid="product-base-price" AriaLabel="قیمت پایه"
+                                             Value="_model.BasePrice" ValueChanged="value => _model.BasePrice = value ?? 0" />
                                 <ValidationMessage For="() => _model.BasePrice" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
                                 <label class="vz-label">قیمت با تخفیف</label>
-                                <InputNumber class="vz-input" data-testid="product-discount-price" aria-label="قیمت با تخفیف" @bind-Value="_model.DiscountPrice" />
+                                <AmountInput Class="vz-input" data-testid="product-discount-price" AriaLabel="قیمت با تخفیف" @bind-Value="_model.DiscountPrice" />
                                 <ValidationMessage For="() => _model.DiscountPrice" class="vz-val-msg" />
                             </div>
                             <div class="vz-field">
@@ -536,11 +537,12 @@ else
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">قیمت <span class="req">*</span></label>
-                    <InputNumber class="vz-input" data-testid="variant-price" @bind-Value="_variant.Price" />
+                    <AmountInput Class="vz-input" data-testid="variant-price" AriaLabel="قیمت واریانت"
+                                 Value="_variant.Price" ValueChanged="value => _variant.Price = value ?? 0" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">قیمت با تخفیف</label>
-                    <InputNumber class="vz-input" data-testid="variant-discount-price" @bind-Value="_variant.DiscountPrice" />
+                    <AmountInput Class="vz-input" data-testid="variant-discount-price" AriaLabel="قیمت تخفیف واریانت" @bind-Value="_variant.DiscountPrice" />
                 </div>
                 @* Inventory is decided by the product's delivery type, not chosen per variant: Instant
                    draws from the gift-code pool, every other mode from a managed quantity. Offering a

@@ -1,0 +1,78 @@
+@using System.Globalization
+
+<input @attributes="AdditionalAttributes" class="@(string.IsNullOrWhiteSpace(Class) ? "vz-input" : Class)"
+       value="@_display" placeholder="@Placeholder" aria-label="@AriaLabel"
+       inputmode="decimal" dir="ltr" @oninput="OnInput" @onblur="OnBlur" />
+
+@code {
+    /// <summary>
+    /// Currency-aware number entry for administrator forms. The rendered value is grouped for
+    /// readability, while the bound value remains a plain decimal for validation and API payloads.
+    /// </summary>
+    [Parameter] public decimal? Value { get; set; }
+    [Parameter] public EventCallback<decimal?> ValueChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private decimal? _lastValue;
+    private string _display = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (_lastValue != Value)
+        {
+            _lastValue = Value;
+            _display = Format(Value);
+        }
+    }
+
+    private async Task OnInput(ChangeEventArgs args)
+    {
+        var raw = args.Value?.ToString() ?? string.Empty;
+        var parsed = Parse(raw);
+        if (parsed is null && string.IsNullOrWhiteSpace(raw))
+        {
+            _lastValue = null;
+            _display = string.Empty;
+            await ValueChanged.InvokeAsync(null);
+            return;
+        }
+
+        if (parsed is not decimal value) return;
+        _lastValue = value;
+        _display = Format(value);
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private void OnBlur()
+    {
+        // Restore the last valid value if a pasted value could not be parsed.
+        _display = Format(_lastValue);
+    }
+
+    private static decimal? Parse(string raw)
+    {
+        var normalized = NormalizeDigits(raw)
+            .Replace(",", string.Empty, StringComparison.Ordinal)
+            .Replace("٬", string.Empty, StringComparison.Ordinal)
+            .Trim();
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static string Format(decimal? value) => value?.ToString("#,0.############################", CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private static string NormalizeDigits(string value)
+    {
+        var characters = value.Select(character => character switch
+        {
+            >= '۰' and <= '۹' => (char)('0' + character - '۰'),
+            >= '٠' and <= '٩' => (char)('0' + character - '٠'),
+            _ => character
+        });
+        return new string(characters.ToArray());
+    }
+}

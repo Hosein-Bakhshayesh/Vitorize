@@ -343,6 +343,21 @@ else
 
     private static bool IsTrue(string? v) => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase) || v == "1";
 
+    private static bool IsMoneySetting(SettingModel setting) =>
+        string.Equals(setting.Key, OrderKycSettings.Keys.ThresholdToman, StringComparison.Ordinal);
+
+    private static decimal? ParseMoneySetting(string? value) =>
+        decimal.TryParse(value, System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out var amount)
+            ? amount
+            : null;
+
+    private void SetMoneySetting(SettingModel setting, decimal? value)
+    {
+        setting.Value = (value ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        MarkDirty(setting);
+    }
+
     private static bool IsMultiline(SettingModel s)
     {
         if (string.Equals(s.ValueType, "json", StringComparison.OrdinalIgnoreCase)) return true;
@@ -419,13 +434,22 @@ else
                     case "int":
                     case "decimal":
                         <div class="vz-setfield__row">
-                            <input class="vz-input" type="number" value="@s.Value"
-                                   aria-label="@SettingLabel(s)"
-                                   min="@(s.Key == VatSettings.Keys.RatePercent ? "0" : null)"
-                                   max="@(s.Key == VatSettings.Keys.RatePercent ? "100" : null)"
-                                   step="@(s.Key == VatSettings.Keys.RatePercent ? "0.01" : null)"
-                                   @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
-                            @if (s.Key == VatSettings.Keys.RatePercent) { <span class="vz-hint">٪</span> }
+                            @if (IsMoneySetting(s))
+                            {
+                                <AmountInput Class="vz-input" AriaLabel="@SettingLabel(s)" Value="ParseMoneySetting(s.Value)"
+                                             ValueChanged="value => SetMoneySetting(s, value)" />
+                                <span class="vz-hint">تومان</span>
+                            }
+                            else
+                            {
+                                <input class="vz-input" type="number" value="@s.Value"
+                                       aria-label="@SettingLabel(s)"
+                                       min="@(s.Key == VatSettings.Keys.RatePercent ? "0" : null)"
+                                       max="@(s.Key == VatSettings.Keys.RatePercent ? "100" : null)"
+                                       step="@(s.Key == VatSettings.Keys.RatePercent ? "0.01" : null)"
+                                       @onchange="e => { s.Value = e.Value?.ToString(); MarkDirty(s); }" />
+                                @if (s.Key == VatSettings.Keys.RatePercent) { <span class="vz-hint">٪</span> }
+                            }
                             @SaveInline(s)
                         </div>
                         @if (s.Key == VatSettings.Keys.RatePercent)

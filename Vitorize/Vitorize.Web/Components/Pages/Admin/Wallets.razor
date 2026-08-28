@@ -89,7 +89,8 @@
             <div class="vz-field">
                 <label class="vz-label">مبلغ</label>
                 <div class="vz-input-group">
-                    <input class="vz-input" type="number" @bind="_amount" />
+                    <AmountInput Class="vz-input" AriaLabel="مبلغ کیف پول"
+                                 Value="_amount" ValueChanged="value => _amount = value ?? 0" />
                     <span class="suffix">تومان</span>
                 </div>
                 <div class="vz-pills" style="margin-top:8px">
