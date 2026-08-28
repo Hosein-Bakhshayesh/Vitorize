@@ -80,11 +80,31 @@
         <div class="vz-form-grid one">
             <div class="vz-field">
                 <label class="vz-label">کاربر گیرنده <span class="req">*</span></label>
-                <select class="vz-select" value="@(_sendUserId == Guid.Empty ? "" : _sendUserId.ToString())"
-                        @onchange="e => _sendUserId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
-                    <option value="">— انتخاب کاربر —</option>
-                    @foreach (var u in _users) { <option value="@u.Id">@u.FullName — @u.Mobile</option> }
-                </select>
+                @if (SelectedSendUser is not null)
+                {
+                    <div class="vz-chip" style="display:inline-flex;align-items:center;gap:7px">
+                        @SelectedSendUser.FullName <span class="vz-mono">@SelectedSendUser.Mobile</span>
+                        <button type="button" class="vz-iconaction" title="تغییر کاربر" @onclick="ClearSendUser"><Icon Name="x" Size="14" /></button>
+                    </div>
+                }
+                else
+                {
+                    <input class="vz-input" placeholder="جستجو با نام، موبایل یا ایمیل" data-testid="notification-user-search"
+                           value="@_sendUserSearch" @oninput="OnSendUserSearchInput" autocomplete="off" />
+                    <div class="vz-hint">حداقل دو نویسه وارد کنید.</div>
+                    @if (_sendUserResults.Count > 0)
+                    {
+                        <div class="vz-card" style="margin-top:8px;max-height:220px;overflow-y:auto" data-testid="notification-user-search-results">
+                            @foreach (var user in _sendUserResults)
+                            {
+                                <button type="button" class="vz-ctx__item" style="width:100%;text-align:start"
+                                        data-testid="@($"notification-pick-{user.Id}")" @onclick="() => SelectSendUser(user)">
+                                    @user.FullName <span class="vz-muted vz-mono">@user.Mobile</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                }
             </div>
             <div class="vz-field">
                 <label class="vz-label">عنوان <span class="req">*</span></label>
@@ -131,14 +151,31 @@
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">کاربر گیرنده <span class="req">*</span></label>
-                    <select class="vz-select" value="@(_kycReminderUserId == Guid.Empty ? "" : _kycReminderUserId.ToString())"
-                            @onchange="e => _kycReminderUserId = Guid.TryParse(e.Value?.ToString(), out var g) ? g : Guid.Empty">
-                        <option value="">— انتخاب کاربر —</option>
-                        @foreach (var user in _kycReminderRecipients)
+                    @if (SelectedKycReminderRecipient is not null)
+                    {
+                        <div class="vz-chip" style="display:inline-flex;align-items:center;gap:7px">
+                            @SelectedKycReminderRecipient.FullName <span class="vz-mono">@SelectedKycReminderRecipient.Mobile</span> — سفارش @SelectedKycReminderRecipient.OrderNumber
+                            <button type="button" class="vz-iconaction" title="تغییر کاربر" @onclick="ClearKycReminderRecipient"><Icon Name="x" Size="14" /></button>
+                        </div>
+                    }
+                    else
+                    {
+                        <input class="vz-input" placeholder="جستجو با نام، موبایل یا شماره سفارش" data-testid="kyc-reminder-user-search"
+                               @bind="_kycReminderSearch" @bind:event="oninput" autocomplete="off" />
+                        <div class="vz-hint">حداقل دو نویسه وارد کنید.</div>
+                        @if (KycReminderSearchResults.Count > 0)
                         {
-                            <option value="@user.UserId">@user.FullName — @user.Mobile — سفارش @user.OrderNumber</option>
+                            <div class="vz-card" style="margin-top:8px;max-height:220px;overflow-y:auto" data-testid="kyc-reminder-user-search-results">
+                                @foreach (var user in KycReminderSearchResults)
+                                {
+                                    <button type="button" class="vz-ctx__item" style="width:100%;text-align:start"
+                                            @onclick="() => SelectKycReminderRecipient(user)">
+                                        @user.FullName <span class="vz-muted vz-mono">@user.Mobile</span> — سفارش @user.OrderNumber
+                                    </button>
+                                }
+                            </div>
                         }
-                    </select>
+                    }
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">عنوان <span class="req">*</span></label>
@@ -332,14 +369,18 @@
         _ => _items.Count
     };
 
-    private List<AdminUserModel> _users = new();
     private bool _sendOpen, _sending, _sendSms;
     private Guid _sendUserId;
     private string _sendTitle = string.Empty, _sendMessage = string.Empty;
+    private string _sendUserSearch = string.Empty;
+    private CancellationTokenSource? _sendUserSearchCts;
+    private List<AdminUserModel> _sendUserResults = new();
+    private AdminUserModel? _selectedSendUser;
 
     private bool _kycReminderOpen, _kycReminderLoading, _kycReminderSending, _kycReminderSms;
     private Guid _kycReminderUserId;
     private string _kycReminderTitle = string.Empty, _kycReminderMessage = string.Empty;
+    private string _kycReminderSearch = string.Empty;
     private List<KycReminderRecipientModel> _kycReminderRecipients = new();
 
     // ── FIX-15 broadcast state ────────────────────────────────────────────────
@@ -376,8 +417,6 @@
     protected override async Task OnInitializedAsync()
     {
         await Load();
-        var u = await Api.GetAsync<PagedResult<AdminUserModel>>("admin/users?page=1&pageSize=300");
-        _users = u.Data?.Items.ToList() ?? new();
         var sms = await Api.GetAsync<SmsHealthModel>("admin/sms/health");
         _smsHealth = sms.IsSuccess ? sms.Data : null;
         await LoadBroadcasts();
@@ -439,6 +478,73 @@
             _bcSelected.Add(new BroadcastRecipientChip { Id = user.Id, FullName = user.FullName, Mobile = user.Mobile });
         _bcSearchResults.RemoveAll(x => x.Id == user.Id);
         await RefreshPreview();
+    }
+
+    /// <summary>Single-recipient notification search stays server-side, matching the group picker.</summary>
+    private async Task OnSendUserSearchInput(ChangeEventArgs e)
+    {
+        _sendUserSearch = e.Value?.ToString() ?? string.Empty;
+        _sendUserSearchCts?.Cancel();
+        _sendUserSearchCts = new CancellationTokenSource();
+        var token = _sendUserSearchCts.Token;
+        if (_sendUserSearch.Trim().Length < 2) { _sendUserResults = new(); return; }
+
+        try
+        {
+            await Task.Delay(300, token);
+            var query = $"admin/users?page=1&pageSize=10&search={Uri.EscapeDataString(_sendUserSearch.Trim())}";
+            var result = await Api.GetAsync<PagedResult<AdminUserModel>>(query);
+            if (token.IsCancellationRequested) return;
+            _sendUserResults = result.Data?.Items.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { /* superseded by a newer keystroke */ }
+    }
+
+    private AdminUserModel? SelectedSendUser => _selectedSendUser;
+
+    private void SelectSendUser(AdminUserModel user)
+    {
+        _selectedSendUser = user;
+        _sendUserId = user.Id;
+        _sendUserSearch = string.Empty;
+        _sendUserResults = new();
+    }
+
+    private void ClearSendUser()
+    {
+        _selectedSendUser = null;
+        _sendUserId = Guid.Empty;
+        _sendUserSearch = string.Empty;
+        _sendUserResults = new();
+    }
+
+    private KycReminderRecipientModel? SelectedKycReminderRecipient =>
+        _kycReminderRecipients.FirstOrDefault(x => x.UserId == _kycReminderUserId);
+
+    private List<KycReminderRecipientModel> KycReminderSearchResults =>
+        _kycReminderSearch.Trim().Length < 2
+            ? new()
+            : _kycReminderRecipients
+                .Where(x => MatchesKycReminderSearch(x, _kycReminderSearch))
+                .Take(20)
+                .ToList();
+
+    private static bool MatchesKycReminderSearch(KycReminderRecipientModel user, string search) =>
+        user.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        user.Mobile.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+        user.OrderNumber.Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    private void SelectKycReminderRecipient(KycReminderRecipientModel user)
+    {
+        _kycReminderUserId = user.UserId;
+        _kycReminderSearch = string.Empty;
+    }
+
+    private void ClearKycReminderRecipient()
+    {
+        _kycReminderUserId = Guid.Empty;
+        _kycReminderSearch = string.Empty;
     }
 
     private async Task RemoveRecipient(BroadcastRecipientChip chip)
@@ -536,7 +642,7 @@
 
     private void OpenSend()
     {
-        _sendUserId = Guid.Empty; _sendTitle = string.Empty; _sendMessage = string.Empty; _sendSms = false;
+        ClearSendUser(); _sendTitle = string.Empty; _sendMessage = string.Empty; _sendSms = false;
         _sendOpen = true;
     }
 
@@ -560,6 +666,7 @@
         _kycReminderTitle = "یادآوری تکمیل احراز هویت";
         _kycReminderMessage = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
         _kycReminderSms = false;
+        _kycReminderSearch = string.Empty;
         _kycReminderRecipients = new();
         _kycReminderOpen = true;
         _kycReminderLoading = true;

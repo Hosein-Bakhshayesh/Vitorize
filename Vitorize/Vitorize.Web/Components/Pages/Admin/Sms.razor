@@ -165,7 +165,34 @@ else
             }
             else
             {
-                <div class="vz-field"><label class="vz-label">کاربر و سفارش نیازمند احراز هویت</label><select class="vz-input" @bind="_kycReminderOrderId"><option value="@Guid.Empty">انتخاب کنید</option>@foreach (var recipient in _kycRecipients) { <option value="@recipient.OrderId">@recipient.FullName — @recipient.Mobile — سفارش @recipient.OrderNumber</option> }</select></div>
+                <div class="vz-field">
+                    <label class="vz-label">کاربر و سفارش نیازمند احراز هویت</label>
+                    @if (SelectedKycRecipient is not null)
+                    {
+                        <div class="vz-chip" style="display:inline-flex;align-items:center;gap:7px">
+                            @SelectedKycRecipient.FullName <span class="vz-mono">@SelectedKycRecipient.Mobile</span> — سفارش @SelectedKycRecipient.OrderNumber
+                            <button type="button" class="vz-iconaction" title="تغییر کاربر" @onclick="ClearKycRecipient"><Icon Name="x" Size="14" /></button>
+                        </div>
+                    }
+                    else
+                    {
+                        <input class="vz-input" placeholder="جستجو با نام، موبایل یا شماره سفارش" data-testid="sms-kyc-user-search"
+                               @bind="_kycRecipientSearch" @bind:event="oninput" autocomplete="off" />
+                        <div class="vz-hint">حداقل دو نویسه وارد کنید.</div>
+                        @if (KycRecipientSearchResults.Count > 0)
+                        {
+                            <div class="vz-card" style="margin-top:8px;max-height:220px;overflow-y:auto" data-testid="sms-kyc-user-search-results">
+                                @foreach (var recipient in KycRecipientSearchResults)
+                                {
+                                    <button type="button" class="vz-ctx__item" style="width:100%;text-align:start"
+                                            @onclick="() => SelectKycRecipient(recipient)">
+                                        @recipient.FullName <span class="vz-muted vz-mono">@recipient.Mobile</span> — سفارش @recipient.OrderNumber
+                                    </button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
                 <div class="vz-field"><label class="vz-label">متن پیامک</label><textarea class="vz-textarea" rows="6" maxlength="500" @bind="_kycReminderText"></textarea><div class="vz-hint">@_kycReminderText.Length نویسه · حدود @KycSegmentCount بخش پیامک</div></div>
                 <div class="sms-warning"><Icon Name="shield" Size="17" /> پیام فقط برای شماره کاربرِ سفارش پرداخت‌شده و نیازمند احراز هویت ارسال می‌شود.</div>
             }
@@ -226,6 +253,7 @@ else
     private bool _immediate;
     private bool _kycRecipientsLoading;
     private Guid _kycReminderOrderId;
+    private string _kycRecipientSearch = "";
     private List<KycReminderRecipientModel> _kycRecipients = new();
     private string _kycReminderText = KycReminderDefaultText;
     private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
@@ -269,12 +297,34 @@ else
     {
         _sendMode = "kyc";
         _kycReminderOrderId = Guid.Empty;
+        _kycRecipientSearch = "";
         _kycReminderText = KycReminderDefaultText;
         _kycRecipientsLoading = true;
         var result = await Api.GetAsync<List<KycReminderRecipientModel>>("admin/notifications/kyc-reminder-recipients");
         _kycRecipients = result.IsSuccess ? result.Data ?? new() : new();
         _kycRecipientsLoading = false;
         if (!result.IsSuccess) Toasts.Error(result.Message);
+    }
+    private KycReminderRecipientModel? SelectedKycRecipient =>
+        _kycRecipients.FirstOrDefault(x => x.OrderId == _kycReminderOrderId);
+    private List<KycReminderRecipientModel> KycRecipientSearchResults =>
+        _kycRecipientSearch.Trim().Length < 2
+            ? new()
+            : _kycRecipients
+                .Where(x => x.FullName.Contains(_kycRecipientSearch, StringComparison.OrdinalIgnoreCase) ||
+                            x.Mobile.Contains(_kycRecipientSearch, StringComparison.OrdinalIgnoreCase) ||
+                            x.OrderNumber.Contains(_kycRecipientSearch, StringComparison.OrdinalIgnoreCase))
+                .Take(20)
+                .ToList();
+    private void SelectKycRecipient(KycReminderRecipientModel recipient)
+    {
+        _kycReminderOrderId = recipient.OrderId;
+        _kycRecipientSearch = "";
+    }
+    private void ClearKycRecipient()
+    {
+        _kycReminderOrderId = Guid.Empty;
+        _kycRecipientSearch = "";
     }
     private async Task ClearFilters(){_search=_status=_type=_purpose=_from=_to="";_onlyFailed=_onlyPending=_onlyCustom=false;await ApplyFilters();}
     private async Task ChangePage(int p){_page=p;await LoadHistory();}
