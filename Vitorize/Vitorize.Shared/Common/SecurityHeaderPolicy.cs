@@ -14,7 +14,12 @@ public static class SecurityHeaderPolicy
     public const string WebContentSecurityPolicy =
         "default-src 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'; " +
         "img-src 'self' data: blob: https:; font-src 'self' data: https:; " +
-        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; " +
+        // Trusted site markup is deliberately restricted to administrator-managed settings. These
+        // two official provider origins are needed for the Zarinpal trust badge and Gapify chat
+        // widget; keeping the list explicit preserves the rest of the storefront CSP boundary.
+        "style-src 'self' 'unsafe-inline' https://app.gapify.ai; " +
+        "script-src 'self' 'unsafe-inline' https://www.zarinpal.com https://app.gapify.ai; " +
+        "frame-src 'self' https://app.gapify.ai; " +
         "connect-src 'self' https: wss:; form-action 'self'; upgrade-insecure-requests";
 
     public static string BuildWebContentSecurityPolicy(string? mediaBaseUrl)

@@ -93,6 +93,8 @@ public sealed class FinancialSecurityHardeningTests
         Assert.Contains("frame-ancestors 'none'", SecurityHeaderPolicy.ApiContentSecurityPolicy);
         Assert.Contains("object-src 'none'", SecurityHeaderPolicy.WebContentSecurityPolicy);
         Assert.Contains("upgrade-insecure-requests", SecurityHeaderPolicy.WebContentSecurityPolicy);
+        Assert.Contains("script-src 'self' 'unsafe-inline' https://www.zarinpal.com https://app.gapify.ai", SecurityHeaderPolicy.WebContentSecurityPolicy);
+        Assert.Contains("frame-src 'self' https://app.gapify.ai", SecurityHeaderPolicy.WebContentSecurityPolicy);
     }
 
     [Fact]
