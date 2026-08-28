@@ -8,7 +8,7 @@
 
 <PageTitle>احراز هویت | ویتورایز</PageTitle>
 
-<h1 style="font-size:22px;margin-bottom:6px">احراز هویت (KYC)</h1>
+<h1 style="font-size:22px;margin-bottom:6px">احراز هویت</h1>
 <p class="st-muted" style="font-size:13px;margin-bottom:18px">برای ادامه فرایند تحویل سفارش، اطلاعات و مدارک صاحب کارت بانکی را ثبت کنید.</p>
 
 @if (_loading)
@@ -17,10 +17,22 @@
 }
 else
 {
-    <details class="st-card" style="margin-bottom:18px">
-        <summary style="cursor:pointer;padding:14px 16px;font-weight:700;display:flex;align-items:center;gap:8px"><Icon Name="info" Size="18" /> چرا احراز هویت لازم است؟</summary>
-        <div class="st-card__pad" style="padding-top:0;white-space:pre-line;line-height:2;color:var(--st-text-2)">@(_kycSettings?.CustomerNotice ?? OrderKycSettings.DefaultCustomerNotice)</div>
-    </details>
+    <section class="st-card verification-why" style="margin-bottom:18px">
+        <div class="verification-why__title"><Icon Name="info" Size="18" /> چرا احراز هویت لازم است؟</div>
+        <div class="verification-why__notice-wrap @(_whyNoticeExpanded ? "is-expanded" : null)">
+            <div class="verification-why__notice">@(_kycSettings?.CustomerNotice ?? OrderKycSettings.DefaultCustomerNotice)</div>
+            <button type="button" class="verification-why__toggle" @onclick="ToggleWhyNotice" aria-expanded="@_whyNoticeExpanded">
+                @if (_whyNoticeExpanded)
+                {
+                    <span>نمایش کمتر</span>
+                }
+                else
+                {
+                    <span aria-hidden="true">… </span><span>نمایش بیشتر</span>
+                }
+            </button>
+        </div>
+    </section>
     @if (_orderItemContext is not null)
     {
         <div class="st-alert st-alert--info" style="margin-bottom:18px">
@@ -147,10 +159,28 @@ else
     </div>
 }
 
+<style>
+    .verification-why { padding: 14px 16px; }
+    .verification-why__title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
+    .verification-why__notice-wrap { position: relative; }
+    .verification-why__notice { white-space: pre-line; line-height: 2; color: var(--st-text-2); }
+    .verification-why__notice-wrap:not(.is-expanded) .verification-why__notice { display: -webkit-box; overflow: hidden; padding-inline-end: 96px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .verification-why__toggle { position: absolute; inset-inline-end: 0; bottom: 0; border: 0; padding: 0 0 0 4px; background: var(--st-surface); color: var(--st-text-3); font: inherit; font-size: 12px; cursor: pointer; }
+    .verification-why__toggle:hover, .verification-why__toggle:focus-visible { color: var(--st-primary); text-decoration: underline; }
+    .verification-why__toggle:focus-visible { outline: 2px solid var(--st-primary); outline-offset: 3px; border-radius: 3px; }
+    .verification-why__notice-wrap.is-expanded .verification-why__toggle { position: static; display: block; margin-top: 7px; margin-inline-start: auto; }
+
+    @@media (max-width: 640px) {
+        .verification-why { padding: 14px; }
+        .verification-why__title { font-size: 15px; }
+        .verification-why__toggle { font-size: 11.5px; }
+    }
+</style>
+
 @code {
     [SupplyParameterFromQuery(Name = "orderItem")] public Guid? OrderItemId { get; set; }
     [SupplyParameterFromQuery(Name = "orderId")] public Guid? OrderId { get; set; }
-    private bool _loading = true, _submitting;
+    private bool _loading = true, _submitting, _whyNoticeExpanded;
     private CustomerVerificationModel? _profile;
     private StoreOrderItemKycModel? _orderItemContext;
     private OrderKycSettingsModel? _kycSettings;
@@ -295,6 +325,8 @@ else
         _birthDateError = message;
         return Task.CompletedTask;
     }
+
+    private void ToggleWhyNotice() => _whyNoticeExpanded = !_whyNoticeExpanded;
 
     private void SetRegisteredMobileOwner(bool value)
     {
