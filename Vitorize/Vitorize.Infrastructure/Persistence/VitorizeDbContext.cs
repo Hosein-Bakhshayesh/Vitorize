@@ -62,6 +62,8 @@ public partial class VitorizeDbContext : DbContext
 
     public virtual DbSet<Order> Orders { get; set; }
 
+    public virtual DbSet<OrderNumberCounter> OrderNumberCounters { get; set; }
+
     public virtual DbSet<OrderItem> OrderItems { get; set; }
 
     public virtual DbSet<OrderItemKycState> OrderItemKycStates { get; set; }
@@ -599,6 +601,13 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Orders_Users");
+        });
+
+        modelBuilder.Entity<OrderNumberCounter>(entity =>
+        {
+            entity.ToTable("OrderNumberCounters");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
         });
 
         modelBuilder.Entity<OrderItem>(entity =>

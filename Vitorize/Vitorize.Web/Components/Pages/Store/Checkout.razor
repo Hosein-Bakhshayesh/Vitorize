@@ -45,17 +45,6 @@ else
                 </div>
             </div>
 
-            @if (OrderKycRequired && _user is not null && _user.VerificationStatus != (byte)VerificationStatus.Verified)
-            {
-                <div data-testid="checkout-kyc-information" class="st-alert st-alert--info st-checkout-kyc">
-                    <Icon Name="shield" Size="20" />
-                    <div>
-                        <div style="font-weight:700">احراز هویت</div>
-                        <div data-testid="checkout-kyc-post-payment-copy" style="font-size:12.5px;margin-top:4px">با توجه به جمع مبلغ سبد خرید، پس از پرداخت باید احراز هویت خود را تکمیل کنید. پس از بازگشت از درگاه، فرم احراز هویت به‌صورت مستقیم نمایش داده می‌شود.</div>
-                    </div>
-                </div>
-            }
-
             <div class="st-card">
                 <div class="st-card__head"><Icon Name="percent" Size="18" /> کد تخفیف</div>
                 <div class="st-card__pad">
@@ -267,8 +256,6 @@ else
     private decimal _discount;
     private string? _couponMsg;
     private string _method = "gateway";
-    private OrderKycSettingsModel? _kycSettings;
-
     // Server-computed pricing only. VAT and the payable total are never derived in Razor, so the
     // amount shown before payment is exactly the amount the order will be created with.
     private ValidateCouponResultModel? _couponPricing;
@@ -278,16 +265,6 @@ else
     private decimal VatAmount => _couponPricing?.VatAmount ?? _cart?.VatAmount ?? 0m;
     private decimal Payable => _couponPricing?.FinalAmount ?? _cart?.FinalAmount ?? 0m;
     private bool WalletEnough => _cart is not null && _walletBalance >= Payable && Payable > 0;
-    // The setting is managed in Toman. Rial carts are evaluated in Rial on the server,
-    // so keep the pre-payment note on this page consistent with the checkout snapshot.
-    private decimal OrderKycThreshold => _kycSettings?.ThresholdToman is > 0
-        ? _cart?.Items.FirstOrDefault()?.CurrencyType == (byte)CurrencyType.Rial
-            ? _kycSettings.ThresholdToman * 10m
-            : _kycSettings.ThresholdToman
-        : 0m;
-
-    private bool OrderKycRequired => OrderKycThreshold > 0 && Payable >= OrderKycThreshold;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_focusTargetId is not { } targetId) return;
@@ -300,13 +277,11 @@ else
         var cartTask = Api.GetAsync<CartModel>("cart");
         var meTask = Api.GetAsync<CustomerProfileModel>("auth/me");
         var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
-        var kycSettingsTask = Api.GetAsync<OrderKycSettingsModel>("checkout/kyc-settings");
-        await Task.WhenAll(cartTask, meTask, walletTask, kycSettingsTask);
+        await Task.WhenAll(cartTask, meTask, walletTask);
 
         _cart = cartTask.Result.Data;
         _user = meTask.Result.Data;
         _walletBalance = walletTask.Result.Data?.Balance ?? 0;
-        _kycSettings = kycSettingsTask.Result.Data;
         _loading = false;
 
         // Re-validate a coupon carried over from the cart so its discount shows on the summary.

@@ -1081,6 +1081,9 @@ namespace Vitorize.Infrastructure.Services
             if (order.PaymentStatus == (byte)PaymentStatus.Paid)
                 return;
 
+            // شمارهٔ کوتاه صرفاً برای پرداختی که واقعاً موفق شده مصرف می‌شود. همهٔ مسیرهای
+            // موفق (زرین‌پال، کیف پول و Mock) به این متد و یک تراکنش Serializable می‌رسند.
+            order.OrderNumber = await AssignNextPaidOrderNumberAsync();
             order.PaymentStatus = (byte)PaymentStatus.Paid;
             order.Status = (byte)OrderStatus.Processing;
             order.PaidAt = now;
@@ -1137,6 +1140,27 @@ namespace Vitorize.Infrastructure.Services
 
             await _dbContext.SaveChangesAsync();
 
+        }
+
+        private async Task<string> AssignNextPaidOrderNumberAsync()
+        {
+            // sp_getapplock در SQL Server تمام پرداخت‌های موفق را روی همین شمارنده سریالی
+            // می‌کند؛ بنابراین هم عدد تکراری نداریم و هم هیچ عددی قبل از پرداخت موفق مصرف نمی‌شود.
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, "payment:public-order-number");
+
+            var counter = await _dbContext.OrderNumberCounters
+                .SingleOrDefaultAsync(x => x.Id == 1);
+
+            if (counter is null)
+            {
+                // دفاع برای محیط‌های توسعه‌ای که بدون اجرای Migration ساخته شده‌اند.
+                counter = new OrderNumberCounter { Id = 1, NextNumber = 8000 };
+                await _dbContext.OrderNumberCounters.AddAsync(counter);
+            }
+
+            var number = Math.Max(8000L, counter.NextNumber);
+            counter.NextNumber = checked(number + 1);
+            return $"vtrz-{number}";
         }
 
         /// <summary>

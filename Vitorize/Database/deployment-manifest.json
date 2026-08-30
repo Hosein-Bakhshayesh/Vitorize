@@ -696,6 +696,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 115,
+      "version": "V0031",
+      "name": "V0031__paid_order_number_sequence.sql",
+      "path": "Versioned/V0031__paid_order_number_sequence.sql",
+      "sha256": "ca6958841bd412bd5aad10f1336aaed60dd81286727999036bc0a5f8db6d99b4",
+      "classification": "required",
+      "dependencies": [
+        "V0030",
+        "dbo.Orders"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

@@ -47,13 +47,6 @@ else if (_cart is null || _cart.Items.Count == 0)
 }
 else
 {
-    @if (_cart.Items.Any(x => x.RequiresKyc))
-    {
-        <div data-testid="cart-kyc-requirement" class="st-alert st-alert--info" style="margin-bottom:16px">
-            <Icon Name="shield" Size="18" />
-            <div>برخی اقلام این سبد نیازمند احراز هویت هستند. <a href="/customer/verification">تکمیل احراز هویت</a></div>
-        </div>
-    }
     <div class="st-split">
         <div class="st-stack">
             @foreach (var item in _cart.Items)

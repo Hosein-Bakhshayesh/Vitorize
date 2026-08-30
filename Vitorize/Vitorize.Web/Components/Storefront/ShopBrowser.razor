@@ -133,9 +133,6 @@
                     <button type="button" class="st-fopt" @onclick="ToggleInstantOnly" aria-pressed="@_instantOnly">
                         <span class="st-fopt__l"><span class="st-fbox @(_instantOnly ? "on" : null)">@if (_instantOnly) { <Icon Name="check" Size="11" /> }</span><span>تحویل آنی</span></span>
                     </button>
-                    <button type="button" class="st-fopt" @onclick="ToggleVerifiedOnly" aria-pressed="@_verifiedOnly">
-                        <span class="st-fopt__l"><span class="st-fbox @(_verifiedOnly ? "on" : null)">@if (_verifiedOnly) { <Icon Name="check" Size="11" /> }</span><span>نیازمند احراز هویت</span></span>
-                    </button>
                 </div>
             }
         </div>
@@ -324,7 +321,7 @@
     private string EffectiveSortKey =>
         string.IsNullOrEmpty(_sort) ? StorefrontProductSortModes.ToQueryKey(_defaultSortCode) : _sort;
     private readonly HashSet<byte> _types = new();
-    private bool _instantOnly, _verifiedOnly, _discountOnly, _inStockOnly;
+    private bool _instantOnly, _discountOnly, _inStockOnly;
     private int _discountTier;   // 0=none, 1=any-discount, 10/25/50 = percent tiers
     private decimal? _minPrice, _maxPrice;
 
@@ -360,7 +357,7 @@
 
     private int ActiveCount =>
         (string.IsNullOrEmpty(_categoryId) ? 0 : 1) + (string.IsNullOrEmpty(_brandId) ? 0 : 1)
-        + _types.Count + (_instantOnly ? 1 : 0) + (_verifiedOnly ? 1 : 0) + (_inStockOnly ? 1 : 0)
+        + _types.Count + (_instantOnly ? 1 : 0) + (_inStockOnly ? 1 : 0)
         + (_discountTier > 0 || _discountOnly ? 1 : 0) + ((_minPrice is > 0 || _maxPrice is > 0) ? 1 : 0);
 
     private record Chip(string Label, EventCallback Remove);
@@ -383,7 +380,6 @@
                 chips.Add(new(ProductTypes.GetValueOrDefault(ty, "نوع"), EventCallback.Factory.Create(this, () => ToggleType(ty))));
             if (_inStockOnly) chips.Add(new("موجود", EventCallback.Factory.Create(this, ToggleInStock)));
             if (_instantOnly) chips.Add(new("تحویل آنی", EventCallback.Factory.Create(this, async () => { _instantOnly = false; await ReloadFromFilters(); })));
-            if (_verifiedOnly) chips.Add(new("احراز هویت", EventCallback.Factory.Create(this, async () => { _verifiedOnly = false; await ReloadFromFilters(); })));
             if (_discountTier > 0 || _discountOnly) chips.Add(new(_discountTier > 1 ? $"+{AUI.Number(_discountTier)}٪ تخفیف" : "تخفیف‌دار", EventCallback.Factory.Create(this, () => SetDiscount(0))));
             if (_minPrice is > 0 || _maxPrice is > 0) chips.Add(new("محدوده قیمت", EventCallback.Factory.Create(this, () => { _minPrice = null; _maxPrice = null; _ = ReloadFromFilters(); })));
             return chips;
@@ -477,7 +473,7 @@
     private async Task ClearAll()
     {
         _search = string.Empty; _filterSearch = string.Empty; _categoryId = string.Empty; _brandId = string.Empty;
-        _types.Clear(); _instantOnly = _verifiedOnly = _discountOnly = _inStockOnly = false; _discountTier = 0;
+        _types.Clear(); _instantOnly = _discountOnly = _inStockOnly = false; _discountTier = 0;
         _minPrice = _maxPrice = null;
         await ReloadFromFilters();
     }
@@ -507,7 +503,6 @@
         if (_discountTier > 1) query += $"&minDiscountPercent={_discountTier}";
         if (_inStockOnly) query += "&inStock=true";
         if (_instantOnly) query += "&deliveryType=1";
-        if (_verifiedOnly) query += "&requiresVerification=true";
         foreach (var productType in _types) query += $"&productTypes={productType}";
 
         var result = await Api.GetAsync<PagedResult<StoreProductModel>>(query);
@@ -537,9 +532,4 @@
         await ReloadFromFilters();
     }
 
-    private async Task ToggleVerifiedOnly()
-    {
-        _verifiedOnly = !_verifiedOnly;
-        await ReloadFromFilters();
-    }
 }

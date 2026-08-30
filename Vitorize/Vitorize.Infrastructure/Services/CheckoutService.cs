@@ -197,12 +197,14 @@ namespace Vitorize.Infrastructure.Services
                 if (pricing.IsZeroPayable)
                     throw new BusinessException("پرداخت سفارش رایگان پشتیبانی نمی‌شود. قیمت کالا یا تخفیف را اصلاح کنید.");
 
+                var orderId = Guid.NewGuid();
                 var order = new Order
                 {
-                    Id = Guid.NewGuid(),
+                    Id = orderId,
                     UserId = userId,
-                    // پسوند تصادفی برای جلوگیری از برخورد شماره سفارش در ثبت هم‌زمان (ایندکس یکتا دارد)
-                    OrderNumber = $"VT-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+                    // شمارهٔ کوتاه و نهایی فقط پس از پرداخت موفق تخصیص می‌یابد. این شناسهٔ
+                    // داخلی، سفارش پرداخت‌نشده را یکتا نگه می‌دارد ولی به مشتری اعلام نمی‌شود.
+                    OrderNumber = $"pending-{orderId:N}",
                     Status = (byte)OrderStatus.PendingPayment,
                     PaymentStatus = (byte)PaymentStatus.Pending,
                     SubtotalAmount = subtotalAmount,
