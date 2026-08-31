@@ -11,7 +11,6 @@ public class SmsServiceTests
 {
     private static SmsOptions Enabled(Dictionary<string, int>? templates = null) => new()
     {
-        IsEnabled = true,
         ApiKey = "test-key",
         DefaultLineNumber = 30001234,
         TemplateIds = templates ?? new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 },
@@ -28,24 +27,27 @@ public class SmsServiceTests
     ];
 
     [Fact]
-    public async Task SendTemplate_WhenDisabled_ReturnsDisabled_AndDoesNotSend()
+    public async Task SendTemplate_WithApiKeyAndTemplate_SendsWithoutActivationSwitch()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(new SmsOptions { IsEnabled = false, ApiKey = "k" }, sender);
+        var svc = Build(new SmsOptions
+        {
+            ApiKey = "k",
+            TemplateIds = new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 }
+        }, sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            new[] { new SmsTemplateParameter("CODE", "123456") });
+            ValidOtpParameters());
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SmsFailureReason.Disabled, result.FailureReason);
-        Assert.Equal(0, sender.VerifyCallCount);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, sender.VerifyCallCount);
     }
 
     [Fact]
     public async Task SendTemplate_WhenApiKeyMissing_ReturnsNotConfigured()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(new SmsOptions { IsEnabled = true, ApiKey = "" }, sender);
+        var svc = Build(new SmsOptions { ApiKey = "" }, sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
             ValidOtpParameters());
@@ -131,7 +133,7 @@ public class SmsServiceTests
     public async Task SendText_WithoutLineNumber_ReturnsInvalidLineNumber()
     {
         var sender = new FakeSmsSender();
-        var options = new SmsOptions { IsEnabled = true, ApiKey = "k", DefaultLineNumber = null };
+        var options = new SmsOptions { ApiKey = "k", DefaultLineNumber = null };
         var svc = Build(options, sender);
 
         var result = await svc.SendTextAsync("09123456789", "hello");

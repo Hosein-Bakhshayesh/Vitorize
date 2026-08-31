@@ -8,7 +8,6 @@ namespace Vitorize.Application.Common
     {
         public const string Group = "SMS";
 
-        public const string IsEnabled = "Sms.IsEnabled";
         public const string Provider = "Sms.Provider";
         public const string ApiKey = "Sms.ApiKey";
         public const string DefaultLineNumber = "Sms.DefaultLineNumber";
@@ -83,21 +82,26 @@ namespace Vitorize.Application.Common
         public const string DailyOtpLimitPerMobile = "Sms.DailyOtpLimitPerMobile";
         public const string DailySmsLimitPerMobile = "Sms.DailySmsLimitPerMobile";
         public const string LogSensitiveData = "Sms.LogSensitiveData";
-        public const string UseOutbox = "Sms.UseOutbox";
         public const string MaxCustomRecipients = "Sms.MaxCustomRecipients";
         public const string MaxCustomTextLength = "Sms.MaxCustomTextLength";
-        public const string RequireConfirmation = "Sms.RequireConfirmation";
-        public const string AllowImmediateSend = "Sms.AllowImmediateSend";
         public const string HistoryRetentionDays = "Sms.HistoryRetentionDays";
         public const string MaskMobileInAdmin = "Sms.MaskMobileInAdmin";
         public const string AllowAdminViewFullMobile = "Sms.AllowAdminViewFullMobile";
-        public const string AllowRetryFailed = "Sms.AllowRetryFailed";
 
-        /// <summary>Deprecated switches. Custom admin SMS is always available when SMS.ir itself is configured.</summary>
+        /// <summary>
+        /// کلیدهایی که در نسخه‌های پیشین امکان خاموش‌کردن پیامک یا مسیر ارسال آن را می‌دادند.
+        /// پیامک همیشه فعال است و این مقادیر با مهاجرت حذف می‌شوند.
+        /// </summary>
         public static readonly IReadOnlySet<string> DeprecatedKeys = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
         {
+            "SmsEnabled",
+            "Sms.IsEnabled",
             "Sms.CustomSendEnabled",
-            "Sms.CustomTextEnabled"
+            "Sms.CustomTextEnabled",
+            "Sms.UseOutbox",
+            "Sms.RequireConfirmation",
+            "Sms.AllowImmediateSend",
+            "Sms.AllowRetryFailed"
         };
 
         /// <summary>

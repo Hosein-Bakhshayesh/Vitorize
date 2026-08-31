@@ -9,7 +9,6 @@ namespace Vitorize.Application.Models.Sms
     /// </summary>
     public sealed class SmsOptions
     {
-        public bool IsEnabled { get; init; }
         public string Provider { get; init; } = "SMS.ir";
         public string? ApiKey { get; init; }
         public long? DefaultLineNumber { get; init; }
@@ -29,7 +28,6 @@ namespace Vitorize.Application.Models.Sms
         public int DailySmsLimitPerMobile { get; init; } = 30;
 
         public bool LogSensitiveData { get; init; }
-        public bool UseOutbox { get; init; } = true;
         /// <summary>
         /// پیامک متنی آزاد (متن سفارشی یا متنِ هم‌زمانِ اعلان) در SMS.ir به خط ارسال
         /// اختصاصی نیاز دارد. این یک مجوز قابل خاموش/روشن‌شدن نیست؛ فقط وضعیت آماده‌بودن
@@ -37,7 +35,6 @@ namespace Vitorize.Application.Models.Sms
         /// </summary>
         public bool CanSendText => IsOperational && DefaultLineNumber is > 0;
 
-        // نام قبلی برای مصرف‌کننده‌های موجود حفظ شده است؛ منطق آن دیگر به UseOutbox وابسته نیست.
         public bool CanSendNotificationText => CanSendText;
 
         public const string TextSendingNotReadyMessage =
@@ -48,6 +45,6 @@ namespace Vitorize.Application.Models.Sms
 
         /// <summary>پیکربندی حداقلی لازم برای ارسال واقعی موجود است؟</summary>
         public bool IsOperational =>
-            IsEnabled && !string.IsNullOrWhiteSpace(ApiKey);
+            !string.IsNullOrWhiteSpace(ApiKey);
     }
 }

@@ -37,12 +37,6 @@ namespace Vitorize.Infrastructure.Services.Sms
         public bool TryNormalizeMobile(string? input, out string normalized) =>
             IranMobile.TryNormalize(input, out normalized);
 
-        public async Task<bool> IsEnabledAsync(CancellationToken cancellationToken = default)
-        {
-            var options = await _settings.GetAsync(cancellationToken);
-            return options.IsOperational;
-        }
-
         public async Task<SmsSendResult> SendTemplateAsync(
             string mobile,
             string templateKey,
@@ -50,9 +44,6 @@ namespace Vitorize.Infrastructure.Services.Sms
             CancellationToken cancellationToken = default)
         {
             var options = await _settings.GetAsync(cancellationToken);
-
-            if (!options.IsEnabled)
-                return SmsSendResult.Failure(SmsFailureReason.Disabled);
 
             if (string.IsNullOrWhiteSpace(options.ApiKey))
                 return SmsSendResult.Failure(SmsFailureReason.NotConfigured);
@@ -94,9 +85,6 @@ namespace Vitorize.Infrastructure.Services.Sms
             CancellationToken cancellationToken = default)
         {
             var options = await _settings.GetAsync(cancellationToken);
-
-            if (!options.IsEnabled)
-                return SmsSendResult.Failure(SmsFailureReason.Disabled);
 
             if (string.IsNullOrWhiteSpace(options.ApiKey))
                 return SmsSendResult.Failure(SmsFailureReason.NotConfigured);
@@ -161,9 +149,6 @@ namespace Vitorize.Infrastructure.Services.Sms
         public async Task<(bool IsValid, string Message)> ValidateConfigurationAsync(CancellationToken cancellationToken = default)
         {
             var options = await _settings.GetAsync(cancellationToken);
-
-            if (!options.IsEnabled)
-                return (false, "سرویس پیامک غیرفعال است.");
 
             if (string.IsNullOrWhiteSpace(options.ApiKey))
                 return (false, "کلید API پیامک تنظیم نشده است.");

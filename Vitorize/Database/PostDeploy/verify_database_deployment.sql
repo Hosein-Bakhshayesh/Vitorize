@@ -89,6 +89,7 @@ BEGIN
         (N'V0029', N'V0029__trusted_footer_seals_and_custom_markup.sql', '7eccbfbf0ccb451a67b151b9bc2d79fca68d84ff00d67c92d825044e3a8324f0'),
         (N'V0030', N'V0030__remove_deprecated_custom_sms_settings.sql', '828eb33a554293092ed47ffddb946cf5c4cf0b511fe8100183dc73824477a53c'),
         (N'V0031', N'V0031__paid_order_number_sequence.sql', 'ca6958841bd412bd5aad10f1336aaed60dd81286727999036bc0a5f8db6d99b4'),
+        (N'V0032', N'V0032__always_on_sms_remove_activation_switches.sql', '9981f260851fb928f8fea707e482ec147c39e2d2d9fe66eeddbe864c4264ec05'),
         (N'H20260708-UI', N'2026-07-08_seed_settings_ui_customization.sql', 'a9da7ed7e2b87e27298b8005befb10954c228a574786c3cf14f9db8c535b2ed3'),
         (N'H20260713-SMS-SEED', N'2026-07-13_seed_sms_settings.sql', 'a950e3b326fe99e197c6e08c0024e0a601e7bfdbcfceb130a40736f8281f2b6e'),
         (N'H20260714-PRODUCT-SEED', N'2026-07-14_seed_product_experience_settings.sql', '90ae9b6278a85536accf28e7a927755b980cc062b07afb65d1a6d43fcaad4c00');
@@ -192,8 +193,16 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Payme
     INSERT @Issues VALUES ('ERROR', N'Payment authority', N'Unique gateway/authority index is missing.');
 IF COL_LENGTH(N'dbo.Products', N'RequiresVerification') IS NOT NULL
     INSERT @Issues VALUES ('ERROR', N'Product-level KYC', N'Products.RequiresVerification must be removed; final order amount controls KYC.');
-IF EXISTS (SELECT 1 FROM dbo.Settings WHERE [Key] IN (N'Sms.CustomSendEnabled', N'Sms.CustomTextEnabled'))
-    INSERT @Issues VALUES ('ERROR', N'Deprecated custom-SMS settings', N'Custom SMS is always enabled; legacy toggle settings must be removed.');
+IF EXISTS
+(
+    SELECT 1 FROM dbo.Settings
+    WHERE [Key] IN
+    (
+        N'SmsEnabled', N'Sms.IsEnabled', N'Sms.CustomSendEnabled', N'Sms.CustomTextEnabled',
+        N'Sms.UseOutbox', N'Sms.RequireConfirmation', N'Sms.AllowImmediateSend', N'Sms.AllowRetryFailed'
+    )
+)
+    INSERT @Issues VALUES ('ERROR', N'Deprecated SMS activation settings', N'SMS is always active; obsolete activation switches must be removed.');
 IF COL_LENGTH(N'dbo.CartItems', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.Orders', N'CurrencyType') IS NULL OR
    COL_LENGTH(N'dbo.OrderItems', N'CurrencyType') IS NULL OR

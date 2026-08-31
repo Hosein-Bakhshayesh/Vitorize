@@ -120,13 +120,11 @@ namespace Vitorize.Api.Controllers.Admin
             CancellationToken cancellationToken)
         {
             var (isValid, message) = await _smsService.ValidateConfigurationAsync(cancellationToken);
-            var isEnabled = await _smsService.IsEnabledAsync(cancellationToken);
             var account = await _smsService.GetAccountStatusAsync(cancellationToken);
 
             var dto = new SmsAccountStatusDto
             {
                 IsConfigured = isValid,
-                IsEnabled = isEnabled,
                 ConnectionOk = account.IsSuccess,
                 Credit = account.Credit,
                 Lines = account.Lines?.ToList() ?? new List<long>(),

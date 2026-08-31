@@ -155,7 +155,6 @@ namespace Vitorize.Infrastructure.Services.Sms
             var (configured, message) = await _sms.ValidateConfigurationAsync(cancellationToken);
             return new SmsHealthDto
             {
-                IsEnabled = options.IsEnabled,
                 IsConfigured = configured,
                 ConnectionOk = account.IsSuccess,
                 Credit = account.Credit,
@@ -164,8 +163,6 @@ namespace Vitorize.Infrastructure.Services.Sms
                 NotificationTemplateId = options.GetTemplateId(SmsTemplateKeys.UniversalNotification),
                 PendingOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && (x.Status == 0 || x.Status == 1), cancellationToken),
                 FailedOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && x.Status == 3, cancellationToken),
-                AllowImmediateSend = await GetBoolSettingAsync(SmsSettingKeys.AllowImmediateSend, false, cancellationToken),
-                AllowRetryFailed = await GetBoolSettingAsync(SmsSettingKeys.AllowRetryFailed, true, cancellationToken),
                 CanSendText = options.CanSendText,
                 TextSendingMessage = options.CanSendText
                     ? "ارسال پیامک متنی سفارشی آماده است."
@@ -203,7 +200,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 return new SmsActionResultDto { SmsMessageId = existing.Id, Queued = existing.Status == 0, Success = existing.Status == 2, Message = "درخواست تکراری بود؛ رکورد موجود بازگردانده شد." };
 
             var parameters = SmsBusinessNotificationParameters.Create(reference);
-            var immediate = request.SendImmediately && await GetBoolSettingAsync(SmsSettingKeys.AllowImmediateSend, false, cancellationToken);
+            var immediate = request.SendImmediately;
             Guid historyId;
             if (immediate)
             {
@@ -257,7 +254,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (existing is not null)
                 return new SmsActionResultDto { SmsMessageId = existing.Id, Queued = existing.Status == 0, Success = existing.Status == 2, Message = "درخواست تکراری بود؛ رکورد موجود بازگردانده شد." };
 
-            var immediate = request.SendImmediately && await GetBoolSettingAsync(SmsSettingKeys.AllowImmediateSend, false, cancellationToken);
+            var immediate = request.SendImmediately;
             Guid historyId;
             if (immediate)
             {
@@ -289,9 +286,6 @@ namespace Vitorize.Infrastructure.Services.Sms
 
         public async Task RetryAsync(Guid id, Guid adminUserId, CancellationToken cancellationToken = default)
         {
-            if (!await GetBoolSettingAsync(SmsSettingKeys.AllowRetryFailed, true, cancellationToken))
-                throw new BusinessException("بازتلاش پیامک در تنظیمات غیرفعال است.");
-
             var sms = await _db.SmsMessages.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
                 ?? throw new NotFoundException("رکورد پیامک یافت نشد.");
             if (sms.Status == (byte)SmsMessageStatus.Sent)

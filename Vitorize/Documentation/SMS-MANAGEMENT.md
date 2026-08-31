@@ -53,12 +53,11 @@ EF migration ایجاد نشده است. ترتیب اجرای SQL Server:
 
 - `Sms.MaxCustomRecipients=1`
 - `Sms.MaxCustomTextLength=500`
-- `Sms.RequireConfirmation=true`
-- `Sms.AllowImmediateSend=false`
 - `Sms.HistoryRetentionDays=180`
 - `Sms.MaskMobileInAdmin=true`
 - `Sms.AllowAdminViewFullMobile=false`
-- `Sms.AllowRetryFailed=true`
+
+کلیدهای فعال/غیرفعال‌کردن سرویس، ارسال سفارشی، ارسال فوری و بازتلاش وجود ندارند. هر زمان API Key و در پیامک متنی، خط ارسال SMS.ir تنظیم باشد، ارسال پیامک فعال است. ارسال فوری و بازتلاش امن نیز همواره در دسترس‌اند.
 
 شناسه‌های واقعی SMS.ir هاردکد نشده‌اند. دو ورودی اصلی `Sms.OtpTemplateId` و `Sms.NotificationTemplateId` کلیدهای قدیمی را برای سازگاری همگام می‌کنند.
 
@@ -66,5 +65,5 @@ EF migration ایجاد نشده است. ترتیب اجرای SQL Server:
 
 - پاک‌سازی history نیازمند زمان‌بندی procedure توسط اپراتور پایگاه‌داده است.
 - ارسال سفارشی فعلاً عمداً تک‌گیرنده است؛ ارسال گروهی پیاده‌سازی نشده است.
-- سطح مجوز موجود پروژه `AdminOnly`/`SuperAdmin` است و permission engine ریزدانه‌ای برای SMS وجود ندارد. قابلیت‌های پرخطر علاوه بر نقش با feature flag غیرفعال‌اند.
+- سطح مجوز موجود پروژه `AdminOnly`/`SuperAdmin` است و permission engine ریزدانه‌ای برای SMS وجود ندارد.
 - Outboxهای بسیار قدیمی که پیش از ایجاد `SmsMessageId` ذخیره شده‌اند همچنان ارسال می‌شوند، اما اگر رکورد history متناظر نداشته باشند گذشته‌نگاری خودکار برای آن‌ها ساخته نمی‌شود.

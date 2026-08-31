@@ -75,7 +75,6 @@ namespace Vitorize.Infrastructure.Services.Sms
 
             return new SmsOptions
             {
-                IsEnabled = GetBool(map, SmsSettingKeys.IsEnabled, false),
                 Provider = GetString(map, SmsSettingKeys.Provider) ?? "SMS.ir",
                 ApiKey = GetString(map, SmsSettingKeys.ApiKey),
                 DefaultLineNumber = GetLong(map, SmsSettingKeys.DefaultLineNumber),
@@ -88,8 +87,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 OtpMaxAttempts = GetInt(map, SmsSettingKeys.OtpMaxAttempts, 5),
                 DailyOtpLimitPerMobile = GetInt(map, SmsSettingKeys.DailyOtpLimitPerMobile, 10),
                 DailySmsLimitPerMobile = GetInt(map, SmsSettingKeys.DailySmsLimitPerMobile, 30),
-                LogSensitiveData = GetBool(map, SmsSettingKeys.LogSensitiveData, false),
-                UseOutbox = GetBool(map, SmsSettingKeys.UseOutbox, true)
+                LogSensitiveData = GetBool(map, SmsSettingKeys.LogSensitiveData, false)
             };
         }
 

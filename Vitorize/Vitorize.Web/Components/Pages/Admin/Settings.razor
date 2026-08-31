@@ -182,7 +182,7 @@ else
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
     private static readonly string[] FieldOrder =
     {
-        SmsSettingKeys.IsEnabled, SmsSettingKeys.ApiKey, SmsSettingKeys.DefaultLineNumber,
+        SmsSettingKeys.ApiKey, SmsSettingKeys.DefaultLineNumber,
         "Sms.OtpTemplateId", "Sms.NotificationTemplateId",
         OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.Keys.CustomerNotice,
         "SiteName", "SiteDescription", "SiteTagline",
@@ -242,7 +242,9 @@ else
     }
 
     private static bool IsVisibleSetting(SettingModel setting) =>
-        setting.Key is null || !HiddenLegacySmsTemplateKeys.Contains(setting.Key);
+        setting.Key is null ||
+        (!HiddenLegacySmsTemplateKeys.Contains(setting.Key) &&
+         !SmsSettingKeys.DeprecatedKeys.Contains(setting.Key));
 
     private static bool IsIn(SettingModel s, string[] groups) =>
         s.GroupName != null && groups.Any(g => string.Equals(g, s.GroupName, StringComparison.OrdinalIgnoreCase));

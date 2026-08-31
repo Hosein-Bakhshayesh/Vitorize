@@ -410,13 +410,8 @@ namespace Vitorize.Infrastructure.Services
                 S("EnableRegistration", "true", "Features", "bool", "ثبت‌نام کاربران"),
                 S("EnableWallet", "true", "Features", "bool", "کیف پول کاربران"),
 
-                // ───────────── Newsletter / SMS (legacy flags) ─────────────
-                S("SmsEnabled", "false", "SMS", "bool", "ارسال پیامک (کلید قدیمی؛ از Sms.IsEnabled استفاده کنید)"),
-                S("SmsProvider", "Mock", "SMS", "string", "ارائه‌دهنده پیامک (کلید قدیمی)"),
-
                 // ───────────── SMS.ir (تنظیمات اصلی پیامک) ─────────────
                 // نکته امنیتی: گروه «SMS» در endpoint عمومی تنظیمات قرار ندارد و هرگز آشکار نمی‌شود.
-                S(SmsSettingKeys.IsEnabled, "false", "SMS", "bool", "فعال‌سازی سرویس پیامک SMS.ir"),
                 S(SmsSettingKeys.Provider, "SMS.ir", "SMS", "string", "ارائه‌دهنده پیامک"),
                 S(SmsSettingKeys.ApiKey, "", "SMS", "secret", "کلید API پنل SMS.ir (محرمانه)"),
                 S(SmsSettingKeys.DefaultLineNumber, "", "SMS", "string", "شماره خط اختصاصی برای پیامک متنی (محرمانه)"),
@@ -445,15 +440,11 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.DailySmsLimitPerMobile, "30", "SMS", "int", "سقف پیامک روزانه برای هر شماره"),
                 S(SmsSettingKeys.MaxRetryCount, "5", "SMS", "int", "حداکثر تعداد بازتلاش ارسال"),
                 S(SmsSettingKeys.RetryDelaySeconds, "30", "SMS", "int", "پایه تأخیر بازتلاش (ثانیه)"),
-                S(SmsSettingKeys.UseOutbox, "true", "SMS", "bool", "ارسال پیامک رویدادهای تجاری از طریق Outbox"),
                 S(SmsSettingKeys.MaxCustomRecipients, "1", "SMS", "int", "حداکثر گیرنده در هر ارسال سفارشی"),
                 S(SmsSettingKeys.MaxCustomTextLength, "500", "SMS", "int", "حداکثر طول پیامک متنی سفارشی"),
-                S(SmsSettingKeys.RequireConfirmation, "true", "SMS", "bool", "نیاز به تایید نهایی پیش از ارسال سفارشی"),
-                S(SmsSettingKeys.AllowImmediateSend, "false", "SMS", "bool", "اجازه ارسال فوری به جای صف"),
                 S(SmsSettingKeys.HistoryRetentionDays, "180", "SMS", "int", "مدت نگهداری تاریخچه پیامک بر حسب روز"),
                 S(SmsSettingKeys.MaskMobileInAdmin, "true", "SMS", "bool", "پنهان‌سازی شماره موبایل در تاریخچه مدیر"),
                 S(SmsSettingKeys.AllowAdminViewFullMobile, "false", "SMS", "bool", "اجازه مشاهده شماره کامل برای مدیر کل"),
-                S(SmsSettingKeys.AllowRetryFailed, "true", "SMS", "bool", "اجازه بازتلاش امن پیامک ناموفق"),
                 S(SmsSettingKeys.LogSensitiveData, "false", "SMS", "bool", "لاگ‌کردن داده حساس (فقط برای توسعه؛ در Production خاموش)"),
 
                 // ───────────── Email (SMTP) ─────────────

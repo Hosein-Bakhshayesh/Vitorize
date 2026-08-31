@@ -713,6 +713,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 116,
+      "version": "V0032",
+      "name": "V0032__always_on_sms_remove_activation_switches.sql",
+      "path": "Versioned/V0032__always_on_sms_remove_activation_switches.sql",
+      "sha256": "9981f260851fb928f8fea707e482ec147c39e2d2d9fe66eeddbe864c4264ec05",
+      "classification": "required",
+      "dependencies": [
+        "V0031",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

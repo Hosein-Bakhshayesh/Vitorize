@@ -10,8 +10,6 @@ namespace Vitorize.Application.Interfaces
     {
         // ---- کمکی ----
         bool TryNormalizeMobile(string? input, out string normalized);
-        Task<bool> IsEnabledAsync(CancellationToken cancellationToken = default);
-
         // ---- ارسال عمومی ----
         Task<SmsSendResult> SendTemplateAsync(
             string mobile,

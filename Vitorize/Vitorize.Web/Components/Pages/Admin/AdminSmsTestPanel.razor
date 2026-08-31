@@ -20,7 +20,6 @@
         @if (_status is not null)
         {
             <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-                @Pill(_status.IsEnabled, _status.IsEnabled ? "فعال" : "غیرفعال", _status.IsEnabled ? "check" : "x")
                 @Pill(_status.IsConfigured, _status.IsConfigured ? "پیکربندی معتبر" : "پیکربندی ناقص", "settings")
                 @Pill(_status.ConnectionOk, _status.ConnectionOk ? "اتصال برقرار" : "بدون اتصال", _status.ConnectionOk ? "wifi" : "alert")
                 @if (_status.Credit is not null)
@@ -175,7 +174,6 @@
     private sealed class SmsStatusModel
     {
         public bool IsConfigured { get; set; }
-        public bool IsEnabled { get; set; }
         public bool ConnectionOk { get; set; }
         public decimal? Credit { get; set; }
         public List<long> Lines { get; set; } = new();

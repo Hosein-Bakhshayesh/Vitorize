@@ -60,7 +60,6 @@ namespace Vitorize.Web.Models.Admin.Sms
 
     public sealed class SmsHealthModel
     {
-        public bool IsEnabled { get; set; }
         public bool IsConfigured { get; set; }
         public bool ConnectionOk { get; set; }
         public decimal? Credit { get; set; }
@@ -69,8 +68,6 @@ namespace Vitorize.Web.Models.Admin.Sms
         public int? NotificationTemplateId { get; set; }
         public int PendingOutboxCount { get; set; }
         public int FailedOutboxCount { get; set; }
-        public bool AllowImmediateSend { get; set; }
-        public bool AllowRetryFailed { get; set; }
         public bool CanSendText { get; set; }
         public string TextSendingMessage { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;

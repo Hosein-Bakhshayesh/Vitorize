@@ -139,13 +139,10 @@ public sealed class SmsAndSecurityUnitTests
                 x[1].Name == "EXPIRE" && x[1].Value == "3"), Arg.Any<CancellationToken>());
     }
 
-    [Theory]
-    [InlineData(false, true, SmsFailureReason.Disabled)]
-    [InlineData(true, false, SmsFailureReason.NotConfigured)]
-    public async Task Sms_service_fails_before_provider_when_disabled_or_missing_key(
-        bool enabled, bool hasKey, SmsFailureReason expected)
+    [Fact]
+    public async Task Sms_service_fails_before_provider_when_api_key_is_missing()
     {
-        var options = new SmsOptions { IsEnabled = enabled, ApiKey = hasKey ? "key" : null };
+        var options = new SmsOptions { ApiKey = null };
         var settings = Substitute.For<ISmsSettingsProvider>();
         var sender = Substitute.For<ISmsSender>();
         settings.GetAsync(Arg.Any<CancellationToken>()).Returns(options);
@@ -154,7 +151,7 @@ public sealed class SmsAndSecurityUnitTests
         var result = await sut.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
             [new("CODE", "123456"), new("EXPIRE", "3")]);
 
-        result.FailureReason.Should().Be(expected);
+        result.FailureReason.Should().Be(SmsFailureReason.NotConfigured);
         await sender.DidNotReceiveWithAnyArgs().SendVerifyAsync(default!, default!, default, default!, default);
     }
 

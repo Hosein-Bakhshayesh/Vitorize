@@ -30,30 +30,27 @@ public class SmsOptionsAndKeysTests
     }
 
     [Theory]
-    [InlineData(true, "key", true)]
-    [InlineData(false, "key", false)]
-    [InlineData(true, "", false)]
-    [InlineData(true, null, false)]
-    public void IsOperational_RequiresEnabledAndApiKey(bool enabled, string? apiKey, bool expected)
+    [InlineData("key", true)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsOperational_RequiresApiKey(string? apiKey, bool expected)
     {
-        var opts = new SmsOptions { IsEnabled = enabled, ApiKey = apiKey };
+        var opts = new SmsOptions { ApiKey = apiKey };
         Assert.Equal(expected, opts.IsOperational);
     }
 
     [Theory]
-    [InlineData(true, "key", 30001234, true)]
-    [InlineData(true, "key", null, false)]
-    [InlineData(true, "key", 0, false)]
-    [InlineData(false, "key", 30001234, false)]
-    public void CanSendText_RequiresOperationalSmsAndDedicatedLine(
-        bool enabled, string? apiKey, int? lineNumber, bool expected)
+    [InlineData("key", 30001234, true)]
+    [InlineData("key", null, false)]
+    [InlineData("key", 0, false)]
+    [InlineData(null, 30001234, false)]
+    public void CanSendText_RequiresApiKeyAndDedicatedLine(
+        string? apiKey, int? lineNumber, bool expected)
     {
         var opts = new SmsOptions
         {
-            IsEnabled = enabled,
             ApiKey = apiKey,
-            DefaultLineNumber = lineNumber,
-            UseOutbox = false
+            DefaultLineNumber = lineNumber
         };
 
         Assert.Equal(expected, opts.CanSendText);
@@ -65,6 +62,6 @@ public class SmsOptionsAndKeysTests
     {
         Assert.Contains(SmsSettingKeys.ApiKey, SmsSettingKeys.SecretKeys);
         Assert.Contains(SmsSettingKeys.DefaultLineNumber, SmsSettingKeys.SecretKeys);
-        Assert.DoesNotContain(SmsSettingKeys.IsEnabled, SmsSettingKeys.SecretKeys);
+        Assert.DoesNotContain("Sms.IsEnabled", SmsSettingKeys.SecretKeys);
     }
 }

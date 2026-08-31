@@ -81,9 +81,8 @@ internal static class UnitFixtures
         RefreshTokenExpirationDays = 7
     };
 
-    public static SmsOptions SmsOptions(bool enabled = true) => new()
+    public static SmsOptions SmsOptions() => new()
     {
-        IsEnabled = enabled,
         ApiKey = "unit-test-api-key",
         DefaultLineNumber = 30001234,
         MaxRetryCount = 0,

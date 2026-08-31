@@ -76,21 +76,21 @@ else
         </div>
     }
 
-    <div class="st-split" style="grid-template-columns:1fr 320px">
+    <div class="st-split verification-layout" style="grid-template-columns:1fr 320px">
         <div class="st-stack">
             <div class="st-card">
-                <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی</div>
+                <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات هویتی و مدارک تصویری</div>
                 <div class="st-card__pad">
-                    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+                    <div class="verification-form-grid">
                         <div class="st-field"><label class="st-label">نام صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input" aria-label="نام صاحب کارت بانکی" @bind="_firstName" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">نام خانوادگی صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input" aria-label="نام خانوادگی صاحب کارت بانکی" @bind="_lastName" disabled="@ReadOnly" /></div>
                         <div class="st-field"><label class="st-label">کد ملی صاحب کارت بانکی <span class="st-required">*</span></label><input class="st-input st-mono" aria-label="کد ملی صاحب کارت بانکی" value="@_nationalCode" @oninput="OnNationalCodeInput" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" dir="ltr" disabled="@ReadOnly" /><div class="st-muted" style="font-size:11.5px;margin-top:4px">کد ملی باید دقیقاً ۱۰ رقم باشد.</div></div>
                         <div class="st-field"><label class="st-label">تاریخ تولد صاحب کارت بانکی <span class="st-required">*</span></label><PersianDatePicker @bind-Value="_birthDate" ReadOnly="@ReadOnly" ValidationChanged="OnBirthDateValidationChanged" />
                             @if (!string.IsNullOrWhiteSpace(_birthDateError)) { <div class="st-field__error" role="alert">@_birthDateError</div> }
                         </div>
-                        <div class="st-field" style="grid-column:1 / -1">
+                        <div class="st-field verification-form-grid__wide">
                             <label class="st-label">آیا شماره‌ تماسی که با آن داخل سایت ثبت‌نام کرده‌اید به نام صاحب کارت بانکی است؟ <span class="st-required">*</span></label>
-                            <div style="display:flex;gap:18px;margin-top:8px">
+                            <div class="verification-mobile-owner-choice">
                                 <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == true)" @onchange="() => SetRegisteredMobileOwner(true)" disabled="@ReadOnly" /> بله</label>
                                 <label><input type="radio" name="registered-mobile-owner" checked="@(_registeredMobileBelongsToCardHolder == false)" @onchange="() => SetRegisteredMobileOwner(false)" disabled="@ReadOnly" /> خیر</label>
                             </div>
@@ -100,16 +100,13 @@ else
                             }
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div class="st-card">
-                <div class="st-card__head"><Icon Name="image" Size="18" /> مدارک تصویری الزامی</div>
-                <div class="st-card__pad">
-                    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+                    <section class="verification-documents-section" aria-labelledby="verification-documents-title">
+                        <div id="verification-documents-title" class="verification-documents-section__title"><Icon Name="image" Size="18" /> مدارک تصویری الزامی</div>
+                        <div class="verification-documents-grid">
                         @foreach (var document in DocumentSlots)
                         {
-                            <div>
+                            <div class="verification-document-slot">
                                 <div class="st-label">@document.Title</div>
                                 @if (!string.IsNullOrWhiteSpace(document.Instructions))
                                 {
@@ -135,8 +132,9 @@ else
                                 }
                             </div>
                         }
-                    </div>
-                    <div class="st-muted" style="font-size:12px;margin-top:14px">همه مدارک ستاره‌دار باید پیش از ثبت نهایی احراز هویت بارگذاری شوند.</div>
+                        </div>
+                        <div class="st-muted verification-documents-section__hint">همه مدارک ستاره‌دار باید پیش از ثبت نهایی احراز هویت بارگذاری شوند.</div>
+                    </section>
                 </div>
             </div>
             @if (!ReadOnly)
@@ -160,6 +158,30 @@ else
 }
 
 <style>
+    .verification-form-grid,
+    .verification-documents-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+    .verification-form-grid__wide { grid-column: 1 / -1; }
+    .verification-mobile-owner-choice { display: flex; gap: 18px; margin-top: 8px; }
+    .verification-documents-section {
+        margin-top: 6px;
+        padding-top: 20px;
+        border-top: 1px solid var(--st-border);
+    }
+    .verification-documents-section__title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        font-size: 15px;
+        font-weight: 800;
+    }
+    .verification-document-slot { min-width: 0; }
+    .verification-documents-section__hint { margin-top: 14px; font-size: 12px; }
+
     .verification-why { padding: 14px 16px; }
     .verification-why__title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
     .verification-why__notice-wrap { position: relative; }
@@ -171,6 +193,17 @@ else
     .verification-why__notice-wrap.is-expanded .verification-why__toggle { position: static; display: block; margin-top: 7px; margin-inline-start: auto; }
 
     @@media (max-width: 640px) {
+        .verification-form-grid,
+        .verification-documents-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+        .verification-form-grid__wide { grid-column: auto; }
+        .verification-mobile-owner-choice { gap: 24px; }
+        /* Keep the date picker in normal document flow on phones so it pushes the
+           following field down instead of covering it. */
+        .verification-layout .st-datepicker .vz-cal {
+            position: static;
+            width: 100%;
+            margin-top: 8px;
+        }
         .verification-why { padding: 14px; }
         .verification-why__title { font-size: 15px; }
         .verification-why__toggle { font-size: 11.5px; }

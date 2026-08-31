@@ -251,7 +251,6 @@ public class SmsUniversalTemplateTests
         });
         var options = new SmsOptions
         {
-            IsEnabled = true,
             ApiKey = "test-key",
             TemplateIds = templateIds,
             MaxRetryCount = 0

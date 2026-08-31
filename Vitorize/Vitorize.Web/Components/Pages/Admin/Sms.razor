@@ -12,8 +12,8 @@
     <Actions>
         <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="RefreshAll"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
-        <button class="vz-btn vz-btn--outline" disabled="@(_health is not { IsEnabled: true, IsConfigured: true })" title="@(_health is { IsEnabled: true, IsConfigured: true } ? null : "ابتدا اتصال SMS.ir را در تنظیمات کامل کنید")" @onclick="OpenKycTemplate"><Icon Name="shield" Size="17" /> قالب احراز هویت</button>
-        <button class="vz-btn vz-btn--primary" disabled="@(_health is not { IsEnabled: true, IsConfigured: true })" title="@(_health is { IsEnabled: true, IsConfigured: true } ? null : "ابتدا اتصال SMS.ir را در تنظیمات کامل کنید")" @onclick="OpenCustomSend"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
+        <button class="vz-btn vz-btn--outline" disabled="@(!CanSendText)" title="@(CanSendText ? null : "API Key و شماره خط ارسال SMS.ir را در تنظیمات کامل کنید")" @onclick="OpenKycTemplate"><Icon Name="shield" Size="17" /> قالب احراز هویت</button>
+        <button class="vz-btn vz-btn--primary" disabled="@(!CanOpenCustomSend)" title="@(CanOpenCustomSend ? null : "API Key و شماره خط ارسال SMS.ir یا شناسه قالب را در تنظیمات کامل کنید")" @onclick="OpenCustomSend"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
     </Actions>
 </PageHeader>
 
@@ -23,7 +23,7 @@
         <div><strong>SMS.ir</strong><div class="vz-hint">@(_health?.Message ?? "در حال بررسی اتصال...")</div></div>
     </div>
     <div class="sms-health__facts">
-        <span>وضعیت: <b>@(_health?.IsEnabled == true ? "فعال" : "غیرفعال")</b></span>
+        <span>ارسال: <b>همیشه فعال</b></span>
         <span>اعتبار: <b>@(_health?.Credit?.ToString("#,0") ?? "—")</b></span>
         <span>OTP: <b>@(_health?.OtpTemplateId?.ToString() ?? "—")</b></span>
         <span>اعلان: <b>@(_health?.NotificationTemplateId?.ToString() ?? "—")</b></span>
@@ -216,7 +216,7 @@ else
             }
         }
         @if (_sendMode != "kyc") { <div class="vz-field"><label class="vz-label">یادداشت داخلی (ارسال نمی‌شود)</label><textarea class="vz-textarea" rows="2" @bind="_internalNote" maxlength="500"></textarea></div> }
-        @if (_sendMode != "kyc") { <label class="sms-checkbox"><input type="checkbox" disabled="@(_health?.AllowImmediateSend != true)" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label> }
+        @if (_sendMode != "kyc") { <label class="sms-checkbox"><input type="checkbox" @bind="_immediate" /> ارسال فوری به‌جای صف (در حالت پیش‌فرض از صف امن استفاده می‌شود)</label> }
         <div class="sms-warning"><Icon Name="alert" Size="17" /> پیش از ارسال، شماره و محتوای پیام را بررسی کنید. این عملیات در تاریخچه و لاگ امنیتی ثبت می‌شود.</div>
     </ChildContent>
     <Footer><button class="vz-btn vz-btn--primary" disabled="@(_sending || (SelectedModeNeedsTextLine && !CanSendText))" @onclick="SendCustom">@if (_sending) { <span class="vz-spinner sm"></span> }<span>تایید و ارسال</span></button><button class="vz-btn vz-btn--ghost" @onclick="CloseSend">انصراف</button></Footer>
@@ -267,6 +267,7 @@ else
     private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
     private int KycSegmentCount => string.IsNullOrEmpty(_kycReminderText) ? 0 : (int)Math.Ceiling(_kycReminderText.Length / (_kycReminderText.Any(c => c > 127) ? 67d : 153d));
     private bool CanSendText => _health?.CanSendText == true;
+    private bool CanOpenCustomSend => CanSendText || _health?.IsConfigured == true;
     private bool SelectedModeNeedsTextLine => _sendMode is "text" or "kyc";
     private string TextSendingSetupHint => string.IsNullOrWhiteSpace(_health?.TextSendingMessage)
         ? "برای ارسال پیامک متنی، تنظیمات SMS.ir را کامل کنید."
@@ -338,7 +339,7 @@ else
     private async Task ClearFilters(){_search=_status=_type=_purpose=_from=_to="";_onlyFailed=_onlyPending=_onlyCustom=false;await ApplyFilters();}
     private async Task ChangePage(int p){_page=p;await LoadHistory();}
     private async Task OpenDetails(Guid id){_detailOpen=true;_detailLoading=true;var r=await Api.GetAsync<SmsHistoryModel>($"admin/sms/{id}");if(r.IsSuccess)_current=r.Data;else Toasts.Error(r.Message);_detailLoading=false;}
-    private bool CanRetry(SmsHistoryModel x)=>_health?.AllowRetryFailed==true&&x.SendType!=1&&x.Status is 3 or 4 or 5&&x.ProviderErrorCode is "Network" or "Timeout" or "ProviderUnavailable" or "TooManyRequests";
+    private bool CanRetry(SmsHistoryModel x)=>x.SendType!=1&&x.Status is 3 or 4 or 5&&x.ProviderErrorCode is "Network" or "Timeout" or "ProviderUnavailable" or "TooManyRequests";
     private static bool CanCancel(SmsHistoryModel x)=>x.Status is 0 or 4;
     private async Task Retry(SmsHistoryModel x){if(!await JS.InvokeAsync<bool>("confirm","این پیامک ناموفق دوباره در صف قرار گیرد؟"))return;var r=await Api.PostAsync<object>($"admin/sms/{x.Id}/retry",new{});if(r.IsSuccess){Toasts.Success("پیامک در صف بازتلاش قرار گرفت.");await RefreshAll();if(_detailOpen)await OpenDetails(x.Id);}else Toasts.Error(r.Message);}
     private async Task Cancel(SmsHistoryModel x){if(!await JS.InvokeAsync<bool>("confirm","ارسال این پیامک لغو شود؟"))return;var r=await Api.PostAsync<object>($"admin/sms/{x.Id}/cancel",new{});if(r.IsSuccess){Toasts.Success("ارسال لغو شد.");_detailOpen=false;await RefreshAll();}else Toasts.Error(r.Message);}
