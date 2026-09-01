@@ -22,8 +22,24 @@ public static class ProtectedMediaEndpoints
         IConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        var token = await accessTokens.GetAccessTokenAsync();
-        if (string.IsNullOrWhiteSpace(token))
+        // This proxy serves TWO audiences on one shared path: the customer viewing their own
+        // document, and an administrator reviewing it. The path-based resolver prefers the admin
+        // session on /media, so a browser holding BOTH cookies used to present the ADMIN token for
+        // the CUSTOMER'S own preview - and the API correctly answered 404 (not the owner). Try each
+        // authenticated session's token instead: the customer first (ownership), then the admin
+        // (review permission), then whatever the resolved-scheme provider offers (refresh-capable).
+        var candidates = new List<string?>
+        {
+            context.Request.Cookies[VitorizeAuthSchemes.CustomerAccessTokenCookie],
+            context.Request.Cookies[VitorizeAuthSchemes.AdminAccessTokenCookie],
+            await accessTokens.GetAccessTokenAsync()
+        };
+        var tokens = candidates
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (tokens.Count == 0)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
@@ -36,21 +52,34 @@ public static class ProtectedMediaEndpoints
             return;
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get,
-            $"{apiBaseUrl}/verification/documents/{documentId:D}/content");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        using var response = await httpClientFactory.CreateClient().SendAsync(
-            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        HttpResponseMessage? response = null;
+        try
+        {
+            foreach (var token in tokens)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get,
+                    $"{apiBaseUrl}/verification/documents/{documentId:D}/content");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                response?.Dispose();
+                response = await httpClientFactory.CreateClient().SendAsync(
+                    request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (response.IsSuccessStatusCode) break;
+            }
 
-        context.Response.StatusCode = (int)response.StatusCode;
-        if (!response.IsSuccessStatusCode)
-            return;
+            context.Response.StatusCode = (int)response!.StatusCode;
+            if (!response.IsSuccessStatusCode)
+                return;
 
-        context.Response.ContentType = response.Content.Headers.ContentType?.ToString()
-            ?? "application/octet-stream";
-        context.Response.Headers.CacheControl = "no-store, private";
-        if (response.Content.Headers.ContentLength is long length)
-            context.Response.ContentLength = length;
-        await response.Content.CopyToAsync(context.Response.Body, cancellationToken);
+            context.Response.ContentType = response.Content.Headers.ContentType?.ToString()
+                ?? "application/octet-stream";
+            context.Response.Headers.CacheControl = "no-store, private";
+            if (response.Content.Headers.ContentLength is long length)
+                context.Response.ContentLength = length;
+            await response.Content.CopyToAsync(context.Response.Body, cancellationToken);
+        }
+        finally
+        {
+            response?.Dispose();
+        }
     }
 }
