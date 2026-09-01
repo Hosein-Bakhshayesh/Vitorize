@@ -1,5 +1,5 @@
 import { expect, test, clearCustomerCart, expectRtlAndNoOverflow } from '../framework/fixtures';
-import { apiBaseUrl, monitorBrowser } from './support/app';
+import { apiBaseUrl, monitorBrowser, withOrderKycThreshold } from './support/app';
 
 const order = {
   main: '32000000-0000-0000-0000-000000000001',
@@ -20,6 +20,10 @@ const item = {
 const heldCanary = 'FIX09-P2F-HELD-CANARY-DO-NOT-RENDER';
 
 test.describe('FIX-09 Phase 2F Customer KYC orders @fix09p2fcustomer', () => {
+  // The retired per-product KYC modes are emulated store-wide: threshold 5000 makes the 5001-Toman
+  // fixtures require verification and leaves the cheaper ones free, exactly as the old modes did.
+  test.beforeAll(() => withOrderKycThreshold(5000));
+  test.afterAll(() => withOrderKycThreshold(50_000_000));
   test.describe.configure({ timeout: 180_000 });
 
   test('customer order details map KYC states, CTAs, delivery truth, mixed items, and legacy items', async ({ page, consoleGuard }, testInfo) => {
@@ -93,17 +97,15 @@ test.describe('FIX-09 Phase 2F Customer KYC orders @fix09p2fcustomer', () => {
     consoleGuard.assertClean();
   });
 
-  test('payment result distinguishes paid from completion and presents the KYC action', async ({ page, consoleGuard }, testInfo) => {
+  test('a paid order that needs verification goes straight into the verification form', async ({ page, consoleGuard }, testInfo) => {
+    // The rework replaced the "second action on the callback page" with an immediate redirect: a
+    // qualifying paid order lands the customer inside the verification form for that order.
     await setViewport(page, testInfo.project.name);
     await login(page, '09120000013');
     await page.goto(`/payment/result?orderId=${order.payment}&paid=1`, { waitUntil: 'networkidle' });
-    await expect(page.locator('h1')).toContainText('پرداخت با موفقیت انجام شد');
-    await expect(page.locator('main')).toContainText('تکمیل احراز هویت');
-    await expect(page.locator('main')).toContainText('پرداخت موفق بوده');
+    await expect(page).toHaveURL(new RegExp(`/customer/verification\\?orderId=${order.payment}`));
+    await expect(page.locator('main')).toContainText('احراز هویت');
     await expect(page.locator('main')).not.toContainText(heldCanary);
-    await expect(page.locator('main')).not.toContainText('سفارش شما تکمیل شد');
-    const action = page.locator(`a[href="/customer/orders/${order.payment}"]`).filter({ hasText: 'تکمیل' });
-    await expect(action).toBeVisible();
     await expectRtlAndNoOverflow(page);
     consoleGuard.assertClean();
   });
@@ -121,7 +123,9 @@ test.describe('FIX-09 Phase 2F Customer KYC orders @fix09p2fcustomer', () => {
     consoleGuard.assertClean();
   });
 
-  test('unverified customer receives post-payment KYC information while checkout remains available', async ({ page, request, consoleGuard }, testInfo) => {
+  test('an unverified customer can still check out and is routed into verification after paying', async ({ page, request, consoleGuard }, testInfo) => {
+    // The pre-payment checkout notice was removed by design: checkout stays unobstructed, and the
+    // paid order carries the customer straight into the verification form.
     test.skip(testInfo.project.name !== 'desktop-light', 'The checkout transition is exercised once through the real UI.');
     await setViewport(page, testInfo.project.name);
     await login(page, '09120000013');
@@ -131,10 +135,8 @@ test.describe('FIX-09 Phase 2F Customer KYC orders @fix09p2fcustomer', () => {
     await page.goto('/cart', { waitUntil: 'networkidle' });
     await page.locator('.st-cart-sum button.st-btn--accent').click();
     await expect(page).toHaveURL(/\/checkout/);
-    await expect(page.getByTestId('checkout-kyc-information')).toBeVisible();
-    await expect(page.getByTestId('checkout-kyc-post-payment-copy')).toContainText('پس از پرداخت');
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
+    await expect(page).toHaveURL(/\/customer\/verification\?orderId=/, { timeout: 40_000 });
     expect(await myOrderCount(request)).toBe(before + 1);
     await clearCustomerCart(page);
     consoleGuard.assertClean();

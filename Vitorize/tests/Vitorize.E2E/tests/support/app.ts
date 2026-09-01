@@ -238,3 +238,33 @@ export async function expectRtlAndNoOverflow(page: Page): Promise<void> {
   expect(layout.overflow, JSON.stringify(layout)).toBeLessThanOrEqual(1);
   expect(layout.offenders, JSON.stringify(layout)).toEqual([]);
 }
+
+/**
+ * Store-wide order-total KYC threshold (Toman). The seed pins it far above every fixture price so
+ * ordinary commerce flows never detour into verification; KYC specs lower it around their own
+ * scenario and MUST restore it (the checkout reads it live, so the change is instant).
+ */
+export async function setOrderKycThreshold(request: APIRequestContext, adminToken: string, toman: number): Promise<void> {
+  const response = await request.post(`${apiBaseUrl}/admin/settings`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: {
+      key: 'Verification.OrderAmountThresholdToman', value: String(toman),
+      groupName: 'Verification', valueType: 'decimal', description: 'آستانه احراز هویت سفارش'
+    }
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+/** Self-contained variant of setOrderKycThreshold: signs in as the admin, applies the value, and
+ * disposes its own request context - usable from beforeAll/afterAll and mid-test alike. */
+export async function withOrderKycThreshold(toman: number): Promise<void> {
+  const { request: apiRequest } = await import('@playwright/test');
+  const ctx = await apiRequest.newContext();
+  try {
+    const login = await ctx.post(`${apiBaseUrl}/auth/login`, { data: { mobile: adminMobile, password: adminPassword } });
+    const token = (await login.json()).data.accessToken as string;
+    await setOrderKycThreshold(ctx, token, toman);
+  } finally {
+    await ctx.dispose();
+  }
+}

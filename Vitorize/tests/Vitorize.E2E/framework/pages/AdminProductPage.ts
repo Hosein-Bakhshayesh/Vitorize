@@ -102,7 +102,9 @@ export class AdminProductPage extends BasePage {
     await expect(this.page.getByTestId('product-category')).toHaveValue(/.+/);
     await expect(this.page.getByTestId('product-type')).toHaveValue(String(product.productType));
     await expect(this.page.getByTestId(`product-delivery-${product.deliveryType}`)).toHaveClass(/active/);
-    expect(Number(await this.page.getByTestId('product-base-price').inputValue())).toBe(product.basePrice);
+    // AmountInput renders the stored value with thousand separators; strip them before comparing.
+    const basePriceRaw = await this.page.getByTestId('product-base-price').inputValue();
+    expect(Number(basePriceRaw.replace(/[,٬‏\s]/g, ''))).toBe(product.basePrice);
     await expect(this.page.getByTestId('product-active')).toBeChecked({ checked: product.active });
     await expect(this.page.getByTestId('product-featured')).toBeChecked({ checked: product.featured });
   }

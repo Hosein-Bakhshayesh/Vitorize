@@ -1,5 +1,5 @@
 import { expect, test, clearCustomerCart, expectRtlAndNoOverflow } from '../framework/fixtures';
-import { loginAdmin, logoutAdmin, logoutCustomer, monitorBrowser } from './support/app';
+import { loginAdmin, logoutAdmin, logoutCustomer, monitorBrowser, withOrderKycThreshold } from './support/app';
 
 // Phase-2G's paid allocation fixture belongs to the above-threshold instant
 // product. The similarly named "always" product is deliberately manual and
@@ -14,6 +14,10 @@ const primaryCustomers = {
 } as const;
 
 test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
+  // The retired per-product KYC modes are emulated store-wide: threshold 5000 makes the 5001-Toman
+  // fixtures require verification and leaves the cheaper ones free, exactly as the old modes did.
+  test.beforeAll(() => withOrderKycThreshold(5000));
+  test.afterAll(() => withOrderKycThreshold(50_000_000));
   // Placing the order and verifying the payment is one server round trip that allocates a gift code
   // and writes the delivery record; measured here at up to 16s, it overruns the default 10s expect
   // budget while succeeding, so the two payment navigations below carry a measured wait.
@@ -28,31 +32,16 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     await addProduct(page);
     await page.goto('/cart', { waitUntil: 'networkidle' });
     await page.locator('.st-cart-sum button.st-btn--accent').click();
-    await expect(page.getByTestId('checkout-kyc-information')).toBeVisible();
-    await expect(page.getByTestId('checkout-kyc-post-payment-copy')).not.toBeEmpty();
-    // Post-payment KYC is informational, but the customer must still be able to act on it: this
-    // panel previously hid its own call to action behind an inline stylesheet, which left a
-    // customer who needed verification with no way to reach the flow. The exact wording depends on
-    // whether documents are already under review, so assert the reachable route, not one label.
-    const kycPanel = page.getByTestId('checkout-kyc-information');
-    await expect(kycPanel.getByTestId('checkout-kyc-state')).toBeVisible();
-    await expect(kycPanel.locator('a[href="/customer/verification"]')).toBeVisible();
     await expectRtlAndNoOverflow(page);
 
+    // The rework removed the pre-payment checkout notice: a qualifying paid order redirects the
+    // customer straight into the verification form for that order.
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
+    await expect(page).toHaveURL(/\/customer\/verification\?orderId=/, { timeout: 40_000 });
     const orderId = new URL(page.url()).searchParams.get('orderId')!;
-    const orderAction = page.locator(`a[href="/customer/orders/${orderId}"]`);
-    await expect(orderAction).toBeVisible();
-    await orderAction.click();
-    await expect(page.locator('main')).toContainText('2F V2 Purchase Policy');
+    await expect(page.locator('main')).toContainText('احراز هویت');
     await expect(page.locator('main')).not.toContainText(/(?:P2F|P2G)-CHECKOUT-/);
-    const kycAction = page.locator('a[href^="/customer/verification?orderItem="]');
-    await expect(kycAction).toBeVisible();
-    await kycAction.click();
-    await expect(page.locator('main')).toContainText('2F V2 Purchase Policy');
     await uploadAndSubmit(page, 'P2G', `${testInfo.project.name} Happy`);
-    await expect(page.locator('button.st-btn--primary')).toHaveCount(0);
     await expect(page.locator('main')).not.toContainText(/(?:P2F|P2G)-CHECKOUT-/);
 
     await logoutCustomer(page);
@@ -78,10 +67,8 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     await page.goto('/cart', { waitUntil: 'networkidle' });
     await page.locator('.st-cart-sum button.st-btn--accent').click();
     await page.locator('button.st-btn--accent').last().click();
-    await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
+    await expect(page).toHaveURL(/\/customer\/verification\?orderId=/, { timeout: 40_000 });
     const orderId = new URL(page.url()).searchParams.get('orderId')!;
-    await page.locator(`a[href="/customer/orders/${orderId}"]`).click();
-    await page.locator('a[href^="/customer/verification?orderItem="]').click();
     await uploadAndSubmit(page, 'P2G', 'Reject');
     await logoutCustomer(page);
     await loginAdmin(page);
@@ -93,9 +80,8 @@ test.describe('FIX-09 Phase 2G real post-payment KYC @fix09p2g', () => {
     const resubmit = page.locator('a[href^="/customer/verification?orderItem="]');
     await expect(resubmit).toBeVisible();
     await resubmit.click();
-    await expect(page.locator('main')).toContainText('2F V2 Purchase Policy');
+    await expect(page.locator('main')).toContainText('احراز هویت');
     await replaceRejectedDocuments(page);
-    await expect(page.locator('button.st-btn--primary')).toHaveCount(0);
     monitor.assertClean();
     consoleGuard.assertClean();
   });
@@ -129,14 +115,18 @@ async function addProduct(page: import('@playwright/test').Page) {
 }
 
 async function uploadAndSubmit(page: import('@playwright/test').Page, firstName: string, lastName: string) {
+  // Single-form flow now: complete every mandatory field, upload the documents, THEN submit once.
   const inputs = page.locator('input.st-input');
   await inputs.nth(0).fill(firstName); await inputs.nth(1).fill(lastName); await inputs.nth(2).fill('1234567890');
-  await page.locator('button.st-btn--primary').click();
+  await page.getByLabel('تاریخ تولد به تقویم شمسی').fill('۱۳۷۵/۰۶/۱۵');
+  await page.locator('input[name="registered-mobile-owner"]').first().check();
   await expect(page.locator('input[type="file"]')).toHaveCount(2);
   await page.locator('input[type="file"]').nth(0).setInputFiles(uploadFixture);
   await expect(page.locator('input[type="file"]')).toHaveCount(1);
   await page.locator('input[type="file"]').nth(0).setInputFiles(uploadFixture);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'ثبت نهایی احراز هویت', exact: true }).click();
+  await expect(page.getByText('اطلاعات احراز هویت ثبت شد.')).toBeVisible();
 }
 
 async function replaceRejectedDocuments(page: import('@playwright/test').Page) {

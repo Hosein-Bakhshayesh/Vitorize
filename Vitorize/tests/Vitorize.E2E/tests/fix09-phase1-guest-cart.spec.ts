@@ -1,12 +1,16 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl } from './support/app';
+import { apiBaseUrl, withOrderKycThreshold } from './support/app';
 
 const guestCookie = 'Vitorize.GuestCart';
 const product = { slug: 'e2e-fix09-quantity', title: 'E2E FIX09 Quantity' };
 
-type Cart = { id: string; totalQuantity: number; items: Array<{ id: string; quantity: number; requiresKyc: boolean; kycRequirementMode: number; kycThresholdAmount: number | null; kycEvaluatedAmount: number }> };
+type Cart = { id: string; totalQuantity: number; items: Array<{ id: string; quantity: number }> };
 
 test.describe('FIX-09 Phase 1 guest cart KYC regression @fix09p1guest', () => {
+  // The retired per-product KYC modes are emulated store-wide: threshold 5000 makes the 5001-Toman
+  // fixtures require verification and leaves the cheaper ones free, exactly as the old modes did.
+  test.beforeAll(() => withOrderKycThreshold(5000));
+  test.afterAll(() => withOrderKycThreshold(50_000_000));
   test.describe.configure({ timeout: 180_000 });
 
   test('desktop light preserves guest quantity through merge and blocks KYC before payment', async ({ page, context, request, consoleGuard }, testInfo) => {
@@ -82,24 +86,17 @@ async function runGuestJourney(page: import('@playwright/test').Page, context: i
   await page.goto('/shop', { waitUntil: 'networkidle' });
   await page.goto('/cart', { waitUntil: 'networkidle' });
   await expect(page.locator('.st-cart-item').filter({ hasText: product.title })).toHaveCount(1);
-  await expect(page.getByTestId('cart-kyc-requirement')).toBeVisible();
   await expectCustomerCart(request, customerToken, 2, true);
 
   const ordersBefore = await ordersFor(request, customerToken);
   await page.locator('.st-cart-sum button.st-btn--accent').click();
   await expect(page).toHaveURL(/\/checkout/);
-  const information = page.getByTestId('checkout-kyc-information');
-  await expect(information).toBeVisible();
-  await expect(information.getByTestId('checkout-kyc-post-payment-copy')).toContainText('پس از پرداخت');
+  // KYC is decided from the order total at checkout now: 2 x 2500 = 5000 meets the 5000 threshold,
+  // so the paid order routes straight into the verification form for that order.
   await page.locator('button.st-btn--accent').last().click();
-  await expect(page).toHaveURL(/\/payment\/result\?orderId=.*paid=1/, { timeout: 40_000 });
+  await expect(page).toHaveURL(/\/customer\/verification\?orderId=/, { timeout: 40_000 });
   expect((await ordersFor(request, customerToken)).length).toBe(ordersBefore.length + 1);
-
-  const paymentResultOrderId = new URL(page.url()).searchParams.get('orderId');
-  expect(paymentResultOrderId).toBeTruthy();
-  const kycCta = page.getByRole('link', { name: 'تکمیل احراز هویت', exact: true });
-  await expect(kycCta).toBeVisible();
-  await expect(kycCta).toHaveAttribute('href', `/customer/orders/${paymentResultOrderId}`);
+  await expect(page.locator('main')).toContainText('احراز هویت');
 }
 
 async function guestCapability(context: import('@playwright/test').BrowserContext): Promise<string> {
@@ -122,7 +119,7 @@ async function expectGuestCart(page: import('@playwright/test').Page, capability
   const cart = (await response.json() as { data: Cart }).data;
   expect(cart.items).toHaveLength(1);
   expect(cart.totalQuantity).toBe(quantity);
-  expect(cart.items[0]).toMatchObject({ quantity, requiresKyc: expectsKyc, kycRequirementMode: 2, kycThresholdAmount: 4000, kycEvaluatedAmount: 5000 });
+  expect(cart.items[0]).toMatchObject({ quantity });
 }
 
 async function expectConsumedGuestCapability(page: import('@playwright/test').Page, capability: string) {
@@ -146,7 +143,7 @@ async function expectCustomerCart(request: import('@playwright/test').APIRequest
   if (quantity === 0) { expect(cart.items).toEqual([]); return; }
   expect(cart.items).toHaveLength(1);
   expect(cart.totalQuantity).toBe(quantity);
-  expect(cart.items[0]).toMatchObject({ quantity, requiresKyc: expectsKyc, kycRequirementMode: 2, kycThresholdAmount: 4000, kycEvaluatedAmount: 5000 });
+  expect(cart.items[0]).toMatchObject({ quantity });
 }
 
 async function ordersFor(request: import('@playwright/test').APIRequestContext, token: string) {

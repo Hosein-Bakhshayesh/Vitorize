@@ -198,9 +198,12 @@ else
         .verification-form-grid__wide { grid-column: auto; }
         .verification-mobile-owner-choice { gap: 24px; }
         /* Keep the date picker in normal document flow on phones so it pushes the
-           following field down instead of covering it. */
+           following field down instead of covering it. `relative`, never `static`: a static
+           element has no z-index, so the picker's transparent close-backdrop (fixed, z 115)
+           sat ON TOP of the calendar and swallowed every tap inside it. */
         .verification-layout .st-datepicker .vz-cal {
-            position: static;
+            position: relative;
+            z-index: 120;
             width: 100%;
             margin-top: 8px;
         }
@@ -298,8 +301,9 @@ else
         { Toasts.Error("همه فیلدهای ستاره‌دار الزامی هستند."); return; }
         if (_nationalCode.Length != 10 || _nationalCode.Any(value => value is < '0' or > '9'))
         { Toasts.Error("کد ملی باید دقیقاً ۱۰ رقم باشد."); return; }
-        if (_registeredMobileBelongsToCardHolder == false && string.IsNullOrWhiteSpace(_cardHolderMobile))
-        { Toasts.Error("شماره تماس صاحب کارت بانکی را وارد کنید."); return; }
+        if (_registeredMobileBelongsToCardHolder == false &&
+            !Vitorize.Application.Common.IranMobile.TryNormalize(_cardHolderMobile, out _))
+        { Toasts.Error("شماره تماس صاحب کارت بانکی را به شکل صحیح (مثلاً 09xxxxxxxxx) وارد کنید."); return; }
         if (DocumentSlots.Where(document => document.IsRequired).Any(document => !HasUploadedDocument(document)))
         { Toasts.Error("پیش از ثبت نهایی، همه مدارک تصویری الزامی را بارگذاری کنید."); return; }
 

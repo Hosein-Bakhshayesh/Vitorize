@@ -128,14 +128,14 @@ test.describe('@responsive @regression @release responsive interactions and over
     });
   });
 
-  test('all 17 Settings tabs keep values and save controls accessible @mobile @tablet', async ({ page, loginAs }, testInfo) => {
+  test('all 18 Settings tabs keep values and save controls accessible @mobile @tablet', async ({ page, loginAs }, testInfo) => {
     test.skip(!interactionProjects.has(testInfo.project.name));
     await loginAs('SuperAdmin');
     await page.goto('/admin/settings', { waitUntil: 'domcontentloaded' });
     const tabs = page.locator('.vz-settab');
-    await expect(tabs).toHaveCount(17);
+    await expect(tabs).toHaveCount(18);
 
-    for (let index = 0; index < 17; index++) {
+    for (let index = 0; index < 18; index++) {
       await tabs.nth(index).click();
       await expect(tabs.nth(index)).toHaveClass(/active/);
       await expect(page.locator('.vz-setfield').first()).toBeVisible();

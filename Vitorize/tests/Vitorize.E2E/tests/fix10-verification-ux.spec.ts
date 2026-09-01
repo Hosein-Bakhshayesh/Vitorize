@@ -20,7 +20,22 @@ test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
     await page.goto('/customer/verification?orderItem=38000000-0000-0000-0000-000000000082', { waitUntil: 'networkidle' });
     const dob = page.getByLabel('تاریخ تولد به تقویم شمسی');
     await dob.fill('۱۳۷۵/۰۶/۱۵');
-    await page.getByRole('button', { name: 'ثبت اطلاعات احراز هویت', exact: true }).click();
+    // Every starred field is mandatory in the reworked form, and the required document has to be
+    // in place before the final submit is accepted.
+    await page.getByLabel('نام صاحب کارت بانکی').fill('کاربر');
+    await page.getByLabel('نام خانوادگی صاحب کارت بانکی').fill('آزمایشی');
+    await page.getByLabel('کد ملی صاحب کارت بانکی').fill('1234567890');
+    await page.locator('input[name="registered-mobile-owner"]').first().check();
+    // Deterministic uploads: consume every file slot before submitting - the submit refuses while a
+    // required document still reads «ثبت نشده».
+    const fileInputs = page.locator('input[type="file"]');
+    while (await fileInputs.count() > 0) {
+      const before = await fileInputs.count();
+      await fileInputs.first().setInputFiles(
+        'D:/Vitorize/Vitorize/Vitorize.Api/wwwroot/uploads/products/947c2fd1b9a84f2ea86a683008e7fdc0.jpg');
+      await expect(fileInputs).toHaveCount(before - 1);
+    }
+    await page.getByRole('button', { name: 'ثبت نهایی احراز هویت', exact: true }).click();
     await expect(page.getByText('اطلاعات احراز هویت ثبت شد.')).toBeVisible();
     await page.reload({ waitUntil: 'networkidle' });
     await expect(dob).toHaveValue('۱۳۷۵/۰۶/۱۵');
@@ -86,13 +101,16 @@ test.describe('FIX-10 Verification DOB and instruction UX @fix10', () => {
     await logoutAdmin(page);
   });
 
-  test('AwaitingReview profile exposes its DOB but disables all DOB controls', async ({ page, consoleGuard }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop-light', 'Read-only state runs once.');
+  test('an item still awaiting the customer submission keeps the stored DOB editable', async ({ page, consoleGuard }, testInfo) => {
+    // Reworked semantics: while the order item still has an active customer action
+    // (Submit/Resubmit), the form stays editable so the customer can complete it - read-only now
+    // applies only once a submission is actually under review with no pending action.
+    test.skip(testInfo.project.name !== 'desktop-light', 'Editability semantics run once.');
     const monitor = monitorBrowser(page);
     await login(page, '09120000013');
     await page.goto('/customer/verification?orderItem=32000000-0000-0000-0000-000000000102', { waitUntil: 'networkidle' });
-    await expect(page.getByLabel('تاریخ تولد به تقویم شمسی')).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'باز کردن تقویم تاریخ تولد' })).toBeDisabled();
+    await expect(page.getByLabel('تاریخ تولد به تقویم شمسی')).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'باز کردن تقویم تاریخ تولد' })).toBeEnabled();
     await expect(page.getByLabel('تاریخ تولد به تقویم شمسی')).not.toHaveValue('');
     monitor.assertClean(); consoleGuard.assertClean();
   });

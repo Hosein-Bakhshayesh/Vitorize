@@ -1,4 +1,4 @@
-SET NOCOUNT ON;
+﻿SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 
@@ -64,14 +64,13 @@ DELETE FROM dbo.Orders WHERE Id IN (SELECT Id FROM @OrderIds);
 DELETE FROM dbo.VerificationDocuments WHERE UserVerificationProfileId = @Profile;
 DELETE FROM dbo.UserVerificationProfiles WHERE Id = @Profile;
 
--- Product is now on V2.  V1 purchased rows below retain their immutable V1 snapshot.
-UPDATE dbo.Products SET RequiresVerification = 1, KycRequirementMode = 2, KycThresholdAmount = 5000, KycPolicyVersionId = @V2,
-    DeliveryType = 1, BasePrice = 6000, IsActive = 1, IsDeleted = 0
+-- V0026 retired product-level KYC; the purchased rows below carry their own immutable snapshots,
+-- and NEW checkouts trigger from the store-wide order-amount threshold instead.
+UPDATE dbo.Products SET DeliveryType = 1, BasePrice = 6000, IsActive = 1, IsDeleted = 0
 WHERE Id = @ProductId;
 -- The existing FIX-02 staged-input product becomes the mobile 2G regression
 -- fixture: its checkout inputs remain mandatory even though KYC is now post-payment.
-UPDATE dbo.Products SET RequiresVerification = 1, KycRequirementMode = 1, KycThresholdAmount = NULL, KycPolicyVersionId = @V2,
-    IsActive = 1, IsDeleted = 0
+UPDATE dbo.Products SET IsActive = 1, IsDeleted = 0
 WHERE Id = '31000000-0000-0000-0000-000000000036';
 UPDATE dbo.KycPolicyVersions SET CustomerTitle = N'2F V1 Purchase Policy', CustomerInstructions = N'2F V1 purchase-time instructions.' WHERE Id = @V1;
 UPDATE dbo.KycPolicyVersions SET CustomerTitle = N'2F V2 Purchase Policy', CustomerInstructions = N'2F V2 purchase-time instructions.' WHERE Id = @V2;

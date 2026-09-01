@@ -1,5 +1,5 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl, adminMobile, adminPassword } from './support/app';
+import { apiBaseUrl, adminMobile, adminPassword, registerCustomer, uniqueCustomer } from './support/app';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 /**
@@ -242,6 +242,104 @@ test.describe('Client batch 6 @clientbatch6 @ui @regression', () => {
         return settings.find(x => x.key === 'MaintenanceMode')?.value;
       }, { timeout: 15_000 }).toBe('false');
     }
+  });
+
+  test('8: trust seals render once as styled badges, scripts split out, and none of it loads during maintenance', async ({ page, request }) => {
+    const token = await adminToken(request);
+    const saveSetting = (key: string, value: string, valueType: string, groupName: string) =>
+      request.post(`${apiBaseUrl}/admin/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { key, value, groupName, valueType, description: key }
+      });
+    // The exact provider shapes an administrator pastes: two anchor badges, the Zarinpal
+    // document.write script (inert under Blazor), and an unrelated widget script.
+    const pasted = [
+      `<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=1'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=1' alt=''></a>`,
+      `<a href='https://emalls.ir/Shop/1/' target='_blank'><img width='75' height='112' src='https://service.emalls.ir/neshan?id=1'/></a>`,
+      `<script src="https://www.zarinpal.com/webservice/TrustCode" type="text/javascript"></script>`,
+      `<script>window.__vzSealProbe = 1;</script>`
+    ].join('\n');
+
+    await loginAdminUi(page);
+    await page.goto('/admin/settings', { waitUntil: 'networkidle' });
+    await page.locator('.vz-settab').nth(4).click();
+    const field = page.getByTestId('setting-TrustSeal.FooterHtml');
+    await field.locator('textarea').fill(pasted);
+    await field.locator('button.vz-btn').click(); // the UI save is what invalidates the Web's branding cache
+    await expect(field.locator('.vz-saved-tick')).toBeVisible();
+
+    try {
+      await page.goto('/', { waitUntil: 'networkidle' });
+      const box = page.locator('.st-footer__seals');
+      await expect(box).toHaveCount(1);
+      // The styled box holds the two pasted badges plus the substituted static Zarinpal badge...
+      await expect(box.locator('a[href*="trustseal.enamad.ir"]')).toHaveCount(1);
+      await expect(box.locator('a[href*="emalls.ir"]')).toHaveCount(1);
+      await expect(box.locator('a[href*="zarinpal.com/trustPage"]')).toHaveCount(1);
+      await expect(box.locator('script')).toHaveCount(0);
+      // ...and no second, unstyled copy exists anywhere else on the page.
+      await expect(page.locator('img[src*="enamad"]')).toHaveCount(1);
+      await expect(page.locator('img[src*="emalls"]')).toHaveCount(1);
+      // The pasted widget script still executes - once, from the end of the body.
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __vzSealProbe?: number }).__vzSealProbe ?? null))
+        .toBe(1);
+
+      // While the shop is closed, none of it loads: no badges, no third-party scripts.
+      await page.goto('/admin/settings', { waitUntil: 'networkidle' });
+      const toggle = page.getByTestId('setting-MaintenanceMode').locator('input[type="checkbox"]');
+      if (!(await toggle.isChecked())) await toggle.evaluate((el: HTMLInputElement) => el.click());
+      await expect.poll(async () => {
+        const response = await request.get(`${apiBaseUrl}/settings/public`);
+        const settings = (await response.json()).data as Array<{ key: string; value: string }>;
+        return settings.find(x => x.key === 'MaintenanceMode')?.value;
+      }, { timeout: 15_000 }).toBe('true');
+
+      const closed = await page.goto('/shop', { waitUntil: 'networkidle' });
+      expect(closed?.status()).toBe(503);
+      await expect(page.locator('.st-footer__seals')).toHaveCount(0);
+      await expect(page.locator('img[src*="enamad"], img[src*="emalls"], a[href*="zarinpal.com/trustPage"]')).toHaveCount(0);
+      expect(await page.evaluate(() => (window as unknown as { __vzSealProbe?: number }).__vzSealProbe ?? null)).toBeNull();
+    } finally {
+      // UI FIRST: only the admin-UI save invalidates the Web's cached flag. Restoring via the API
+      // first leaves the checkbox already-off, the click never happens, and the Web serves the
+      // maintenance page to the NEXT tests until the cache TTL expires.
+      await page.goto('/admin/settings', { waitUntil: 'networkidle' });
+      const toggle = page.getByTestId('setting-MaintenanceMode').locator('input[type="checkbox"]');
+      if (await toggle.isChecked()) await toggle.evaluate((el: HTMLInputElement) => el.click());
+      await page.locator('.vz-settab').nth(4).click();
+      const sealField = page.getByTestId('setting-TrustSeal.FooterHtml');
+      await sealField.locator('textarea').fill('');
+      await sealField.locator('button.vz-btn').click();
+      await expect(sealField.locator('.vz-saved-tick')).toBeVisible();
+      // Belt and braces on the stored values, then prove the storefront actually reopened.
+      await saveSetting('MaintenanceMode', 'false', 'bool', 'General');
+      await saveSetting('TrustSeal.FooterHtml', '', 'trustedhtml', 'TrustSeals');
+      const reopened = await page.goto('/', { waitUntil: 'networkidle' });
+      expect(reopened?.status()).toBe(200);
+    }
+  });
+
+  test('9: the verification birth-date picker registers every tap on a phone-width screen', async ({ page }) => {
+    // THE DEFECT: the phone-width override put the calendar in static flow, which nullifies its
+    // z-index - so the picker's transparent close-backdrop sat over the whole calendar and every
+    // tap inside it (year, month, day) just closed the panel without registering anything.
+    await registerCustomer(page, uniqueCustomer('Datepicker Mobile'));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/customer/verification', { waitUntil: 'networkidle' });
+
+    await page.locator('.st-datepicker .vz-datepicker__toggle').click();
+    const calendar = page.locator('.vz-cal');
+    await expect(calendar).toBeVisible();
+
+    const selects = calendar.locator('select');
+    await selects.first().selectOption({ index: 5 });
+    await expect(calendar).toBeVisible();
+    await selects.nth(1).selectOption({ index: 3 });
+    await expect(calendar).toBeVisible();
+
+    await calendar.locator('.vz-cal__day:not(.empty):not([disabled])').first().click();
+    await expect(calendar).toBeHidden();
+    await expect(page.getByTestId('persian-date-input')).not.toHaveValue('');
   });
 
   test('7: a failed guest-cart merge no longer hijacks a successful sign-in', async ({ page }) => {

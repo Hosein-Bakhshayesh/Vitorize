@@ -1,4 +1,4 @@
-SET NOCOUNT ON;
+﻿SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET QUOTED_IDENTIFIER ON;
 
@@ -40,8 +40,7 @@ DELETE k FROM dbo.OrderItemKycStates k JOIN @Scenarios s ON s.ItemId = k.OrderIt
 DELETE FROM dbo.OrderItems WHERE Id IN (SELECT ItemId FROM @Scenarios);
 DELETE FROM dbo.Orders WHERE Id IN (SELECT OrderId FROM @Scenarios);
 DELETE FROM dbo.UserVerificationProfiles WHERE Id IN (SELECT ProfileId FROM @Scenarios);
-UPDATE dbo.Products SET KycPolicyVersionId = '31000000-0000-0000-0000-000000000043'
-WHERE KycPolicyVersionId IN (SELECT VersionId FROM @Scenarios);
+-- V0026 removed Products.KycPolicyVersionId; products no longer reference policy versions.
 DELETE r FROM dbo.KycPolicyDocumentRequirements r JOIN @Scenarios s ON s.VersionId = r.KycPolicyVersionId;
 -- Order items bought during a run keep an immutable purchase-time reference to these policy
 -- versions, so they cannot be dropped and recreated. Upsert them instead, which leaves the

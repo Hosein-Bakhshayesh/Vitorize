@@ -55,11 +55,11 @@ test.describe('FIX-09 Phase 3B-B KYC deadline browser closure @fix09p3bb', () =>
     const overdueToken = await tokenFor(request, scenarios.overdue.mobile);
     const rejectedToken = await tokenFor(request, scenarios.rejected.mobile);
     const submit = await request.post(`${apiBaseUrl}/verification/submit`, {
-      headers: bearer(overdueToken), data: { firstName: 'Overdue', lastName: 'Customer', nationalCode: '1234567890' }
+      headers: bearer(overdueToken), data: { firstName: 'Overdue', lastName: 'Customer', nationalCode: '1234567890', birthDate: '1996-09-05', registeredMobileBelongsToCardHolder: true }
     });
     expect(submit.status(), await submit.text()).toBe(409);
     const resubmit = await request.post(`${apiBaseUrl}/verification/submit`, {
-      headers: bearer(rejectedToken), data: { firstName: 'Rejected', lastName: 'Customer', nationalCode: '1234567890' }
+      headers: bearer(rejectedToken), data: { firstName: 'Rejected', lastName: 'Customer', nationalCode: '1234567890', birthDate: '1996-09-05', registeredMobileBelongsToCardHolder: true }
     });
     expect(resubmit.status(), await resubmit.text()).toBe(409);
     const upload = await request.post(`${apiBaseUrl}/uploads/verification-document?orderItemId=${scenarios.overdue.item}`, {

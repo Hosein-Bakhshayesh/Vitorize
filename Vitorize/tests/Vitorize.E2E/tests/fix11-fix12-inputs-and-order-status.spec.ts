@@ -1,5 +1,5 @@
 import { expect, test } from '../framework/fixtures';
-import { apiBaseUrl, stockManagedProduct } from './support/app';
+import { apiBaseUrl, stockManagedProduct, withOrderKycThreshold } from './support/app';
 
 type ApiResult<T> = { data: T };
 type OrderFixture = { id: string; number: string };
@@ -112,11 +112,21 @@ test.describe('FIX-11 required/optional inputs and FIX-12 order status display @
     test.skip(testInfo.project.name !== 'desktop-light', 'Status terminology is asserted once.');
     await page.setViewportSize({ width: 1440, height: 900 });
     const token = await tokenFor(request, customerMobile);
-    const order = await checkoutAndPay(request, token, kycProductId, 1);
+    // KYC is order-total-based now: lower the store threshold below this 5001-Toman product for the
+    // duration of the checkout so the order snapshots RequiresVerification, then restore it.
+    await withOrderKycThreshold(5000);
+    let order: { id: string; number: string };
+    try {
+      order = await checkoutAndPay(request, token, kycProductId, 1);
+    } finally {
+      await withOrderKycThreshold(50_000_000);
+    }
 
     // The persisted enum must remain the existing numeric Processing value.
     const detail = await orderDetails(request, token, `/orders/${order.id}`);
     expect(detail.status).toBe(2);
+    // V0031: payment swaps the provisional pending-... number for the sequential order number.
+    order.number = detail.orderNumber;
 
     await loginCustomer(page, customerMobile);
 
@@ -235,7 +245,7 @@ async function clearCart(request: import('@playwright/test').APIRequestContext, 
   await expectOk(await request.delete(`${apiBaseUrl}/cart/clear`, { headers: bearer(token) }));
 }
 
-type OrderDetail = { status: number; items: Array<{ inputValues: Array<{ fieldKey: string; value: string | null }> }> };
+type OrderDetail = { status: number; orderNumber: string; items: Array<{ inputValues: Array<{ fieldKey: string; value: string | null }> }> };
 
 async function orderDetails(request: import('@playwright/test').APIRequestContext, token: string, route: string): Promise<OrderDetail> {
   const response = await request.get(`${apiBaseUrl}${route}`, { headers: bearer(token) });
@@ -271,7 +281,9 @@ function customerOrderStatusCell(page: import('@playwright/test').Page, orderNum
 
 // Admin orders table: select | number | customer | amount | payment | status | date | actions
 function adminOrderStatusCell(page: import('@playwright/test').Page, orderNumber: string) {
-  return page.locator('tbody tr').filter({ hasText: orderNumber }).locator('td').nth(5);
+  // Column 6: checkbox, order number, customer, amount, payment, KYC (added with the order-total
+  // verification rework), THEN the order status.
+  return page.locator('tbody tr').filter({ hasText: orderNumber }).locator('td').nth(6);
 }
 
 async function openAdminOrderRow(page: import('@playwright/test').Page, orderNumber: string) {

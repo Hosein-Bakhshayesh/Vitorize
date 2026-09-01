@@ -316,17 +316,22 @@ INSERT @Fix09Products VALUES
     (@Fix09QuantityProductId, N'E2E FIX09 Quantity', N'e2e-fix09-quantity', 2500, 2, 4000),
     (@Fix09AboveProductId, N'E2E FIX09 Above', N'e2e-fix09-above', 5001, 2, 5000),
     (@Fix09BelowProductId, N'E2E FIX09 Below', N'e2e-fix09-below', 4999, 2, 5000);
+-- V0026 retired product-level KYC: verification is evaluated from the final order amount against
+-- the store-wide Verification.OrderAmountThresholdToman setting (set below for determinism).
 INSERT dbo.Products (Id, CategoryId, BrandId, Title, Slug, ShortDescription, FullDescription, SeoTitle, SeoDescription,
-    ProductType, DeliveryType, BasePrice, CurrencyType, RequiresVerification, KycRequirementMode, KycThresholdAmount, KycPolicyVersionId,
+    ProductType, DeliveryType, BasePrice, CurrencyType,
     MinOrderQuantity, IsActive, IsFeatured, IsDeleted, CreatedAt)
 SELECT p.Id, @CategoryId, @BrandId, p.Title, p.Slug, N'Deterministic FIX-09 Phase 1 browser product.', N'<p>FIX-09 fixture.</p>', p.Title, p.Title,
-    1, 2, p.Price, 2, CASE WHEN p.Mode = 0 THEN 0 ELSE 1 END, p.Mode, p.Threshold, CASE WHEN p.Mode = 0 THEN NULL ELSE @Fix09PolicyV1Id END,
+    1, 2, p.Price, 2,
     1, 1, 0, 0, SYSUTCDATETIME()
 FROM @Fix09Products p WHERE NOT EXISTS (SELECT 1 FROM dbo.Products existing WHERE existing.Id = p.Id);
-UPDATE p SET p.Title = f.Title, p.BasePrice = f.Price, p.IsActive = 1, p.IsDeleted = 0, p.DeliveryType = 2,
-    p.RequiresVerification = CASE WHEN f.Mode = 0 THEN 0 ELSE 1 END, p.KycRequirementMode = f.Mode,
-    p.KycThresholdAmount = f.Threshold, p.KycPolicyVersionId = CASE WHEN f.Mode = 0 THEN NULL ELSE @Fix09PolicyV1Id END
+UPDATE p SET p.Title = f.Title, p.BasePrice = f.Price, p.IsActive = 1, p.IsDeleted = 0, p.DeliveryType = 2
 FROM dbo.Products p JOIN @Fix09Products f ON f.Id = p.Id;
+
+-- Deterministic store-wide KYC threshold: deliberately far above every fixture price, so ordinary
+-- commerce specs never detour into verification. KYC specs that exercise the threshold set it to
+-- 5000 around their own scenario (see setOrderKycThreshold in support/app.ts) and restore it.
+UPDATE dbo.Settings SET [Value] = N'50000000' WHERE [Key] = N'Verification.OrderAmountThresholdToman';
 
 UPDATE dbo.Settings SET Value = N'true' WHERE [Key] IN (N'Sms.IsEnabled', N'SmsEnabled');
 UPDATE dbo.Settings SET Value = N'Testing' WHERE [Key] IN (N'Sms.Provider', N'SmsProvider');

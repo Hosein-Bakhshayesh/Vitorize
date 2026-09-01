@@ -122,7 +122,8 @@ test('settings exposes branding uploads, typography preview, trust seals and onl
   await loginAdmin(page);
   await page.goto('/admin/settings', { waitUntil: 'networkidle' });
   const tabs = page.locator('.vz-settab');
-  await expect(tabs).toHaveCount(17);
+  // 18 since the order-total verification rework added its own settings group.
+  await expect(tabs).toHaveCount(18);
 
   await tabs.nth(2).click();
   await expect(page.locator('input[type="file"]').first()).toBeAttached();
@@ -136,7 +137,8 @@ test('settings exposes branding uploads, typography preview, trust seals and onl
   await tabs.nth(4).click();
   await expect(page.locator('.vz-card__body')).toContainText(/Trust|Enamad|اعتماد/);
 
-  await tabs.nth(15).click();
+  // By name, not index: the verification rework inserted its own tab and shifted positions.
+  await tabs.filter({ hasText: 'اعلان‌ها' }).click();
   const keys = page.locator('.vz-setfield__key');
   await expect(keys.filter({ hasText: 'Sms.OtpTemplateId' })).toHaveCount(1);
   await expect(keys.filter({ hasText: 'Sms.NotificationTemplateId' })).toHaveCount(1);

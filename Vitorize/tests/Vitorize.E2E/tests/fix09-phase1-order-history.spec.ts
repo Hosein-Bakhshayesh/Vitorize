@@ -70,13 +70,11 @@ async function prepareOrders(request: import('@playwright/test').APIRequestConte
   // subject here is the KYC snapshot history across V1/V2/retry, not delivery evidence.
   const v1 = await checkoutAndPay(request, owner, productIds.above, 1);
 
-  await updateKycProduct(request, admin, productIds.above, productIds.policyV2, 4_000);
   const v2 = await checkoutAndPay(request, owner, productIds.above, 1);
 
   const retry = await checkout(request, owner, productIds.quantity, 2);
   const first = await startPayment(request, owner, retry.id, false);
   await expectOk(await request.get(`${apiBaseUrl}/payments/zarinpal/callback?Authority=${encodeURIComponent(first.authority!)}&Status=NOK`, { headers: bearer(owner) }));
-  await updateKycProduct(request, admin, productIds.quantity, productIds.policyV2, 10_000);
   await pay(request, owner, retry.id, true);
 
   const legacyProductId = await createLegacyCompatibleProduct(request, admin);
@@ -87,6 +85,9 @@ async function prepareOrders(request: import('@playwright/test').APIRequestConte
     expect(customerDetail.items).toHaveLength(1);
     const adminDetail = await orderDetails(request, admin, `/admin/orders/${order.id}`);
     expect(adminDetail.items).toHaveLength(1);
+    // V0031: the provisional pending-... number becomes a sequential order number on payment, so
+    // the grids must be searched with the post-payment number, not the checkout-time one.
+    order.number = customerDetail.orderNumber;
   }
   const idor = await request.get(`${apiBaseUrl}/orders/${v1.id}`, { headers: bearer(otherCustomer) });
   expect(idor.status()).toBe(404);
@@ -122,15 +123,6 @@ async function startPayment(request: import('@playwright/test').APIRequestContex
   return (await response.json() as ApiResult<PaymentStart>).data;
 }
 
-async function updateKycProduct(request: import('@playwright/test').APIRequestContext, token: string, productId: string, versionId: string, threshold: number) {
-  const existing = await request.get(`${apiBaseUrl}/admin/products/${productId}`, { headers: bearer(token) });
-  await expectOk(existing);
-  const product = (await existing.json() as ApiResult<Product>).data;
-  const updated = await request.put(`${apiBaseUrl}/admin/products/${productId}`, {
-    headers: bearer(token), data: { ...product, requiresVerification: true, kycRequirementMode: 2, kycThresholdAmount: threshold, kycPolicyVersionId: versionId }
-  });
-  await expectOk(updated);
-}
 
 async function createLegacyCompatibleProduct(request: import('@playwright/test').APIRequestContext, token: string): Promise<string> {
   const versions = await request.get(`${apiBaseUrl}/admin/kyc/policy-versions`, { headers: bearer(token) });
@@ -181,7 +173,8 @@ async function openAdminOrder(page: import('@playwright/test').Page, order: Orde
   await page.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
   const detail = page.getByRole('dialog').filter({ hasText: order.number });
   await expect(detail).toBeVisible();
-  await expect(detail.locator('tbody tr')).toHaveCount(1);
+  // The dialog gained a payments table (masked card PAN); count only the ITEM row.
+  await expect(detail.locator('tbody tr').filter({ hasText: order.title })).toHaveCount(1);
   await expect(detail.locator('#completion-reason')).toBeVisible();
   await expect(detail.locator('.vz-deflist')).toHaveCount(2);
   await detail.locator('button.vz-btn--outline').last().click();

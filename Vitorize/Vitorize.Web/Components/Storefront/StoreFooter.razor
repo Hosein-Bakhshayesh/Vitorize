@@ -1,5 +1,7 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject MediaUrlResolver Media
+@inject NavigationManager Nav
+@using Vitorize.Web.Services.UI
 
 <footer class="st-footer">
     <div class="st-container">
@@ -65,10 +67,12 @@
                 <a href="/terms">قوانین و مقررات</a>
                 <a href="/privacy">حریم خصوصی</a>
             </div>
-            @if (!string.IsNullOrWhiteSpace(_b.TrustSealFooterHtml))
+            @* Badges only: any pasted <script> is emitted at the end of the body instead (App.razor),
+               and the Zarinpal TrustCode script renders here as its official static badge. *@
+            @if (!string.IsNullOrWhiteSpace(SealBadges))
             {
                 <div class="st-footer__seals" aria-label="مجوزها و نمادهای اعتماد">
-                    @((MarkupString)_b.TrustSealFooterHtml)
+                    @((MarkupString)SealBadges)
                 </div>
             }
         </div>
@@ -82,6 +86,8 @@
 @code {
     private Vitorize.Web.Services.UI.StoreBranding _b =
         new(new Dictionary<string, string>());
+
+    private string SealBadges => TrustSealHtml.Badges(_b.TrustSealFooterHtml, new Uri(Nav.BaseUri).Host);
 
     protected override async Task OnInitializedAsync()
     {

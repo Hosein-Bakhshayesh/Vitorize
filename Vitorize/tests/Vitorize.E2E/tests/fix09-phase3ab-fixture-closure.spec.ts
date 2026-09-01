@@ -196,7 +196,10 @@ async function redact(page: import('@playwright/test').Page, documentType: strin
 }
 
 async function expectAwaitingReview(page: import('@playwright/test').Page) {
-  await expect(page.locator('button.st-btn--primary')).toHaveCount(0);
+  // Outcome, not layout: the ORDER-ITEM panel (several info alerts exist on the page) lists each
+  // document with its upload state, so a completed upload reads «بارگذاری شده» there.
+  await expect(page.locator('.st-alert--info').filter({ hasText: 'آیتم سفارش' }))
+    .toContainText('بارگذاری شده');
 }
 
 async function openAdminPreview(page: import('@playwright/test').Page, name: string) {

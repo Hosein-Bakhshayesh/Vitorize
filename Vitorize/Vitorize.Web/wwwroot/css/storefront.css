@@ -1938,7 +1938,9 @@ button {
 .st-field__error { color: var(--st-danger); font-size: 12px; font-weight: 650; }
 .st-input-summary { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 6px 0; color: var(--st-text-2); font-size: 11.5px; }.st-input-summary span { overflow-wrap: anywhere; }
 .st-order-inputs { display: grid; gap: 6px; margin: 8px 0 0; }.st-order-inputs div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 9px; border-radius: 8px; background: var(--st-surface-2); }.st-order-inputs dt { color: var(--st-muted); }.st-order-inputs dd { margin: 0; color: var(--st-text); overflow-wrap: anywhere; }
-.st-footer__seals { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }.st-footer__seals a { width: 92px; height: 92px; display: grid; place-items: center; border: 1px solid var(--st-border); border-radius: var(--st-clip-sm); background: var(--st-elevated); }.st-footer__seals img { max-width: 78px; max-height: 78px; object-fit: contain; }
+.st-footer__seals { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }.st-footer__seals a { width: 92px; height: 92px; display: grid; place-items: center; border: 1px solid var(--st-border); border-radius: var(--st-clip-sm); background: var(--st-elevated); }/* width/height auto beats the providers' pasted width=/height= attributes, so every badge keeps
+   its own aspect ratio inside the uniform box. */
+.st-footer__seals img { width: auto; height: auto; max-width: 78px; max-height: 78px; object-fit: contain; }
 @media (max-width: 760px) { .st-feature-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .st-feature-grid { grid-template-columns: 1fr; }.st-feature-card { padding: 12px; } }
 .st-errpage__art { position: relative; margin-bottom: 14px; display: flex; justify-content: center; }

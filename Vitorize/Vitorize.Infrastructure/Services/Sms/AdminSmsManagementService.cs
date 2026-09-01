@@ -241,6 +241,9 @@ namespace Vitorize.Infrastructure.Services.Sms
             CancellationToken cancellationToken = default)
         {
             await EnsureCustomAllowedAsync(adminUserId, cancellationToken);
+            // Same readiness gate the notification path has: without it a free-text send was accepted
+            // into the queue and died there silently instead of telling the admin what to configure.
+            await EnsureTextSendingReadyAsync(cancellationToken);
             var mobile = await ResolveMobileAsync(request.Mobile, request.UserId, cancellationToken);
             var text = request.Text?.Trim() ?? string.Empty;
             var maxLength = await GetIntSettingAsync(SmsSettingKeys.MaxCustomTextLength, 500, cancellationToken);

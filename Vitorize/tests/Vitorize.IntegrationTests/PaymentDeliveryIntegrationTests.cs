@@ -645,7 +645,10 @@ public sealed class PaymentDeliveryIntegrationTests
         var tickets = await verify.Tickets.Where(x => x.OrderId == order.Id).ToListAsync();
         tickets.Should().HaveCount(2, "a customer ticket never suppresses the automatic fulfilment ticket");
         var fulfillment = tickets.Single(x => x.IsFulfillmentTicket);
-        fulfillment.Subject.Should().Contain(order.OrderNumber);
+        // V0031 assigns the sequential order number at payment time, so the subject carries the
+        // persisted post-payment number, not the provisional one this test seeded.
+        var paidOrderNumber = await verify.Orders.Where(x => x.Id == order.Id).Select(x => x.OrderNumber).SingleAsync();
+        fulfillment.Subject.Should().Contain(paidOrderNumber);
         var unchangedCustomerTicket = tickets.Single(x => x.Id == customerTicket.Id);
         unchangedCustomerTicket.IsFulfillmentTicket.Should().BeFalse();
         unchangedCustomerTicket.Subject.Should().Be(customerTicket.Subject);
