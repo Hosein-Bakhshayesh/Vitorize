@@ -220,11 +220,13 @@ else
         .verification-form-grid__wide { grid-column: auto; }
         .verification-mobile-owner-choice { gap: 24px; }
         /* Keep the date picker in normal document flow on phones so it pushes the
-           following field down instead of covering it. `relative`, never `static`: a static
-           element has no z-index, so the picker's transparent close-backdrop (fixed, z 115)
-           sat ON TOP of the calendar and swallowed every tap inside it. */
+           following field down instead of covering it.  Reset `top`, which belongs to
+           the desktop absolute popup: leaving its `calc(100% + 8px)` value on a relative
+           calendar offsets it by the (stretched) form-field height on narrow layouts. */
         .verification-layout .st-datepicker .vz-cal {
             position: relative;
+            top: auto;
+            inset-inline-start: auto;
             z-index: 120;
             width: 100%;
             margin-top: 8px;

@@ -85,8 +85,13 @@ namespace Vitorize.Infrastructure
             services.AddSingleton<Services.Testing.TestingPaymentFaultService>();
 
             // ───────────── SMS (SMS.ir) ─────────────
-            // Sender و SettingsProvider به‌صورت Singleton ثبت می‌شوند تا HttpClient داخلی SDK
-            // و کش تنظیمات میان درخواست‌ها بازاستفاده شود. SmsService و Enqueuer در سطح درخواست هستند.
+            // ارتباط با SMS.ir از طریق API رسمی HTTP انجام می‌شود؛ HttpClientFactory اتصال‌ها را
+            // بازاستفاده می‌کند و کلید API همچنان فقط از تنظیماتِ پایگاه داده خوانده می‌شود.
+            services.AddHttpClient(SmsIrSender.HttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("https://api.sms.ir/");
+                client.Timeout = TimeSpan.FromSeconds(20);
+            });
             if (configuration.GetValue<bool>("Testing:UseFakeSms"))
             {
                 services.AddSingleton<TestingSmsSender>();

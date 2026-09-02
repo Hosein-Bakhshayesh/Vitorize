@@ -3,9 +3,8 @@ using Vitorize.Application.Models.Sms;
 namespace Vitorize.Application.Interfaces
 {
     /// <summary>
-    /// درگاه سطح‌پایین ارائه‌دهنده پیامک (Adapter روی SDK رسمی SMS.ir).
-    /// کلید API به‌صورت صریح پاس داده می‌شود تا پیاده‌سازی بتواند singleton و
-    /// بازاستفاده‌کننده از HttpClient باشد. تنها پیاده‌سازی مجاز، آداپتور SMS.ir است.
+    /// درگاه سطح‌پایین ارائه‌دهنده پیامک (Adapter مستقیم روی API رسمی SMS.ir).
+    /// کلید API به‌صورت صریح پاس داده می‌شود تا فقط از تنظیمات محرمانهٔ برنامه خوانده شود.
     /// </summary>
     public interface ISmsSender
     {

@@ -496,11 +496,9 @@ namespace Vitorize.Infrastructure.Services
 
             if (request.Approve)
             {
-                await _smsOutbox.EnqueueTemplateAsync(
+                await _smsOutbox.EnqueueTextAsync(
                     user.Mobile,
-                    Vitorize.Application.Common.SmsTemplateKeys.VerificationApproved,
-                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.VerificationApproved(
-                        Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id)),
+                    "ویتورایز\nاحراز هویت شما با موفقیت تایید شد.",
                     purpose: "VerificationApproved",
                     aggregateId: profile.Id,
                     userId: user.Id,
@@ -516,11 +514,11 @@ namespace Vitorize.Infrastructure.Services
             }
             else
             {
-                await _smsOutbox.EnqueueTemplateAsync(
+                await _smsOutbox.EnqueueTextAsync(
                     user.Mobile,
-                    Vitorize.Application.Common.SmsTemplateKeys.VerificationRejected,
-                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.VerificationRejected(
-                        Vitorize.Application.Common.SmsPublicReference.ForVerification(profile.Id)),
+                    string.IsNullOrWhiteSpace(request.AdminNote)
+                        ? "ویتورایز\nدرخواست احراز هویت شما رد شد."
+                        : $"ویتورایز\nدرخواست احراز هویت شما رد شد. علت: {request.AdminNote.Trim()}",
                     purpose: "VerificationRejected",
                     aggregateId: profile.Id,
                     userId: user.Id,
