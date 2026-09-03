@@ -8,6 +8,27 @@ const galleryImage = 'D:\\Vitorize\\Vitorize\\Vitorize.Api\\wwwroot\\uploads\\pr
 test.describe('Admin product edit and rich storefront projection', () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test('price entry preserves Persian digits and the caret while editing', {
+    tag: [TAG.admin, TAG.product, TAG.regression, TAG.release]
+  }, async ({ page, loginAs, adminProduct }) => {
+    await loginAs('SuperAdmin');
+    await adminProduct.openCreate();
+
+    const price = page.getByTestId('product-base-price');
+    await price.fill('۱۲۳۴۵');
+    await expect(price).toHaveValue('۱۲۳۴۵');
+
+    // Edit in the middle of the number. Re-rendering the value on every input
+    // used to move the caret to the end and lose this edit.
+    await price.press('ArrowLeft');
+    await price.press('ArrowLeft');
+    await price.press('۶');
+    await expect(price).toHaveValue('۱۲۳۶۴۵');
+
+    await price.press('Tab');
+    await expect(price).toHaveValue('123,645');
+  });
+
   test('all supported editable product metadata persists to DB', {
     tag: [TAG.admin, TAG.product, TAG.catalog, TAG.regression, TAG.release]
   }, async ({ page, request, loginAs, adminProduct }) => {

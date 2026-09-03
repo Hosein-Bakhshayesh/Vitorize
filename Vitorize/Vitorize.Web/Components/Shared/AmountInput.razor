@@ -6,8 +6,9 @@
 
 @code {
     /// <summary>
-    /// Currency-aware number entry for administrator forms. The rendered value is grouped for
-    /// readability, while the bound value remains a plain decimal for validation and API payloads.
+    /// Currency-aware number entry for administrator forms. While editing, the browser's raw value
+    /// is preserved so the caret and Persian/Arabic digits are not disrupted. A grouped invariant
+    /// value is rendered only after the field loses focus.
     /// </summary>
     [Parameter] public decimal? Value { get; set; }
     [Parameter] public EventCallback<decimal?> ValueChanged { get; set; }
@@ -42,7 +43,9 @@
 
         if (parsed is not decimal value) return;
         _lastValue = value;
-        _display = Format(value);
+        // Do not format on every keystroke. Formatting causes Blazor to replace the input value,
+        // which moves the caret to the end and can discard edits made in the middle of the text.
+        _display = raw;
         await ValueChanged.InvokeAsync(value);
     }
 
