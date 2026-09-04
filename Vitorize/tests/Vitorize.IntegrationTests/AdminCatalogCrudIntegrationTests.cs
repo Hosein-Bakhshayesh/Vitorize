@@ -199,6 +199,35 @@ public sealed class AdminCatalogCrudIntegrationTests
     }
 
     [Fact]
+    public async Task Category_cannot_be_moved_below_its_own_descendant()
+    {
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        using var admin = _fixture.CreateClient(token);
+        var suffix = Guid.NewGuid().ToString("N");
+        var root = await PostDataAsync<AdminCategoryDto>(admin, "/api/admin/categories", new CreateCategoryRequestDto
+        {
+            Title = "Tree root", Slug = $"tree-root-{suffix}", SortOrder = 20, IsActive = true
+        });
+        var child = await PostDataAsync<AdminCategoryDto>(admin, "/api/admin/categories", new CreateCategoryRequestDto
+        {
+            ParentId = root.Id, Title = "Tree child", Slug = $"tree-child-{suffix}", SortOrder = 10, IsActive = true
+        });
+        var grandchild = await PostDataAsync<AdminCategoryDto>(admin, "/api/admin/categories", new CreateCategoryRequestDto
+        {
+            ParentId = child.Id, Title = "Tree grandchild", Slug = $"tree-grandchild-{suffix}", SortOrder = 5, IsActive = true
+        });
+
+        var invalidMove = await admin.PutAsJsonAsync($"/api/admin/categories/{root.Id}", new UpdateCategoryRequestDto
+        {
+            ParentId = grandchild.Id, Title = root.Title, Slug = root.Slug, SortOrder = root.SortOrder, IsActive = root.IsActive
+        });
+        invalidMove.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        await using var db = _fixture.CreateDbContext();
+        (await db.Categories.SingleAsync(x => x.Id == root.Id)).ParentId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Product_variant_and_media_detail_lists_are_paged_and_authorized()
     {
         var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");

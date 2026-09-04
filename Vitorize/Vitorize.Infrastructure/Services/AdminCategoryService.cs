@@ -182,12 +182,25 @@ namespace Vitorize.Infrastructure.Services
                 if (currentId.HasValue && parentId.Value == currentId.Value)
                     throw new BusinessException("دسته‌بندی نمی‌تواند والد خودش باشد.");
 
-                var parentExists = await _dbContext.Categories.AnyAsync(x =>
-                    x.Id == parentId.Value &&
-                    !x.IsDeleted);
+                var nextParentId = parentId;
+                var visited = new HashSet<Guid>();
+                while (nextParentId.HasValue)
+                {
+                    if (!visited.Add(nextParentId.Value))
+                        throw new BusinessException("ساختار والد دسته‌بندی دارای حلقه است.");
+                    if (currentId.HasValue && nextParentId.Value == currentId.Value)
+                        throw new BusinessException("دسته‌بندی نمی‌تواند یکی از زیرمجموعه‌های خودش را والد قرار دهد.");
 
-                if (!parentExists)
-                    throw new BusinessException("دسته‌بندی والد معتبر نیست.");
+                    var parent = await _dbContext.Categories
+                        .AsNoTracking()
+                        .Where(x => x.Id == nextParentId.Value && !x.IsDeleted)
+                        .Select(x => new { x.ParentId })
+                        .FirstOrDefaultAsync();
+                    if (parent is null)
+                        throw new BusinessException("دسته‌بندی والد معتبر نیست.");
+
+                    nextParentId = parent.ParentId;
+                }
             }
         }
     }

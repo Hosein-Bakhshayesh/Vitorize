@@ -33,9 +33,9 @@
             <select class="vz-select" @bind="_parentFilter">
                 <option value="all">همه</option>
                 <option value="root">دسته‌های اصلی</option>
-                @foreach (var c in _items.Where(x => x.ParentId is null))
+                @foreach (var row in CategoryRows.Where(x => x.Depth == 0))
                 {
-                    <option value="@c.Id">@c.Title</option>
+                    <option value="@row.Category.Id">@row.Category.Title</option>
                 }
             </select>
         </div>
@@ -71,11 +71,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var c in Filtered)
+                        @foreach (var row in Filtered)
                         {
+                            var c = row.Category;
                             <tr>
                                 <td>
-                                    <div class="vz-cell-main">
+                                    <div class="vz-cell-main" style="@($"padding-inline-start:{row.Depth * 22}px")">
+                                        @if (row.Depth > 0)
+                                        {
+                                            <span aria-hidden="true" style="color:var(--text-3);font-size:18px;line-height:1">↳</span>
+                                        }
                                         <div class="vz-entity-tile">
                                             @if (!string.IsNullOrWhiteSpace(c.ImagePath))
                                             {
@@ -88,11 +93,11 @@
                                         </div>
                                         <div>
                                             <div class="vz-cell-title">@c.Title</div>
-                                            <div class="vz-cell-sub vz-mono">@c.Slug</div>
+                                            <div class="vz-cell-sub vz-mono">@c.Slug · @(row.Depth == 0 ? "دسته اصلی" : "زیر‌دسته")</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td>@(string.IsNullOrWhiteSpace(c.ParentTitle) ? "—" : c.ParentTitle)</td>
+                                <td>@ParentTitle(c)</td>
                                 <td class="num">@AUI.Number(c.ProductCount)</td>
                                 <td class="num">@AUI.Number(c.ChildrenCount)</td>
                                 <td class="num">@AUI.Number(c.SortOrder)</td>
@@ -132,9 +137,9 @@
                     <select class="vz-select" value="@(_model.ParentId?.ToString() ?? "")"
                             @onchange="OnParentChanged">
                         <option value="">— بدون والد (دسته اصلی) —</option>
-                        @foreach (var c in ParentOptions)
+                        @foreach (var row in ParentOptions)
                         {
-                            <option value="@c.Id">@c.Title</option>
+                            <option value="@row.Category.Id">@ParentOptionTitle(row)</option>
                         }
                     </select>
                 </div>
@@ -219,22 +224,89 @@
         _loading = false;
     }
 
-    private List<AdminCategoryModel> Filtered => _items
-        .Where(c => string.IsNullOrWhiteSpace(_search)
-            || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
-            || c.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .Where(c => _parentFilter switch
+    private sealed record CategoryTreeRow(AdminCategoryModel Category, int Depth);
+
+    // The API returns a flat list by design. Build a stable, parent-first view here so the table
+    // keeps every child immediately below its parent without changing the data or storefront API.
+    private List<CategoryTreeRow> CategoryRows => FlattenTree(_items);
+
+    private List<CategoryTreeRow> Filtered => CategoryRows
+        .Where(row => string.IsNullOrWhiteSpace(_search)
+            || row.Category.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || row.Category.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(row => _parentFilter switch
         {
             "all" => true,
-            "root" => c.ParentId is null,
-            _ => Guid.TryParse(_parentFilter, out var pid) && c.ParentId == pid
+            "root" => row.Category.ParentId is null,
+            _ => Guid.TryParse(_parentFilter, out var pid) && row.Category.ParentId == pid
         })
-        .Where(c => _statusFilter switch { "active" => c.IsActive, "inactive" => !c.IsActive, _ => true })
-        .OrderBy(c => c.SortOrder).ThenBy(c => c.Title)
+        .Where(row => _statusFilter switch { "active" => row.Category.IsActive, "inactive" => !row.Category.IsActive, _ => true })
         .ToList();
 
-    private IEnumerable<AdminCategoryModel> ParentOptions =>
-        _items.Where(c => c.Id != _editingId).OrderBy(c => c.Title);
+    // When editing a category, neither it nor any of its descendants can be picked as a parent.
+    // The server repeats this validation, but hiding unsafe choices makes the form self-explanatory.
+    private List<CategoryTreeRow> ParentOptions
+    {
+        get
+        {
+            var excluded = DescendantIds(_editingId);
+            return FlattenTree(_items.Where(c => !excluded.Contains(c.Id)));
+        }
+    }
+
+    private string ParentTitle(AdminCategoryModel category) =>
+        category.ParentId is { } parentId && _items.FirstOrDefault(x => x.Id == parentId) is { } parent
+            ? parent.Title
+            : "—";
+
+    private static string ParentOptionTitle(CategoryTreeRow row) =>
+        string.Concat(Enumerable.Repeat("— ", row.Depth)) + row.Category.Title;
+
+    private List<CategoryTreeRow> FlattenTree(IEnumerable<AdminCategoryModel> source)
+    {
+        var items = source.ToList();
+        var byId = items.ToDictionary(x => x.Id);
+        var children = items.GroupBy(x => x.ParentId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id).ToList());
+        var rows = new List<CategoryTreeRow>();
+        var visited = new HashSet<Guid>();
+
+        void AddBranch(AdminCategoryModel category, int depth)
+        {
+            if (!visited.Add(category.Id)) return;
+            rows.Add(new CategoryTreeRow(category, depth));
+            if (children.TryGetValue(category.Id, out var nested))
+                foreach (var child in nested) AddBranch(child, depth + 1);
+        }
+
+        // A missing/deleted parent is treated as a root so an orphaned legacy record remains
+        // visible and repairable. The second pass similarly makes any pre-existing bad cycle visible.
+        foreach (var root in items.Where(x => x.ParentId is null || !byId.ContainsKey(x.ParentId.Value))
+                     .OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id))
+            AddBranch(root, 0);
+        foreach (var remaining in items.Where(x => !visited.Contains(x.Id))
+                     .OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id))
+            AddBranch(remaining, 0);
+
+        return rows;
+    }
+
+    private HashSet<Guid> DescendantIds(Guid? categoryId)
+    {
+        var excluded = new HashSet<Guid>();
+        if (!categoryId.HasValue) return excluded;
+
+        var pending = new Queue<Guid>();
+        pending.Enqueue(categoryId.Value);
+        while (pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            if (!excluded.Add(current)) continue;
+            foreach (var child in _items.Where(x => x.ParentId == current))
+                pending.Enqueue(child.Id);
+        }
+        return excluded;
+    }
 
     private void OnParentChanged(ChangeEventArgs e)
     {
