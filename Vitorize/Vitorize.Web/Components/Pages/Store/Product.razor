@@ -238,9 +238,16 @@ else
                 <div class="st-buy__qty">
                     <span class="st-label" style="margin:0">تعداد</span>
                     <div class="st-qty">
-                        <button @onclick="() => SetQty(_qty - 1)">−</button>
-                        <span>@AUI.Number(_qty)</span>
-                        <button @onclick="() => SetQty(_qty + 1)">+</button>
+                        <button type="button" @onclick="() => SetQty(_qty - 1)" disabled="@(_qty <= MinimumQuantity)" aria-label="کاهش تعداد">−</button>
+                        <input class="st-qty__input"
+                               type="number"
+                               inputmode="numeric"
+                               min="@MinimumQuantity"
+                               max="@MaximumQuantity"
+                               value="@_qty"
+                               @oninput="SetQtyFromInput"
+                               aria-label="تعداد محصول" />
+                        <button type="button" @onclick="() => SetQty(_qty + 1)" disabled="@(_qty >= MaximumQuantity)" aria-label="افزایش تعداد">+</button>
                     </div>
                 </div>
 
@@ -544,11 +551,21 @@ else
         return Uri.TryCreate(resolved, UriKind.Absolute, out var absolute) ? absolute.AbsoluteUri : new Uri(new Uri(canonical), resolved).AbsoluteUri;
     }
 
+    private int MinimumQuantity => Math.Max(1, _p?.MinOrderQuantity ?? 1);
+
+    private int MaximumQuantity => _p?.MaxOrderQuantity is { } maximum
+        ? Math.Max(MinimumQuantity, maximum)
+        : int.MaxValue;
+
+    private void SetQtyFromInput(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var quantity))
+            SetQty(quantity);
+    }
+
     private void SetQty(int q)
     {
-        var min = Math.Max(1, _p?.MinOrderQuantity ?? 1);
-        var max = _p?.MaxOrderQuantity ?? 99;
-        _qty = Math.Clamp(q, min, max);
+        _qty = Math.Clamp(q, MinimumQuantity, MaximumQuantity);
     }
 
     // Product-required information is collected at Checkout, so adding to the cart is never gated

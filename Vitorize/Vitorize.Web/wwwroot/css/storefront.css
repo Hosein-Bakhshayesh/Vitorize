@@ -525,7 +525,12 @@ button {
 .st-qty { display: inline-flex; align-items: center; border: 1px solid var(--st-input-border); border-radius: 11px; overflow: hidden; }
 .st-qty button { width: 40px; height: 42px; border: none; background: var(--st-surface-2); color: var(--st-text); font-size: 18px; cursor: pointer; transition: background var(--st-t-fast) var(--st-ease); }
 .st-qty button:hover { background: var(--st-chip); }
+.st-qty button:disabled { opacity: .45; cursor: not-allowed; }
 .st-qty span { width: 50px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.st-qty__input { width: 64px; height: 42px; border: none; border-inline: 1px solid var(--st-input-border); background: var(--st-surface); color: var(--st-text); text-align: center; font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; outline: none; -moz-appearance: textfield; }
+.st-qty__input:focus { box-shadow: inset 0 0 0 1px var(--st-input-border); }
+.st-qty__input::-webkit-inner-spin-button,
+.st-qty__input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
 
 /* --------------------------------------------------------------------------
    6 · Dropdowns & menus — clipped corner, pop-in
