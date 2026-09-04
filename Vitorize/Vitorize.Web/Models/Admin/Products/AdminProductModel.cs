@@ -89,6 +89,20 @@ namespace Vitorize.Web.Models.Admin.Products
 
     public class UpdateProductRequestModel : CreateProductRequestModel { }
 
+    public sealed class BulkProductUpdateRequestModel
+    {
+        public List<Guid> Ids { get; set; } = new();
+        public string Operation { get; set; } = string.Empty;
+        public decimal? Value { get; set; }
+    }
+
+    public sealed class BulkProductUpdateResultModel
+    {
+        public int UpdatedProductCount { get; set; }
+        public int UpdatedVariantCount { get; set; }
+        public int SkippedGiftCodeProductCount { get; set; }
+    }
+
     public class ProductLookupModel
     {
         public Guid Id { get; set; }

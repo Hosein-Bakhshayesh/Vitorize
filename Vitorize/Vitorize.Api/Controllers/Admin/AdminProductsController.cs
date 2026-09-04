@@ -44,6 +44,14 @@ namespace Vitorize.Api.Controllers.Admin
             return Ok(ApiResult<List<AdminProductDto>>.Success(result, "محصولات انتخاب‌شده برای خروجی تأیید شدند."));
         }
 
+        [HttpPost("bulk-update")]
+        public async Task<ActionResult<ApiResult<BulkProductUpdateResultDto>>> BulkUpdate(
+            BulkProductUpdateRequestDto request, CancellationToken cancellationToken)
+        {
+            var result = await _productService.BulkUpdateAsync(request, cancellationToken);
+            return Ok(ApiResult<BulkProductUpdateResultDto>.Success(result, "عملیات گروهی محصولات با موفقیت انجام شد."));
+        }
+
         [HttpGet("lookup")]
         public async Task<ActionResult<ApiResult<List<AdminProductLookupDto>>>> GetLookup([FromQuery] string? search, [FromQuery] Guid? selectedId, CancellationToken cancellationToken)
         {

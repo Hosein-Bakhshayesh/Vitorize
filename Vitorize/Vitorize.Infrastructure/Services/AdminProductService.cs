@@ -14,6 +14,8 @@ namespace Vitorize.Infrastructure.Services
     public class AdminProductService : IAdminProductService
     {
         private const int MaxExportSelection = 200;
+        private const int MaxBulkSelection = 200;
+        private const decimal MaximumPrice = 9_999_999_999_999_999.99m;
         private readonly VitorizeDbContext _dbContext;
         private readonly IHtmlContentSanitizer _htmlSanitizer;
         private readonly IAuditService _auditService;
@@ -175,6 +177,142 @@ namespace Vitorize.Infrastructure.Services
                 BasePrice = x.BasePrice, DiscountPrice = x.DiscountPrice, AvailableStock = x.GiftCodes.Count(c => c.Status == (byte)GiftCodeStatus.Available),
                 HasVariants = x.ProductVariants.Any(), IsActive = x.IsActive, IsFeatured = x.IsFeatured
             }).ToListAsync(cancellationToken);
+        }
+
+        public async Task<BulkProductUpdateResultDto> BulkUpdateAsync(
+            BulkProductUpdateRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+                throw new BusinessException("درخواست عملیات گروهی معتبر نیست.");
+
+            var ids = request.Ids.Where(x => x != Guid.Empty).Distinct().ToArray();
+            if (ids.Length == 0)
+                throw new BusinessException("حداقل یک محصول باید انتخاب شود.");
+            if (ids.Length > MaxBulkSelection)
+                throw new BusinessException($"حداکثر {MaxBulkSelection} محصول را می‌توان هم‌زمان تغییر داد.");
+            if (ids.Length != request.Ids.Count)
+                throw new BusinessException("شناسه‌های انتخاب‌شده معتبر نیستند.");
+
+            var operation = (request.Operation ?? string.Empty).Trim().ToLowerInvariant();
+            var isPriceOperation = operation is "increase-percent" or "decrease-percent" or "increase-amount" or "decrease-amount";
+            if (!isPriceOperation && operation is not ("mark-in-stock" or "mark-out-of-stock" or "mark-unlimited"))
+                throw new BusinessException("نوع عملیات گروهی معتبر نیست.");
+
+            var value = request.Value;
+            if (isPriceOperation)
+            {
+                if (!value.HasValue || value.Value <= 0)
+                    throw new BusinessException("مقدار تغییر قیمت باید بیشتر از صفر باشد.");
+                if (operation.EndsWith("percent", StringComparison.Ordinal) && value.Value > 1000m)
+                    throw new BusinessException("درصد تغییر قیمت نمی‌تواند بیشتر از ۱۰۰۰ باشد.");
+                if (operation == "decrease-percent" && value.Value > 100m)
+                    throw new BusinessException("درصد کاهش قیمت نمی‌تواند بیشتر از ۱۰۰ باشد.");
+                if (operation.EndsWith("amount", StringComparison.Ordinal) && value.Value > MaximumPrice)
+                    throw new BusinessException("مبلغ تغییر قیمت معتبر نیست.");
+            }
+
+            var products = await _dbContext.Products
+                .Include(x => x.ProductVariants)
+                .Where(x => !x.IsDeleted && ids.Contains(x.Id))
+                .ToListAsync(cancellationToken);
+            if (products.Count != ids.Length)
+                throw new BusinessException("یکی از محصولات انتخاب‌شده معتبر نیست.");
+
+            var result = new BulkProductUpdateResultDto { UpdatedProductCount = products.Count };
+            var now = DateTime.UtcNow;
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            foreach (var product in products)
+            {
+                if (isPriceOperation)
+                {
+                    product.BasePrice = ApplyPriceChange(product.BasePrice, operation, value!.Value);
+                    product.DiscountPrice = ApplyDiscountChange(product.DiscountPrice, product.BasePrice, operation, value.Value);
+
+                    foreach (var variant in product.ProductVariants.Where(x => x.IsActive))
+                    {
+                        variant.Price = ApplyPriceChange(variant.Price, operation, value.Value);
+                        variant.DiscountPrice = ApplyDiscountChange(variant.DiscountPrice, variant.Price, operation, value.Value);
+                        variant.UpdatedAt = now;
+                        result.UpdatedVariantCount++;
+                    }
+                }
+                else if (operation == "mark-out-of-stock")
+                {
+                    product.ForceOutOfStock = true;
+                }
+                else if (operation == "mark-in-stock")
+                {
+                    // This only clears the operational override; a product with zero real stock or
+                    // no eligible gift code remains unavailable, which prevents accidental oversell.
+                    product.ForceOutOfStock = false;
+                }
+                else // mark-unlimited
+                {
+                    product.ForceOutOfStock = false;
+                    if (ProductAvailabilityRules.IsGiftCodeDriven(product.DeliveryType))
+                    {
+                        // Gift-code delivery has a finite pool. Inventing an unlimited quantity here
+                        // would let customers pay for a code that cannot be delivered.
+                        result.SkippedGiftCodeProductCount++;
+                    }
+                    else
+                    {
+                        var activeVariants = product.ProductVariants.Where(x => x.IsActive).ToList();
+                        if (activeVariants.Count == 0)
+                        {
+                            var defaultVariant = new ProductVariant
+                            {
+                                Id = Guid.NewGuid(), ProductId = product.Id, Title = DefaultVariantTitle,
+                                Price = product.BasePrice, DiscountPrice = product.DiscountPrice,
+                                StockMode = (byte)ProductVariantStockMode.Unlimited, StockQuantity = 0,
+                                IsDefault = true, IsActive = true, SortOrder = 0, CreatedAt = now
+                            };
+                            _dbContext.ProductVariants.Add(defaultVariant);
+                            result.UpdatedVariantCount++;
+                        }
+                        else
+                        {
+                            foreach (var variant in activeVariants)
+                            {
+                                variant.StockMode = (byte)ProductVariantStockMode.Unlimited;
+                                variant.UpdatedAt = now;
+                                result.UpdatedVariantCount++;
+                            }
+                        }
+                    }
+                }
+
+                product.UpdatedAt = now;
+            }
+
+            var auditData = JsonSerializer.Serialize(new
+            {
+                operation,
+                value,
+                productIds = ids,
+                result.UpdatedProductCount,
+                result.UpdatedVariantCount,
+                result.SkippedGiftCodeProductCount
+            });
+            // Keep the audit entry in this same transaction. Calling IAuditService here would save
+            // all pending product changes as a side effect before the explicit transaction commit.
+            _dbContext.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = _currentUser.UserId ?? Guid.Empty,
+                ActionType = "BulkProductUpdate",
+                EntityName = nameof(Product),
+                Data = auditData,
+                IpAddress = _currentUser.IpAddress,
+                UserAgent = _currentUser.UserAgent,
+                CreatedAt = now
+            });
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return result;
         }
 
         public async Task<List<AdminProductLookupDto>> GetLookupAsync(string? search, Guid? selectedId, CancellationToken cancellationToken = default)
@@ -508,6 +646,43 @@ namespace Vitorize.Infrastructure.Services
             product.IsActive = false;
 
             await _dbContext.SaveChangesAsync();
+        }
+
+        private static decimal ApplyPriceChange(decimal price, string operation, decimal value)
+        {
+            decimal changed;
+            try
+            {
+                changed = operation switch
+                {
+                    "increase-percent" => price * (1m + value / 100m),
+                    "decrease-percent" => price * (1m - value / 100m),
+                    "increase-amount" => price + value,
+                    "decrease-amount" => price - value,
+                    _ => throw new BusinessException("نوع عملیات گروهی معتبر نیست.")
+                };
+            }
+            catch (OverflowException)
+            {
+                throw new BusinessException("مقدار نهایی قیمت بیش از حد مجاز است.");
+            }
+
+            changed = Math.Max(0m, changed);
+            if (changed > MaximumPrice)
+                throw new BusinessException("مقدار نهایی قیمت بیش از حد مجاز است.");
+
+            return decimal.Round(changed, 2, MidpointRounding.AwayFromZero);
+        }
+
+        private static decimal? ApplyDiscountChange(decimal? discountPrice, decimal basePrice, string operation, decimal value)
+        {
+            if (!discountPrice.HasValue || discountPrice.Value <= 0)
+                return null;
+
+            var changed = ApplyPriceChange(discountPrice.Value, operation, value);
+            // An equal or greater value is not a discount, and null is how the rest of the product
+            // pipeline represents the absence of a discount.
+            return changed > 0 && changed < basePrice ? changed : null;
         }
 
         private async Task ValidateAsync(

@@ -120,6 +120,7 @@ else
         <div class="vz-bulkbar">
             <span>@AUI.Number(_selected.Count) محصول انتخاب شده</span>
             <div style="margin-inline-start:auto;display:flex;gap:8px">
+                <button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenBulkUpdate"><Icon Name="sliders-horizontal" Size="14" /> عملیات گروهی</button>
                 <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="ExportSelected"><Icon Name="download" Size="14" /> خروجی انتخاب‌شده از صفحه جاری</button>
                 <button class="vz-btn vz-btn--danger-soft vz-btn--sm" @onclick="AskBulkDelete"><Icon Name="trash" Size="14" /> حذف</button>
                 <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="ClearSelection">پاک‌کردن انتخاب</button>
@@ -217,6 +218,55 @@ else
                ConfirmText="حذف" Busy="_deleting"
                OnConfirm="ConfirmDelete" OnCancel="CancelDelete" />
 
+<Modal Visible="_bulkUpdateOpen" Title="عملیات گروهی محصولات" Icon="sliders-horizontal" Size="sm" OnClose="CloseBulkUpdate">
+    <ChildContent>
+        <p class="vz-card__sub" style="margin-top:0">این عملیات برای @AUI.Number(_selected.Count) محصول انتخاب‌شده اعمال می‌شود.</p>
+        <div class="vz-field">
+            <label class="vz-label" for="bulk-product-operation">عملیات</label>
+            <select id="bulk-product-operation" class="vz-select" @bind="_bulkOperation" disabled="@_bulkUpdating">
+                <optgroup label="قیمت">
+                    <option value="increase-percent">افزایش درصدی قیمت</option>
+                    <option value="decrease-percent">کاهش درصدی قیمت</option>
+                    <option value="increase-amount">افزایش مبلغ ثابت</option>
+                    <option value="decrease-amount">کاهش مبلغ ثابت</option>
+                </optgroup>
+                <optgroup label="موجودی">
+                    <option value="mark-in-stock">موجود کردن</option>
+                    <option value="mark-out-of-stock">ناموجود کردن</option>
+                    <option value="mark-unlimited">نامحدود کردن</option>
+                </optgroup>
+            </select>
+        </div>
+        @if (IsPriceOperation)
+        {
+            <div class="vz-field">
+                <label class="vz-label" for="bulk-product-value">@(IsPercentOperation ? "درصد تغییر" : "مبلغ تغییر")</label>
+                <input id="bulk-product-value" class="vz-input" type="number" min="0.01" step="0.01" @bind="_bulkValue" disabled="@_bulkUpdating" />
+                <div class="vz-hint">قیمت پایه و قیمت تمام واریانت‌های فعال، از جمله قیمت تخفیفِ معتبر، با همین مقدار تغییر می‌کند.</div>
+            </div>
+        }
+        else if (_bulkOperation == "mark-in-stock")
+        {
+            <div class="vz-hint">فقط وضعیت «ناموجود اجباری» برداشته می‌شود؛ کالاهایی که موجودی واقعی یا کد هدیه ندارند، همچنان قابل خرید نخواهند بود.</div>
+        }
+        else if (_bulkOperation == "mark-out-of-stock")
+        {
+            <div class="vz-hint">فروش محصولات متوقف می‌شود، اما تعداد موجودی و کدهای هدیه آن‌ها دست‌نخورده می‌ماند.</div>
+        }
+        else
+        {
+            <div class="vz-hint">واریانت‌های معمولی نامحدود می‌شوند. محصولات تحویل فوری که به کد هدیه وابسته‌اند، نامحدود نمی‌شوند.</div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseBulkUpdate" disabled="@_bulkUpdating">انصراف</button>
+        <button class="vz-btn vz-btn--primary" @onclick="ApplyBulkUpdate" disabled="@_bulkUpdating">
+            @if (_bulkUpdating) { <span class="vz-spinner sm"></span> } else { <Icon Name="check" Size="15" /> }
+            اعمال تغییرات
+        </button>
+    </Footer>
+</Modal>
+
 @code {
     // Storefront default ordering. Persisted through the ordinary Settings API; the storefront reads
     // it server-side, so a save takes effect on the next customer listing without any recycle.
@@ -279,6 +329,9 @@ else
     private AdminProductModel? _target;
     private string _deleteTitle = "حذف محصول";
     private string _deleteMessage = string.Empty;
+    private bool _bulkUpdateOpen, _bulkUpdating;
+    private string _bulkOperation = "increase-percent";
+    private decimal? _bulkValue;
 
     private record StockFilter(string Key, string Label, Func<List<AdminProductModel>, int> Count);
 
@@ -356,6 +409,53 @@ else
     }
 
     private void ClearSelection() => _selected.Clear();
+
+    private bool IsPriceOperation => _bulkOperation is "increase-percent" or "decrease-percent" or "increase-amount" or "decrease-amount";
+    private bool IsPercentOperation => _bulkOperation.EndsWith("percent", StringComparison.Ordinal);
+
+    private void OpenBulkUpdate()
+    {
+        if (_selected.Count == 0) return;
+        _bulkOperation = "increase-percent";
+        _bulkValue = null;
+        _bulkUpdateOpen = true;
+    }
+
+    private void CloseBulkUpdate()
+    {
+        if (!_bulkUpdating) _bulkUpdateOpen = false;
+    }
+
+    private async Task ApplyBulkUpdate()
+    {
+        if (IsPriceOperation && (!_bulkValue.HasValue || _bulkValue.Value <= 0))
+        {
+            Toasts.Warning("مقدار تغییر قیمت را وارد کنید.");
+            return;
+        }
+
+        _bulkUpdating = true;
+        var result = await Api.PostAsync<BulkProductUpdateResultModel>("admin/products/bulk-update", new BulkProductUpdateRequestModel
+        {
+            Ids = _selected.ToList(),
+            Operation = _bulkOperation,
+            Value = IsPriceOperation ? _bulkValue : null
+        });
+        _bulkUpdating = false;
+
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Toasts.Error(result.Message);
+            return;
+        }
+
+        var message = $"عملیات برای {AUI.Number(result.Data.UpdatedProductCount)} محصول انجام شد.";
+        if (result.Data.SkippedGiftCodeProductCount > 0)
+            message += $" {AUI.Number(result.Data.SkippedGiftCodeProductCount)} محصول کد هدیه نامحدود نشد.";
+        Toasts.Success(message);
+        _bulkUpdateOpen = false;
+        await Load();
+    }
 
     // ----- context menu -----
     private void ToggleMenu(Guid id) => _openMenuId = _openMenuId == id ? null : id;

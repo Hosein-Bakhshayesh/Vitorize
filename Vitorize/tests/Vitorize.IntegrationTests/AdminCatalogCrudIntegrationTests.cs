@@ -287,6 +287,101 @@ public sealed class AdminCatalogCrudIntegrationTests
     }
 
     [Fact]
+    public async Task Admin_can_bulk_change_prices_and_availability_without_faking_gift_code_inventory()
+    {
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var suffix = Guid.NewGuid().ToString("N");
+        var category = new Category { Id = Guid.NewGuid(), Title = "Bulk category", Slug = $"bulk-category-{suffix}", IsActive = true, CreatedAt = DateTime.UtcNow };
+        var manual = new Product
+        {
+            Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Bulk manual", Slug = $"bulk-manual-{suffix}",
+            ProductType = (byte)ProductType.Other, DeliveryType = (byte)DeliveryType.Manual,
+            BasePrice = 100m, DiscountPrice = 80m, CurrencyType = (byte)CurrencyType.Toman,
+            MinOrderQuantity = 1, IsActive = true, ForceOutOfStock = true, CreatedAt = DateTime.UtcNow
+        };
+        var instant = new Product
+        {
+            Id = Guid.NewGuid(), CategoryId = category.Id, Title = "Bulk instant", Slug = $"bulk-instant-{suffix}",
+            ProductType = (byte)ProductType.GiftCard, DeliveryType = (byte)DeliveryType.Instant,
+            BasePrice = 200m, DiscountPrice = 150m, CurrencyType = (byte)CurrencyType.Toman,
+            MinOrderQuantity = 1, IsActive = true, ForceOutOfStock = true, CreatedAt = DateTime.UtcNow
+        };
+        var firstVariant = new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = manual.Id, Title = "A", Price = 100m, DiscountPrice = 90m,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 5, IsDefault = true, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        var inactiveVariant = new ProductVariant
+        {
+            Id = Guid.NewGuid(), ProductId = manual.Id, Title = "Archived", Price = 50m,
+            StockMode = (byte)ProductVariantStockMode.Manual, StockQuantity = 2, IsActive = false, CreatedAt = DateTime.UtcNow
+        };
+        await using (var db = _fixture.CreateDbContext())
+        {
+            db.AddRange(category, manual, instant, firstVariant, inactiveVariant);
+            await db.SaveChangesAsync();
+        }
+
+        using var admin = _fixture.CreateClient(adminToken);
+        using var customer = _fixture.CreateClient(customerToken);
+        var ids = new[] { manual.Id, instant.Id };
+
+        (await customer.PostAsJsonAsync("/api/admin/products/bulk-update", new BulkProductUpdateRequestDto
+        {
+            Ids = ids.ToList(), Operation = "increase-percent", Value = 10m
+        })).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var priceResponse = await admin.PostAsJsonAsync("/api/admin/products/bulk-update", new BulkProductUpdateRequestDto
+        {
+            Ids = ids.ToList(), Operation = "increase-percent", Value = 10m
+        });
+        priceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var priceResult = await priceResponse.Content.ReadFromJsonAsync<ApiResult<BulkProductUpdateResultDto>>();
+        priceResult!.Data!.UpdatedProductCount.Should().Be(2);
+        priceResult.Data.UpdatedVariantCount.Should().Be(1);
+
+        var unlimitedResponse = await admin.PostAsJsonAsync("/api/admin/products/bulk-update", new BulkProductUpdateRequestDto
+        {
+            Ids = ids.ToList(), Operation = "mark-unlimited"
+        });
+        unlimitedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var unlimitedResult = await unlimitedResponse.Content.ReadFromJsonAsync<ApiResult<BulkProductUpdateResultDto>>();
+        unlimitedResult!.Data!.SkippedGiftCodeProductCount.Should().Be(1);
+        unlimitedResult.Data.UpdatedVariantCount.Should().Be(1);
+
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var storedManual = await db.Products.Include(x => x.ProductVariants).SingleAsync(x => x.Id == manual.Id);
+            storedManual.BasePrice.Should().Be(110m);
+            storedManual.DiscountPrice.Should().Be(88m);
+            storedManual.ForceOutOfStock.Should().BeFalse();
+            storedManual.ProductVariants.Single(x => x.Id == firstVariant.Id).Price.Should().Be(110m);
+            storedManual.ProductVariants.Single(x => x.Id == firstVariant.Id).DiscountPrice.Should().Be(99m);
+            storedManual.ProductVariants.Single(x => x.Id == firstVariant.Id).StockMode.Should().Be((byte)ProductVariantStockMode.Unlimited);
+            storedManual.ProductVariants.Single(x => x.Id == inactiveVariant.Id).Price.Should().Be(50m);
+            storedManual.ProductVariants.Single(x => x.Id == inactiveVariant.Id).StockMode.Should().Be((byte)ProductVariantStockMode.Manual);
+
+            var storedInstant = await db.Products.SingleAsync(x => x.Id == instant.Id);
+            storedInstant.BasePrice.Should().Be(220m);
+            storedInstant.DiscountPrice.Should().Be(165m);
+            storedInstant.ForceOutOfStock.Should().BeFalse();
+        }
+
+        (await admin.PostAsJsonAsync("/api/admin/products/bulk-update", new BulkProductUpdateRequestDto
+        {
+            Ids = new() { manual.Id }, Operation = "mark-out-of-stock"
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await admin.PostAsJsonAsync("/api/admin/products/bulk-update", new BulkProductUpdateRequestDto
+        {
+            Ids = new() { manual.Id }, Operation = "mark-in-stock"
+        })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await using var verificationDb = _fixture.CreateDbContext();
+        (await verificationDb.Products.SingleAsync(x => x.Id == manual.Id)).ForceOutOfStock.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Selected_order_export_validates_the_entire_request_and_returns_a_safe_deterministic_projection()
     {
         var (adminUser, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
