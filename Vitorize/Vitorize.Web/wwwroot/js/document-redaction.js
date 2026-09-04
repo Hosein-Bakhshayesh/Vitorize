@@ -130,10 +130,22 @@
             const source = document.getElementById(sourceId); const upload = document.getElementById(uploadId);
             if (!source || !upload) return;
             source.value = "";
-            source.onchange = () => {
-                const file = source.files && source.files[0];
-                if (!file || !mimeTypes.has(file.type)) return;
+            source.onchange = async () => {
+                const original = source.files && source.files[0];
                 source.value = "";
+                if (!original) return;
+                let file = original;
+                try {
+                    if (window.vzImageUpload && window.vzImageUpload.isHeic(original))
+                        file = await window.vzImageUpload.normalizeHeicFile(original);
+                } catch {
+                    window.alert("تبدیل تصویر HEIC ممکن نیست. لطفاً تصویر را به JPEG تبدیل کنید.");
+                    return;
+                }
+                if (!mimeTypes.has(file.type)) {
+                    window.alert("فرمت تصویر مجاز نیست. فرمت‌های مجاز: JPG، JPEG، PNG، WEBP و HEIC.");
+                    return;
+                }
                 createEditor(file, upload, instructions);
             };
             source.click();

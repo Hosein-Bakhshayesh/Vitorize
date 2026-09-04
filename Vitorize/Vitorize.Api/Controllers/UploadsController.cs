@@ -33,6 +33,8 @@ namespace Vitorize.Api.Controllers
         private static readonly string[] AllowedContentTypes =
         {
             "image/jpeg",
+            "image/jpg",
+            "image/pjpeg",
             "image/png",
             "image/webp"
         };

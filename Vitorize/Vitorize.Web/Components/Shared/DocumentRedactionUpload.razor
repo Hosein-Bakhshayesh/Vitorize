@@ -6,7 +6,8 @@
 <div class="vz-redaction-upload" data-testid="document-redaction-upload-@TestId">
     @if (RedactionMode == 0 || (RedactionMode == 1 && _directUpload))
     {
-        <UploadBox Value="@Value" ValueChanged="OnValueChanged" Label="@Label" Endpoint="@UploadEndpoint" />
+        <UploadBox Value="@Value" ValueChanged="OnValueChanged" Label="@Label" Endpoint="@UploadEndpoint"
+                   MaxSizeBytes="@MaxSize" Guidance="PNG، JPG، JPEG، WEBP یا HEIC — حداکثر ۵ مگابایت" />
         @if (RedactionMode == 1 && string.IsNullOrWhiteSpace(Value))
         {
             <button type="button" class="st-btn st-btn--outline vz-redaction-upload__choice" data-testid="redaction-open-@TestId" @onclick="OpenEditor">پوشاندن اطلاعات حساس</button>
@@ -26,7 +27,7 @@
     }
     @if (RedactionMode != 0 && !_directUpload && string.IsNullOrWhiteSpace(Value))
     {
-        <input id="@_sourceInputId" data-testid="redaction-source-@TestId" class="vz-redaction-upload__source" type="file" accept="image/png,image/jpeg,image/webp" aria-hidden="true" tabindex="-1" />
+        <input id="@_sourceInputId" data-testid="redaction-source-@TestId" class="vz-redaction-upload__source" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" aria-hidden="true" tabindex="-1" />
         <InputFile id="@_flattenedInputId" data-testid="@($"redaction-flattened-{TestId}")" class="vz-redaction-upload__flattened" OnChange="UploadFlattened" accept="image/png" />
     }
 </div>

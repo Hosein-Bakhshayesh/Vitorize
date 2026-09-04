@@ -28,6 +28,8 @@ namespace Vitorize.Api.Controllers.Admin
         private static readonly string[] AllowedContentTypes =
         {
             "image/jpeg",
+            "image/jpg",
+            "image/pjpeg",
             "image/png",
             "image/webp"
         };
@@ -150,7 +152,7 @@ namespace Vitorize.Api.Controllers.Admin
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
             if (!allowedExtensions.Contains(extension))
-                throw new BusinessException("فرمت تصویر مجاز نیست.");
+                throw new BusinessException("فرمت تصویر مجاز نیست. فرمت‌های مجاز: JPG، JPEG، PNG و WEBP.");
 
             if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
                 throw new BusinessException("نوع فایل معتبر نیست.");
@@ -243,9 +245,10 @@ namespace Vitorize.Api.Controllers.Admin
             if (file == null || file.Length == 0 || file.Length > maxFileSize)
                 throw new BusinessException("فایل معتبر نیست یا از حداکثر حجم مجاز بیشتر است.");
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (!allowedExtensions.Contains(extension) ||
-                !allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
-                throw new BusinessException("نوع یا پسوند فایل مجاز نیست.");
+            if (!allowedExtensions.Contains(extension))
+                throw new BusinessException("فرمت تصویر مجاز نیست. فرمت‌های مجاز: JPG، JPEG، PNG و WEBP.");
+            if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                throw new BusinessException("نوع فایل تصویر معتبر نیست.");
             if (ownerFolder.Any(c => !char.IsAsciiHexDigit(c)))
                 throw new BusinessException("مسیر مالک فایل معتبر نیست.");
 

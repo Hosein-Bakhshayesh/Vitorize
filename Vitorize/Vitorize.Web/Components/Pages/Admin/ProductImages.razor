@@ -3,6 +3,7 @@
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageHeader Title="تصاویر محصول" Subtitle="@(_productTitle ?? "مدیریت گالری تصاویر محصول")"
@@ -23,10 +24,10 @@ else
              @ondragover:preventDefault="true"
              @ondragleave:preventDefault="true" @ondragleave="() => _dragging = false"
              @ondrop:preventDefault="true" @ondrop="() => _dragging = false">
-            <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp" disabled="@_uploading" />
+            <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" disabled="@_uploading" />
             <div class="vz-dropzone__icon"><Icon Name="upload" Size="26" /></div>
             <div class="vz-dropzone__title">تصاویر را اینجا رها کنید یا کلیک کنید</div>
-            <div class="vz-dropzone__hint">PNG، JPG یا WEBP — حداکثر ۲ مگابایت — امکان انتخاب چند فایل</div>
+            <div class="vz-dropzone__hint">PNG، JPG، JPEG، WEBP یا HEIC — حداکثر ۲ مگابایت — امکان انتخاب چند فایل</div>
         </div>
         <div style="margin-top:12px"><ImageGuideline Spec="ImageSpecs.ProductGallery" /></div>
 
@@ -92,7 +93,7 @@ else
                     }
 
                     <label class="vz-gallery__add">
-                        <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp" disabled="@_uploading" />
+                        <InputFile OnChange="OnFilesSelected" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" disabled="@_uploading" />
                         <Icon Name="plus" Size="22" />
                         <span style="font-size:12px;font-weight:700">افزودن</span>
                     </label>
@@ -125,6 +126,11 @@ else
     private AdminProductImageModel? _target;
 
     private const long MaxSize = 2 * 1024 * 1024;
+
+    private sealed class ConvertedImageResult
+    {
+        public string? Base64 { get; set; }
+    }
 
     protected override async Task OnParametersSetAsync() => await Load();
 
@@ -174,23 +180,52 @@ else
 
             try
             {
-                await using var stream = file.OpenReadStream(MaxSize);
-                var upload = await Api.UploadAsync<UploadResultModel>(
-                    "admin/uploads/product-image", stream, file.Name, file.ContentType);
+                await using var input = file.OpenReadStream(MaxSize);
+                Stream stream = input;
+                var fileName = file.Name;
+                var contentType = file.ContentType;
+                MemoryStream? convertedStream = null;
 
-                if (upload.IsSuccess && upload.Data is not null)
+                if (IsHeic(file))
                 {
-                    var payload = new CreateProductImageRequestModel
+                    await using var buffer = new MemoryStream();
+                    await input.CopyToAsync(buffer);
+                    var converted = await JS.InvokeAsync<ConvertedImageResult>("vzImageUpload.convertHeicToJpeg", buffer.ToArray());
+                    var convertedBytes = string.IsNullOrWhiteSpace(converted?.Base64)
+                        ? Array.Empty<byte>()
+                        : Convert.FromBase64String(converted.Base64);
+                    if (convertedBytes.Length == 0 || convertedBytes.Length > MaxSize)
                     {
-                        ImagePath = upload.Data.FilePath,
-                        AltText = null,
-                        SortOrder = _images.Count + ok,
-                        SetAsThumbnail = _images.Count == 0 && ok == 0
-                    };
-                    var create = await Api.PostAsync<AdminProductImageModel>($"admin/products/{Id}/images", payload);
-                    if (create.IsSuccess) ok++; else fail++;
+                        fail++;
+                        _uploadDone++;
+                        continue;
+                    }
+
+                    convertedStream = new MemoryStream(convertedBytes, writable: false);
+                    stream = convertedStream;
+                    fileName = Path.ChangeExtension(file.Name, ".jpeg");
+                    contentType = "image/jpeg";
                 }
-                else fail++;
+
+                await using (convertedStream)
+                {
+                    var upload = await Api.UploadAsync<UploadResultModel>(
+                        "admin/uploads/product-image", stream, fileName, contentType);
+
+                    if (upload.IsSuccess && upload.Data is not null)
+                    {
+                        var payload = new CreateProductImageRequestModel
+                        {
+                            ImagePath = upload.Data.FilePath,
+                            AltText = null,
+                            SortOrder = _images.Count + ok,
+                            SetAsThumbnail = _images.Count == 0 && ok == 0
+                        };
+                        var create = await Api.PostAsync<AdminProductImageModel>($"admin/products/{Id}/images", payload);
+                        if (create.IsSuccess) ok++; else fail++;
+                    }
+                    else fail++;
+                }
             }
             catch { fail++; }
 
@@ -202,6 +237,15 @@ else
         if (ok > 0) Toasts.Success($"{AUI.Number(ok)} تصویر آپلود شد.");
         if (fail > 0) Toasts.Error($"{AUI.Number(fail)} تصویر آپلود نشد (حجم یا فرمت نامعتبر).");
         await Load();
+    }
+
+    private static bool IsHeic(IBrowserFile file)
+    {
+        var extension = Path.GetExtension(file.Name);
+        return string.Equals(file.ContentType, "image/heic", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(file.ContentType, "image/heif", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(extension, ".heic", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(extension, ".heif", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SetPrimary(AdminProductImageModel img)

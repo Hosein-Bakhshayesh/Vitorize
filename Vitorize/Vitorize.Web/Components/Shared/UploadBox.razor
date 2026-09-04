@@ -2,6 +2,7 @@
 @inject ApiClient Api
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
+@inject IJSRuntime JS
 
 <div class="vz-upload">
     @if (!string.IsNullOrWhiteSpace(Value))
@@ -47,29 +48,59 @@
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string Label { get; set; } = "برای آپلود تصویر کلیک کنید";
     [Parameter] public string Endpoint { get; set; } = "admin/uploads/product-image";
-    [Parameter] public string Accept { get; set; } = "image/png,image/jpeg,image/webp";
-    [Parameter] public string Guidance { get; set; } = "PNG، JPG یا WEBP — حداکثر ۲ مگابایت";
+    [Parameter] public string Accept { get; set; } = "image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+    [Parameter] public string Guidance { get; set; } = "PNG، JPG، JPEG، WEBP یا HEIC — حداکثر ۲ مگابایت";
+    [Parameter] public long MaxSizeBytes { get; set; } = 2 * 1024 * 1024;
 
     private bool _busy;
-    private const long MaxSize = 2 * 1024 * 1024;
+
+    private sealed class ConvertedImageResult
+    {
+        public string? Base64 { get; set; }
+    }
 
     private async Task OnChange(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file is null) return;
 
-        if (file.Size > MaxSize)
+        if (file.Size > MaxSizeBytes)
         {
-            Toasts.Error("حجم تصویر نباید بیشتر از ۲ مگابایت باشد.");
+            Toasts.Error($"حجم تصویر نباید بیشتر از {MaxSizeBytes / (1024 * 1024)} مگابایت باشد.");
             return;
         }
 
         _busy = true;
         try
         {
-            await using var stream = file.OpenReadStream(MaxSize);
+            await using var input = file.OpenReadStream(MaxSizeBytes);
+            Stream stream = input;
+            var fileName = file.Name;
+            var contentType = file.ContentType;
+            MemoryStream? convertedStream = null;
+            if (IsHeic(file))
+            {
+                await using var buffer = new MemoryStream();
+                await input.CopyToAsync(buffer);
+                var converted = await JS.InvokeAsync<ConvertedImageResult>("vzImageUpload.convertHeicToJpeg", buffer.ToArray());
+                var convertedBytes = string.IsNullOrWhiteSpace(converted?.Base64)
+                    ? Array.Empty<byte>()
+                    : Convert.FromBase64String(converted.Base64);
+                if (convertedBytes.Length == 0 || convertedBytes.Length > MaxSizeBytes)
+                {
+                    Toasts.Error("نسخه JPEG تصویر معتبر نیست یا از حداکثر حجم مجاز بیشتر است.");
+                    return;
+                }
+                convertedStream = new MemoryStream(convertedBytes, writable: false);
+                stream = convertedStream;
+                fileName = Path.ChangeExtension(file.Name, ".jpeg");
+                contentType = "image/jpeg";
+            }
+
+            await using (convertedStream)
+            {
             var result = await Api.UploadAsync<UploadResultModel>(
-                Endpoint, stream, file.Name, file.ContentType);
+                Endpoint, stream, fileName, contentType);
 
             if (result.IsSuccess && result.Data is not null)
             {
@@ -81,6 +112,11 @@
             {
                 Toasts.Error(string.IsNullOrWhiteSpace(result.Message) ? "آپلود تصویر ناموفق بود." : result.Message);
             }
+            }
+        }
+        catch (JSException)
+        {
+            Toasts.Error("تبدیل تصویر HEIC در این مرورگر ممکن نیست. لطفاً تصویر را به JPEG تبدیل کرده یا در تنظیمات دوربین آیفون، فرمت را روی «Most Compatible» بگذارید.");
         }
         catch
         {
@@ -96,5 +132,14 @@
     {
         Value = null;
         await ValueChanged.InvokeAsync(null);
+    }
+
+    private static bool IsHeic(IBrowserFile file)
+    {
+        var extension = Path.GetExtension(file.Name);
+        return string.Equals(file.ContentType, "image/heic", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(file.ContentType, "image/heif", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(extension, ".heic", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(extension, ".heif", StringComparison.OrdinalIgnoreCase);
     }
 }

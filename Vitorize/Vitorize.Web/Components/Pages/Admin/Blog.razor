@@ -136,8 +136,8 @@
                 <div class="vz-field">
                     <label class="vz-label">تصویر شاخص</label>
                     <UploadBox Value="@_model.CoverImagePath" Endpoint="admin/uploads/settings-image"
-                               Accept="image/png,image/jpeg,image/webp"
-                               Guidance="PNG، JPG یا WEBP — حداکثر ۲ مگابایت"
+                               Accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                               Guidance="PNG، JPG، JPEG، WEBP یا HEIC — حداکثر ۲ مگابایت"
                                ValueChanged="v => _model.CoverImagePath = v" Label="آپلود تصویر شاخص" />
                 </div>
                 <div class="vz-field">

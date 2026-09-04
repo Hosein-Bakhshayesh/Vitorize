@@ -321,16 +321,16 @@ else
 
     private static string UploadAcceptFor(string key) => key switch
     {
-        LoadingMediaKey => "image/png,image/jpeg,image/webp,image/gif",
+        LoadingMediaKey => "image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif",
         FaviconKey => "image/png,image/x-icon,image/vnd.microsoft.icon,.ico",
-        _ => "image/png,image/jpeg,image/webp"
+        _ => "image/png,image/jpeg,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
     };
 
     private static string UploadGuidanceFor(string key) => key switch
     {
-        LoadingMediaKey => "PNG، JPG، WEBP یا GIF متحرک — حداکثر ۲ مگابایت — خالی بگذارید تا لودر پیش‌فرض نمایش داده شود",
+        LoadingMediaKey => "PNG، JPG، JPEG، WEBP، HEIC یا GIF متحرک — حداکثر ۲ مگابایت — خالی بگذارید تا لودر پیش‌فرض نمایش داده شود",
         FaviconKey => "PNG یا ICO — پیشنهاد ۳۲×۳۲ یا ۴۸×۴۸ — حداکثر ۲ مگابایت",
-        _ => "PNG، JPG یا WEBP — حداکثر ۲ مگابایت"
+        _ => "PNG، JPG، JPEG، WEBP یا HEIC — حداکثر ۲ مگابایت"
     };
 
     private async Task OnImageChanged(SettingModel s, string? path)
