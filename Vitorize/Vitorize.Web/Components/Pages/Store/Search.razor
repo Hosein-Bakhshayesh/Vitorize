@@ -1,9 +1,35 @@
 @page "/search"
+@inject NavigationManager Nav
 
 <SeoHead Title="جستجو" Description="جستجوی محصولات ویتورایز" CanonicalPath="/search" Index="false" Follow="true" />
 
-<ShopBrowser Title="@($"نتایج جستجو {(string.IsNullOrWhiteSpace(Q) ? "" : $": {Q}")}")" InitialSearch="@Q" />
+@if (string.IsNullOrWhiteSpace(Q))
+{
+    <section class="st-search-start" aria-labelledby="search-start-title">
+        <span class="st-search-start__icon"><Icon Name="search" Size="30" /></span>
+        <h1 id="search-start-title">جستجو در محصولات</h1>
+        <p>نام محصول، بازی یا گیفت کارت موردنظر خود را وارد کنید.</p>
+        <form class="st-search-start__form" @onsubmit="SubmitSearch" @onsubmit:preventDefault="true">
+            <input type="search" autocomplete="off" placeholder="مثلاً استارز تلگرام"
+                   aria-label="عبارت جستجو" @bind="_search" @bind:event="oninput" />
+            <button class="st-btn st-btn--primary" type="submit"><Icon Name="search" Size="17" /> جستجو</button>
+        </form>
+    </section>
+}
+else
+{
+    <ShopBrowser Title="@($"نتایج جستجو: {Q}")" InitialSearch="@Q" />
+}
 
 @code {
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    private string _search = string.Empty;
+
+    private void SubmitSearch()
+    {
+        var term = _search.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+            Nav.NavigateTo($"/search?q={Uri.EscapeDataString(term)}");
+    }
 }

@@ -113,7 +113,11 @@
             <div class="st-header__actions">
                 <ThemeToggle />
 
-                <a class="st-iconbtn st-mobile-only" href="/search" title="جستجو"><Icon Name="search" Size="19" /></a>
+                <button class="st-iconbtn st-mobile-only" type="button" title="جستجو"
+                        aria-label="باز کردن جستجو" aria-expanded="@(_mobileSearchOpen ? "true" : "false")"
+                        @onclick="OpenMobileSearch">
+                    <Icon Name="search" Size="19" />
+                </button>
 
                 @if (_authenticated)
                 {
@@ -165,6 +169,23 @@
             </div>
         </div>
     </div>
+
+    @if (_mobileSearchOpen)
+    {
+        <div class="st-mobile-search" role="dialog" aria-modal="true" aria-label="جستجو در محصولات">
+            <form class="st-mobile-search__bar" @onsubmit="SubmitMobileSearch" @onsubmit:preventDefault="true">
+                <Icon Name="search" Size="20" />
+                <input @ref="_mobileSearchInput" type="search" autocomplete="off"
+                       placeholder="جستجو در محصولات، بازی‌ها، گیفت کارت‌ها ..."
+                       aria-label="عبارت جستجو" @bind="_search" @bind:event="oninput"
+                       @onkeydown="OnMobileSearchKey" />
+                <button class="st-mobile-search__submit" type="submit">جستجو</button>
+                <button class="st-mobile-search__close" type="button" aria-label="بستن جستجو" @onclick="CloseMobileSearch">
+                    <Icon Name="x" Size="21" />
+                </button>
+            </form>
+        </div>
+    }
 </header>
 
 @code {
@@ -174,7 +195,10 @@
     private bool _menuOpen;
     private bool _catsOpen;
     private bool _searchOpen;
+    private bool _mobileSearchOpen;
+    private bool _focusMobileSearch;
     private bool _panelLoading;
+    private ElementReference _mobileSearchInput;
     private StoreLookupModel? _activeCat;
     private readonly Dictionary<Guid, List<StoreProductModel>> _catProducts = new();
     private CancellationTokenSource? _closeCts;
@@ -227,6 +251,36 @@
 
     private void OpenSearch() { _searchOpen = true; CloseCats(); }
     private void CloseSearch() => _searchOpen = false;
+
+    private void OpenMobileSearch()
+    {
+        _mobileSearchOpen = true;
+        _focusMobileSearch = true;
+        _searchOpen = false;
+        CloseCats();
+        CloseMenu();
+    }
+
+    private void CloseMobileSearch()
+    {
+        _mobileSearchOpen = false;
+        _search = string.Empty;
+    }
+
+    private void SubmitMobileSearch()
+    {
+        var term = _search.Trim();
+        if (string.IsNullOrWhiteSpace(term)) return;
+
+        Nav.NavigateTo($"/search?q={Uri.EscapeDataString(term)}");
+        _mobileSearchOpen = false;
+        _search = string.Empty;
+    }
+
+    private void OnMobileSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseMobileSearch();
+    }
 
     // ---- Category mega menu -------------------------------------------------------------------
     // Hover-open with a grace delay on the way out, click for touch and keyboard. Products per
@@ -339,6 +393,14 @@
             Nav.NavigateTo($"/search?q={Uri.EscapeDataString(_search.Trim())}");
             _search = string.Empty;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusMobileSearch) return;
+
+        _focusMobileSearch = false;
+        await _mobileSearchInput.FocusAsync();
     }
 
     public void Dispose()
