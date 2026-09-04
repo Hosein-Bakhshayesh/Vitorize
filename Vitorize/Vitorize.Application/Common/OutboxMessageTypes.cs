@@ -4,5 +4,6 @@ namespace Vitorize.Application.Common
     {
         public const string NotificationCreated = "NotificationCreated";
         public const string SmsSend = "SmsSend";
+        public const string EmailSend = "EmailSend";
     }
 }

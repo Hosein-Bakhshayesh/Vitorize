@@ -454,6 +454,7 @@ namespace Vitorize.Infrastructure.Services
                 S("SmtpFromEmail", "", "Email", "string", "ایمیل فرستنده"),
                 S("SmtpFromName", "ویتورایز", "Email", "string", "نام فرستنده"),
                 S("SmtpEnableSsl", "true", "Email", "bool", "استفاده از SSL"),
+                S("OrderNotificationEmail", "vitorize.com@gmail.com", "Email", "string", "ایمیل دریافت اعلان سفارش‌های پرداخت‌شده"),
 
                 // ───────────── Security ─────────────
                 S("RequireEmailConfirmation", "false", "Security", "bool", "الزام تأیید ایمیل"),

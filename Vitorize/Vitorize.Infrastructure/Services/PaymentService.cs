@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using Vitorize.Shared.Logging;
 using Vitorize.Application.Common;
+using Vitorize.Application.Models.Email;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -30,6 +31,7 @@ namespace Vitorize.Infrastructure.Services
         private readonly INotificationService _notificationService;
         private readonly IZarinpalGatewayService _zarinpalGatewayService;
         private readonly ISmsOutboxEnqueuer _smsOutbox;
+        private readonly IOrderEmailOutboxEnqueuer? _orderEmailOutbox;
         private readonly ILogger<PaymentService> _logger;
         private readonly PaymentTimingOptions _paymentTiming;
 
@@ -43,7 +45,8 @@ namespace Vitorize.Infrastructure.Services
             ISmsOutboxEnqueuer smsOutbox,
             ILogger<PaymentService>? logger = null,
             IOptions<PaymentTimingOptions>? paymentTiming = null,
-            IPostPaymentOrderProcessor? postPaymentOrderProcessor = null)
+            IPostPaymentOrderProcessor? postPaymentOrderProcessor = null,
+            IOrderEmailOutboxEnqueuer? orderEmailOutbox = null)
         {
             _dbContext = dbContext;
             _giftCodeDeliveryService = giftCodeDeliveryService;
@@ -55,6 +58,7 @@ namespace Vitorize.Infrastructure.Services
             _logger = logger ?? NullLogger<PaymentService>.Instance;
             _paymentTiming = paymentTiming?.Value ?? new PaymentTimingOptions();
             _postPaymentOrderProcessor = postPaymentOrderProcessor;
+            _orderEmailOutbox = orderEmailOutbox;
         }
 
         public async Task<PaymentStartResultDto> StartPaymentAsync(Guid userId, Guid orderId)
@@ -1116,9 +1120,9 @@ namespace Vitorize.Infrastructure.Services
                     order.CouponId.Value);
             }
 
-            var mobile = await _dbContext.Users
+            var customer = await _dbContext.Users.AsNoTracking()
                 .Where(x => x.Id == userId)
-                .Select(x => x.Mobile)
+                .Select(x => new { x.Mobile, x.Email, x.FullName })
                 .FirstOrDefaultAsync();
 
             await _notificationService.CreateAsync(
@@ -1130,13 +1134,39 @@ namespace Vitorize.Infrastructure.Services
             // پیامک وضعیت سفارش از طریق Outbox؛ متن اختصاصی است تا به قالب عمومی
             // «اطلاع‌رسانی جدید» SMS.ir وابسته نباشد و شکست ارسال هم پرداخت را برنگرداند.
             await _smsOutbox.EnqueueTextAsync(
-                mobile,
+                customer?.Mobile,
                 OrderSmsMessages.Processing(order.OrderNumber),
                 purpose: "OrderProcessing",
                 aggregateId: order.Id,
                 userId: userId,
                 relatedEntityType: "Order",
                 relatedEntityReference: order.OrderNumber);
+
+            if (_orderEmailOutbox is not null && customer is not null)
+            {
+                var emailItems = await _dbContext.OrderItems.AsNoTracking()
+                    .Where(item => item.OrderId == order.Id)
+                    .OrderBy(item => item.CreatedAt).ThenBy(item => item.Id)
+                    .Select(item => new PaidOrderEmailItem
+                    {
+                        ProductTitle = item.ProductTitle,
+                        VariantTitle = item.VariantTitle,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice
+                    })
+                    .ToListAsync();
+
+                await _orderEmailOutbox.EnqueuePaidOrderEmailsAsync(new PaidOrderEmailRequest
+                {
+                    OrderId = order.Id,
+                    OrderNumber = order.OrderNumber,
+                    CustomerName = customer.FullName,
+                    CustomerMobile = customer.Mobile,
+                    CustomerEmail = customer.Email,
+                    FinalAmount = order.FinalAmount,
+                    Items = emailItems
+                });
+            }
 
             await _dbContext.SaveChangesAsync();
 

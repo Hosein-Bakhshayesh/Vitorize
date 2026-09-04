@@ -5,6 +5,7 @@ using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Outbox;
 using Vitorize.Application.Interfaces;
 using Vitorize.Application.Models.Sms;
+using Vitorize.Application.Models.Email;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Enums;
 using Vitorize.Shared.Logging;
@@ -96,6 +97,7 @@ namespace Vitorize.Api.BackgroundServices
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<VitorizeDbContext>();
             var smsService = scope.ServiceProvider.GetRequiredService<ISmsService>();
+            var emailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
 
             var now = DateTime.UtcNow;
 
@@ -130,7 +132,7 @@ namespace Vitorize.Api.BackgroundServices
                 if (!IsDue(message, now))
                     continue;
 
-                await ProcessOneAsync(dbContext, smsService, message, cancellationToken);
+                await ProcessOneAsync(dbContext, smsService, emailSender, message, cancellationToken);
                 processed++;
             }
 
@@ -141,6 +143,7 @@ namespace Vitorize.Api.BackgroundServices
         private async Task ProcessOneAsync(
             VitorizeDbContext dbContext,
             ISmsService smsService,
+            IEmailSender emailSender,
             Vitorize.Domain.Entities.OutboxMessage message,
             CancellationToken cancellationToken)
         {
@@ -177,7 +180,7 @@ namespace Vitorize.Api.BackgroundServices
                 message = await dbContext.OutboxMessages
                     .SingleAsync(x => x.Id == message.Id, cancellationToken);
 
-                var handled = await HandleAsync(dbContext, smsService, message, cancellationToken);
+                var handled = await HandleAsync(dbContext, smsService, emailSender, message, cancellationToken);
 
                 if (handled.Success)
                 {
@@ -276,6 +279,7 @@ namespace Vitorize.Api.BackgroundServices
         private async Task<HandleResult> HandleAsync(
             VitorizeDbContext dbContext,
             ISmsService smsService,
+            IEmailSender emailSender,
             Vitorize.Domain.Entities.OutboxMessage message,
             CancellationToken cancellationToken)
         {
@@ -400,6 +404,34 @@ namespace Vitorize.Api.BackgroundServices
                 // اعلان درون‌برنامه‌ای قبلاً در DB ساخته شده؛ این پیام صرفاً برای گسترش‌های آینده است.
                 _logger.LogDebug("Outbox notification processed: {AggregateId}", message.AggregateId);
                 return HandleResult.Ok();
+            }
+
+            if (message.MessageType == OutboxMessageTypes.EmailSend)
+            {
+                EmailOutboxPayload? payload;
+                try
+                {
+                    payload = JsonSerializer.Deserialize<EmailOutboxPayload>(message.Payload);
+                }
+                catch (Exception ex)
+                {
+                    return HandleResult.Fail($"Invalid email payload ({ex.GetType().Name}).", retryable: false);
+                }
+
+                if (payload is null || string.IsNullOrWhiteSpace(payload.Recipient) ||
+                    string.IsNullOrWhiteSpace(payload.Subject) || string.IsNullOrWhiteSpace(payload.Body))
+                    return HandleResult.Fail("Empty email payload.", retryable: false);
+
+                var result = await emailSender.SendAsync(payload, cancellationToken);
+                if (result.IsSuccess)
+                {
+                    _logger.LogInformation(
+                        "Outbox email processed. EventType={EventType} Purpose={Purpose}",
+                        "EmailSent", message.AggregateType);
+                    return HandleResult.Ok();
+                }
+
+                return HandleResult.Fail(result.Error ?? "Email delivery failed.", result.Retryable);
             }
 
             _logger.LogWarning("Unknown outbox message type: {MessageType}", message.MessageType);

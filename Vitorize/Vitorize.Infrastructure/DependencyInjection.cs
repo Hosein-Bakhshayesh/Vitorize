@@ -70,6 +70,9 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IIdempotencyService, IdempotencyService>();
             services.AddScoped<IOutboxService, OutboxService>();
             services.AddScoped<ISettingService, SettingService>();
+            services.Configure<EmailSecretOptions>(configuration.GetSection(EmailSecretOptions.SectionName));
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+            services.AddScoped<IOrderEmailOutboxEnqueuer, OrderEmailOutboxEnqueuer>();
             // Singleton with the shared memory cache: the rotation grace window has to be visible to
             // every request in the process, which is what makes concurrent refreshes converge.
             services.AddMemoryCache();
