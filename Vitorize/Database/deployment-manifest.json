@@ -730,6 +730,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 117,
+      "version": "V0033",
+      "name": "V0033__product_redirect_url.sql",
+      "path": "Versioned/V0033__product_redirect_url.sql",
+      "sha256": "d5976099637fd98f3553a727bef0ce20a3f702519ffe8fc76bea3d063ed6c68c",
+      "classification": "required",
+      "dependencies": [
+        "V0032",
+        "dbo.Products"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

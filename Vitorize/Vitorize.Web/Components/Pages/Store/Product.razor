@@ -426,6 +426,11 @@ else
         if (result.IsSuccess && result.Data is not null)
         {
             _p = result.Data;
+            if (!string.IsNullOrWhiteSpace(_p.RedirectUrl))
+            {
+                Nav.NavigateTo(_p.RedirectUrl, forceLoad: true, replace: true);
+                return;
+            }
             _gallery = new List<StoreProductImageModel>();
             if (!string.IsNullOrWhiteSpace(_p.ThumbnailImagePath)) _gallery.Add(new() { ImagePath = _p.ThumbnailImagePath, AltText = _p.ThumbnailAltText });
             foreach (var img in _p.ImageItems.Where(i => !string.IsNullOrWhiteSpace(i.ImagePath)).OrderBy(i => i.SortOrder))

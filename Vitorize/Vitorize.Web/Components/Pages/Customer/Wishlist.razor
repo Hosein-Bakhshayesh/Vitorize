@@ -43,7 +43,7 @@ else
         @foreach (var item in _items)
         {
             <div class="st-pcard st-anim">
-                <a class="st-pcard__media" href="@($"/product/{item.Slug}")">
+                <a class="st-pcard__media" href="@ProductHref(item)">
                     <StoreImage Url="@item.ThumbnailImagePath" Alt="@item.Title" Icon="gamepad" />
                     @if (item.DiscountPercent > 0)
                     {
@@ -56,7 +56,7 @@ else
                 </button>
                 <div class="st-pcard__body">
                     <div class="st-pcard__cat">@item.CategoryTitle</div>
-                    <a class="st-pcard__title" href="@($"/product/{item.Slug}")">@item.Title</a>
+                    <a class="st-pcard__title" href="@ProductHref(item)">@item.Title</a>
                     <div class="st-pcard__meta">
                         <span class="st-tag">@AUI.ProductType(item.ProductType)</span>
                         @if (!item.IsAvailable)
@@ -141,6 +141,10 @@ else
         }
         else Toasts.Error(result.Message);
     }
+
+    private static string ProductHref(CustomerWishlistItemModel product) => string.IsNullOrWhiteSpace(product.RedirectUrl)
+        ? $"/product/{product.Slug}"
+        : product.RedirectUrl;
 
     private static string Unit(CustomerWishlistItemModel item)
         => item.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";

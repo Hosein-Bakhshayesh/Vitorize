@@ -10,6 +10,8 @@
 
         public string? ShortDescription { get; set; }
 
+        public string? RedirectUrl { get; set; }
+
         public string? ThumbnailImagePath { get; set; }
 
         public decimal BasePrice { get; set; }

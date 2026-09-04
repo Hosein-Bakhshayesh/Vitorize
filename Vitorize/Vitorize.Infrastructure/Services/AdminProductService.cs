@@ -47,6 +47,7 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     ShortDescription = x.ShortDescription,
                     FullDescription = x.FullDescription,
+                    RedirectUrl = x.RedirectUrl,
                     ProductType = x.ProductType,
                     DeliveryType = x.DeliveryType,
                     BasePrice = x.BasePrice,
@@ -145,6 +146,7 @@ namespace Vitorize.Infrastructure.Services
                 .Select(x => new AdminProductDto
                 {
                     Id = x.Id, CategoryId = x.CategoryId, BrandId = x.BrandId, Title = x.Title, Slug = x.Slug,
+                    RedirectUrl = x.RedirectUrl,
                     ProductType = x.ProductType, DeliveryType = x.DeliveryType, BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice, CurrencyType = x.CurrencyType, IsActive = x.IsActive,
                     ForceOutOfStock = x.ForceOutOfStock,
@@ -206,6 +208,7 @@ namespace Vitorize.Infrastructure.Services
                     Slug = x.Slug,
                     ShortDescription = x.ShortDescription,
                     FullDescription = x.FullDescription,
+                    RedirectUrl = x.RedirectUrl,
                     ProductType = x.ProductType,
                     DeliveryType = x.DeliveryType,
                     BasePrice = x.BasePrice,
@@ -385,6 +388,7 @@ namespace Vitorize.Infrastructure.Services
                 Slug = request.Slug.Trim().ToLowerInvariant(),
                 ShortDescription = NormalizeNullable(request.ShortDescription),
                 FullDescription = _htmlSanitizer.Sanitize(request.FullDescription),
+                RedirectUrl = NormalizeRedirectUrl(request.RedirectUrl),
                 ProductType = request.ProductType,
                 DeliveryType = request.DeliveryType,
                 BasePrice = request.BasePrice,
@@ -440,6 +444,7 @@ namespace Vitorize.Infrastructure.Services
             product.Slug = request.Slug.Trim().ToLowerInvariant();
             product.ShortDescription = NormalizeNullable(request.ShortDescription);
             product.FullDescription = _htmlSanitizer.Sanitize(request.FullDescription);
+            product.RedirectUrl = NormalizeRedirectUrl(request.RedirectUrl);
             product.ProductType = request.ProductType;
             product.DeliveryType = request.DeliveryType;
             product.BasePrice = request.BasePrice;
@@ -661,6 +666,7 @@ namespace Vitorize.Infrastructure.Services
 
             request.ShortDescription = NormalizeNullable(request.ShortDescription);
             request.FullDescription = NormalizeNullable(request.FullDescription);
+            request.RedirectUrl = NormalizeNullable(request.RedirectUrl);
             request.SeoTitle = NormalizeNullable(request.SeoTitle);
             request.SeoDescription = NormalizeNullable(request.SeoDescription);
             request.FocusKeyword = NormalizeNullable(request.FocusKeyword);
@@ -675,6 +681,30 @@ namespace Vitorize.Infrastructure.Services
             return string.IsNullOrWhiteSpace(value)
                 ? null
                 : value.Trim();
+        }
+
+        private static string? NormalizeRedirectUrl(string? value)
+        {
+            var url = NormalizeNullable(value);
+            if (url is null) return null;
+
+            if (url.Length > 2048)
+                throw new BusinessException("آدرس ریدایرکت نمی‌تواند بیشتر از ۲۰۴۸ کاراکتر باشد.");
+
+            if (url.StartsWith("/", StringComparison.Ordinal) &&
+                !url.StartsWith("//", StringComparison.Ordinal) &&
+                !url.Contains("\\", StringComparison.Ordinal))
+            {
+                return url;
+            }
+
+            if (Uri.TryCreate(url, UriKind.Absolute, out var absolute) &&
+                absolute.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                return absolute.AbsoluteUri;
+            }
+
+            throw new BusinessException("آدرس ریدایرکت باید یک مسیر داخلی مانند /blog/... یا یک آدرس کامل HTTPS باشد.");
         }
 
         private static decimal? NormalizeDiscountPrice(decimal? value)

@@ -52,7 +52,7 @@ public sealed class AdminCatalogCrudIntegrationTests
             DeliveryType = (byte)DeliveryType.Manual, BasePrice = 250m, DiscountPrice = 200m,
             CurrencyType = (byte)CurrencyType.Toman, MinOrderQuantity = 1, MaxOrderQuantity = 5,
             IsActive = true, SeoTitle = "Integration SEO", FocusKeyword = "product keyword",
-            ThumbnailAltText = "Product thumbnail", TagIds = new() { tag.Id },
+            ThumbnailAltText = "Product thumbnail", RedirectUrl = "/blog/integration-target", TagIds = new() { tag.Id },
             Features = new()
             {
                 new ProductFeatureDto { Title = "Platform", Value = "PC", IconKey = "monitor", SortOrder = 1, IsActive = true }
@@ -71,6 +71,7 @@ public sealed class AdminCatalogCrudIntegrationTests
         product.Features.Should().ContainSingle(x => x.Title == "Platform" && x.IconKey == "monitor");
         product.InputFields.Should().ContainSingle(x => x.Key == "account_email");
         product.TagIds.Should().Contain(tag.Id);
+        product.RedirectUrl.Should().Be("/blog/integration-target");
 
         var pagedResponse = await admin.GetFromJsonAsync<ApiResult<PagedResult<AdminProductDto>>>(
             $"/api/admin/products/paged?search={Uri.EscapeDataString(product.Title)}&page=1&pageSize=1");
@@ -82,6 +83,8 @@ public sealed class AdminCatalogCrudIntegrationTests
         {
             var publicResponse = await publicClient.GetAsync($"/api/products/slug/{product.Slug}");
             publicResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var payload = await publicResponse.Content.ReadFromJsonAsync<ApiResult<ProductDetailDto>>();
+            payload!.Data!.RedirectUrl.Should().Be("/blog/integration-target");
             var body = await publicResponse.Content.ReadAsStringAsync();
             body.Should().Contain("Platform").And.Contain("account_email").And.Contain("Integration SEO");
         }

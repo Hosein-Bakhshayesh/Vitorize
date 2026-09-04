@@ -163,6 +163,11 @@ else
                                 <InputTextArea class="vz-textarea" data-testid="product-short-description" aria-label="توضیحات کوتاه" style="min-height:80px" @bind-Value="_model.ShortDescription" />
                             </div>
                             <div class="vz-field span-2">
+                                <label class="vz-label">آدرس ریدایرکت (اختیاری)</label>
+                                <InputText class="vz-input" type="url" data-testid="product-redirect-url" aria-label="آدرس ریدایرکت" @bind-Value="_model.RedirectUrl" />
+                                <span class="vz-hint">با ثبت این آدرس، کلیک روی محصول مشتری را به آن می‌برد. مسیر داخلی مانند <bdi>/blog/...</bdi> یا آدرس کامل HTTPS وارد کنید.</span>
+                            </div>
+                            <div class="vz-field span-2">
                                 <label class="vz-label">توضیحات کامل</label>
                                 <RichTextEditor @bind-Value="_model.FullDescription" />
                                 <span class="vz-hint">HTML خروجی هنگام ذخیره در سرور با فهرست سخت‌گیرانه تگ‌ها و ویژگی‌های مجاز پاک‌سازی می‌شود.</span>
@@ -752,7 +757,7 @@ else
             _model = new CreateProductRequestModel
             {
                 CategoryId = p.CategoryId, CategoryIds = p.CategoryIds ?? new(), BrandId = p.BrandId, Title = p.Title, Slug = p.Slug,
-                ShortDescription = p.ShortDescription, FullDescription = p.FullDescription,
+                ShortDescription = p.ShortDescription, FullDescription = p.FullDescription, RedirectUrl = p.RedirectUrl,
                 ThumbnailImagePath = p.ThumbnailImagePath, ThumbnailAltText = p.ThumbnailAltText, ProductType = p.ProductType, DeliveryType = p.DeliveryType,
                 CurrencyType = p.CurrencyType, BasePrice = p.BasePrice, DiscountPrice = p.DiscountPrice,
                 RequiresSupportMessage = p.RequiresSupportMessage,

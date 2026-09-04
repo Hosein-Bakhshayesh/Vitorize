@@ -14,6 +14,7 @@ namespace Vitorize.Web.Models.Admin.Products
         public string Slug { get; set; } = string.Empty;
         public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
+        public string? RedirectUrl { get; set; }
         public string? ThumbnailImagePath { get; set; }
         public string? ThumbnailAltText { get; set; }
         public byte ProductType { get; set; }
@@ -55,6 +56,7 @@ namespace Vitorize.Web.Models.Admin.Products
         [MaxLength(300)] public string Slug { get; set; } = string.Empty;
         [MaxLength(1000)] public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
+        [MaxLength(2048)] public string? RedirectUrl { get; set; }
         public string? ThumbnailImagePath { get; set; }
         [MaxLength(250)] public string? ThumbnailAltText { get; set; }
         [Range(1, 99, ErrorMessage = "نوع محصول معتبر نیست.")]

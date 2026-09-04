@@ -1002,6 +1002,7 @@ public partial class VitorizeDbContext : DbContext
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(250);
             entity.Property(e => e.FocusKeyword).HasMaxLength(200);
+            entity.Property(e => e.RedirectUrl).HasMaxLength(2048);
             entity.Property(e => e.ShortDescription).HasMaxLength(1000);
             entity.Property(e => e.Slug).HasMaxLength(300);
             entity.Property(e => e.ThumbnailImagePath).HasMaxLength(500);

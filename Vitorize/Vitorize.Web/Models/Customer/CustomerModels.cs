@@ -50,6 +50,7 @@ namespace Vitorize.Web.Models.Customer
         public Guid ProductId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
+        public string? RedirectUrl { get; set; }
         public string? ThumbnailImagePath { get; set; }
         public decimal BasePrice { get; set; }
         public decimal? DiscountPrice { get; set; }

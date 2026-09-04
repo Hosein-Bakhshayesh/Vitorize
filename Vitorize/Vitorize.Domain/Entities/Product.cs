@@ -20,6 +20,12 @@ public partial class Product
 
     public string? FullDescription { get; set; }
 
+    /// <summary>
+    /// Optional customer-facing destination for this product. When set, storefront product links
+    /// use this address instead of the product-detail route.
+    /// </summary>
+    public string? RedirectUrl { get; set; }
+
     public byte ProductType { get; set; }
 
     public byte DeliveryType { get; set; }

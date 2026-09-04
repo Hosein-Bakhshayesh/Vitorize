@@ -11,7 +11,7 @@
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <div class="st-pcard">
-    <a class="st-pcard__media" href="@($"/product/{Product.Slug}")" aria-label="مشاهده @Product.Title">
+    <a class="st-pcard__media" href="@ProductHref" aria-label="مشاهده @Product.Title">
         <StoreImage Url="@Product.ThumbnailImagePath" Alt="@Product.Title" Icon="gamepad" />
         @if (Product.DiscountPercent > 0 && InStock)
         {
@@ -29,7 +29,7 @@
     </button>
     <div class="st-pcard__body">
         <div class="st-pcard__cat">@Product.CategoryTitle</div>
-        <a class="st-pcard__title" href="@($"/product/{Product.Slug}")">@Product.Title</a>
+        <a class="st-pcard__title" href="@ProductHref">@Product.Title</a>
         <div class="st-pcard__rate">
             @if (Product.ReviewCount > 0)
             {
@@ -68,6 +68,9 @@
     private bool _busy;
     private bool _wishBusy;
     private string Unit => Product.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
+    private string ProductHref => string.IsNullOrWhiteSpace(Product.RedirectUrl)
+        ? $"/product/{Product.Slug}"
+        : Product.RedirectUrl;
     private bool InWishlist => Wishlist.Contains(Product.Id);
     // One rule for the badge and the button: a card must never invite a purchase the cart will
     // refuse. HasVariants used to imply availability, which hid genuinely sold-out products.

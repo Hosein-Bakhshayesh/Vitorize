@@ -285,6 +285,8 @@ ELSE IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.
 
 IF COL_LENGTH(N'dbo.Products', N'FocusKeyword') IS NULL OR COL_LENGTH(N'dbo.Products', N'ThumbnailAltText') IS NULL
     INSERT @Issues VALUES ('ERROR', N'Product SEO columns', N'Products.FocusKeyword or Products.ThumbnailAltText is missing.');
+IF COL_LENGTH(N'dbo.Products', N'RedirectUrl') IS NULL
+    INSERT @Issues VALUES ('ERROR', N'Product redirect column', N'Products.RedirectUrl is missing.');
 IF COL_LENGTH(N'dbo.ProductTags', N'Aliases') IS NULL OR COL_LENGTH(N'dbo.ProductTags', N'IsActive') IS NULL
     INSERT @Issues VALUES ('ERROR', N'ProductTag SEO columns', N'ProductTags alias/activation columns are missing.');
 IF NOT EXISTS (SELECT 1 FROM dbo.Settings WHERE [Key] = N'Seo.CanonicalBaseUrl')

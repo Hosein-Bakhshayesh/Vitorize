@@ -10,6 +10,8 @@ namespace Vitorize.Application.DTOs.Wishlist
 
         public string Slug { get; set; } = string.Empty;
 
+        public string? RedirectUrl { get; set; }
+
         public string? ThumbnailImagePath { get; set; }
 
         public decimal BasePrice { get; set; }

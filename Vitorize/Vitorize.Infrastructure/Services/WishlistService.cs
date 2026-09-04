@@ -38,6 +38,7 @@ namespace Vitorize.Infrastructure.Services
                     ProductId = x.ProductId,
                     Title = x.Product.Title,
                     Slug = x.Product.Slug,
+                    RedirectUrl = x.Product.RedirectUrl,
                     ThumbnailImagePath = x.Product.ThumbnailImagePath,
                     BasePrice = x.Product.BasePrice,
                     DiscountPrice = x.Product.DiscountPrice,

@@ -9,6 +9,7 @@
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public string? ShortDescription { get; set; }
+        public string? RedirectUrl { get; set; }
         public string? ThumbnailImagePath { get; set; }
         public string? ThumbnailAltText { get; set; }
         public decimal BasePrice { get; set; }
@@ -78,6 +79,7 @@
         public string Slug { get; set; } = string.Empty;
         public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
+        public string? RedirectUrl { get; set; }
         public byte ProductType { get; set; }
         public byte DeliveryType { get; set; }
         public decimal BasePrice { get; set; }

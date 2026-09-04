@@ -65,7 +65,7 @@
                                         <div class="st-catmenu__grid">
                                             @foreach (var p in ActiveCatProducts)
                                             {
-                                                <a class="st-catmenu__item" href="@($"/product/{p.Slug}")" @onclick="CloseCats">
+                                                <a class="st-catmenu__item" href="@ProductHref(p)" @onclick="CloseCats">
                                                     <span class="st-catmenu__thumb">
                                                         <StoreImage Url="@p.ThumbnailImagePath" Alt="@(p.ThumbnailAltText ?? p.Title)" Icon="package" />
                                                     </span>
@@ -251,6 +251,10 @@
 
     private void OpenSearch() { _searchOpen = true; CloseCats(); }
     private void CloseSearch() => _searchOpen = false;
+
+    private static string ProductHref(StoreProductModel product) => string.IsNullOrWhiteSpace(product.RedirectUrl)
+        ? $"/product/{product.Slug}"
+        : product.RedirectUrl;
 
     private void OpenMobileSearch()
     {

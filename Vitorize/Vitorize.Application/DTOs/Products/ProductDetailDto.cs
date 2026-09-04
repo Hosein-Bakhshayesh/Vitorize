@@ -16,6 +16,8 @@
 
         public string? FullDescription { get; set; }
 
+        public string? RedirectUrl { get; set; }
+
         public byte ProductType { get; set; }
 
         public byte DeliveryType { get; set; }

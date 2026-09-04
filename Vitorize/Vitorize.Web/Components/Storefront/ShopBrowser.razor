@@ -180,7 +180,7 @@
                 <div class="st-toprated">
                     @foreach (var tr in TopRated)
                     {
-                        <a class="st-toprated__item" href="@($"/product/{tr.Slug}")">
+                        <a class="st-toprated__item" href="@ProductHref(tr)">
                             <span class="st-toprated__ic"><StoreImage Url="@tr.ThumbnailImagePath" Alt="@tr.Title" Icon="gamepad" IconSize="16" /></span>
                             <div style="min-width:0">
                                 <div class="st-toprated__t">@tr.Title</div>
@@ -388,6 +388,10 @@
 
     private List<StoreProductModel> TopRated =>
         _view.Where(p => p.ReviewCount > 0).OrderByDescending(p => p.AverageRating).ThenByDescending(p => p.ReviewCount).Take(3).ToList();
+
+    private static string ProductHref(StoreProductModel product) => string.IsNullOrWhiteSpace(product.RedirectUrl)
+        ? $"/product/{product.Slug}"
+        : product.RedirectUrl;
 
     protected override async Task OnInitializedAsync()
     {
