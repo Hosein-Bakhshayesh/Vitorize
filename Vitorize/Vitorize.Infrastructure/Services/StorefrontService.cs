@@ -3,6 +3,7 @@ using Vitorize.Application.DTOs.Storefront;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Enums;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -93,7 +94,16 @@ namespace Vitorize.Infrastructure.Services
                     ThumbnailImagePath = x.ThumbnailImagePath,
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
-                    IsFeatured = x.IsFeatured
+                    IsFeatured = x.IsFeatured,
+                    ForceOutOfStock = x.ForceOutOfStock,
+                    DeliveryType = x.DeliveryType,
+                    AvailableStock = x.DeliveryType == (byte)DeliveryType.Instant
+                        ? _dbContext.GiftCodes.Count(g =>
+                            g.ProductId == x.Id && g.Status == (byte)GiftCodeStatus.Available)
+                        : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
+                    IsUnlimitedStock = x.DeliveryType != (byte)DeliveryType.Instant &&
+                        x.ProductVariants.Any(v => v.IsActive &&
+                            v.StockMode == (byte)ProductVariantStockMode.Unlimited)
                 })
                 .ToListAsync();
 
