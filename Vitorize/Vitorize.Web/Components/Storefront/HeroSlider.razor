@@ -1,5 +1,6 @@
 @implements IDisposable
 @using Vitorize.Web.Models.Store
+@using Vitorize.Web.Services.UI
 
 <div class="st-hslider" @onmouseenter="Pause" @onmouseleave="Resume">
     @if (Active is not null)
@@ -13,10 +14,16 @@
     <div class="st-hslider__overlay"></div>
 
     <div class="st-hslide enter" @key="_index">
-        <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
-        <h1 class="st-hslide__title">@(Active?.Title ?? "دنیای بازی و دیجیتال در دستان تو")</h1>
-        <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
-        <a class="st-hslide__cta" href="@CtaHref"><Icon Name="shopping-bag" Size="17" /> @CtaText</a>
+        <span class="st-hslide__kicker"><span class="dot"></span> @Branding.HeroKicker</span>
+        <h1 class="st-hslide__title">@Branding.HeroTitle</h1>
+        <p class="st-hslide__sub">@Branding.HeroSubtitle</p>
+        <div class="st-hslide__ctas">
+            <a class="st-hslide__cta" href="@CtaHref"><Icon Name="shopping-bag" Size="17" /> @Branding.HeroCtaText</a>
+            @if (!string.IsNullOrWhiteSpace(Branding.HeroSecondaryCtaText))
+            {
+                <a class="st-hslide__cta2" href="@Branding.HeroSecondaryCtaUrl">@Branding.HeroSecondaryCtaText</a>
+            }
+        </div>
     </div>
 
     @if (Banners.Count > 1)
@@ -35,14 +42,16 @@
 
 @code {
     [Parameter, EditorRequired] public List<StoreBannerModel> Banners { get; set; } = new();
+    [Parameter, EditorRequired] public StoreBranding Branding { get; set; } = new(new Dictionary<string, string>());
 
     private int _index;
     private System.Threading.Timer? _timer;
     private bool _paused;
 
     private StoreBannerModel? Active => Banners.Count > 0 ? Banners[Math.Clamp(_index, 0, Banners.Count - 1)] : null;
-    private string CtaHref => string.IsNullOrWhiteSpace(Active?.LinkUrl) ? "/shop" : Active!.LinkUrl!;
-    private string CtaText => "ورود به فروشگاه";
+    // A banner may intentionally lead to a campaign page; otherwise the general Hero setting is
+    // used, so changing the banner image can never reset the administrator's hero text or CTA.
+    private string CtaHref => string.IsNullOrWhiteSpace(Active?.LinkUrl) ? Branding.HeroCtaUrl : Active!.LinkUrl!;
 
     protected override void OnInitialized()
     {
