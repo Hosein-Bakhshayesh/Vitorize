@@ -13,6 +13,7 @@
 
 <PageTitle>تکمیل خرید | ویتورایز</PageTitle>
 
+<div class="st-purchase-page st-checkout-page">
 <div class="st-steps">
     <div class="st-step done"><span class="st-step__n"><Icon Name="check" Size="13" /></span> سبد خرید</div>
     <div class="st-step active"><span class="st-step__n">۲</span> اطلاعات و پرداخت</div>
@@ -240,6 +241,7 @@ else
         </div>
     </div>
 }
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "coupon")] public string? CouponFromQuery { get; set; }

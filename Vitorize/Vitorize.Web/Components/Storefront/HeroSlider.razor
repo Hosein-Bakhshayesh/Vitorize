@@ -12,12 +12,15 @@
     <span class="st-hslider__aurora a2"></span>
     <div class="st-hslider__overlay"></div>
 
-    <div class="st-hslide enter" @key="_index">
-        <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
-        <h1 class="st-hslide__title">@(Active?.Title ?? "دنیای بازی و دیجیتال در دستان تو")</h1>
-        <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
-        <a class="st-hslide__cta" href="@CtaHref"><Icon Name="shopping-bag" Size="17" /> @CtaText</a>
-    </div>
+    @if (ShowContent)
+    {
+        <div class="st-hslide enter" @key="_index">
+            <span class="st-hslide__kicker"><span class="dot"></span> ویتورایز · بازارگاه دیجیتال</span>
+            <h1 class="st-hslide__title">@(Active?.Title ?? "دنیای بازی و دیجیتال در دستان تو")</h1>
+            <p class="st-hslide__sub">خرید سریع، مطمئن و رسمی گیفت کارت، اشتراک و خدمات دیجیتال با تحویل آنی و پشتیبانی ۲۴ ساعته.</p>
+            <a class="st-hslide__cta" href="@CtaHref"><Icon Name="shopping-bag" Size="17" /> @CtaText</a>
+        </div>
+    }
 
     @if (Banners.Count > 1)
     {
@@ -35,6 +38,7 @@
 
 @code {
     [Parameter, EditorRequired] public List<StoreBannerModel> Banners { get; set; } = new();
+    [Parameter] public bool ShowContent { get; set; } = true;
 
     private int _index;
     private System.Threading.Timer? _timer;

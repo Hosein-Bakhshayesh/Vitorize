@@ -6,20 +6,18 @@
 @using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<header class="st-header">
+<header class="st-header" @onkeydown="OnHeaderKeyDown">
     <div class="st-container">
         <div class="st-header__row">
             <StoreLogo />
 
             <nav class="st-nav">
-                <a href="/" class="@Active("/")">خانه</a>
-                <a href="/shop" class="@Active("/shop")">فروشگاه</a>
                 <div class="st-nav__mega" @onkeydown="OnCatsKeyDown">
                     <button class="st-nav__trigger @(_catsOpen ? "open" : null)" type="button"
                             aria-haspopup="true" aria-expanded="@(_catsOpen ? "true" : "false")"
                             data-testid="catmenu-trigger"
                             @onclick="ToggleCats" @onmouseover="OpenCats" @onmouseout="ScheduleCloseCats">
-                        دسته‌بندی‌ها <span class="chev">▾</span>
+                        خدمات ما <span class="chev">▾</span>
                     </button>
                     @if (_catsOpen)
                     {
@@ -87,8 +85,9 @@
                         </div>
                     }
                 </div>
-                <a href="/blog" class="@Active("/blog")">وبلاگ</a>
-                <a href="/faq" class="@Active("/faq")">سوالات متداول</a>
+                <a href="/about" class="@Active("/about")">درباره ما</a>
+                <a href="/contact" class="@Active("/contact")">ارتباط با ما</a>
+                <a href="/blog" class="@Active("/blog")">بلاگ ها</a>
             </nav>
 
             <div class="st-search">
@@ -111,21 +110,6 @@
             </div>
 
             <div class="st-header__actions">
-                <ThemeToggle />
-
-                <a class="st-iconbtn st-mobile-only" href="/search" title="جستجو"><Icon Name="search" Size="19" /></a>
-
-                @if (_authenticated)
-                {
-                    <a class="st-iconbtn st-mobile-hide" href="/customer/wishlist" title="علاقه‌مندی‌ها">
-                        <Icon Name="heart" Size="19" />
-                        @if (Wishlist.Count > 0)
-                        {
-                            <span class="badge">@AdminUiHelper.Number(Wishlist.Count)</span>
-                        }
-                    </a>
-                }
-
                 <a class="st-iconbtn" href="/cart" title="سبد خرید">
                     <Icon Name="cart" Size="19" />
                     @if (Cart.Count > 0)
@@ -136,35 +120,66 @@
 
                 @if (_authenticated)
                 {
-                    <div class="st-pmenu">
-                        <button class="st-avatar" @onclick="ToggleMenu" type="button">@Initial</button>
-                        @if (_menuOpen)
-                        {
-                            <div class="st-dropdown-backdrop" @onclick="CloseMenu"></div>
-                            @* --end: the avatar is the last control in the RTL header, so the panel
-                               must grow back into the page rather than off the viewport edge. *@
-                            <div class="st-dropdown st-dropdown--end">
-                                <a href="/customer/dashboard"><Icon Name="dashboard" Size="17" /> داشبورد</a>
-                                <a href="/customer/orders"><Icon Name="cart" Size="17" /> سفارش‌های من</a>
-                                <a href="/customer/wishlist"><Icon Name="heart" Size="17" /> علاقه‌مندی‌ها</a>
-                                <a href="/customer/gift-codes"><Icon Name="gift" Size="17" /> کدهای من</a>
-                                <a href="/customer/wallet"><Icon Name="wallet" Size="17" /> کیف پول</a>
-                                <a href="/customer/tickets"><Icon Name="message" Size="17" /> پشتیبانی</a>
-                                <div class="st-dropdown__divider"></div>
-                                <form method="post" action="/auth/customer/logout" style="margin:0" data-enhance="false">
-                                    <button type="submit" class="danger"><Icon Name="logout" Size="17" /> خروج از حساب</button>
-                                </form>
-                            </div>
-                        }
-                    </div>
+                    <a class="st-iconbtn" href="/customer/dashboard" title="حساب کاربری"><Icon Name="user-round" Size="19" /></a>
                 }
                 else
                 {
-                    <a class="st-btn st-btn--primary" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="log-in" Size="17" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
+                    <a class="st-iconbtn" href="/login" title="ورود یا ثبت‌نام" aria-label="ورود یا ثبت‌نام"><Icon Name="user-round" Size="19" /></a>
                 }
+            </div>
+
+            <div class="st-mobile-controls" aria-label="ابزارهای ناوبری موبایل">
+                <div class="st-mobile-controls__start">
+                    <a class="st-iconbtn" href="@(_authenticated ? "/customer/dashboard" : "/login")" title="حساب کاربری"><Icon Name="user-round" Size="18" /></a>
+                    <a class="st-iconbtn" href="/cart" title="سبد خرید"><Icon Name="cart" Size="18" /> @if (Cart.Count > 0) { <span class="badge">@AdminUiHelper.Number(Cart.Count)</span> }</a>
+                </div>
+                <div class="st-mobile-controls__end">
+                    <a class="st-iconbtn" href="/search" title="جستجو"><Icon Name="search" Size="18" /></a>
+                    <button class="st-iconbtn" type="button" aria-label="@(_mobileNavOpen ? "بستن منو" : "باز کردن منو")"
+                            aria-controls="mobile-main-menu" aria-expanded="@(_mobileNavOpen ? "true" : "false")" @onclick="ToggleMobileNav">
+                        <Icon Name="@(_mobileNavOpen ? "x" : "menu")" Size="20" />
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    @if (_mobileNavOpen)
+    {
+        <div class="st-mobile-drawer__backdrop" @onclick="CloseMobileNav"></div>
+        <aside id="mobile-main-menu" class="st-mobile-drawer" role="dialog" aria-modal="true" aria-label="منوی اصلی">
+            <div class="st-mobile-drawer__head">
+                <StoreLogo ShowWord="false" />
+                <button class="st-iconbtn" type="button" aria-label="بستن منو" @onclick="CloseMobileNav">
+                    <Icon Name="x" Size="21" />
+                </button>
+            </div>
+            <a href="/" class="@Active("/")" @onclick="CloseMobileNav"><Icon Name="home" Size="18" /> خانه</a>
+            <a href="/shop" class="@Active("/shop")" @onclick="CloseMobileNav"><Icon Name="store" Size="18" /> فروشگاه</a>
+            <details class="st-mobile-drawer__categories">
+                <summary><span><Icon Name="grid-2x2" Size="18" /> دسته‌بندی‌ها</span><Icon Name="chevron-down" Size="17" /></summary>
+                <div>
+                    @foreach (var c in _categories)
+                    {
+                        <a href="@($"/category/{c.Slug}")" @onclick="CloseMobileNav">@c.Title</a>
+                    }
+                    <a href="/categories" class="st-mobile-drawer__all" @onclick="CloseMobileNav">همه‌ی دسته‌بندی‌ها</a>
+                </div>
+            </details>
+            <a href="/blog" class="@Active("/blog")" @onclick="CloseMobileNav"><Icon Name="notebook-tabs" Size="18" /> وبلاگ</a>
+            <a href="/faq" class="@Active("/faq")" @onclick="CloseMobileNav"><Icon Name="circle-help" Size="18" /> سوالات متداول</a>
+            <div class="st-mobile-drawer__foot">
+                @if (_authenticated)
+                {
+                    <a href="/customer/dashboard" @onclick="CloseMobileNav"><Icon Name="user-round" Size="18" /> حساب کاربری</a>
+                }
+                else
+                {
+                    <a class="st-btn st-btn--primary st-btn--block" href="/login" @onclick="CloseMobileNav"><Icon Name="log-in" Size="18" /> ورود یا ثبت‌نام</a>
+                }
+            </div>
+        </aside>
+    }
 </header>
 
 @code {
@@ -174,6 +189,7 @@
     private bool _menuOpen;
     private bool _catsOpen;
     private bool _searchOpen;
+    private bool _mobileNavOpen;
     private bool _panelLoading;
     private StoreLookupModel? _activeCat;
     private readonly Dictionary<Guid, List<StoreProductModel>> _catProducts = new();
@@ -225,7 +241,7 @@
         await RefreshCartCount();
     }
 
-    private void OpenSearch() { _searchOpen = true; CloseCats(); }
+    private void OpenSearch() { _searchOpen = true; CloseCats(); CloseMobileNav(); }
     private void CloseSearch() => _searchOpen = false;
 
     // ---- Category mega menu -------------------------------------------------------------------
@@ -237,7 +253,7 @@
     {
         CancelCloseCats();
         if (_catsOpen) return;
-        _catsOpen = true; _searchOpen = false; _menuOpen = false;
+        _catsOpen = true; _searchOpen = false; _menuOpen = false; _mobileNavOpen = false;
         if (_activeCat is null && _categories.Count > 0) await SelectCat(_categories[0]);
     }
 
@@ -331,6 +347,21 @@
 
     private void ToggleMenu() => _menuOpen = !_menuOpen;
     private void CloseMenu() => _menuOpen = false;
+    private void ToggleMobileNav()
+    {
+        _mobileNavOpen = !_mobileNavOpen;
+        if (_mobileNavOpen) { CloseCats(); CloseSearch(); CloseMenu(); }
+    }
+    private void CloseMobileNav() => _mobileNavOpen = false;
+
+    private void OnHeaderKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape") return;
+        CloseCats();
+        CloseSearch();
+        CloseMenu();
+        CloseMobileNav();
+    }
 
     private void OnSearchKey(KeyboardEventArgs e)
     {

@@ -4,6 +4,7 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject NavigationManager Nav
 @using Vitorize.Web.Models.Store
+@using Vitorize.Web.Models.Customer
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <SeoHead Description="@_branding.MetaDescription" CanonicalPath="/" ImagePath="@_branding.OgImagePath" JsonLd="@HomeJsonLd()" />
@@ -27,120 +28,119 @@
 }
 else
 {
-    @* ---------- Hero: dynamic banner slider + value-prop stack ---------- *@
-    <section class="st-hwrap">
-        @if (HeroBanners.Count > 0)
-        {
-            <HeroSlider Banners="HeroBanners" />
-        }
-        else
-        {
-            <div class="st-hslider">
-                <span class="st-hslider__aurora a1"></span>
-                <span class="st-hslider__aurora a2"></span>
-                <div class="st-hslider__overlay"></div>
-                <div class="st-hslide enter">
-                    <span class="st-hslide__kicker"><span class="dot"></span> @_branding.HeroKicker</span>
-                    <h1 class="st-hslide__title">@_branding.HeroTitle</h1>
-                    <p class="st-hslide__sub">@_branding.HeroSubtitle</p>
-                    <div class="st-hslide__ctas">
-                        <a class="st-hslide__cta" href="@_branding.HeroCtaUrl"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
-                        @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
+    <div class="st-home">
+    @* ---------- Hero ---------- *@
+    <section class="st-home-hero">
+        <div class="st-home-hero__content">
+            @if (!string.IsNullOrWhiteSpace(_branding.HeroKicker))
+            {
+                <div class="st-home-hero__kicker">@_branding.HeroKicker</div>
+            }
+            <h1>@_branding.HeroTitle</h1>
+            <p>@_branding.HeroSubtitle</p>
+            <div class="st-home-hero__actions">
+                <a class="st-btn st-btn--primary" href="@_branding.HeroCtaUrl"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
+                @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
+                {
+                    <a class="st-btn st-btn--outline" href="@_branding.HeroSecondaryCtaUrl">@_branding.HeroSecondaryCtaText</a>
+                }
+            </div>
+            <div class="st-home-hero__promises" aria-label="مزیت‌های خرید از ویتورایز">
+                <span><Icon Name="zap" Size="15" /> تحویل آنی</span>
+                <span><Icon Name="shield-check" Size="15" /> پرداخت امن</span>
+                <span><Icon Name="headphones" Size="15" /> پشتیبانی ۲۴/۷</span>
+            </div>
+        </div>
+        <div class="st-home-hero__visual">
+            @if (HeroBanners.Count > 0)
+            {
+                <HeroSlider Banners="HeroBanners" ShowContent="false" />
+            }
+            else
+            {
+                <div class="st-home-hero__mosaic" aria-hidden="true">
+                    @if (_data.Categories.Count > 0)
+                    {
+                        @foreach (var c in _data.Categories.Take(4))
                         {
-                            <a class="st-hslide__cta2" href="@_branding.HeroSecondaryCtaUrl">@_branding.HeroSecondaryCtaText</a>
+                            <div><CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="" IconSize="32" /></div>
                         }
-                    </div>
+                    }
+                    else
+                    {
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            <div><Icon Name="gamepad-2" Size="32" /></div>
+                        }
+                    }
                 </div>
-            </div>
-        }
-        <div class="st-hstats">
-            <div class="st-hstat">
-                <span class="st-hstat__ic"><Icon Name="zap" Size="22" /></span>
-                <div><div class="st-hstat__t">تحویل سریع</div><div class="st-hstat__s">کدها بلافاصله پس از پرداخت</div></div>
-            </div>
-            <div class="st-hstat">
-                <span class="st-hstat__ic"><Icon Name="headphones" Size="22" /></span>
-                <div><div class="st-hstat__t">پشتیبانی ۲۴/۷</div><div class="st-hstat__s">همیشه کنار شما</div></div>
-            </div>
-            <div class="st-hstat accent">
-                <span class="st-hstat__ic"><Icon Name="shield-check" Size="22" /></span>
-                <div><div class="st-hstat__t">ضمانت اصالت</div><div class="st-hstat__s">محصولات رسمی و اورجینال با پرداخت امن</div></div>
-            </div>
+            }
         </div>
     </section>
 
-    @* ---------- Marquee: brands / platforms strip ---------- *@
-    @if (MarqueeItems.Count > 0)
-    {
-        <div class="st-marquee">
-            <div class="st-marquee__track">
-                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
-                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
-            </div>
-        </div>
-    }
-
-    @* ---------- Featured Categories (bento) ---------- *@
+    @* ---------- Popular categories ---------- *@
     @if (_data.Categories.Count > 0)
     {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> دسته‌بندی‌ها</div>
-                <a class="st-section__more" href="/categories">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+        <section class="st-section st-home-categories st-reveal">
+            <div class="st-section__head st-section__head--center">
+                <div class="st-section__title"><span class="bar"></span> دسته‌بندی‌های محبوب ویتورایز</div>
             </div>
-            <div class="st-bento">
-                @{ var cats = _data.Categories.Take(5).ToList(); }
-                @for (var i = 0; i < cats.Count; i++)
+            <div class="st-bento st-bento--popular">
+                @{ var cats = _data.Categories.Take(6).ToList(); }
+                @foreach (var c in cats)
                 {
-                    var c = cats[i];
-                    <a class="st-bento__tile @(i == 0 ? "lead" : null)" href="@($"/category/{c.Slug}")">
+                    <a class="st-bento__tile" href="@($"/category/{c.Slug}")">
                         <div class="st-bento__ic">
                             <CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="18" />
                         </div>
-                        <div>
-                            <div class="st-bento__t">@c.Title</div>
-                            @if (i == 0) { <div class="st-bento__c">پرطرفدارترین دسته فروشگاه</div> }
-                        </div>
+                        <div class="st-bento__t">@c.Title</div>
                     </a>
                 }
             </div>
         </section>
     }
 
-    @* ---------- Featured Products ---------- *@
-    @if (_data.FeaturedProducts.Count > 0)
+    @* ---------- Best sellers: the 4 × 2 product arrangement in the reference ---------- *@
+    @if (_popular.Count > 0)
     {
-        <ProductRow Title="محصولات ویژه" MoreHref="/shop" Products="_data.FeaturedProducts" />
-    }
-
-    @* ---------- Campaign banner (home-secondary) ---------- *@
-    @if (CampaignBanner is not null)
-    {
-        <section class="st-section st-reveal">
-            <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
-                <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@CampaignBanner.Title" Icon="gift" Width="1400" Height="700" />
-            </a>
+        <section class="st-section st-home-bestsellers st-reveal">
+            <div class="st-section__head st-section__head--center">
+                <div class="st-section__title">محصولات پرفروش ویتورایز</div>
+            </div>
+            <div class="st-grid">
+                @foreach (var product in _popular.Take(8))
+                {
+                    <StoreProductCard Product="product" />
+                }
+            </div>
         </section>
     }
 
-    @* ---------- Products (ordered by the admin-configured storefront default) ---------- *@
-    @if (_latest.Count > 0)
-    {
-        <ProductRow Title="محصولات" MoreHref="/shop" Products="_latest" />
-    }
-
-    @* ---------- Popular Products (Settings: HomePopularProductsEnabled, default off) ---------- *@
-    @if (_popular.Count > 0)
-    {
-        <div data-testid="home-popular-products">
-            <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
-        </div>
-    }
+    @* ---------- Full-width campaign: present even before an admin uploads its artwork. ---------- *@
+    <section class="st-section st-reveal st-ref-campaign-section">
+        @if (CampaignBanner is not null)
+        {
+            <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
+                <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@CampaignBanner.Title" Icon="gift" Width="1400" Height="700" />
+            </a>
+        }
+        else
+        {
+            <a class="st-campaign st-campaign--placeholder" href="/shop" aria-label="مشاهده پیشنهادهای ویژه">
+                <span class="st-campaign__eyebrow">پیشنهاد ویژه</span>
+                <span class="st-campaign__copy">
+                    <strong>پیشنهادهای تازهٔ ویتورایز</strong>
+                    <small>محصولات دیجیتال با تحویل سریع و مطمئن</small>
+                </span>
+                <span class="st-campaign__dots" aria-hidden="true"><i></i><i></i></span>
+            </a>
+        }
+    </section>
 
     @* ---------- Why Vitorize / How it works (from Settings: HomeFeaturesJson) ---------- *@
     @if (_branding.HomeFeatures.Count > 0)
     {
-        <section class="st-section st-reveal">
+        <section class="st-section st-ref-redundant-trust st-reveal">
             <div class="st-section__center">
                 <div class="st-section__kicker">@_branding.HomeFeaturesKicker</div>
                 <h2 class="st-section__h">@_branding.HomeFeaturesTitle</h2>
@@ -161,12 +161,12 @@ else
         </section>
     }
 
-    @* ---------- Trust Section (from Settings: TrustBadgesJson) ---------- *@
+    @* ---------- Four trust cards: directly after the campaign as in the reference ---------- *@
     @if (_branding.TrustBadges.Count > 0)
     {
-        <section class="st-section st-reveal">
+        <section class="st-section st-ref-trust-cards st-reveal">
             <div class="st-hero-mini" style="margin:0">
-                @foreach (var t in _branding.TrustBadges)
+                @foreach (var t in _branding.TrustBadges.Take(4))
                 {
                     <div class="st-trust">
                         <span class="st-trust__ic"><LucideIcon IconKey="@t.Icon" Size="20" FallbackIconKey="shield-check" /></span>
@@ -177,12 +177,49 @@ else
         </section>
     }
 
+    @* ---------- Brand / platform ribbon ---------- *@
+    @if (MarqueeItems.Count > 0)
+    {
+        <div class="st-marquee" aria-label="برندها و پلتفرم‌های محبوب">
+            <div class="st-marquee__track">
+                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
+                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
+            </div>
+        </div>
+    }
+
+    @* ---------- Recent approved customer reviews ---------- *@
+    @if (_testimonials.Count > 0)
+    {
+        <section class="st-section st-ref-testimonials st-reveal">
+            <div class="st-section__head st-section__head--center">
+                <div class="st-section__title">نظرهای شما</div>
+            </div>
+            <div class="st-ref-testimonials__rail">
+                @foreach (var review in _testimonials.Take(4))
+                {
+                    <article class="st-ref-testimonial">
+                        <div class="st-ref-testimonial__head">
+                            <div>
+                                <strong>@review.UserDisplayName</strong>
+                                <small>@(review.IsBuyer ? "مشتری ویتورایز" : "کاربر ویتورایز")</small>
+                            </div>
+                            <span aria-label="امتیاز @review.Rating از ۵">@AUI.Number(review.Rating) / ۵</span>
+                            <i aria-hidden="true"></i>
+                        </div>
+                        <p>@review.Comment</p>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+
     @* ---------- Brands ---------- *@
     @if (_data.Brands.Count > 0)
     {
-        <section class="st-section st-reveal">
-            <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> برندهای محبوب</div></div>
-            <div class="st-brands">
+        <section class="st-section st-home-brands st-ref-redundant-brands st-reveal">
+            <div class="st-section__head st-section__head--center"><div class="st-section__title"><span class="bar"></span> برندهای محبوب</div></div>
+            <div class="st-brands st-home-brandrail">
                 @foreach (var b in _data.Brands.Take(12))
                 {
                     <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
@@ -199,16 +236,30 @@ else
         </section>
     }
 
+    @* ---------- Editorial campaign, positioned before blog and FAQ as in the reference. ---------- *@
+    <section class="st-section st-ref-news-section st-reveal">
+        <div class="st-news st-ref-news">
+            <span class="st-news__aurora"></span>
+            <div class="st-news__in">
+                <h2 class="st-news__t">@_branding.NewsletterTitle</h2>
+                <p class="st-news__s">@_branding.NewsletterSubtitle</p>
+                <form class="st-news__form" @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
+                    <input type="email" placeholder="@_branding.NewsletterPlaceholder" @bind="_newsletterEmail" />
+                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> @_branding.NewsletterCtaText</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
     @* ---------- Latest Blog ---------- *@
     @if (_data.LatestBlogPosts.Count > 0)
     {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> آخرین مطالب</div>
-                <a class="st-section__more" href="/blog">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
+        <section class="st-section st-ref-blog st-reveal">
+            <div class="st-section__head st-section__head--center">
+                <div class="st-section__title">جدیدترین بلاگ‌ها</div>
             </div>
             <div class="st-grid">
-                @foreach (var post in _data.LatestBlogPosts.Take(4))
+                @foreach (var post in _data.LatestBlogPosts.Take(3))
                 {
                     <a class="st-pcard" href="@($"/blog/{post.Slug}")">
                         <div class="st-pcard__media">
@@ -227,10 +278,9 @@ else
     @* ---------- FAQ Preview ---------- *@
     @if (_data.Faqs.Count > 0)
     {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> سوالات متداول</div>
-                <a class="st-section__more" href="/faq">همه سوالات <Icon Name="chevron-left" Size="15" /></a>
+        <section class="st-section st-ref-faq st-reveal">
+            <div class="st-section__head st-section__head--center">
+                <div class="st-section__title">سوالات پرتکرار شما</div>
             </div>
             <div class="st-stack">
                 @foreach (var f in _data.Faqs.Take(5))
@@ -241,20 +291,7 @@ else
         </section>
     }
 
-    @* ---------- Newsletter ---------- *@
-    <section class="st-section st-reveal">
-        <div class="st-news">
-            <span class="st-news__aurora"></span>
-            <div class="st-news__in">
-                <h2 class="st-news__t">@_branding.NewsletterTitle</h2>
-                <p class="st-news__s">@_branding.NewsletterSubtitle</p>
-                <form class="st-news__form" @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
-                    <input type="email" placeholder="@_branding.NewsletterPlaceholder" @bind="_newsletterEmail" />
-                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> @_branding.NewsletterCtaText</button>
-                </form>
-            </div>
-        </div>
-    </section>
+    </div>
 }
 
 @code {
@@ -264,6 +301,7 @@ else
     private StoreHomeModel _data = new();
     private List<StoreProductModel> _latest = new();
     private List<StoreProductModel> _popular = new();
+    private List<CustomerReviewModel> _testimonials = new();
     private string _newsletterEmail = string.Empty;
 
     private List<StoreBannerModel> HeroBanners => _data.Banners
@@ -304,27 +342,35 @@ else
         // No sort key on purpose: the server then applies the admin-configured storefront default,
         // so this section and the shop page agree on the order instead of pinning "newest" here.
         var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=8");
-        var popularTask = _branding.HomePopularProductsEnabled
-            // Explicitly ranked, so this section keeps its own meaning instead of drifting with the
-            // storefront's configurable default order. Best-selling is the only real ranking signal
-            // Vitorize stores - paid-order quantity - so the heading now reflects the actual order.
-            ? Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=bestselling&pageSize=20")
-            : null;
+        // This section is explicit in the supplied homepage reference, so it must always load the
+        // real paid-order ranking instead of relying on an optional branding flag.
+        var popularTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=bestselling&pageSize=20");
 
-        await Task.WhenAll(new Task[] { homeTask, latestTask }
-            .Concat(popularTask is null ? Array.Empty<Task>() : new Task[] { popularTask }));
+        await Task.WhenAll(homeTask, latestTask, popularTask);
 
         if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
         if (latestTask.Result is { IsSuccess: true, Data: not null }) _latest = latestTask.Result.Data.Items.ToList();
 
-        // "Popular" has no dedicated backend sort — rank the catalogue by real engagement
-        // (review count, then rating). No fabricated data; purely client-side ordering of the API result.
-        if (popularTask?.Result is { IsSuccess: true, Data: { } popular })
+        // The API sort is the actual paid-order best-seller ranking. Keep it intact for the
+        // homepage rather than replacing it with a review-based approximation.
+        if (popularTask.Result is { IsSuccess: true, Data: { } popular })
         {
-            _popular = popular.Items
-                .OrderByDescending(p => p.ReviewCount)
-                .ThenByDescending(p => p.AverageRating)
-                .Take(8)
+            _popular = popular.Items.Take(8).ToList();
+        }
+
+        // The reference includes a genuine review rail. Pull only approved, public review content
+        // from the products already visible on this page; nothing is invented for presentation.
+        var testimonialTasks = _data.FeaturedProducts.Take(8)
+            .Select(p => Api.GetAsync<CustomerReviewListModel>($"product-reviews/product/{p.Id}?page=1&pageSize=2&sort=newest"))
+            .ToList();
+        if (testimonialTasks.Count > 0)
+        {
+            await Task.WhenAll(testimonialTasks);
+            _testimonials = testimonialTasks
+                .Where(t => t.Result is { IsSuccess: true, Data: not null })
+                .SelectMany(t => t.Result.Data!.Reviews.Items)
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(4)
                 .ToList();
         }
 

@@ -27,12 +27,12 @@ else if (_post is null)
 else
 {
     <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <a href="/blog">وبلاگ</a> <Icon Name="chevron-left" Size="13" /> <span>@_post.Title</span></div>
-    <article style="max-width:840px;margin:0 auto">
-        <h1 style="font-size:26px;line-height:1.7">@_post.Title</h1>
+    <article class="st-content-page st-blog-post">
+        <h1>@_post.Title</h1>
         <div class="st-muted" style="margin:10px 0 20px"><PersianDateDisplay Value="_post.CreatedAt" /></div>
         @if (!string.IsNullOrWhiteSpace(_post.CoverImagePath))
         {
-            <img src="@Media.Resolve(_post.CoverImagePath)" alt="@(_post.CoverImageAltText ?? _post.Title)" width="1200" height="630" loading="eager" fetchpriority="high" style="width:100%;height:auto;border-radius:18px;margin-bottom:22px" />
+            <img class="st-blog-post__cover" src="@Media.Resolve(_post.CoverImagePath)" alt="@(_post.CoverImageAltText ?? _post.Title)" width="1200" height="630" loading="eager" fetchpriority="high" />
         }
         <div class="st-rich-content" style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
             @((MarkupString)(_post.ContentHtml ?? string.Empty))

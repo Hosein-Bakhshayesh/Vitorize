@@ -2,8 +2,8 @@
    exactly one rich-content layout. Content is sanitised server-side on save and again on read. *@
 
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>@Title</span></div>
-<article style="max-width:840px;margin:0 auto" data-testid="cms-page">
-    <h1 style="font-size:24px;margin-bottom:18px" data-testid="cms-page-title">@Title</h1>
+<article class="st-content-page" data-testid="cms-page">
+    <h1 data-testid="cms-page-title">@Title</h1>
     <div class="st-rich-content" data-testid="cms-page-content" style="line-height:2.1;font-size:15px;color:var(--st-text-2)">
         @((MarkupString)(ContentHtml ?? string.Empty))
     </div>

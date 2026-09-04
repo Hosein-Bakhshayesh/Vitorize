@@ -5,7 +5,7 @@
 <SeoHead Title="وبلاگ" Description="آخرین راهنماها، اخبار و مطالب ویتورایز" CanonicalPath="/blog" />
 
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>وبلاگ</span></div>
-<h1 style="font-size:22px;margin-bottom:18px">آخرین مطالب</h1>
+<h1 class="st-content-page__title">آخرین مطالب</h1>
 
 @if (_loading)
 {
@@ -17,7 +17,7 @@ else if (_posts.Count == 0)
 }
 else
 {
-    <div class="st-grid">
+    <div class="st-grid st-blog-listing">
         @foreach (var post in _posts)
         {
             <a class="st-pcard" href="@($"/blog/{post.Slug}")">

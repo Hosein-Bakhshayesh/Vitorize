@@ -7,6 +7,7 @@
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 @implements IAsyncDisposable
 
+<div class="st-catalog">
 <div class="st-bc">
     <a href="/">خانه</a> <Icon Name="chevron-left" Size="13" />
     <span>@Title</span>
@@ -289,6 +290,7 @@
         </section>
     </div>
 }
+</div>
 
 @code {
     [Parameter] public string Title { get; set; } = "فروشگاه";

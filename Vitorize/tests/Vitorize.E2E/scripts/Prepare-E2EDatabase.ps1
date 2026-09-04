@@ -35,6 +35,9 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $fixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-e2e.sql')).Path
 & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $fixture
 if ($LASTEXITCODE -ne 0) { throw 'E2E fixture failed.' }
+$referenceHomeFixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-reference-home.sql')).Path
+& sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $referenceHomeFixture
+if ($LASTEXITCODE -ne 0) { throw 'Reference home fixture failed.' }
 $phase2fFixture = (Resolve-Path (Join-Path $PSScriptRoot '..\fixtures\seed-fix09-phase2f-customer.sql')).Path
 & sqlcmd -S $ServerInstance -d $Database @sqlAuthenticationArguments -b -f 65001 -i $phase2fFixture
 if ($LASTEXITCODE -ne 0) { throw 'FIX-09 Phase-2F Customer fixture failed.' }
