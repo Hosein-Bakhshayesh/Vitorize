@@ -53,6 +53,7 @@ namespace Vitorize.Infrastructure.Services
 
             var orders = await _dbContext.Orders
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
                 .Include(x => x.OrderItems)
@@ -74,6 +75,7 @@ namespace Vitorize.Infrastructure.Services
 
             var order = await _dbContext.Orders
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
@@ -147,6 +149,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var orders = await _dbContext.Orders
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
                 .OrderByDescending(x => x.CreatedAt)
@@ -159,6 +162,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var order = await _dbContext.Orders
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
@@ -182,6 +186,7 @@ namespace Vitorize.Infrastructure.Services
 
             var query = _dbContext.Orders
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.OrderItems)
                 .AsQueryable();
 
@@ -260,7 +265,7 @@ namespace Vitorize.Infrastructure.Services
             };
             var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new OrderDto
             {
-                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
+                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile, UserEmail = x.User.Email,
                 Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
                 DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
                 VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
@@ -284,7 +289,7 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("یکی از سفارش‌های انتخاب‌شده معتبر نیست.");
             return await query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new OrderDto
             {
-                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile,
+                Id = x.Id, OrderNumber = x.OrderNumber, UserFullName = x.User.FullName, UserMobile = x.User.Mobile, UserEmail = x.User.Email,
                 Status = x.Status, PaymentStatus = x.PaymentStatus, SubtotalAmount = x.SubtotalAmount,
                 DiscountAmount = x.DiscountAmount, FinalAmount = x.FinalAmount, CurrencyType = x.CurrencyType,
                 VatEnabled = x.VatEnabled, VatRatePercent = x.VatRatePercent, VatCalculationMode = x.VatCalculationMode,
@@ -827,6 +832,9 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = order.Id,
                 OrderNumber = order.OrderNumber,
+                UserFullName = order.User?.FullName ?? string.Empty,
+                UserMobile = order.User?.Mobile ?? string.Empty,
+                UserEmail = order.User?.Email,
                 Status = order.Status,
                 PaymentStatus = order.PaymentStatus,
                 SubtotalAmount = order.SubtotalAmount,
@@ -877,6 +885,9 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = order.Id,
                 OrderNumber = order.OrderNumber,
+                UserFullName = order.User?.FullName ?? string.Empty,
+                UserMobile = order.User?.Mobile ?? string.Empty,
+                UserEmail = order.User?.Email,
                 Status = order.Status,
                 PaymentStatus = order.PaymentStatus,
                 SubtotalAmount = order.SubtotalAmount,

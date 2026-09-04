@@ -118,6 +118,41 @@
                 return ok;
             } catch (e) { return false; }
         },
+        // Opens a self-contained, print-ready order invoice. Dynamic values are escaped before
+        // HTML is assembled, so customer/product data can never become executable markup.
+        openInvoice: function (invoice) {
+            var popup = window.open('', '_blank', 'width=900,height=760');
+            if (!popup) return false;
+            try { popup.opener = null; } catch (e) { }
+
+            var escape = function (value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            };
+            var row = function (label, value) {
+                return '<div class="summary-row"><span>' + escape(label) + '</span><strong>' + escape(value) + '</strong></div>';
+            };
+            var items = (invoice.items || []).map(function (item) {
+                var title = escape(item.title) + (item.variant ? '<small>' + escape(item.variant) + '</small>' : '');
+                return '<tr><td>' + title + '</td><td>' + escape(item.quantity) + '</td><td>' + escape(item.unitPrice) + '</td><td>' + escape(item.totalPrice) + '</td></tr>';
+            }).join('');
+            var customer = row('نام مشتری', invoice.customerName) + row('موبایل', invoice.customerMobile) +
+                (invoice.customerEmail ? row('ایمیل', invoice.customerEmail) : '');
+            var totals = row('جمع اقلام', invoice.subtotal) + row('تخفیف', invoice.discount) +
+                (invoice.vat ? row(invoice.vatLabel, invoice.vat) : '') + row('مبلغ نهایی', invoice.total);
+            var completion = invoice.completedAt ? '<div><b>زمان نهایی شدن:</b> ' + escape(invoice.completedAt) + '</div>' : '';
+
+            popup.document.open();
+            popup.document.write('<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>' + escape(invoice.title) + ' ' + escape(invoice.orderNumber) + '</title><style>' +
+                '@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#172033;margin:0;font-size:13px;line-height:1.8}.invoice{max-width:800px;margin:auto}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f766e;padding-bottom:16px;margin-bottom:20px}.brand{font-size:24px;font-weight:800;color:#0f766e}.muted{color:#64748b}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}.box{border:1px solid #dbe3ee;border-radius:8px;padding:14px}.box h2{font-size:14px;margin:0 0 8px}.summary-row{display:flex;justify-content:space-between;gap:16px;border-bottom:1px dashed #e2e8f0;padding:5px 0}.summary-row:last-child{border:0}.summary-row:last-child strong{color:#0f766e;font-size:15px}table{width:100%;border-collapse:collapse;margin:18px 0}th{background:#f1f5f9}th,td{border:1px solid #dbe3ee;padding:9px;text-align:right;vertical-align:top}small{display:block;color:#64748b;font-size:11px;margin-top:2px}.foot{border-top:1px solid #dbe3ee;padding-top:10px;color:#64748b;font-size:11px}@media print{.invoice{max-width:none}}</style></head><body><main class="invoice">' +
+                '<header class="head"><div><div class="brand">ویتورایز</div><div class="muted">' + escape(invoice.title) + '</div></div><div><div><b>شماره سفارش:</b> ' + escape(invoice.orderNumber) + '</div><div><b>تاریخ ثبت:</b> ' + escape(invoice.createdAt) + '</div>' + completion + '</div></header>' +
+                '<section class="grid"><div class="box"><h2>اطلاعات مشتری</h2>' + customer + '</div><div class="box"><h2>وضعیت سفارش</h2>' + row('وضعیت سفارش', invoice.orderStatus) + row('وضعیت پرداخت', invoice.paymentStatus) + '</div></section>' +
+                '<table><thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead><tbody>' + items + '</tbody></table>' +
+                '<section class="box" style="max-width:360px;margin-right:auto"><h2>جمع‌بندی مبلغ</h2>' + totals + '</section><footer class="foot">این فاکتور از پنل مدیریت ویتورایز در ' + escape(new Date().toLocaleString('fa-IR')) + ' صادر شده است.</footer></main><script>window.onload=function(){window.print();};<\/script></body></html>');
+            popup.document.close();
+            return true;
+        },
         // Global keyboard shortcuts. Forwards an allow-list of keys to .NET, ignoring
         // keystrokes typed inside form fields (except Escape).
         registerShortcuts: function (dotNetRef, methodName) {

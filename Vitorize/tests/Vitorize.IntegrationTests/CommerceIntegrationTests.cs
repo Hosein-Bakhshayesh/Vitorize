@@ -366,6 +366,9 @@ public sealed class CommerceIntegrationTests
         var adminResponse = await adminClient.GetAsync($"/api/admin/orders/{checkout.OrderId}");
         adminResponse.EnsureSuccessStatusCode();
         var adminOrder = (await adminResponse.Content.ReadFromJsonAsync<ApiResult<OrderDto>>())!.Data!;
+        adminOrder.UserFullName.Should().Be(user.FullName);
+        adminOrder.UserMobile.Should().Be(user.Mobile);
+        adminOrder.UserEmail.Should().Be(user.Email);
         var adminItem = adminOrder.Items.Should().ContainSingle().Subject;
         adminItem.Quantity.Should().Be(2);
         adminItem.Deliveries.Should().HaveCount(2);

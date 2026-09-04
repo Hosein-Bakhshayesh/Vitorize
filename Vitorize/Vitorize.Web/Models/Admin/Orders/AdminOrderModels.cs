@@ -10,6 +10,7 @@
         public string OrderNumber { get; set; } = string.Empty;
         public byte Status { get; set; }
         public byte PaymentStatus { get; set; }
+        public byte CurrencyType { get; set; }
         public decimal SubtotalAmount { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }

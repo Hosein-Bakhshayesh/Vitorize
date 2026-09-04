@@ -319,6 +319,10 @@ else
         }
     </ChildContent>
     <Footer>
+        @if (_detail is not null && CanGenerateInvoice(_detail))
+        {
+            <button class="vz-btn vz-btn--primary" data-testid="admin-order-invoice" @onclick="PrintInvoice"><Icon Name="file-invoice" Size="16" /> صدور فاکتور</button>
+        }
         @if (_detail is not null && CanSendKycReminder(_detail))
         {
             <button class="vz-btn vz-btn--outline" @onclick="() => OpenKycReminder(_detail)" disabled="@_acting"><Icon Name="message" Size="16" /> ارسال پیامک احراز هویت</button>
@@ -533,6 +537,44 @@ else
     private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
+
+    private static bool CanGenerateInvoice(AdminOrderModel order) => order.Status is
+        (byte)OrderStatus.Completed or (byte)OrderStatus.Cancelled;
+
+    private async Task PrintInvoice()
+    {
+        if (_detail is null || !CanGenerateInvoice(_detail)) return;
+
+        var order = _detail;
+        var invoice = new
+        {
+            title = "فاکتور سفارش ویتورایز",
+            orderNumber = order.OrderNumber,
+            createdAt = PersianDateHelper.ToDateTime(order.CreatedAt),
+            completedAt = order.CompletedAt.HasValue ? PersianDateHelper.ToDateTime(order.CompletedAt.Value) : null,
+            customerName = order.UserFullName,
+            customerMobile = order.UserMobile,
+            customerEmail = order.UserEmail,
+            orderStatus = AUI.OrderStatus(order.Status),
+            paymentStatus = AUI.PaymentStatus(order.PaymentStatus),
+            subtotal = AUI.MoneyFa(order.SubtotalAmount, order.CurrencyType),
+            discount = AUI.MoneyFa(order.DiscountAmount, order.CurrencyType),
+            vat = order.VatEnabled ? AUI.MoneyFa(order.VatAmount, order.CurrencyType) : null,
+            vatLabel = order.VatEnabled ? $"مالیات ({AUI.Percent(order.VatRatePercent)}٪)" : null,
+            total = AUI.MoneyFa(order.FinalAmount, order.CurrencyType),
+            items = Items(order).Select(item => new
+            {
+                title = item.ProductTitle,
+                variant = item.VariantTitle,
+                quantity = AUI.Number(item.Quantity),
+                unitPrice = AUI.MoneyFa(item.UnitPrice, order.CurrencyType),
+                totalPrice = AUI.MoneyFa(item.TotalPrice, order.CurrencyType)
+            }).ToList()
+        };
+
+        var opened = await JS.InvokeAsync<bool>("vzAdmin.openInvoice", invoice);
+        if (!opened) Toasts.Warning("باز شدن پنجره فاکتور توسط مرورگر مسدود شد؛ لطفاً اجازه باز شدن پنجره جدید را بدهید.");
+    }
 
     private string DeadlineInput(AdminOrderItemModel item)
     {
