@@ -83,6 +83,7 @@
         public Guid? Id { get; set; }
         public string FieldKey { get; set; } = string.Empty;
         public string FieldLabel { get; set; } = string.Empty;
+        public byte FieldType { get; set; }
         public string? Value { get; set; }
         public bool IsSensitive { get; set; }
         public bool IsMasked { get; set; }

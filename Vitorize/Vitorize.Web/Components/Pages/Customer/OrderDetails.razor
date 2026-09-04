@@ -4,6 +4,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @using Vitorize.Application.Common
+@using Vitorize.Shared.Enums
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>جزئیات سفارش | ویتورایز</PageTitle>
@@ -60,7 +61,7 @@ else
                         <div class="st-divider"></div>
                         <div class="st-label">اطلاعات ثبت‌شده برای این محصول</div>
                         <dl class="st-order-inputs">
-                            @foreach (var value in item.InputValues) { <div><dt>@value.FieldLabel</dt><dd>@value.Value</dd></div> }
+                            @foreach (var value in item.InputValues) { <div><dt>@value.FieldLabel</dt><dd>@DisplayInputValue(value.FieldType, value.Value)</dd></div> }
                         </dl>
                     }
 
@@ -235,6 +236,12 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
+
+    private static string DisplayInputValue(byte fieldType, string? value) =>
+        fieldType == (byte)ProductInputFieldType.Checkbox
+            ? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1" ? "✅" : "❌"
+            : value ?? "—";
+
     private bool _loading = true;
     private StoreOrderModel? _order;
     private Guid _loadedId;

@@ -243,7 +243,7 @@ else
                                                 <dl class="vz-order-inputs">
                                                     @foreach (var value in item.InputValues)
                                                     {
-                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)">@value.Value</dd>
+                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)">@DisplayInputValue(value.FieldType, value.Value, value.IsSensitive && value.IsMasked)</dd>
                                                         @if (value.IsSensitive && value.IsMasked && value.Id.HasValue) { <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => RevealInput(d.Id, value)"><Icon Name="eye" Size="12" /> نمایش با ثبت گزارش</button> }</div>
                                                     }
                                                 </dl>
@@ -537,6 +537,12 @@ else
     private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
+
+    private static string DisplayInputValue(byte fieldType, string? value, bool isMasked) =>
+        isMasked ? value ?? "—" :
+        fieldType == (byte)ProductInputFieldType.Checkbox
+            ? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1" ? "✅" : "❌"
+            : value ?? "—";
 
     private static bool CanGenerateInvoice(AdminOrderModel order) => order.Status is
         (byte)OrderStatus.Completed or (byte)OrderStatus.Cancelled;
