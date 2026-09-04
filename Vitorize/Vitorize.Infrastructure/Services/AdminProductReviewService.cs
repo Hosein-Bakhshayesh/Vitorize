@@ -12,6 +12,7 @@ namespace Vitorize.Infrastructure.Services
 {
     public class AdminProductReviewService : IAdminProductReviewService
     {
+        private const int MaxReplyLength = 2000;
         private readonly VitorizeDbContext _dbContext;
         private readonly INotificationService _notificationService;
 
@@ -96,6 +97,7 @@ namespace Vitorize.Infrastructure.Services
             if (review == null)
                 throw new NotFoundException("نظر یافت نشد.");
 
+            review.Replies = await GetRepliesAsync(id, cancellationToken);
             return review;
         }
 
@@ -154,6 +156,51 @@ namespace Vitorize.Infrastructure.Services
             return await GetByIdAsync(id, cancellationToken);
         }
 
+        public async Task<AdminProductReviewReplyDto> CreateReplyAsync(
+            Guid adminUserId,
+            Guid id,
+            CreateAdminProductReviewReplyRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            if (adminUserId == Guid.Empty)
+                throw new UnauthorizedException("ادمین احراز هویت نشده است.");
+
+            var comment = request.Comment?.Trim();
+            if (string.IsNullOrWhiteSpace(comment))
+                throw new BusinessException("متن پاسخ الزامی است.");
+            if (comment.Length > MaxReplyLength)
+                throw new BusinessException("متن پاسخ نمی‌تواند بیش از ۲۰۰۰ کاراکتر باشد.");
+
+            var parent = await _dbContext.ProductReviews.FirstOrDefaultAsync(
+                x => x.Id == id && x.ParentId == null && x.IsApproved && !x.IsRejected && !x.IsDeleted,
+                cancellationToken);
+            if (parent == null)
+                throw new NotFoundException("نظر قابل پاسخ‌گویی یافت نشد.");
+
+            var reply = new ProductReview
+            {
+                Id = Guid.NewGuid(),
+                ProductId = parent.ProductId,
+                UserId = adminUserId,
+                ParentId = parent.Id,
+                Comment = comment,
+                // The database schema requires a rating. It is never displayed for management replies.
+                Rating = parent.Rating,
+                IsApproved = true,
+                IsRejected = false,
+                IsBuyer = false,
+                LikeCount = 0,
+                DislikeCount = 0,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+
+            await _dbContext.ProductReviews.AddAsync(reply, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return MapReply(reply);
+        }
+
         public async Task DeleteAsync(
             Guid adminUserId,
             Guid id,
@@ -182,6 +229,28 @@ namespace Vitorize.Infrastructure.Services
 
             return review;
         }
+
+        private Task<List<AdminProductReviewReplyDto>> GetRepliesAsync(Guid parentId, CancellationToken cancellationToken) =>
+            _dbContext.ProductReviews
+                .AsNoTracking()
+                .Where(x => x.ParentId == parentId && !x.IsDeleted)
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => new AdminProductReviewReplyDto
+                {
+                    Id = x.Id,
+                    Comment = x.Comment,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
+                })
+                .ToListAsync(cancellationToken);
+
+        private static AdminProductReviewReplyDto MapReply(ProductReview reply) => new()
+        {
+            Id = reply.Id,
+            Comment = reply.Comment,
+            CreatedAt = reply.CreatedAt,
+            UpdatedAt = reply.UpdatedAt
+        };
 
         // پروجکشن قابل ترجمه به SQL (JOIN به Product و User) برای استفاده مجدد در لیست و جزئیات.
         private static readonly Expression<Func<ProductReview, AdminProductReviewDto>> MapAdminProjection =

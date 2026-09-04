@@ -35,5 +35,7 @@ namespace Vitorize.Application.DTOs.Admin.Reviews
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        public List<AdminProductReviewReplyDto> Replies { get; set; } = new();
     }
 }

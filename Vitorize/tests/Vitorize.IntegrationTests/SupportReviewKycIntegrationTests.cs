@@ -240,6 +240,41 @@ public sealed class SupportReviewKycIntegrationTests
     }
 
     [Fact]
+    public async Task Admin_reply_to_review_is_publicly_labeled_management_and_customer_cannot_post_it()
+    {
+        var (_, authorToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (adminUser, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, product) = await SeedProductAsync();
+        using var author = _fixture.CreateClient(authorToken);
+        using var admin = _fixture.CreateClient(adminToken);
+
+        var review = await PostDataAsync<ProductReviewDto>(author, "/api/product-reviews",
+            new CreateProductReviewRequestDto { ProductId = product.Id, Comment = "Does this include support?", Rating = 5 });
+
+        (await author.PostAsJsonAsync($"/api/admin/product-reviews/{review.Id}/replies",
+            new CreateAdminProductReviewReplyRequestDto { Comment = "This must be forbidden." }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var reply = await PostDataAsync<AdminProductReviewReplyDto>(admin,
+            $"/api/admin/product-reviews/{review.Id}/replies",
+            new CreateAdminProductReviewReplyRequestDto { Comment = "بله، پشتیبانی محصول فعال است." });
+        reply.Comment.Should().Be("بله، پشتیبانی محصول فعال است.");
+
+        var publicResponse = await _fixture.CreateClient().GetFromJsonAsync<ApiResult<ProductReviewListResultDto>>(
+            $"/api/product-reviews/product/{product.Id}");
+        var publicReview = publicResponse!.Data!.Reviews.Items.Single(x => x.Id == review.Id);
+        publicReview.Replies.Should().ContainSingle();
+        publicReview.Replies[0].AuthorLabel.Should().Be("مدیریت");
+        publicReview.Replies[0].Comment.Should().Be(reply.Comment);
+
+        await using var db = _fixture.CreateDbContext();
+        var storedReply = await db.ProductReviews.SingleAsync(x => x.Id == reply.Id);
+        storedReply.ParentId.Should().Be(review.Id);
+        storedReply.UserId.Should().Be(adminUser.Id);
+        storedReply.IsApproved.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Kyc_submit_review_approve_reject_and_fine_grained_authorization_work()
     {
         await _fixture.ConfigureSmsAsync();

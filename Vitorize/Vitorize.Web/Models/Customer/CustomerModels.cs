@@ -21,6 +21,15 @@ namespace Vitorize.Web.Models.Customer
         public DateTime? UpdatedAt { get; set; }
     }
 
+    public class CustomerReviewReplyModel
+    {
+        public Guid Id { get; set; }
+        public string AuthorLabel { get; set; } = "مدیریت";
+        public string Comment { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
     public class CustomerWalletTransactionModel
     {
         public Guid Id { get; set; }
@@ -190,6 +199,7 @@ namespace Vitorize.Web.Models.Customer
         public byte? MyVote { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public List<CustomerReviewReplyModel> Replies { get; set; } = new();
     }
 
     public class CustomerReviewSummaryModel

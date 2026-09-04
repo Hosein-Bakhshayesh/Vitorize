@@ -34,5 +34,8 @@ namespace Vitorize.Application.DTOs.Reviews
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>پاسخ‌های عمومی مدیریت به این دیدگاه.</summary>
+        public List<ProductReviewReplyDto> Replies { get; set; } = new();
     }
 }

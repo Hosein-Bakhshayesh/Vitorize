@@ -961,6 +961,11 @@ button {
 .st-search-start__form input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--st-input-border); border-radius: 12px; background: var(--st-input-bg); color: var(--st-text); padding: 0 13px; font: inherit; }
 .st-search-start__form input:focus { outline: none; border-color: var(--st-primary); box-shadow: var(--st-ring); }
 
+.st-review-replies { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--st-border); display: grid; gap: 9px; }
+.st-review-reply { padding: 11px 13px; border-inline-start: 3px solid var(--st-primary); border-radius: 0 10px 10px 0; background: var(--st-primary-soft); }
+.st-review-reply__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.st-review-reply p { margin-top: 7px; color: var(--st-text-2); font-size: 13px; line-height: 1.9; }
+
 /* theme toggle */
 .st-theme-toggle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--st-border); background: var(--st-elevated); color: var(--st-amber); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all var(--st-t-fast) var(--st-ease); }
 :root[data-theme="dark"] .st-theme-toggle { color: var(--st-accent); }

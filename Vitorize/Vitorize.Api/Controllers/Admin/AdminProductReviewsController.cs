@@ -76,6 +76,23 @@ namespace Vitorize.Api.Controllers.Admin
                 "نظر با موفقیت رد شد."));
         }
 
+        [HttpPost("{id:guid}/replies")]
+        public async Task<ActionResult<ApiResult<AdminProductReviewReplyDto>>> CreateReply(
+            Guid id,
+            CreateAdminProductReviewReplyRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reviewService.CreateReplyAsync(
+                GetAdminId(),
+                id,
+                request,
+                cancellationToken);
+
+            return Ok(ApiResult<AdminProductReviewReplyDto>.Success(
+                result,
+                "پاسخ مدیریت با موفقیت ثبت شد."));
+        }
+
         [HttpDelete("{id:guid}")]
         public async Task<ActionResult<ApiResult>> Delete(
             Guid id,

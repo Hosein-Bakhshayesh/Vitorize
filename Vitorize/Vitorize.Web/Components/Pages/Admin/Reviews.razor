@@ -111,6 +111,32 @@
             </dl>
             <div class="vz-divider"></div>
             <div style="font-size:13px;line-height:2">@r.Comment</div>
+            <div class="vz-divider"></div>
+            <div class="vz-label" style="margin-bottom:8px">پاسخ‌های مدیریت</div>
+            @if (r.Replies.Count == 0)
+            {
+                <div class="vz-muted" style="margin-bottom:14px">هنوز پاسخی ثبت نشده است.</div>
+            }
+            else
+            {
+                @foreach (var reply in r.Replies)
+                {
+                    <div class="vz-card" style="padding:12px;margin-bottom:9px;background:var(--surface-2)">
+                        <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px">
+                            <span class="vz-chip">مدیریت</span>
+                            <span class="vz-muted" style="font-size:11px"><PersianDateDisplay Value="reply.CreatedAt" WithTime="true" /></span>
+                        </div>
+                        <div style="font-size:13px;line-height:2">@reply.Comment</div>
+                    </div>
+                }
+            }
+            @if (r.IsApproved && !r.IsRejected)
+            {
+                <div class="vz-field" style="margin-top:14px">
+                    <label class="vz-label">پاسخ جدید مدیریت</label>
+                    <textarea class="vz-textarea" maxlength="2000" @bind="_reply" placeholder="پاسخ خود را برای نمایش زیر این نظر بنویسید..."></textarea>
+                </div>
+            }
             @if (r.IsRejected && !string.IsNullOrWhiteSpace(r.RejectionReason))
             {
                 <div class="vz-divider"></div>
@@ -123,6 +149,8 @@
         { <button class="vz-btn vz-btn--success" @onclick="() => Approve(_current)" disabled="@_acting">تأیید نظر</button> }
         @if (_current is not null && !_current.IsRejected)
         { <button class="vz-btn vz-btn--danger-soft" @onclick="OpenReject" disabled="@_acting">رد نظر</button> }
+        @if (_current is not null && _current.IsApproved && !_current.IsRejected)
+        { <button class="vz-btn vz-btn--primary" @onclick="SendReply" disabled="@_acting">ثبت پاسخ مدیریت</button> }
         <button class="vz-btn vz-btn--ghost" @onclick="() => _open = false">بستن</button>
     </Footer>
 </SlidePanel>
@@ -155,7 +183,7 @@
 
     private bool _open, _rejectOpen, _confirmDelete, _acting;
     private AdminProductReviewModel? _current;
-    private string _rejectReason = string.Empty;
+    private string _rejectReason = string.Empty, _reply = string.Empty;
 
     private readonly HashSet<Guid> _selected = new();
     private bool AllSelected => _items.Count > 0 && _items.All(r => _selected.Contains(r.Id));
@@ -205,7 +233,32 @@
         _loading = false;
     }
 
-    private void Open(AdminProductReviewModel r) { _current = r; _open = true; }
+    private async Task Open(AdminProductReviewModel r)
+    {
+        _current = r;
+        _reply = string.Empty;
+        _open = true;
+        var result = await Api.GetAsync<AdminProductReviewModel>($"admin/product-reviews/{r.Id}");
+        if (result.IsSuccess && result.Data is not null) _current = result.Data;
+        else Toasts.Error(result.Message);
+    }
+
+    private async Task SendReply()
+    {
+        if (_current is null) return;
+        if (string.IsNullOrWhiteSpace(_reply)) { Toasts.Error("متن پاسخ الزامی است."); return; }
+
+        _acting = true;
+        var result = await Api.PostAsync<AdminProductReviewReplyModel>(
+            $"admin/product-reviews/{_current.Id}/replies", new { Comment = _reply });
+        _acting = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success("پاسخ مدیریت ثبت شد.");
+            await Open(_current);
+        }
+        else Toasts.Error(result.Message);
+    }
 
     private async Task Approve(AdminProductReviewModel r)
     {

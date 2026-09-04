@@ -24,6 +24,12 @@ namespace Vitorize.Application.Interfaces
             RejectProductReviewRequestDto request,
             CancellationToken cancellationToken = default);
 
+        Task<AdminProductReviewReplyDto> CreateReplyAsync(
+            Guid adminUserId,
+            Guid id,
+            CreateAdminProductReviewReplyRequestDto request,
+            CancellationToken cancellationToken = default);
+
         Task DeleteAsync(
             Guid adminUserId,
             Guid id,

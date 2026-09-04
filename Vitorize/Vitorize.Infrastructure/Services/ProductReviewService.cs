@@ -82,6 +82,41 @@ namespace Vitorize.Infrastructure.Services
                 })
                 .ToListAsync(cancellationToken);
 
+            var reviewIds = reviews.Select(x => x.Id).ToList();
+            if (reviewIds.Count > 0)
+            {
+                var replyRows = await _dbContext.ProductReviews
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.ParentId.HasValue &&
+                        reviewIds.Contains(x.ParentId.Value) &&
+                        x.IsApproved &&
+                        !x.IsRejected &&
+                        !x.IsDeleted)
+                    .OrderBy(x => x.CreatedAt)
+                    .Select(x => new
+                    {
+                        ParentId = x.ParentId!.Value,
+                        Reply = new ProductReviewReplyDto
+                        {
+                            Id = x.Id,
+                            // Administrator contact details never leave the API with a public reply.
+                            AuthorLabel = "مدیریت",
+                            Comment = x.Comment,
+                            CreatedAt = x.CreatedAt,
+                            UpdatedAt = x.UpdatedAt
+                        }
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var repliesByParentId = replyRows
+                    .GroupBy(x => x.ParentId)
+                    .ToDictionary(x => x.Key, x => x.Select(y => y.Reply).ToList());
+
+                foreach (var review in reviews)
+                    review.Replies = repliesByParentId.TryGetValue(review.Id, out var items) ? items : new();
+            }
+
             await PopulateMyVotesAsync(reviews, currentUserId, cancellationToken);
 
             return new ProductReviewListResultDto
