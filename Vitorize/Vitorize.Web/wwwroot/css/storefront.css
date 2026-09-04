@@ -104,13 +104,13 @@ body { background: var(--st-bg, #fff); }
     --st-glow: none;
     --st-ring: 0 0 0 3px rgba(13, 148, 136, 0.16);
 
-    /* signature clipped-corner shape (small radius = top-start; flips in RTL) */
-    --st-clip-sm: 6px 18px 18px 18px;      /* small cards, tiles */
-    --st-clip: 8px 22px 22px 22px;         /* cards, tables, modals */
-    --st-clip-xl: 8px 32px 32px 32px;      /* hero panels, CTA bands */
-    --st-clip-menu: 8px 16px 16px 16px;    /* dropdowns, quick bars */
-    --st-clip-btn: 8px 13px 13px 13px;     /* buttons */
-    --st-clip-media: 4px 14px 14px 14px;   /* card media, skeleton media */
+    /* shared four-corner radii */
+    --st-clip-sm: 18px;      /* small cards, tiles */
+    --st-clip: 22px;         /* cards, tables, modals */
+    --st-clip-xl: 32px;      /* hero panels, CTA bands */
+    --st-clip-menu: 16px;    /* dropdowns, quick bars */
+    --st-clip-btn: 13px;     /* buttons */
+    --st-clip-media: 14px;   /* card media, skeleton media */
     --st-ribbon-clip: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
 
     /* plain radii */
@@ -208,15 +208,9 @@ body { background: var(--st-bg, #fff); }
 }
 
 /* --------------------------------------------------------------------------
-   1c · RTL — flip the signature shape (small radius stays on top-start)
+   1c · RTL — keep directional ribbon tails on the reading start side
    -------------------------------------------------------------------------- */
 [dir="rtl"] {
-    --st-clip-sm: 18px 6px 18px 18px;
-    --st-clip: 22px 8px 22px 22px;
-    --st-clip-xl: 32px 8px 32px 32px;
-    --st-clip-menu: 16px 8px 16px 16px;
-    --st-clip-btn: 13px 8px 13px 13px;
-    --st-clip-media: 14px 4px 14px 14px;
     --st-ribbon-clip: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
 }
 
@@ -623,7 +617,7 @@ button {
    wishlist tiles and skeletons all share one geometry and nothing shifts when an image loads or
    falls back to the placeholder. This applies to product media only — category, brand, banner,
    hero, blog and CMS imagery keep their own ratios. */
-.st-pcard__media { position: relative; aspect-ratio: 1/1; background: var(--st-surface-2); overflow: hidden; border-radius: var(--st-clip-media) / 0 0 0 0; }
+.st-pcard__media { position: relative; aspect-ratio: 1/1; background: var(--st-surface-2); overflow: hidden; border-radius: var(--st-clip-media); }
 .st-pcard__media img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--st-t-slow) var(--st-ease); }
 .st-pcard:hover .st-pcard__media img { transform: scale(1.05); }
 .st-pcard__media .ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--st-muted); }
@@ -1693,8 +1687,7 @@ button {
 .st-gal__thumb.active { opacity: 1; border-color: var(--st-primary); }
 .st-gal__thumb img { width: 100%; height: 100%; object-fit: cover; }
 /* Product detail main image: square, matching the 1:1 product media rule. */
-.st-gal__main { position: relative; z-index: 1; flex: 1; min-width: 0; aspect-ratio: 1/1; border-radius: 8px 28px 28px 28px; overflow: hidden; box-shadow: var(--st-shadow-lg); background: var(--st-surface-2); }
-[dir="rtl"] .st-gal__main { border-radius: 28px 8px 28px 28px; }
+.st-gal__main { position: relative; z-index: 1; flex: 1; min-width: 0; aspect-ratio: 1/1; border-radius: 28px; overflow: hidden; box-shadow: var(--st-shadow-lg); background: var(--st-surface-2); }
 .st-gal__main .st-img, .st-gal__main img { width: 100%; height: 100%; object-fit: cover; animation: st-reveal 400ms var(--st-ease) both; }
 .st-gal__badge { position: absolute; top: 0; inset-inline-start: 0; z-index: 2; background: var(--st-grad-accent); color: var(--st-on-accent); font-size: 11px; font-weight: 800; padding: 7px 18px 7px 22px; clip-path: var(--st-ribbon-clip); box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
 
@@ -1778,8 +1771,7 @@ button {
 .st-buy__rate { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 13.5px; color: var(--st-text-2); font-weight: 600; }
 .st-buy__rate .stars { color: #E8890C; font-size: 14px; letter-spacing: 1px; }
 :root[data-theme="dark"] .st-buy__rate .stars { color: #F5B342; }
-.st-buy__card { margin-top: 8px; padding: 22px; border-radius: 6px 22px 22px 22px; background: var(--st-surface); backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--st-border); box-shadow: var(--st-shadow-lg); animation: st-reveal 420ms var(--st-ease) 80ms both; }
-[dir="rtl"] .st-buy__card { border-radius: 22px 6px 22px 22px; }
+.st-buy__card { margin-top: 8px; padding: 22px; border-radius: 22px; background: var(--st-surface); backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--st-border); box-shadow: var(--st-shadow-lg); animation: st-reveal 420ms var(--st-ease) 80ms both; }
 .st-buy__price { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
 .st-buy__now { font-size: 30px; font-weight: 800; }
 .st-buy__unit { font-size: 14px; color: var(--st-muted); font-weight: 600; }
