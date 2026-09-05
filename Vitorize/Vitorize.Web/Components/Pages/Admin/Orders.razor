@@ -22,11 +22,29 @@ else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
 else
 {
     <div class="vz-stats">
-        <StatCard Label="کل سفارش‌ها" Value="@AUI.Number(_statusTotal)" Icon="cart" Accent="teal" />
+        <StatCard Label="@CurrentFilterSummaryLabel" Value="@AUI.Number(_statusTotal)" Icon="cart" Accent="teal" />
         <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.PendingPayment)" Value="@AUI.Number(StatusCount((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
         <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Processing)" Value="@AUI.Number(StatusCount((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
         <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Completed)" Value="@AUI.Number(StatusCount((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
     </div>
+
+    <section class="orders-workflow" aria-label="نمایش سریع سفارش‌ها">
+        <div class="orders-workflow__main">
+            <button class="orders-workflow__primary @(_activeView == "actionable" ? "active" : "")" @onclick='() => SetQuickView("actionable")'>
+                <Icon Name="package-check" Size="17" /> سفارش‌های قابل انجام
+            </button>
+            <button class="orders-workflow__secondary @(_activeView == "paid" ? "active" : "")" @onclick='() => SetQuickView("paid")'>
+                همهٔ پرداخت‌شده‌ها
+            </button>
+        </div>
+        <div class="orders-workflow__other">
+            <span>سایر سفارش‌ها:</span>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm @(_activeView == "pending-payment" ? "active" : "")" @onclick='() => SetQuickView("pending-payment")'>پرداخت‌نشده</button>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm @(_activeView == "failed-payment" ? "active" : "")" @onclick='() => SetQuickView("failed-payment")'>ناموفق</button>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm @(_activeView == "refunded-payment" ? "active" : "")" @onclick='() => SetQuickView("refunded-payment")'>بازگشت وجه</button>
+            <button class="vz-btn vz-btn--ghost vz-btn--sm @(_activeView == "all" ? "active" : "")" @onclick='() => SetQuickView("all")'>همه</button>
+        </div>
+    </section>
 
     <div class="vz-pills" style="margin-bottom:16px">
         @foreach (var f in StatusChips)
@@ -45,7 +63,7 @@ else
             </div>
             <div class="vz-field">
                 <label class="vz-label">وضعیت پرداخت</label>
-                <select class="vz-select" @bind="_payFilter" @bind:after="ResetPage">
+                <select class="vz-select" @bind="_payFilter" @bind:after="OnPaymentFilterChanged">
                     <option value="all">همه</option>
                     <option value="1">در انتظار</option>
                     <option value="2">پرداخت شده</option>
@@ -80,7 +98,28 @@ else
             }
             else
             {
-                <div class="vz-table-wrap">
+                <div class="orders-mobile-list">
+                    @foreach (var o in Paged)
+                    {
+                        <button type="button" class="orders-mobile-card" @onclick="() => OpenDetails(o.Id)" aria-label="مشاهده جزئیات سفارش @o.OrderNumber">
+                            <span class="orders-mobile-card__number">@o.OrderNumber</span>
+                            <span class="orders-mobile-card__date"><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></span>
+                            <span class="orders-mobile-card__customer">
+                                <span class="vz-avatar-sm">@Initial(o.UserFullName)</span>
+                                <span>
+                                    <span class="orders-mobile-card__name">@o.UserFullName</span>
+                                    <span class="vz-cell-sub vz-mono">@o.UserMobile</span>
+                                </span>
+                            </span>
+                            <span class="orders-mobile-card__amount"><MoneyDisplay Amount="o.FinalAmount" /></span>
+                            <span class="orders-mobile-card__statuses">
+                                <StatusBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" />
+                                <StatusBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" />
+                            </span>
+                        </button>
+                    }
+                </div>
+                <div class="vz-table-wrap orders-desktop-table">
                     <table class="vz-table">
                         <thead>
                             <tr>
@@ -414,7 +453,8 @@ else
     private List<AdminOrderStatusCountModel> _statusCounts = new();
 
     private string _search = string.Empty;
-    private string _statusFilter = "all", _payFilter = "all";
+    private string _statusFilter = "2", _payFilter = "2";
+    private string _activeView = "actionable";
     private DateTime? _from, _to;
 
     private int _page = 1;
@@ -488,6 +528,15 @@ else
     }
 
     private int StatusCount(byte status) => _statusCounts.FirstOrDefault(x => x.Status == status)?.Count ?? 0;
+    private string CurrentFilterSummaryLabel => _payFilter switch
+    {
+        "1" => "پرداخت‌نشده‌ها",
+        "2" => "همهٔ پرداخت‌شده‌ها",
+        "3" => "پرداخت‌های ناموفق",
+        "4" => "پرداخت‌های لغوشده",
+        "5" => "بازگشت وجه",
+        _ => "کل سفارش‌ها"
+    };
     private static bool CanAct(byte status) => status is not (byte)OrderStatus.Completed
         and not (byte)OrderStatus.Cancelled and not (byte)OrderStatus.Refunded;
 
@@ -538,7 +587,34 @@ else
     };
 
     private async Task ResetPage() { _page = 1; await Load(); }
-    private async Task SetStatusChip(string key) { _statusFilter = key; await ResetPage(); }
+
+    private async Task SetStatusChip(string key)
+    {
+        _statusFilter = key;
+        _activeView = "custom";
+        await ResetPage();
+    }
+
+    private async Task OnPaymentFilterChanged()
+    {
+        _activeView = "custom";
+        await ResetPage();
+    }
+
+    private async Task SetQuickView(string view)
+    {
+        _activeView = view;
+        (_statusFilter, _payFilter) = view switch
+        {
+            "actionable" => ("2", "2"),
+            "paid" => ("all", "2"),
+            "pending-payment" => ("all", "1"),
+            "failed-payment" => ("all", "3"),
+            "refunded-payment" => ("all", "5"),
+            _ => ("all", "all")
+        };
+        await ResetPage();
+    }
 
     private List<AdminOrderModel> Filtered => _items;
     private List<AdminOrderModel> Paged => _items;
@@ -999,3 +1075,91 @@ else
         _selfRef?.Dispose();
     }
 }
+
+<style>
+    .orders-workflow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md, 14px);
+        background: var(--surface);
+    }
+
+    .orders-workflow__main, .orders-workflow__other {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .orders-workflow__primary, .orders-workflow__secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm, 10px);
+        color: var(--text-2);
+        background: var(--surface-2);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        cursor: pointer;
+    }
+
+    .orders-workflow__primary.active {
+        color: #fff;
+        border-color: var(--admin-primary);
+        background: var(--admin-primary);
+    }
+
+    .orders-workflow__secondary.active, .orders-workflow .vz-btn.active {
+        color: var(--admin-primary);
+        border-color: var(--admin-primary);
+        background: var(--admin-primary-soft);
+    }
+
+    .orders-workflow__other { color: var(--text-3); font-size: 12px; }
+    .orders-mobile-list { display: none; }
+
+    @@media (max-width: 760px) {
+        .orders-workflow { align-items: stretch; flex-direction: column; }
+        .orders-workflow__main { display: grid; grid-template-columns: 1fr 1fr; }
+        .orders-workflow__main > button { width: 100%; }
+        .orders-workflow__other { gap: 6px; }
+        .orders-workflow__other > span { width: 100%; }
+        .orders-workflow__other .vz-btn { flex: 1 1 auto; }
+
+        .orders-desktop-table { display: none; }
+        .orders-mobile-list { display: grid; gap: 9px; padding: 10px; }
+        .orders-mobile-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 9px 12px;
+            width: 100%;
+            padding: 13px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md, 14px);
+            color: var(--text);
+            background: var(--surface);
+            font: inherit;
+            text-align: start;
+            cursor: pointer;
+        }
+
+        .orders-mobile-card:active { background: var(--surface-2); }
+        .orders-mobile-card__number { color: var(--admin-primary); font-weight: 800; font-variant-numeric: tabular-nums; }
+        .orders-mobile-card__date { align-self: center; color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+        .orders-mobile-card__customer { display: flex; align-items: center; min-width: 0; gap: 9px; }
+        .orders-mobile-card__customer > span:last-child { display: grid; min-width: 0; gap: 2px; }
+        .orders-mobile-card__name { overflow: hidden; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+        .orders-mobile-card__amount { align-self: center; font-weight: 800; white-space: nowrap; }
+        .orders-mobile-card__statuses { display: flex; grid-column: 1 / -1; gap: 6px; flex-wrap: wrap; }
+    }
+</style>
