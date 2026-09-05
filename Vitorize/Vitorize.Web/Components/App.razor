@@ -175,7 +175,19 @@
         <span class="dismiss">🗙</span>
     </div>
 
-    <script src="_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script src="js/blazor-reconnect.js?v=@AssetVersion"></script>
+    <script>
+        Blazor.start({
+            circuit: {
+                reconnectionHandler: window.vzBlazorReconnectHandler,
+                reconnectionOptions: {
+                    maxRetries: 60,
+                    retryIntervalMilliseconds: 2000
+                }
+            }
+        });
+    </script>
     <script src="js/auth-session.js?v=@AssetVersion"></script>
     @* Shared yyyy/MM/dd typing mask for the Persian date field. *@
     <script src="js/persian-date-mask.js?v=@AssetVersion"></script>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -86,7 +87,23 @@ builder.Services.AddRazorComponents()
     // A content-rich prerendered storefront can legitimately send more than SignalR's
     // 32 KiB default when the browser starts its interactive circuit. Keep the limit
     // bounded while allowing the home and product pages to hydrate reliably.
-    .AddHubOptions(options => options.MaximumReceiveMessageSize = 256 * 1024);
+    .AddHubOptions(options =>
+    {
+        options.MaximumReceiveMessageSize = 256 * 1024;
+        // Mobile browsers can suspend their WebSocket while another app is foregrounded.
+        // Keep the transport lease comfortably longer than a brief app switch.
+        options.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+    });
+
+// Preserve interactive page state while a mobile browser is briefly backgrounded. The cap keeps
+// disconnected circuits from consuming unbounded server memory during an extended outage.
+builder.Services.Configure<CircuitOptions>(options =>
+{
+    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(30);
+    options.DisconnectedCircuitMaxRetained = 1_000;
+});
 
 builder.Services.AddResponseCompression(options =>
 {
