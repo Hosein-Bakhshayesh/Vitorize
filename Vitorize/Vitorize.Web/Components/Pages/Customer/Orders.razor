@@ -23,7 +23,41 @@ else if (_orders.Count == 0)
 else
 {
     <div class="st-card">
-        <div class="st-table-wrap">
+        <div class="st-mobile-records">
+            @foreach (var o in _orders)
+            {
+                var view = CustomerOrderPresenter.Describe(o);
+                <article class="st-mobile-record" data-testid="order-row" data-order-state="@view.State">
+                    <div class="st-mobile-record__head">
+                        <span class="st-mobile-record__number st-mono">@o.OrderNumber</span>
+                        <StoreBadge Text="@view.StatusLabel" Intent="@view.BadgeIntent" />
+                    </div>
+                    <div class="st-mobile-record__rows">
+                        <div class="st-mobile-record__row"><span>تعداد اقلام</span><span>@AUI.Number(o.Items.Count)</span></div>
+                        <div class="st-mobile-record__row"><span>مبلغ</span><span>@AUI.MoneyFa(o.FinalAmount)</span></div>
+                        <div class="st-mobile-record__row"><span>تاریخ</span><span><PersianDateDisplay Value="o.CreatedAt" WithTime="true" /></span></div>
+                    </div>
+                    <div class="st-mobile-record__actions">
+                        <a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /> جزئیات</a>
+                        @if (o.CanCustomerCancel)
+                        {
+                            <button class="st-btn st-btn--ghost st-btn--sm" data-testid="order-cancel"
+                                    disabled="@(_busyId == o.Id)" @onclick="() => AskCancel(o)">
+                                <Icon Name="x-circle" Size="15" /> لغو سفارش
+                            </button>
+                        }
+                        @if (o.CanCustomerHide)
+                        {
+                            <button class="st-btn st-btn--ghost st-btn--sm" data-testid="order-hide"
+                                    disabled="@(_busyId == o.Id)" @onclick="() => AskHide(o)">
+                                <Icon Name="trash" Size="15" /> حذف از لیست
+                            </button>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+        <div class="st-table-wrap st-mobile-records-desktop">
             <table class="st-table">
                 <thead><tr><th>شماره سفارش</th><th>تعداد اقلام</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
                 <tbody>

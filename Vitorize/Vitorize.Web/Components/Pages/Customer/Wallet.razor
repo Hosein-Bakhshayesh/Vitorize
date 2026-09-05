@@ -62,7 +62,24 @@ else
         }
         else
         {
-            <div class="st-table-wrap">
+            <div class="st-mobile-records">
+                @foreach (var t in _transactions)
+                {
+                    var credit = t.Type == (byte)WalletTransactionType.Credit;
+                    <article class="st-mobile-record">
+                        <div class="st-mobile-record__head">
+                            <StoreBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" />
+                            <span style="color:@(credit ? "var(--st-success)" : "var(--st-danger)");font-weight:800">@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</span>
+                        </div>
+                        <div class="st-mobile-record__rows">
+                            <div class="st-mobile-record__row"><span>موجودی پس از تراکنش</span><span>@AUI.MoneyFa(t.BalanceAfter)</span></div>
+                            <div class="st-mobile-record__row"><span>توضیحات</span><span>@(string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description)</span></div>
+                            <div class="st-mobile-record__row"><span>تاریخ</span><span><PersianDateDisplay Value="t.CreatedAt" WithTime="true" /></span></div>
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="st-table-wrap st-mobile-records-desktop">
                 <table class="st-table">
                     <thead><tr><th>نوع</th><th>مبلغ</th><th>موجودی پس از تراکنش</th><th>توضیحات</th><th>تاریخ</th></tr></thead>
                     <tbody>
