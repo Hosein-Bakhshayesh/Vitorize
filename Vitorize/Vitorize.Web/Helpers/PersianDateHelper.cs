@@ -11,6 +11,7 @@ namespace Vitorize.Web.Helpers
     public static class PersianDateHelper
     {
         private static readonly PersianCalendar Calendar = new();
+        private static readonly TimeZoneInfo TehranTimeZone = ResolveTehranTimeZone();
 
         public static readonly string[] MonthNames =
         {
@@ -26,6 +27,26 @@ namespace Vitorize.Web.Helpers
         };
 
         public const string Empty = "-";
+
+        /// <summary>
+        /// All persisted operational timestamps are UTC. SQL Server returns a
+        /// DateTime without its original Kind, so Unspecified values must also
+        /// be treated as UTC here rather than as the server's local clock.
+        /// </summary>
+        public static DateTime ToIranTime(DateTime value)
+        {
+            var utc = value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, TehranTimeZone);
+        }
+
+        /// <summary>Converts a date/time entered in Tehran local time to UTC for persistence.</summary>
+        public static DateTime IranTimeToUtc(DateTime value) =>
+            TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(value, DateTimeKind.Unspecified), TehranTimeZone);
 
         public static bool IsValid(DateTime? value)
         {
@@ -55,7 +76,7 @@ namespace Vitorize.Web.Helpers
 
             try
             {
-                var v = value!.Value;
+                var v = ToIranTime(value!.Value);
                 var year = Calendar.GetYear(v);
                 var month = Calendar.GetMonth(v);
                 var day = Calendar.GetDayOfMonth(v);
@@ -76,7 +97,7 @@ namespace Vitorize.Web.Helpers
 
             try
             {
-                var v = value!.Value;
+                var v = ToIranTime(value!.Value);
                 var year = Calendar.GetYear(v);
                 var month = Calendar.GetMonth(v);
                 var day = Calendar.GetDayOfMonth(v);
@@ -98,7 +119,7 @@ namespace Vitorize.Web.Helpers
 
             try
             {
-                var v = value!.Value;
+                var v = ToIranTime(value!.Value);
                 var year = Calendar.GetYear(v);
                 var month = Calendar.GetMonth(v);
                 var day = Calendar.GetDayOfMonth(v);
@@ -118,7 +139,7 @@ namespace Vitorize.Web.Helpers
 
             try
             {
-                var v = value!.Value;
+                var v = ToIranTime(value!.Value);
                 return (Calendar.GetYear(v), Calendar.GetMonth(v), Calendar.GetDayOfMonth(v));
             }
             catch
@@ -175,8 +196,16 @@ namespace Vitorize.Web.Helpers
 
         public static (int Year, int Month, int Day) Today()
         {
-            var now = DateTime.Now;
+            var now = ToIranTime(DateTime.UtcNow);
             return (Calendar.GetYear(now), Calendar.GetMonth(now), Calendar.GetDayOfMonth(now));
+        }
+
+        private static TimeZoneInfo ResolveTehranTimeZone()
+        {
+            // Windows uses the first identifier; Linux containers use IANA.
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Iran Standard Time"); }
+            catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran"); }
+            catch (InvalidTimeZoneException) { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran"); }
         }
 
         public static string ToPersianDigits(string? input)

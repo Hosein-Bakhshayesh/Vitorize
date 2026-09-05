@@ -317,7 +317,7 @@ else
                                                     @if (!string.IsNullOrWhiteSpace(item.Kyc.PolicyTitle)) { <span> — @item.Kyc.PolicyTitle</span> }
                                                     <div>انسداد تحویل: @(item.Kyc.BlocksFulfillment ? "بله" : "خیر")</div>
                                                     @if (item.Kyc.ThresholdAmount.HasValue) { <div>آستانه: @AUI.MoneyFa(item.Kyc.ThresholdAmount.Value) · مبلغ ارزیابی: @AUI.MoneyFa(item.Kyc.EvaluatedAmount)</div> }
-                                                    @if (item.Kyc.CustomerActionDeadlineAt.HasValue) { <div>مهلت اقدام: @item.Kyc.CustomerActionDeadlineAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm") @(item.Kyc.IsCustomerActionOverdue ? "(منقضی)" : "")</div> }
+                                                    @if (item.Kyc.CustomerActionDeadlineAt.HasValue) { <div>مهلت اقدام: @PersianDateHelper.ToIranTime(item.Kyc.CustomerActionDeadlineAt.Value).ToString("yyyy/MM/dd HH:mm") @(item.Kyc.IsCustomerActionOverdue ? "(منقضی)" : "")</div> }
                                                     @if (item.Kyc.LifecycleStatus == (byte)OrderItemKycStatus.FinalRejected)
                                                     {
                                                         <div>وضعیت مالی: @(item.Kyc.FinanceResolutionStatus switch { 1 => "در انتظار بررسی مالی", 2 => "بازپرداخت خارجی ثبت شده", 3 => "بدون بازپرداخت", _ => "در انتظار ایجاد پرونده مالی" })</div>
@@ -688,7 +688,7 @@ else
     {
         if (_kycDeadlineInputs.TryGetValue(item.Id, out var input)) return input;
         var value = item.Kyc?.CustomerActionDeadlineAt ?? DateTime.UtcNow.AddDays(1);
-        return value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
+        return PersianDateHelper.ToIranTime(value).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
     }
 
     private void SetDeadlineInput(Guid itemId, string? value) => _kycDeadlineInputs[itemId] = value ?? string.Empty;
@@ -702,7 +702,7 @@ else
             return false;
         }
 
-        deadlineAt = DateTime.SpecifyKind(local, DateTimeKind.Local).ToUniversalTime();
+        deadlineAt = PersianDateHelper.IranTimeToUtc(local);
         if (deadlineAt <= DateTime.UtcNow)
         {
             Toasts.Error("مهلت باید در آینده باشد.");

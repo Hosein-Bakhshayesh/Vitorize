@@ -44,13 +44,13 @@ namespace Vitorize.Web.Helpers
         public static string Date(DateTime? value)
         {
             return value.HasValue
-                ? value.Value.ToString("yyyy/MM/dd HH:mm")
+                ? PersianDateHelper.ToIranTime(value.Value).ToString("yyyy/MM/dd HH:mm")
                 : "-";
         }
 
         public static string Date(DateTime value)
         {
-            return value.ToString("yyyy/MM/dd HH:mm");
+            return PersianDateHelper.ToIranTime(value).ToString("yyyy/MM/dd HH:mm");
         }
 
         public static string ShortText(string? value, int length = 90)

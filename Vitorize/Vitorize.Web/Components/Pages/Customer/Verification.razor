@@ -42,7 +42,7 @@ else
                 @if (!string.IsNullOrWhiteSpace(_orderItemContext.PolicyInstructions)) { <div style="font-size:12.5px;margin-top:3px">@_orderItemContext.PolicyInstructions</div> }
                 @if (_orderItemContext.CustomerActionDeadlineAt.HasValue)
                 {
-                    <div style="font-size:12.5px;margin-top:5px">مهلت اقدام: @_orderItemContext.CustomerActionDeadlineAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
+                    <div style="font-size:12.5px;margin-top:5px">مهلت اقدام: @PersianDateHelper.ToIranTime(_orderItemContext.CustomerActionDeadlineAt.Value).ToString("yyyy/MM/dd HH:mm")</div>
                 }
                 @if (CustomerActionExpired)
                 {

@@ -75,7 +75,7 @@ else
                                 @if (!string.IsNullOrWhiteSpace(item.Kyc.PolicyTitle)) { <div class="st-muted" style="font-size:12px;margin-top:3px">@item.Kyc.PolicyTitle</div> }
                                 @if (!string.IsNullOrWhiteSpace(item.Kyc.PolicyInstructions)) { <div class="st-muted" style="font-size:12px;margin-top:3px;white-space:pre-line">@item.Kyc.PolicyInstructions</div> }
                                 @if (!string.IsNullOrWhiteSpace(item.Kyc.CustomerActionLabel)) { <div style="font-size:12.5px;margin-top:5px">@item.Kyc.CustomerActionLabel</div> }
-                                @if (item.Kyc.CustomerActionDeadlineAt.HasValue) { <div class="st-muted" style="font-size:12px;margin-top:4px">مهلت اقدام: @item.Kyc.CustomerActionDeadlineAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div> }
+                                @if (item.Kyc.CustomerActionDeadlineAt.HasValue) { <div class="st-muted" style="font-size:12px;margin-top:4px">مهلت اقدام: @PersianDateHelper.ToIranTime(item.Kyc.CustomerActionDeadlineAt.Value).ToString("yyyy/MM/dd HH:mm")</div> }
                                 @if (item.Kyc.Documents.Count > 0)
                                 {
                                     <ul style="font-size:12px;margin:6px 0 0;padding-inline-start:18px">
