@@ -241,6 +241,7 @@ else
                         <button type="button" @onclick="() => SetQty(_qty - 1)" disabled="@(_qty <= MinimumQuantity)" aria-label="کاهش تعداد">−</button>
                         <input class="st-qty__input"
                                type="number"
+                               dir="ltr"
                                inputmode="numeric"
                                min="@MinimumQuantity"
                                max="@MaximumQuantity"
