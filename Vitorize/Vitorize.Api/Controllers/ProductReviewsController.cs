@@ -66,6 +66,16 @@ namespace Vitorize.Api.Controllers
                 "نظرات شما با موفقیت دریافت شد."));
         }
 
+        [HttpGet("product/{productId:guid}/eligibility")]
+        [Authorize]
+        public async Task<ActionResult<ApiResult<ProductReviewEligibilityDto>>> GetEligibility(
+            Guid productId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reviewService.GetEligibilityAsync(GetUserId(), productId, cancellationToken);
+            return Ok(ApiResult<ProductReviewEligibilityDto>.Success(result, "وضعیت ثبت نظر دریافت شد."));
+        }
+
         [HttpPost]
         [Authorize]
         public async Task<ActionResult<ApiResult<ProductReviewDto>>> Create(
@@ -76,7 +86,7 @@ namespace Vitorize.Api.Controllers
 
             return Ok(ApiResult<ProductReviewDto>.Success(
                 result,
-                "نظر شما ثبت و منتشر شد."));
+                result.IsApproved ? "نظر شما ثبت و منتشر شد." : "نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود."));
         }
 
         [HttpPut("{reviewId:guid}")]

@@ -24,11 +24,19 @@
             </div>
         </div>
 
-        @if (_authenticated)
+        @if (_authenticated && _checkingEligibility)
+        {
+            <div class="st-muted" style="margin-top:14px;text-align:center;font-size:12px">در حال بررسی امکان ثبت نظر...</div>
+        }
+        else if (_authenticated && _canWriteReview)
         {
             <button class="st-btn st-btn--outline st-btn--block" style="margin-top:14px" @onclick="() => _writing = !_writing">
                 <Icon Name="edit" Size="16" /> ثبت نظر
             </button>
+        }
+        else if (_authenticated)
+        {
+            <div class="st-muted" style="margin-top:14px;text-align:center;font-size:12px;line-height:1.9">@_eligibilityMessage</div>
         }
         else
         {
@@ -125,7 +133,8 @@
     [Parameter] public CustomerReviewSummaryModel Summary { get; set; } = new();
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    private bool _loading = true, _authenticated, _writing, _submitting, _hasMore;
+    private bool _loading = true, _authenticated, _writing, _submitting, _hasMore, _checkingEligibility, _canWriteReview;
+    private string? _eligibilityMessage;
     private readonly List<CustomerReviewModel> _reviews = new();
     private int _page = 1;
     private byte _newRating = 5;
@@ -151,6 +160,7 @@
         _reviews.Clear();
         _page = 1;
         await Load();
+        await LoadEligibility();
     }
 
     private async Task Load()
@@ -169,6 +179,23 @@
 
     private async Task LoadMore() { _page++; await Load(); }
 
+    private async Task LoadEligibility()
+    {
+        _canWriteReview = false;
+        _eligibilityMessage = null;
+        if (!_authenticated || ProductId == Guid.Empty) return;
+
+        _checkingEligibility = true;
+        var result = await Api.GetAsync<CustomerReviewEligibilityModel>($"product-reviews/product/{ProductId}/eligibility");
+        if (result.IsSuccess && result.Data is not null)
+        {
+            _canWriteReview = result.Data.CanCreateReview;
+            _eligibilityMessage = result.Data.Message;
+        }
+        else _eligibilityMessage = "امکان بررسی شرایط ثبت نظر وجود ندارد.";
+        _checkingEligibility = false;
+    }
+
     private async Task Submit()
     {
         if (string.IsNullOrWhiteSpace(_newComment)) { Toasts.Error("متن نظر الزامی است."); return; }
@@ -179,10 +206,13 @@
 
         if (result.IsSuccess)
         {
-            Toasts.Success("نظر شما ثبت و منتشر شد.");
+            Toasts.Success(result.Data?.IsApproved == true
+                ? "نظر شما ثبت و منتشر شد."
+                : "نظر شما ثبت شد و پس از تأیید مدیریت نمایش داده می‌شود.");
             _writing = false; _newTitle = string.Empty; _newComment = string.Empty; _newRating = 5;
             _reviews.Clear(); _page = 1;
             await Load();
+            await LoadEligibility();
         }
         else Toasts.Error(result.Message);
     }

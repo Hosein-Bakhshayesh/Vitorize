@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Reviews;
 using Vitorize.Application.DTOs.Reviews;
 using Vitorize.Application.DTOs.Tickets;
@@ -206,6 +207,8 @@ public sealed class SupportReviewKycIntegrationTests
         var (_, voterToken) = await _fixture.CreateUserAndTokenAsync("Customer");
         var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
         var (category, product) = await SeedProductAsync();
+        await SeedBuyerOrderAsync(author, product);
+        await SetReviewAutoApproveAsync(true);
         using var authorClient = _fixture.CreateClient(authorToken);
         using var voter = _fixture.CreateClient(voterToken);
         using var admin = _fixture.CreateClient(adminToken);
@@ -242,9 +245,11 @@ public sealed class SupportReviewKycIntegrationTests
     [Fact]
     public async Task Admin_reply_to_review_is_publicly_labeled_management_and_customer_cannot_post_it()
     {
-        var (_, authorToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (authorUser, authorToken) = await _fixture.CreateUserAndTokenAsync("Customer");
         var (adminUser, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
         var (_, product) = await SeedProductAsync();
+        await SeedBuyerOrderAsync(authorUser, product);
+        await SetReviewAutoApproveAsync(true);
         using var author = _fixture.CreateClient(authorToken);
         using var admin = _fixture.CreateClient(adminToken);
 
@@ -272,6 +277,47 @@ public sealed class SupportReviewKycIntegrationTests
         storedReply.ParentId.Should().Be(review.Id);
         storedReply.UserId.Should().Be(adminUser.Id);
         storedReply.IsApproved.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Review_requires_a_purchase_and_waits_for_moderation_when_auto_approval_is_disabled()
+    {
+        var (customer, customerToken) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (_, adminToken) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (_, product) = await SeedProductAsync();
+        using var customerClient = _fixture.CreateClient(customerToken);
+        using var admin = _fixture.CreateClient(adminToken);
+
+        (await customerClient.PostAsJsonAsync("/api/product-reviews",
+            new CreateProductReviewRequestDto { ProductId = product.Id, Comment = "No purchase", Rating = 5 }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        await SeedBuyerOrderAsync(customer, product);
+        await SetReviewAutoApproveAsync(false);
+        try
+        {
+            var pending = await PostDataAsync<ProductReviewDto>(customerClient, "/api/product-reviews",
+                new CreateProductReviewRequestDto { ProductId = product.Id, Comment = "Needs approval", Rating = 5 });
+            pending.IsBuyer.Should().BeTrue();
+            pending.IsApproved.Should().BeFalse();
+
+            var eligibility = await customerClient.GetFromJsonAsync<ApiResult<ProductReviewEligibilityDto>>(
+                $"/api/product-reviews/product/{product.Id}/eligibility");
+            eligibility!.Data!.CanCreateReview.Should().BeFalse();
+            eligibility.Data.IsBuyer.Should().BeTrue();
+            eligibility.Data.HasExistingReview.Should().BeTrue();
+
+            var beforeApproval = await _fixture.CreateClient().GetAsync($"/api/product-reviews/product/{product.Id}");
+            (await beforeApproval.Content.ReadAsStringAsync()).Should().NotContain("Needs approval");
+
+            (await admin.PostAsync($"/api/admin/product-reviews/{pending.Id}/approve", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+            var afterApproval = await _fixture.CreateClient().GetAsync($"/api/product-reviews/product/{product.Id}");
+            (await afterApproval.Content.ReadAsStringAsync()).Should().Contain("Needs approval");
+        }
+        finally
+        {
+            await SetReviewAutoApproveAsync(true);
+        }
     }
 
     [Fact]
@@ -338,6 +384,46 @@ public sealed class SupportReviewKycIntegrationTests
         await using var db = _fixture.CreateDbContext();
         db.Categories.Add(category); db.Products.Add(product); await db.SaveChangesAsync();
         return (category, product);
+    }
+
+    private async Task SeedBuyerOrderAsync(User customer, Product product)
+    {
+        var now = DateTime.UtcNow;
+        var order = new Order
+        {
+            Id = Guid.NewGuid(), UserId = customer.Id, OrderNumber = $"VT-REVIEW-{Guid.NewGuid():N}",
+            Status = (byte)OrderStatus.Completed, PaymentStatus = (byte)PaymentStatus.Paid,
+            SubtotalAmount = 10m, FinalAmount = 10m, CurrencyType = (byte)CurrencyType.Toman, CreatedAt = now
+        };
+        var item = new OrderItem
+        {
+            Id = Guid.NewGuid(), OrderId = order.Id, ProductId = product.Id, ProductTitle = product.Title,
+            Quantity = 1, UnitPrice = 10m, TotalPrice = 10m, CurrencyType = (byte)CurrencyType.Toman,
+            DeliveryType = (byte)DeliveryType.Manual, DeliveryStatus = (byte)DeliveryStatus.Delivered, CreatedAt = now
+        };
+        await using var db = _fixture.CreateDbContext();
+        db.Orders.Add(order);
+        db.OrderItems.Add(item);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task SetReviewAutoApproveAsync(bool enabled)
+    {
+        await using var db = _fixture.CreateDbContext();
+        var setting = await db.Settings.SingleOrDefaultAsync(x => x.Key == ProductReviewSettings.AutoApproveKey);
+        if (setting is null)
+        {
+            setting = new Setting
+            {
+                Id = Guid.NewGuid(), Key = ProductReviewSettings.AutoApproveKey,
+                GroupName = ProductReviewSettings.GroupName, ValueType = "bool",
+                Description = "تأیید خودکار نظرات خریداران"
+            };
+            db.Settings.Add(setting);
+        }
+        setting.Value = enabled ? "true" : "false";
+        setting.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
     }
 
     private static async Task<T> PostDataAsync<T>(HttpClient client, string uri, object request)

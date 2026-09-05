@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Reviews;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -15,10 +16,12 @@ namespace Vitorize.Infrastructure.Services
         private const int MaxTitleLength = 200;
 
         private readonly VitorizeDbContext _dbContext;
+        private readonly ISettingService _settingService;
 
-        public ProductReviewService(VitorizeDbContext dbContext)
+        public ProductReviewService(VitorizeDbContext dbContext, ISettingService settingService)
         {
             _dbContext = dbContext;
+            _settingService = settingService;
         }
 
         public async Task<ProductReviewListResultDto> GetApprovedForProductAsync(
@@ -185,6 +188,38 @@ namespace Vitorize.Infrastructure.Services
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<ProductReviewEligibilityDto> GetEligibilityAsync(
+            Guid userId,
+            Guid productId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new UnauthorizedException("کاربر احراز هویت نشده است.");
+            if (productId == Guid.Empty)
+                throw new BusinessException("شناسه محصول معتبر نیست.");
+
+            var productExists = await _dbContext.Products.AsNoTracking().AnyAsync(
+                x => x.Id == productId && x.IsActive && !x.IsDeleted,
+                cancellationToken);
+            if (!productExists)
+                throw new NotFoundException("محصول یافت نشد.");
+
+            var isBuyer = await IsBuyerAsync(userId, productId, cancellationToken);
+            var hasExistingReview = await _dbContext.ProductReviews.AsNoTracking().AnyAsync(
+                x => x.ProductId == productId && x.UserId == userId && x.ParentId == null && !x.IsDeleted,
+                cancellationToken);
+
+            return new ProductReviewEligibilityDto
+            {
+                IsBuyer = isBuyer,
+                HasExistingReview = hasExistingReview,
+                CanCreateReview = isBuyer && !hasExistingReview,
+                Message = hasExistingReview
+                    ? "شما قبلاً برای این محصول نظر ثبت کرده‌اید."
+                    : isBuyer ? null : "فقط خریداران این محصول می‌توانند نظر ثبت کنند."
+            };
+        }
+
         public async Task<ProductReviewDto> CreateAsync(
             Guid userId,
             CreateProductReviewRequestDto request,
@@ -219,6 +254,10 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("شما قبلاً برای این محصول نظر ثبت کرده‌اید.");
 
             var isBuyer = await IsBuyerAsync(userId, request.ProductId, cancellationToken);
+            if (!isBuyer)
+                throw new BusinessException("فقط خریداران این محصول می‌توانند نظر ثبت کنند.");
+
+            var autoApprove = await IsAutoApproveEnabledAsync();
 
             var review = new ProductReview
             {
@@ -229,9 +268,7 @@ namespace Vitorize.Infrastructure.Services
                 Title = title,
                 Comment = comment,
                 Rating = request.Rating,
-                // Reviews are public immediately; administrators retain the ability to reject a
-                // problematic review, which removes it from the public query.
-                IsApproved = true,
+                IsApproved = autoApprove,
                 IsRejected = false,
                 IsBuyer = isBuyer,
                 LikeCount = 0,
@@ -273,9 +310,9 @@ namespace Vitorize.Infrastructure.Services
             review.Title = title;
             review.Comment = comment;
             review.Rating = request.Rating;
-            // Customer reviews are published by default, including an owner's edit. A moderator can
-            // still reject a problematic revision explicitly; an edit also clears an older rejection.
-            review.IsApproved = true;
+            // A changed review is new content for moderation too. In auto mode this stays public;
+            // in manual mode it returns to the administrator's pending queue.
+            review.IsApproved = await IsAutoApproveEnabledAsync();
             review.IsRejected = false;
             review.RejectionReason = null;
             review.UpdatedAt = DateTime.UtcNow;
@@ -551,6 +588,12 @@ namespace Vitorize.Infrastructure.Services
                         (x.Order.Status == (byte)OrderStatus.Completed ||
                          x.Order.Status == (byte)OrderStatus.Processing),
                     cancellationToken);
+        }
+
+        private async Task<bool> IsAutoApproveEnabledAsync()
+        {
+            var value = await _settingService.GetValueAsync(ProductReviewSettings.AutoApproveKey);
+            return ProductReviewSettings.IsAutoApproveEnabled(value);
         }
 
         private static IQueryable<ProductReview> ApplySort(

@@ -30,8 +30,9 @@ namespace Vitorize.Web.Endpoints
             // lets the panel remember administrators by default while still respecting an explicit
             // opt-out on shared devices.
             var rememberMe = form["rememberMe"].Any(value =>
-                value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                value.Equals("on", StringComparison.OrdinalIgnoreCase));
+                !string.IsNullOrEmpty(value) &&
+                (value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                 value.Equals("on", StringComparison.OrdinalIgnoreCase)));
             var returnUrl = form["returnUrl"].ToString();
 
             string FailUrl(string message)

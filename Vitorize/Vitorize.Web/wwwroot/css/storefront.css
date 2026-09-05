@@ -1884,9 +1884,12 @@ button {
        content appearing before the price and primary action. */
     .st-pd2 > div:first-child { display: contents; }
     .st-pd2 .st-gal { grid-row: 1; }
-    .st-pd2 > .st-buy { grid-row: 2; }
-    .st-pd2 .st-product-features { grid-row: 3; }
-    .st-pd2 .st-ptabs { grid-row: 4; }
+    /* The tab strip and its current panel are navigation, not a footer. Keep them directly after
+       the product image on mobile, before the buy box and specification cards. */
+    .st-pd2 .st-ptabs { grid-row: 2; }
+    .st-pd2 .st-product-tab-content { grid-row: 3; }
+    .st-pd2 > .st-buy { grid-row: 4; }
+    .st-pd2 .st-product-features { grid-row: 5; }
     /* Stays 1:1 (no height override, which would defeat aspect-ratio); contain keeps the whole
        artwork visible on a narrow screen without changing the square container. */
     .st-gal__main .st-img, .st-gal__main img { object-fit: contain; }

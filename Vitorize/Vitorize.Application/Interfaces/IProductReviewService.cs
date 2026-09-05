@@ -21,6 +21,11 @@ namespace Vitorize.Application.Interfaces
             Guid userId,
             CancellationToken cancellationToken = default);
 
+        Task<ProductReviewEligibilityDto> GetEligibilityAsync(
+            Guid userId,
+            Guid productId,
+            CancellationToken cancellationToken = default);
+
         Task<ProductReviewDto> CreateAsync(
             Guid userId,
             CreateProductReviewRequestDto request,

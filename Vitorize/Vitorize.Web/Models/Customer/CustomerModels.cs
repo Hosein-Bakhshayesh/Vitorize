@@ -220,4 +220,12 @@ namespace Vitorize.Web.Models.Customer
         public CustomerReviewSummaryModel Summary { get; set; } = new();
         public Vitorize.Shared.Common.PagedResult<CustomerReviewModel> Reviews { get; set; } = new();
     }
+
+    public class CustomerReviewEligibilityModel
+    {
+        public bool CanCreateReview { get; set; }
+        public bool IsBuyer { get; set; }
+        public bool HasExistingReview { get; set; }
+        public string? Message { get; set; }
+    }
 }

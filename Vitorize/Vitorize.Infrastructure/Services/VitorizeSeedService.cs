@@ -410,6 +410,9 @@ namespace Vitorize.Infrastructure.Services
                 S("EnableRegistration", "true", "Features", "bool", "ثبت‌نام کاربران"),
                 S("EnableWallet", "true", "Features", "bool", "کیف پول کاربران"),
 
+                // ───────────── Product reviews ─────────────
+                S(ProductReviewSettings.AutoApproveKey, "true", ProductReviewSettings.GroupName, "bool", "تأیید خودکار نظرات خریداران"),
+
                 // ───────────── SMS.ir (تنظیمات اصلی پیامک) ─────────────
                 // نکته امنیتی: گروه «SMS» در endpoint عمومی تنظیمات قرار ندارد و هرگز آشکار نمی‌شود.
                 S(SmsSettingKeys.Provider, "SMS.ir", "SMS", "string", "ارائه‌دهنده پیامک"),
