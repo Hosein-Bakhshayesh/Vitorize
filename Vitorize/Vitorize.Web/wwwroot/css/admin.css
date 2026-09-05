@@ -1239,6 +1239,11 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
     .vz-topbar__actions { min-width: 0; gap: 7px; }
     .vz-profile { min-width: 0; gap: 4px; padding: 4px 6px; }
     .vz-profile__meta { display: none; }
+    /* The profile trigger is a compact icon on phones. Its desktop popup used
+       to grow from that icon toward the inline-start edge and was clipped off
+       screen in RTL. Keep the popup within the viewport instead. */
+    .vz-menu { position: fixed; top: calc(var(--topbar-h) + 6px); inset-inline: 12px;
+        width: auto; min-width: 0; max-width: none; }
     .vz-report-actions { width: 100%; }
     .vz-report-actions > .vz-row { flex: 1 1 100%; width: 100%; }
     .vz-deflist { grid-template-columns: 1fr; gap: 3px 0; }
