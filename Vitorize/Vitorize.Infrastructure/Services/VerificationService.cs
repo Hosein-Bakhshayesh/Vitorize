@@ -125,8 +125,6 @@ namespace Vitorize.Infrastructure.Services
                 .Include(x => x.VerificationDocuments)
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
-            await EnsureRequiredDocumentsUploadedAsync(userId, profile);
-
             if (profile == null)
             {
                 profile = new UserVerificationProfile
@@ -139,6 +137,25 @@ namespace Vitorize.Infrastructure.Services
                 await _dbContext.UserVerificationProfiles.AddAsync(profile);
             }
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
+
+            foreach (var submittedDocument in request.Documents ?? [])
+            {
+                await ValidateSubmittedDocumentAsync(userId, submittedDocument);
+                var document = new VerificationDocument
+                {
+                    Id = Guid.NewGuid(),
+                    UserVerificationProfileId = profile.Id,
+                    DocumentType = submittedDocument.DocumentType,
+                    KycDocumentTypeId = submittedDocument.KycDocumentTypeId,
+                    FilePath = submittedDocument.FilePath.Trim(),
+                    Status = (byte)VerificationStatus.Pending,
+                    CreatedAt = now
+                };
+                profile.VerificationDocuments.Add(document);
+                await _dbContext.VerificationDocuments.AddAsync(document);
+            }
+
+            await EnsureRequiredDocumentsUploadedAsync(userId, profile);
 
             var protectedData = new ProtectedVerificationData(
                 request.FirstName.Trim(), request.LastName.Trim(), nationalCode,
@@ -218,22 +235,14 @@ namespace Vitorize.Infrastructure.Services
             var profile = await _dbContext.UserVerificationProfiles
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
-            if (profile == null)
-            {
-                // Documents may be uploaded before the textual form is submitted.
-                // A draft never advances order KYC and cannot be reviewed by staff.
-                profile = new UserVerificationProfile
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = userId,
-                    FirstName = string.Empty,
-                    LastName = string.Empty,
-                    NationalCode = string.Empty,
-                    Status = (byte)VerificationStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await _dbContext.UserVerificationProfiles.AddAsync(profile);
-            }
+            // New customer submissions carry their document tokens through
+            // SubmitAsync and are persisted atomically with the identity
+            // payload.  Retaining a standalone upload endpoint is useful for
+            // an already submitted/rejected profile, but it must never create
+            // another empty, admin-visible draft.
+            if (profile is null || !profile.SubmittedAt.HasValue || string.IsNullOrWhiteSpace(profile.EncryptedPayload))
+                throw new BusinessException("مدارک جدید فقط همراه با ثبت نهایی احراز هویت ذخیره می‌شوند.");
+
             await SqlServerTransactionLock.AcquireAsync(_dbContext, $"verification:profile:{profile.Id:N}");
 
             if (profile.Status == (byte)VerificationStatus.Verified)
@@ -357,6 +366,7 @@ namespace Vitorize.Infrastructure.Services
                 .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
                 .Include(x => x.User)
                 .AsNoTracking()
+                .Where(x => x.SubmittedAt.HasValue && x.EncryptedPayload != null && x.EncryptedPayload != "")
                 .OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt)
                 .ToListAsync();
             return profiles.Select(MapProfile).ToList();
@@ -367,7 +377,10 @@ namespace Vitorize.Infrastructure.Services
             filter ??= new AdminVerificationFilterDto();
             var page = Math.Max(1, filter.PageNumber ?? filter.Page);
             var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
-            var query = _dbContext.UserVerificationProfiles.AsNoTracking().AsQueryable();
+            var query = _dbContext.UserVerificationProfiles
+                .AsNoTracking()
+                .Where(x => x.SubmittedAt.HasValue && x.EncryptedPayload != null && x.EncryptedPayload != "")
+                .AsQueryable();
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
                 var search = filter.Search.Trim();
@@ -646,6 +659,43 @@ namespace Vitorize.Infrastructure.Services
 
             if (!complete)
                 throw new BusinessException("پیش از ثبت احراز هویت، همه مدارک تصویری الزامی را بارگذاری کنید.");
+        }
+
+        /// <summary>
+        /// Validates a browser-held private upload token before it is promoted to
+        /// a durable verification document by the final submission transaction.
+        /// </summary>
+        private async Task ValidateSubmittedDocumentAsync(Guid userId, SubmitVerificationDocumentDto document)
+        {
+            if (string.IsNullOrWhiteSpace(document.FilePath))
+                throw new BusinessException("مسیر فایل معتبر نیست.");
+
+            var expectedPrefix = $"kyc-private:{userId:N}/";
+            if (!document.FilePath.StartsWith(expectedPrefix, StringComparison.Ordinal) ||
+                document.FilePath.Contains("..", StringComparison.Ordinal) || document.FilePath.Length > 500)
+                throw new BusinessException("توکن فایل احراز هویت معتبر نیست.");
+
+            if (!document.KycDocumentTypeId.HasValue)
+                return;
+
+            if (!document.OrderItemId.HasValue)
+                throw new BusinessException("آیتم سفارش برای مدرک سیاست احراز هویت الزامی است.");
+
+            var requirement = await _dbContext.OrderItems
+                .Where(item => item.Id == document.OrderItemId.Value &&
+                               item.Order.UserId == userId &&
+                               item.KycPolicyVersionId != null)
+                .Join(_dbContext.KycPolicyDocumentRequirements,
+                    item => item.KycPolicyVersionId,
+                    policyRequirement => (Guid?)policyRequirement.KycPolicyVersionId,
+                    (_, policyRequirement) => policyRequirement)
+                .FirstOrDefaultAsync(item => item.KycDocumentTypeId == document.KycDocumentTypeId.Value);
+
+            if (requirement is null)
+                throw new BusinessException("این نوع مدرک در سیاست آیتم سفارش انتخاب‌شده وجود ندارد.");
+
+            if (requirement.RedactionMode == (byte)KycDocumentRedactionMode.Required && !document.IsRedacted)
+                throw new BusinessException("این مدرک باید از طریق ابزار پوشاندن اطلاعات ارسال شود.");
         }
 
         private static string NormalizeNationalCode(string value) =>

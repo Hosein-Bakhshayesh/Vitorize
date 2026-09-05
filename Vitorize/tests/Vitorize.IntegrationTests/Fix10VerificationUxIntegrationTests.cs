@@ -32,8 +32,9 @@ public sealed class Fix10VerificationUxIntegrationTests
             var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
             using var scope = _fixture.Factory.Services.CreateScope();
             var service = Service(scope, Today);
-            await AddGenericDocumentsAsync(service, user.Id);
-            var result = await service.SubmitAsync(user.Id, Request(birthDate));
+            var request = Request(birthDate);
+            AddGenericDocuments(request, user.Id);
+            var result = await service.SubmitAsync(user.Id, request);
             result.BirthDate.Should().Be(birthDate);
         }
     }
@@ -50,6 +51,58 @@ public sealed class Fix10VerificationUxIntegrationTests
 
         await using var verify = _fixture.CreateDbContext();
         (await verify.UserVerificationProfiles.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Final_submission_promotes_staged_documents_with_the_text_payload_in_one_request()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        using var scope = _fixture.Factory.Services.CreateScope();
+        var service = Service(scope, Today);
+        var request = Request(new DateOnly(2000, 1, 1));
+        request.Documents =
+        [
+            new() { DocumentType = 1, FilePath = $"kyc-private:{user.Id:N}/identity.jpg" },
+            new() { DocumentType = 4, FilePath = $"kyc-private:{user.Id:N}/card.jpg" }
+        ];
+
+        var submitted = await service.SubmitAsync(user.Id, request);
+
+        submitted.SubmittedAt.Should().NotBeNull();
+        submitted.Documents.Should().HaveCount(2);
+        await using var verify = _fixture.CreateDbContext();
+        var profile = await verify.UserVerificationProfiles.Include(x => x.VerificationDocuments)
+            .SingleAsync(x => x.UserId == user.Id);
+        profile.EncryptedPayload.Should().NotBeNullOrWhiteSpace();
+        profile.VerificationDocuments.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Draft_with_only_documents_is_hidden_from_admin_verification_lists()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        using var scope = _fixture.Factory.Services.CreateScope();
+        var service = Service(scope, Today);
+        await using (var seed = _fixture.CreateDbContext())
+        {
+            seed.UserVerificationProfiles.Add(new UserVerificationProfile
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                FirstName = string.Empty,
+                LastName = string.Empty,
+                NationalCode = string.Empty,
+                Status = (byte)VerificationStatus.Pending,
+                CreatedAt = Today.UtcDateTime
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        var paged = await service.GetPagedAsync(new AdminVerificationFilterDto { Page = 1, PageSize = 100 });
+        var all = await service.GetAllAsync();
+
+        paged.Items.Should().NotContain(profile => profile.UserId == user.Id);
+        all.Should().NotContain(profile => profile.UserId == user.Id);
     }
 
     [Fact]
@@ -119,10 +172,13 @@ public sealed class Fix10VerificationUxIntegrationTests
         RegisteredMobileBelongsToCardHolder = true
     };
 
-    private static async Task AddGenericDocumentsAsync(IVerificationService service, Guid userId)
+    private static void AddGenericDocuments(SubmitVerificationRequestDto request, Guid userId)
     {
-        await service.AddDocumentAsync(userId, 1, $"kyc-private:{userId:N}/identity.jpg");
-        await service.AddDocumentAsync(userId, 4, $"kyc-private:{userId:N}/card.jpg");
+        request.Documents =
+        [
+            new() { DocumentType = 1, FilePath = $"kyc-private:{userId:N}/identity.jpg" },
+            new() { DocumentType = 4, FilePath = $"kyc-private:{userId:N}/card.jpg" }
+        ];
     }
 
     private static async Task<AdminKycDocumentTypeDto> CreateDocumentAsync(HttpClient client, string suffix)

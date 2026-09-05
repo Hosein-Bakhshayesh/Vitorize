@@ -270,11 +270,35 @@ else
         { 1, "تصویر مدرک هویتی دارنده کارت" }, { 4, "تصویر کارت بانکی دارنده کارت" }
     };
 
-    private IEnumerable<DocumentSlot> DocumentSlots =>
-        _orderItemContext?.Documents.Count > 0
-            ? _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
-                (byte)(index + 1), document.Title, document.DocumentTypeId, document.IsRequired, document.Instructions, document.RedactionMode, document.RedactionInstructions))
-            : DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, true, DocumentInstructions(document.Key), 0, null));
+    private IEnumerable<DocumentSlot> DocumentSlots
+    {
+        get
+        {
+            if (_orderItemContext?.Documents.Count > 0)
+                return _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
+                    (byte)(index + 1), document.Title, document.DocumentTypeId, document.IsRequired, document.Instructions, document.RedactionMode, document.RedactionInstructions));
+
+            // A legacy partial request may have policy-bound documents but no
+            // submitted text payload.  Keep those documents visible when the
+            // customer returns through the normal account menu, so the form can
+            // be completed rather than incorrectly asking for them again.
+            if (_profile?.Documents.Any(document => document.KycDocumentTypeId.HasValue) == true)
+                return _profile.Documents
+                    .Where(document => document.KycDocumentTypeId.HasValue)
+                    .GroupBy(document => document.KycDocumentTypeId)
+                    .Select(group => group.First())
+                    .Select(document => new DocumentSlot(
+                        document.DocumentType,
+                        document.DocumentTypeTitle ?? "مدرک بارگذاری‌شده",
+                        document.KycDocumentTypeId,
+                        true,
+                        null,
+                        0,
+                        null));
+
+            return DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, true, DocumentInstructions(document.Key), 0, null));
+        }
+    }
 
     private static string? DocumentInstructions(byte documentType) => documentType switch
     {
@@ -333,27 +357,6 @@ else
 
         _submitting = true;
 
-        // Persist the locally staged documents first - «ثبت نهایی» is the ONLY save action on this
-        // form. A failure keeps everything staged so the user can simply press the button again.
-        foreach (var staged in _stagedDocs.ToList())
-        {
-            var docResult = await Api.PostAsync<CustomerVerificationDocumentModel>("verification/documents", new
-            {
-                DocumentType = staged.Value.DocumentType,
-                KycDocumentTypeId = staged.Value.KycDocumentTypeId,
-                OrderItemId,
-                FilePath = staged.Value.FilePath,
-                IsRedacted = staged.Value.IsRedacted
-            });
-            if (!docResult.IsSuccess)
-            {
-                _submitting = false;
-                Toasts.Error(docResult.Message);
-                return;
-            }
-            _stagedDocs.Remove(staged.Key);
-        }
-
         var result = await Api.PostAsync<CustomerVerificationModel>("verification/submit", new
         {
             FirstName = _firstName,
@@ -361,7 +364,15 @@ else
             NationalCode = _nationalCode,
             BirthDate = _birthDate?.ToString("yyyy-MM-dd"),
             RegisteredMobileBelongsToCardHolder = _registeredMobileBelongsToCardHolder,
-            CardHolderMobile = _cardHolderMobile
+            CardHolderMobile = _cardHolderMobile,
+            Documents = _stagedDocs.Values.Select(document => new
+            {
+                document.DocumentType,
+                document.KycDocumentTypeId,
+                OrderItemId,
+                document.FilePath,
+                document.IsRedacted
+            }).ToList()
         });
         _submitting = false;
 
@@ -382,22 +393,13 @@ else
     {
         if (string.IsNullOrWhiteSpace(path)) return;
 
-        // On the base identity form NOTHING persists on selection: picking a file used to create the
-        // document immediately, which flipped the profile to Pending mid-form - the second slot
-        // vanished and the final submit (and its confirmation) became unreachable. The file's bytes
-        // are already in private storage; the document row is created by Submit(), all at once.
-        if (OrderItemId is null)
-        {
-            _stagedDocs[kycDocumentTypeId?.ToString("N") ?? $"type-{docType}"] =
-                new StagedDocument(docType, kycDocumentTypeId, path, isRedacted);
-            StateHasChanged();
-            return;
-        }
-
-        var result = await Api.PostAsync<CustomerVerificationDocumentModel>("verification/documents",
-            new { DocumentType = docType, KycDocumentTypeId = kycDocumentTypeId, OrderItemId, FilePath = path, IsRedacted = isRedacted });
-        if (result.IsSuccess) { Toasts.Success("مدرک ثبت شد."); await Load(preserveForm: true); }
-        else Toasts.Error(result.Message);
+        // Selecting a file only stores its private upload token in this form.
+        // The database document and the identity payload are saved together by
+        // the final-submit endpoint, including when this page was opened from
+        // a specific order item.
+        _stagedDocs[kycDocumentTypeId?.ToString("N") ?? $"type-{docType}"] =
+            new StagedDocument(docType, kycDocumentTypeId, path, isRedacted);
+        StateHasChanged();
     }
 
     private async Task DeleteDoc(Guid id)
