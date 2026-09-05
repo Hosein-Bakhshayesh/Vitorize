@@ -429,7 +429,7 @@ public sealed class PaymentDeliveryIntegrationTests
     }
 
     [Fact]
-    public async Task Manual_delivery_is_encrypted_single_use_visible_to_owner_and_audited()
+    public async Task Manual_delivery_is_encrypted_single_use_private_to_customer_and_visible_to_admin()
     {
         var (user, userToken) = await _fixture.CreateUserAndTokenAsync("Customer");
         var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
@@ -450,11 +450,15 @@ public sealed class PaymentDeliveryIntegrationTests
             await service.DeliverManualAsync(order.Id, admin.Id,
                 new ManualDeliveryRequestDto
                 {
-                    OrderItemId = item.Id, Content = "private delivery value", IsVisibleToCustomer = true
+                    OrderItemId = item.Id, Content = "private delivery value", IsVisibleToCustomer = false
                 });
             Func<Task> act = () => service.DeliverManualAsync(order.Id, admin.Id,
                 new ManualDeliveryRequestDto { OrderItemId = item.Id, Content = "duplicate" });
             await act.Should().ThrowAsync<Exception>();
+
+            var adminDetails = await service.GetAdminOrderDetailsAsync(order.Id);
+            adminDetails.Items.Single(x => x.Id == item.Id).Deliveries.Should().ContainSingle(x =>
+                x.DeliveredContent == "private delivery value" && !x.IsVisibleToCustomer);
         }
 
         await using (var verify = _fixture.CreateDbContext())
@@ -470,7 +474,7 @@ public sealed class PaymentDeliveryIntegrationTests
         using var customer = _fixture.CreateClient(userToken);
         var library = await customer.GetAsync("/api/orders/deliveries");
         library.EnsureSuccessStatusCode();
-        (await library.Content.ReadAsStringAsync()).Should().Contain("private delivery value");
+        (await library.Content.ReadAsStringAsync()).Should().NotContain("private delivery value");
     }
 
     [Fact]

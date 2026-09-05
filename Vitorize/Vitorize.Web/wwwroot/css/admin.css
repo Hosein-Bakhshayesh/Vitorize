@@ -754,6 +754,9 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
     .vz-dialog__head, .vz-dialog__body { padding-inline: 16px; }
     .vz-dialog__foot { padding: 14px 16px; }
     .vz-dialog__foot > * { flex: 1 1 120px; max-width: 100%; }
+    .vz-deflist { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .vz-deflist dt { margin-top: 8px; }
+    .vz-deflist dd { overflow-wrap: anywhere; }
 }
 
 @media (max-width: 360px) {

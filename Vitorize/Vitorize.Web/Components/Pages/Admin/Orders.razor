@@ -239,7 +239,7 @@ else
                     }
                     else
                     {
-                        <div class="vz-table-wrap">
+                        <div class="vz-table-wrap orders-detail-table orders-payment-table">
                             <table class="vz-table">
                                 <thead><tr><th>درگاه</th><th>مبلغ</th><th>شماره مرجع</th><th>شماره کارت ماسک‌شده</th><th>وضعیت</th><th>زمان تأیید</th></tr></thead>
                                 <tbody>
@@ -268,7 +268,7 @@ else
 
                 <div>
                     <div class="vz-card__title" style="margin-bottom:10px">اقلام سفارش</div>
-                    <div class="vz-table-wrap">
+                    <div class="vz-table-wrap orders-detail-table orders-items-table">
                         <table class="vz-table">
                             <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th><th>نوع تحویل</th><th>تحویل</th></tr></thead>
                             <tbody>
@@ -294,6 +294,22 @@ else
                                         <td>@AUI.DeliveryType(item.DeliveryType)</td>
                                         <td>
                                             <StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" />
+                                            @if (ManualDeliveries(item).Count > 0)
+                                            {
+                                                <div class="vz-admin-delivery-notes">
+                                                    @foreach (var delivery in ManualDeliveries(item))
+                                                    {
+                                                        <div class="vz-admin-delivery-note">
+                                                            <div class="vz-admin-delivery-note__head">
+                                                                <b>یادداشت تحویل</b>
+                                                                <StatusBadge Text="@(delivery.IsVisibleToCustomer ? "نمایش به مشتری" : "فقط مدیریت")"
+                                                                             Intent="@(delivery.IsVisibleToCustomer ? "info" : "muted")" Dot="false" />
+                                                            </div>
+                                                            <div class="vz-admin-delivery-note__content">@delivery.DeliveredContent</div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
                                             @if (item.Kyc is not null)
                                             {
                                                 <div class="vz-muted" style="font-size:12px;margin-top:6px">
@@ -470,7 +486,7 @@ else
     private bool _cancelOpen, _bulkCancel, _bulkBusy;
     private string _cancelReason = string.Empty;
     private AdminOrderModel? _cancelTarget;
-    private bool _manualDeliveryOpen, _manualDeliveryBusy, _manualDeliveryVisible = true;
+    private bool _manualDeliveryOpen, _manualDeliveryBusy, _manualDeliveryVisible;
     private string _manualDeliveryContent = string.Empty;
     private AdminOrderModel? _manualDeliveryOrder;
     private AdminOrderItemModel? _manualDeliveryItem;
@@ -621,6 +637,8 @@ else
     private async Task ChangePage(int page) { _page = page; await Load(); }
 
     private static List<AdminOrderItemModel> Items(AdminOrderModel o) => o.Items.Count > 0 ? o.Items : o.OrderItems;
+    private static List<AdminOrderDeliveryModel> ManualDeliveries(AdminOrderItemModel item) =>
+        item.Deliveries.Where(delivery => delivery.DeliveryType == (byte)DeliveryType.Manual).ToList();
 
     private static string DisplayInputValue(byte fieldType, string? value, bool isMasked) =>
         isMasked ? value ?? "—" :
@@ -925,7 +943,7 @@ else
         _manualDeliveryOrder = order;
         _manualDeliveryItem = item;
         _manualDeliveryContent = string.Empty;
-        _manualDeliveryVisible = true;
+        _manualDeliveryVisible = false;
         _manualDeliveryOpen = true;
     }
 
@@ -936,6 +954,7 @@ else
         _manualDeliveryOrder = null;
         _manualDeliveryItem = null;
         _manualDeliveryContent = string.Empty;
+        _manualDeliveryVisible = false;
     }
 
     private async Task SubmitManualDelivery()
@@ -1127,6 +1146,10 @@ else
 
     .orders-workflow__other { color: var(--text-3); font-size: 12px; }
     .orders-mobile-list { display: none; }
+    .vz-admin-delivery-notes { display: grid; gap: 7px; margin-top: 9px; }
+    .vz-admin-delivery-note { padding: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+    .vz-admin-delivery-note__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+    .vz-admin-delivery-note__content { margin-top: 7px; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 12px; line-height: 1.7; }
 
     @@media (max-width: 760px) {
         .orders-workflow { align-items: stretch; flex-direction: column; }
@@ -1161,5 +1184,25 @@ else
         .orders-mobile-card__name { overflow: hidden; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
         .orders-mobile-card__amount { align-self: center; font-weight: 800; white-space: nowrap; }
         .orders-mobile-card__statuses { display: flex; grid-column: 1 / -1; gap: 6px; flex-wrap: wrap; }
+
+        .orders-detail-table { overflow: visible; }
+        .orders-detail-table .vz-table, .orders-detail-table .vz-table tbody { display: block; width: 100%; }
+        .orders-detail-table .vz-table thead { display: none; }
+        .orders-detail-table .vz-table tr { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 9px; }
+        .orders-detail-table .vz-table td { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0; border: 0; text-align: end; overflow-wrap: anywhere; }
+        .orders-detail-table .vz-admin-delivery-notes { width: 100%; }
+        .orders-detail-table .vz-table td::before { flex: 0 0 auto; color: var(--text-3); font-size: 11px; font-weight: 700; text-align: start; }
+        .orders-payment-table td:nth-child(1)::before { content: "درگاه"; }
+        .orders-payment-table td:nth-child(2)::before { content: "مبلغ"; }
+        .orders-payment-table td:nth-child(3)::before { content: "شماره مرجع"; }
+        .orders-payment-table td:nth-child(4)::before { content: "کارت"; }
+        .orders-payment-table td:nth-child(5)::before { content: "وضعیت"; }
+        .orders-payment-table td:nth-child(6)::before { content: "زمان تأیید"; }
+        .orders-items-table td:nth-child(1)::before { content: "محصول"; }
+        .orders-items-table td:nth-child(2)::before { content: "تعداد"; }
+        .orders-items-table td:nth-child(3)::before { content: "قیمت واحد"; }
+        .orders-items-table td:nth-child(4)::before { content: "جمع"; }
+        .orders-items-table td:nth-child(5)::before { content: "نوع تحویل"; }
+        .orders-items-table td:nth-child(6)::before { content: "تحویل"; }
     }
 </style>

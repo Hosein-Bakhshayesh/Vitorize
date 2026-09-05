@@ -43,7 +43,36 @@
         else if (Filtered.Count == 0) { <EmptyState Title="درخواستی یافت نشد" Icon="user-check" /> }
         else
         {
-            <div class="vz-table-wrap">
+            <div class="verifications-mobile-list">
+                @foreach (var v in Filtered)
+                {
+                    var fullName = string.IsNullOrWhiteSpace(v.UserFullName) ? $"{v.FirstName} {v.LastName}" : v.UserFullName;
+                    <article class="verifications-mobile-card">
+                        <div class="verifications-mobile-card__head">
+                            <span class="vz-avatar-sm">@Initial(fullName)</span>
+                            <span>
+                                <span class="verifications-mobile-card__name">@fullName</span>
+                                <span class="vz-cell-sub vz-mono">@v.UserMobile</span>
+                            </span>
+                        </div>
+                        <div class="verifications-mobile-card__facts">
+                            <span>کد ملی <b class="vz-mono">@v.NationalCode</b></span>
+                            <span>@AUI.Number(Docs(v).Count) مدرک</span>
+                            <span><PersianDateDisplay Value="v.SubmittedAt" WithTime="true" /></span>
+                        </div>
+                        <div class="verifications-mobile-card__actions">
+                            <StatusBadge Text="@AUI.VerificationStatus(v.Status)" Intent="@AUI.StatusBadgeIntent(v.Status, "verify")" />
+                            <span style="flex:1"></span>
+                            @if (v.Status == (byte)VerificationStatus.Pending)
+                            {
+                                <button class="vz-iconaction" title="تأیید سریع" @onclick="() => QuickApprove(v)"><Icon Name="check" Size="16" /></button>
+                            }
+                            <button class="vz-btn vz-btn--outline vz-btn--sm" @onclick="() => Open(v.Id)"><Icon Name="eye" Size="15" /> بررسی</button>
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="vz-table-wrap verifications-desktop-table">
                 <table class="vz-table">
                     <thead><tr><th>کاربر</th><th>کد ملی</th><th>مدارک</th><th>وضعیت</th><th>تاریخ ثبت</th><th class="col-actions">عملیات</th></tr></thead>
                     <tbody>
@@ -79,6 +108,21 @@
         }
     </div>
 </div>
+
+<style>
+    .verifications-mobile-list { display: none; }
+    @@media (max-width: 760px) {
+        .verifications-desktop-table { display: none; }
+        .verifications-mobile-list { display: grid; gap: 9px; padding: 10px; }
+        .verifications-mobile-card { display: grid; gap: 10px; padding: 13px; border: 1px solid var(--border); border-radius: var(--radius-md, 14px); background: var(--surface); }
+        .verifications-mobile-card__head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .verifications-mobile-card__head > span:last-child { display: grid; min-width: 0; gap: 3px; }
+        .verifications-mobile-card__name { overflow: hidden; color: var(--text); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+        .verifications-mobile-card__facts { display: flex; gap: 7px 12px; flex-wrap: wrap; color: var(--text-3); font-size: 11.5px; }
+        .verifications-mobile-card__facts b { color: var(--text); font-weight: 650; }
+        .verifications-mobile-card__actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    }
+</style>
 
 <SlidePanel Visible="_open" Title="بررسی احراز هویت" Subtitle="@(_detail is null ? null : $"{_detail.FirstName} {_detail.LastName}")" Icon="user-check" OnClose="() => _open = false">
     <ChildContent>

@@ -177,7 +177,9 @@ namespace Vitorize.Infrastructure.Services
             if (order == null)
                 throw new NotFoundException("سفارش یافت نشد.");
 
-            return await MapOrderDetailsAsync(order);
+            // Administrators need the complete fulfilment record, including internal notes that
+            // were deliberately not released to the customer.
+            return await MapOrderDetailsAsync(order, includePrivateDeliveries: true);
         }
 
         public async Task<List<OrderDto>> SearchAdminOrdersAsync(AdminOrderFilterDto filter)
@@ -719,7 +721,8 @@ namespace Vitorize.Infrastructure.Services
                 "ManualDeliveryCompleted", order.Id, item.Id, order.OrderNumber, request.IsVisibleToCustomer);
         }
 
-        private async Task<List<OrderDto>> MapOrdersAsync(IReadOnlyCollection<Order> orders, Guid? customerUserId, bool includeDetails = false)
+        private async Task<List<OrderDto>> MapOrdersAsync(IReadOnlyCollection<Order> orders, Guid? customerUserId,
+            bool includeDetails = false, bool includePrivateDeliveries = false)
         {
             var policyIds = orders.SelectMany(x => x.OrderItems).Where(x => x.KycPolicyVersionId.HasValue)
                 .Select(x => x.KycPolicyVersionId!.Value).Distinct().ToList();
@@ -736,7 +739,7 @@ namespace Vitorize.Infrastructure.Services
             var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
             return orders.Select(order =>
             {
-                var dto = includeDetails ? MapOrderDetails(order) : MapOrderSummary(order);
+                var dto = includeDetails ? MapOrderDetails(order, includePrivateDeliveries) : MapOrderSummary(order);
                 foreach (var item in dto.Items)
                 {
                     var entity = order.OrderItems.Single(x => x.Id == item.Id);
@@ -772,8 +775,9 @@ namespace Vitorize.Infrastructure.Services
         /// <paramref name="customerUserId"/> is supplied only by the customer-facing path; that is
         /// what decides whether self-service action flags are computed for the order.
         /// </summary>
-        private async Task<OrderDto> MapOrderDetailsAsync(Order order, Guid? customerUserId = null) =>
-            (await MapOrdersAsync([order], customerUserId, includeDetails: true)).Single();
+        private async Task<OrderDto> MapOrderDetailsAsync(Order order, Guid? customerUserId = null,
+            bool includePrivateDeliveries = false) =>
+            (await MapOrdersAsync([order], customerUserId, includeDetails: true, includePrivateDeliveries)).Single();
 
         private static OrderItemKycProjectionDto? BuildKycProjection(OrderItem item, KycPolicyVersion? policy,
             HashSet<Guid> uploadedDocumentTypeIds, DateTime utcNow)
@@ -898,7 +902,7 @@ namespace Vitorize.Infrastructure.Services
             };
         }
 
-        private OrderDto MapOrderDetails(Order order)
+        private OrderDto MapOrderDetails(Order order, bool includePrivateDeliveries = false)
         {
             return new OrderDto
             {
@@ -949,7 +953,7 @@ namespace Vitorize.Infrastructure.Services
                     DeliveredAt = i.DeliveredAt,
                     InputValues = i.InputValues.Select(MapInputValue).ToList(),
                     Deliveries = i.OrderItemDeliveries
-                        .Where(d => d.IsVisibleToCustomer)
+                        .Where(d => includePrivateDeliveries || d.IsVisibleToCustomer)
                         .Select(d => new OrderDeliveryDto
                         {
                             Id = d.Id,
