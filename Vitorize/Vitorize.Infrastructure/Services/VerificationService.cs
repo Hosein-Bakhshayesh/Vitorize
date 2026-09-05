@@ -51,7 +51,7 @@ namespace Vitorize.Infrastructure.Services
         public async Task<VerificationProfileDto?> GetMyProfileAsync(Guid userId)
         {
             var profile = await _dbContext.UserVerificationProfiles
-                .Include(x => x.VerificationDocuments)
+                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
@@ -353,7 +353,7 @@ namespace Vitorize.Infrastructure.Services
         public async Task<List<VerificationProfileDto>> GetAllAsync()
         {
             var profiles = await _dbContext.UserVerificationProfiles
-                .Include(x => x.VerificationDocuments)
+                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
                 .AsNoTracking()
                 .OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt)
                 .ToListAsync();
@@ -382,7 +382,7 @@ namespace Vitorize.Infrastructure.Services
                 _ => query.OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt).ThenBy(x => x.Id)
             };
             var profiles = await query.Skip((page - 1) * pageSize).Take(pageSize)
-                .Include(x => x.VerificationDocuments).ToListAsync(cancellationToken);
+                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType).ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<VerificationProfileDto>
             {
                 Items = profiles.Select(MapProfile).ToList(), Page = page, PageSize = pageSize, TotalCount = totalCount
@@ -392,7 +392,7 @@ namespace Vitorize.Infrastructure.Services
         public async Task<VerificationProfileDto> GetByIdAsync(Guid profileId)
         {
             var profile = await _dbContext.UserVerificationProfiles
-                .Include(x => x.VerificationDocuments)
+                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == profileId);
 
@@ -604,6 +604,7 @@ namespace Vitorize.Infrastructure.Services
                 Id = document.Id,
                 DocumentType = document.DocumentType,
                 KycDocumentTypeId = document.KycDocumentTypeId,
+                DocumentTypeTitle = document.KycDocumentType?.Title,
                 FilePath = $"/api/verification/documents/{document.Id}/content",
                 Status = document.Status,
                 AdminNote = document.AdminNote

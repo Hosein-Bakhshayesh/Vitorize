@@ -31,6 +31,8 @@ namespace Vitorize.Web.Models.Admin.Verification
         public Guid Id { get; set; }
         public Guid UserVerificationProfileId { get; set; }
         public byte DocumentType { get; set; }
+        public Guid? KycDocumentTypeId { get; set; }
+        public string? DocumentTypeTitle { get; set; }
         public string FilePath { get; set; } = string.Empty;
         public byte Status { get; set; }
         public string? AdminNote { get; set; }
