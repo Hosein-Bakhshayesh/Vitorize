@@ -124,7 +124,7 @@
     }
 </style>
 
-<SlidePanel Visible="_open" Title="بررسی احراز هویت" Subtitle="@(_detail is null ? null : $"{_detail.FirstName} {_detail.LastName}")" Icon="user-check" OnClose="() => _open = false">
+<SlidePanel Visible="_open" Title="بررسی احراز هویت" Subtitle="@(_detail is null ? null : $"حساب کاربری: {_detail.UserFullName} — {_detail.UserMobile}")" Icon="user-check" OnClose="() => _open = false">
     <ChildContent>
         @if (_loadingDetail) { <LoadingState /> }
         else if (_detail is not null)

@@ -6,6 +6,12 @@
 
         public Guid UserId { get; set; }
 
+        /// <summary>Registration profile name, kept distinct from the submitted KYC identity.</summary>
+        public string UserFullName { get; set; } = string.Empty;
+
+        /// <summary>Registration profile mobile, kept distinct from the submitted KYC identity.</summary>
+        public string UserMobile { get; set; } = string.Empty;
+
         public string FirstName { get; set; } = null!;
 
         public string LastName { get; set; } = null!;

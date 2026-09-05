@@ -18,6 +18,7 @@ public static class ProtectedMediaEndpoints
         Guid documentId,
         HttpContext context,
         IAccessTokenProvider accessTokens,
+        SessionTokenRefreshCoordinator refreshCoordinator,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         CancellationToken cancellationToken)
@@ -27,19 +28,24 @@ public static class ProtectedMediaEndpoints
         // session on /media, so a browser holding BOTH cookies used to present the ADMIN token for
         // the CUSTOMER'S own preview - and the API correctly answered 404 (not the owner). Try each
         // authenticated session's token instead: the customer first (ownership), then the admin
-        // (review permission), then whatever the resolved-scheme provider offers (refresh-capable).
-        var candidates = new List<string?>
+        // (review permission), then the token resolved for the current request.
+        var candidates = new[]
         {
-            context.Request.Cookies[VitorizeAuthSchemes.CustomerAccessTokenCookie],
-            context.Request.Cookies[VitorizeAuthSchemes.AdminAccessTokenCookie],
-            await accessTokens.GetAccessTokenAsync()
-        };
-        var tokens = candidates
-            .Where(t => !string.IsNullOrWhiteSpace(t))
-            .Select(t => t!)
-            .Distinct(StringComparer.Ordinal)
+            new TokenCandidate(
+                VitorizeAuthSchemes.CustomerScheme,
+                context.Request.Cookies[VitorizeAuthSchemes.CustomerAccessTokenCookie],
+                context.Request.Cookies[VitorizeAuthSchemes.CustomerRefreshTokenCookie]),
+            new TokenCandidate(
+                VitorizeAuthSchemes.AdminScheme,
+                context.Request.Cookies[VitorizeAuthSchemes.AdminAccessTokenCookie],
+                context.Request.Cookies[VitorizeAuthSchemes.AdminRefreshTokenCookie]),
+            new TokenCandidate(null, await accessTokens.GetAccessTokenAsync(), null)
+        }
+        .Where(candidate => !string.IsNullOrWhiteSpace(candidate.AccessToken))
+        .GroupBy(candidate => candidate.AccessToken!, StringComparer.Ordinal)
+        .Select(group => group.First())
             .ToList();
-        if (tokens.Count == 0)
+        if (candidates.Count == 0)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
@@ -55,14 +61,23 @@ public static class ProtectedMediaEndpoints
         HttpResponseMessage? response = null;
         try
         {
-            foreach (var token in tokens)
+            foreach (var candidate in candidates)
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get,
-                    $"{apiBaseUrl}/verification/documents/{documentId:D}/content");
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 response?.Dispose();
-                response = await httpClientFactory.CreateClient().SendAsync(
-                    request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response = await FetchAsync(candidate.AccessToken!);
+                if (response.IsSuccessStatusCode) break;
+
+                if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized ||
+                    candidate.Scheme is null || string.IsNullOrWhiteSpace(candidate.RefreshToken))
+                    continue;
+
+                var refreshed = await refreshCoordinator.RefreshAsync(candidate.Scheme, candidate.RefreshToken, cancellationToken);
+                if (!refreshed.Success || string.IsNullOrWhiteSpace(refreshed.AccessToken) || string.IsNullOrWhiteSpace(refreshed.RefreshToken))
+                    continue;
+
+                await AuthSessionCookieWriter.PersistAsync(context, candidate.Scheme, refreshed.AccessToken, refreshed.RefreshToken);
+                response.Dispose();
+                response = await FetchAsync(refreshed.AccessToken);
                 if (response.IsSuccessStatusCode) break;
             }
 
@@ -81,5 +96,16 @@ public static class ProtectedMediaEndpoints
         {
             response?.Dispose();
         }
+
+        async Task<HttpResponseMessage> FetchAsync(string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{apiBaseUrl}/verification/documents/{documentId:D}/content");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            return await httpClientFactory.CreateClient().SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
     }
+
+    private sealed record TokenCandidate(string? Scheme, string? AccessToken, string? RefreshToken);
 }

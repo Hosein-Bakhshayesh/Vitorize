@@ -52,6 +52,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var profile = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
+                .Include(x => x.User)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.UserId == userId);
 
@@ -354,6 +355,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var profiles = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
+                .Include(x => x.User)
                 .AsNoTracking()
                 .OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt)
                 .ToListAsync();
@@ -382,7 +384,9 @@ namespace Vitorize.Infrastructure.Services
                 _ => query.OrderByDescending(x => x.SubmittedAt ?? x.CreatedAt).ThenBy(x => x.Id)
             };
             var profiles = await query.Skip((page - 1) * pageSize).Take(pageSize)
-                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType).ToListAsync(cancellationToken);
+                .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
+                .Include(x => x.User)
+                .ToListAsync(cancellationToken);
             return new Vitorize.Shared.Common.PagedResult<VerificationProfileDto>
             {
                 Items = profiles.Select(MapProfile).ToList(), Page = page, PageSize = pageSize, TotalCount = totalCount
@@ -393,6 +397,7 @@ namespace Vitorize.Infrastructure.Services
         {
             var profile = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments).ThenInclude(x => x.KycDocumentType)
+                .Include(x => x.User)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == profileId);
 
@@ -413,6 +418,7 @@ namespace Vitorize.Infrastructure.Services
             {
             var profile = await _dbContext.UserVerificationProfiles
                 .Include(x => x.VerificationDocuments)
+                .Include(x => x.User)
                 .FirstOrDefaultAsync(x => x.Id == profileId);
 
             if (profile == null)
@@ -565,6 +571,8 @@ namespace Vitorize.Infrastructure.Services
             {
                 Id = profile.Id,
                 UserId = profile.UserId,
+                UserFullName = profile.User?.FullName ?? string.Empty,
+                UserMobile = profile.User?.Mobile ?? string.Empty,
                 FirstName = data.FirstName,
                 LastName = data.LastName,
                 NationalCode = data.NationalCode,
