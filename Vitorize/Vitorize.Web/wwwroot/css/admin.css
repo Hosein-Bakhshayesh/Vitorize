@@ -634,6 +634,10 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 .vz-table tbody tr.vz-row-selected:hover { background: var(--admin-primary-soft); }
 .vz-table .num { font-variant-numeric: tabular-nums; }
 .vz-table .col-actions { text-align: end; white-space: nowrap; }
+
+/* Users: tables require horizontal scrolling on phones, which hid the profile
+   actions off-screen. The equivalent card list is enabled only on phones. */
+.users-mobile-list { display: none; }
 .vz-cell-main { display: flex; align-items: center; gap: 11px; }
 .vz-cell-title { font-weight: 700; color: var(--text); }
 .vz-cell-sub { font-size: 11.5px; color: var(--text-3); }
@@ -1251,6 +1255,25 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
     .vz-long-form { padding-bottom: 92px; }
     .vz-savebar { margin-bottom: 0; }
     .vz-savebar__hint { width: 100%; }
+    .users-desktop-table { display: none; }
+    .users-mobile-list { display: grid; gap: 10px; padding: 12px; }
+    .users-mobile-card {
+        min-width: 0; padding: 14px; border: 1px solid var(--border);
+        border-radius: var(--clip-sm); background: var(--surface-solid);
+        box-shadow: var(--shadow-sm);
+    }
+    .users-mobile-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .users-mobile-card__head .vz-cell-main { min-width: 0; }
+    .users-mobile-card__head .vz-cell-title,
+    .users-mobile-card__head .vz-cell-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .users-mobile-card__details {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
+        margin: 14px 0; padding: 12px 0; border-block: 1px solid var(--border);
+    }
+    .users-mobile-card__details > div { min-width: 0; }
+    .users-mobile-card__details dt { margin-bottom: 3px; color: var(--text-3); font-size: 11px; font-weight: 700; }
+    .users-mobile-card__details dd { min-width: 0; margin: 0; color: var(--text); font-size: 12px; overflow-wrap: anywhere; }
+    .users-mobile-card__action { width: 100%; justify-content: center; }
 }
 
 /* ==========================================================================

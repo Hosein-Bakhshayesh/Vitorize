@@ -49,7 +49,38 @@
         else if (_items.Count == 0) { <EmptyState Title="کاربری یافت نشد" Icon="users" /> }
         else
         {
-            <div class="vz-table-wrap">
+            @* Tables make the operation menu unreachable on a phone. Keep the full table for
+               wider screens and use an equivalent, self-contained summary card on phones. *@
+            <div class="users-mobile-list">
+                @foreach (var u in _items)
+                {
+                    <article class="users-mobile-card">
+                        <div class="users-mobile-card__head">
+                            <div class="vz-cell-main">
+                                @if (!string.IsNullOrWhiteSpace(u.AvatarPath))
+                                { <img class="vz-thumb" style="border-radius:50%" src="@Media.Resolve(u.AvatarPath)" alt="" /> }
+                                else { <span class="vz-avatar-sm">@Initial(u.FullName)</span> }
+                                <div>
+                                    <div class="vz-cell-title">@u.FullName</div>
+                                    <div class="vz-cell-sub">@(string.IsNullOrWhiteSpace(u.Email) ? "—" : u.Email)</div>
+                                </div>
+                            </div>
+                            <StatusBadge Text="@AUI.UserStatus(u.Status)" Intent="@AUI.StatusBadgeIntent(u.Status, "user")" />
+                        </div>
+                        <dl class="users-mobile-card__details">
+                            <div><dt>موبایل</dt><dd class="vz-mono">@u.Mobile</dd></div>
+                            <div><dt>احراز هویت</dt><dd><StatusBadge Text="@AUI.VerificationStatus(u.VerificationStatus)" Intent="@AUI.StatusBadgeIntent(u.VerificationStatus, "verify")" /></dd></div>
+                            <div><dt>کیف پول</dt><dd><MoneyDisplay Amount="u.WalletBalance" /></dd></div>
+                            <div><dt>سفارش‌ها</dt><dd>@AUI.Number(u.OrdersCount)</dd></div>
+                            <div><dt>عضویت</dt><dd><PersianDateDisplay Value="u.CreatedAt" /></dd></div>
+                        </dl>
+                        <button class="vz-btn vz-btn--outline users-mobile-card__action" @onclick="() => Open(u.Id)">
+                            <Icon Name="eye" Size="16" /> مشاهده و مدیریت پروفایل
+                        </button>
+                    </article>
+                }
+            </div>
+            <div class="vz-table-wrap users-desktop-table">
                 <table class="vz-table">
                     <thead><tr><th>کاربر</th><th>موبایل</th><th>وضعیت</th><th>احراز هویت</th><th>کیف پول</th><th>سفارش‌ها</th><th>عضویت</th><th class="col-actions">عملیات</th></tr></thead>
                     <tbody>
