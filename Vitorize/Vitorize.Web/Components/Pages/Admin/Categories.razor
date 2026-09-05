@@ -266,7 +266,10 @@
     {
         var items = source.ToList();
         var byId = items.ToDictionary(x => x.Id);
-        var children = items.GroupBy(x => x.ParentId)
+        // Root categories have no parent and are handled by the root loop below. Keeping only
+        // real parent ids here avoids an invalid null key in Dictionary<Guid, ...>.
+        var children = items.Where(x => x.ParentId.HasValue)
+            .GroupBy(x => x.ParentId!.Value)
             .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortOrder).ThenBy(x => x.Title).ThenBy(x => x.Id).ToList());
         var rows = new List<CategoryTreeRow>();
         var visited = new HashSet<Guid>();
