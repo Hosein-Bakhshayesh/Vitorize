@@ -26,10 +26,12 @@ namespace Vitorize.Web.Endpoints
 
             var mobile = form["mobile"].ToString().Trim();
             var password = form["password"].ToString();
-            var rememberValue = form["rememberMe"].ToString();
-            var rememberMe =
-                rememberValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                rememberValue.Equals("on", StringComparison.OrdinalIgnoreCase);
+            // The login form supplies an explicit false value as well as the checked value. This
+            // lets the panel remember administrators by default while still respecting an explicit
+            // opt-out on shared devices.
+            var rememberMe = form["rememberMe"].Any(value =>
+                value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("on", StringComparison.OrdinalIgnoreCase));
             var returnUrl = form["returnUrl"].ToString();
 
             string FailUrl(string message)
@@ -79,7 +81,7 @@ namespace Vitorize.Web.Endpoints
             }
 
             var expiresUtc = rememberMe
-                ? DateTimeOffset.UtcNow.AddDays(7)
+                ? DateTimeOffset.UtcNow.AddDays(30)
                 : DateTimeOffset.UtcNow.AddHours(8);
 
             var displayName = result.Data.GetDisplayName(mobile);

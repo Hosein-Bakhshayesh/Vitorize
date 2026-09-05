@@ -145,7 +145,10 @@ builder.Services
         options.Cookie.SecurePolicy = AuthCookiePolicy.SecurePolicy(builder.Environment);
         options.LoginPath = "/admin/login";
         options.AccessDeniedPath = "/admin/access-denied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // A remembered administrator session uses a 30-day ticket and refresh token. Short-lived
+        // access tokens are still rotated server-side, and logout/password changes revoke the
+        // refresh token immediately.
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
     })
     .AddCookie(VitorizeAuthSchemes.CustomerScheme, options =>
