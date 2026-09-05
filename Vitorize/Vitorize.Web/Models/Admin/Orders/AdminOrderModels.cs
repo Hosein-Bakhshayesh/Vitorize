@@ -1,5 +1,21 @@
 ﻿namespace Vitorize.Web.Models.Admin.Orders
 {
+    public class AdminOrderPagedResultModel
+    {
+        public List<AdminOrderModel> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public List<AdminOrderStatusCountModel> StatusCounts { get; set; } = new();
+        public int StatusTotalCount { get; set; }
+    }
+
+    public class AdminOrderStatusCountModel
+    {
+        public byte Status { get; set; }
+        public int Count { get; set; }
+    }
+
     public class AdminOrderModel
     {
         public Guid Id { get; set; }

@@ -235,24 +235,35 @@ namespace Vitorize.Infrastructure.Services
             return orders.Select(MapOrderSummary).ToList();
         }
 
-        public async Task<Vitorize.Shared.Common.PagedResult<OrderDto>> GetPagedAdminOrdersAsync(AdminOrderFilterDto filter, CancellationToken cancellationToken = default)
+        public async Task<AdminOrderPagedResultDto> GetPagedAdminOrdersAsync(AdminOrderFilterDto filter, CancellationToken cancellationToken = default)
         {
             filter ??= new AdminOrderFilterDto();
             var page = Math.Max(1, filter.PageNumber ?? filter.Page);
             var pageSize = filter.PageSize <= 0 ? 25 : Math.Min(filter.PageSize, 100);
-            var query = _dbContext.Orders.AsNoTracking().AsQueryable();
+            var facetQuery = _dbContext.Orders.AsNoTracking().AsQueryable();
             var search = string.IsNullOrWhiteSpace(filter.Search) ? filter.OrderNumber : filter.Search;
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.Trim();
                 if (search.Length > 250) search = search[..250];
-                query = query.Where(x => x.OrderNumber.Contains(search) || x.User.FullName.Contains(search) || x.User.Mobile.Contains(search));
+                facetQuery = facetQuery.Where(x => x.OrderNumber.Contains(search) || x.User.FullName.Contains(search) || x.User.Mobile.Contains(search));
             }
-            if (filter.UserId.HasValue) query = query.Where(x => x.UserId == filter.UserId.Value);
+            if (filter.UserId.HasValue) facetQuery = facetQuery.Where(x => x.UserId == filter.UserId.Value);
+            if (filter.PaymentStatus.HasValue) facetQuery = facetQuery.Where(x => x.PaymentStatus == filter.PaymentStatus.Value);
+            if (filter.FromDate.HasValue) facetQuery = facetQuery.Where(x => x.CreatedAt >= filter.FromDate.Value);
+            if (filter.ToDate.HasValue) facetQuery = facetQuery.Where(x => x.CreatedAt < filter.ToDate.Value.AddDays(1));
+
+            // The status chips describe this search/payment/date slice, independently from the
+            // selected status and current page. Counting the paged query made the chip numbers
+            // change whenever an administrator clicked one of them.
+            var statusCounts = await facetQuery
+                .GroupBy(x => x.Status)
+                .Select(group => new AdminOrderStatusCountDto { Status = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+            var statusTotalCount = statusCounts.Sum(x => x.Count);
+
+            var query = facetQuery;
             if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
-            if (filter.PaymentStatus.HasValue) query = query.Where(x => x.PaymentStatus == filter.PaymentStatus.Value);
-            if (filter.FromDate.HasValue) query = query.Where(x => x.CreatedAt >= filter.FromDate.Value);
-            if (filter.ToDate.HasValue) query = query.Where(x => x.CreatedAt < filter.ToDate.Value.AddDays(1));
             var totalCount = await query.CountAsync(cancellationToken);
             query = (filter.SortBy?.Trim().ToLowerInvariant(), filter.SortDirection?.Trim().ToLowerInvariant()) switch
             {
@@ -275,7 +286,15 @@ namespace Vitorize.Infrastructure.Services
                     x.User.VerificationStatus == (byte)VerificationStatus.Verified,
                 CreatedAt = x.CreatedAt, PaidAt = x.PaidAt, CompletedAt = x.CompletedAt
             }).ToListAsync(cancellationToken);
-            return new Vitorize.Shared.Common.PagedResult<OrderDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            return new AdminOrderPagedResultDto
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                StatusCounts = statusCounts,
+                StatusTotalCount = statusTotalCount
+            };
         }
 
         public async Task<List<OrderDto>> GetSelectedAdminOrdersForExportAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)

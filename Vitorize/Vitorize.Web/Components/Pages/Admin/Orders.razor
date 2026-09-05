@@ -22,17 +22,17 @@ else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
 else
 {
     <div class="vz-stats">
-        <StatCard Label="کل سفارش‌ها" Value="@AUI.Number(_items.Count)" Icon="cart" Accent="teal" />
-        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.PendingPayment)" Value="@AUI.Number(CountStatus((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
-        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Processing)" Value="@AUI.Number(CountStatus((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
-        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Completed)" Value="@AUI.Number(CountStatus((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
+        <StatCard Label="کل سفارش‌ها" Value="@AUI.Number(_statusTotal)" Icon="cart" Accent="teal" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.PendingPayment)" Value="@AUI.Number(StatusCount((byte)OrderStatus.PendingPayment))" Icon="clock" Accent="orange" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Processing)" Value="@AUI.Number(StatusCount((byte)OrderStatus.Processing))" Icon="refresh" Accent="blue" />
+        <StatCard Label="@AUI.OrderStatus((byte)OrderStatus.Completed)" Value="@AUI.Number(StatusCount((byte)OrderStatus.Completed))" Icon="check-circle" Accent="green" />
     </div>
 
     <div class="vz-pills" style="margin-bottom:16px">
         @foreach (var f in StatusChips)
         {
             <button class="vz-pill @(_statusFilter == f.Key ? "active" : "")" @onclick="() => SetStatusChip(f.Key)">
-                @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
+                @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _statusTotal : StatusCount(byte.Parse(f.Key)))</span>
             </button>
         }
     </div>
@@ -410,6 +410,8 @@ else
     private string? _error;
     private List<AdminOrderModel> _items = new();
     private int _total;
+    private int _statusTotal;
+    private List<AdminOrderStatusCountModel> _statusCounts = new();
 
     private string _search = string.Empty;
     private string _statusFilter = "all", _payFilter = "all";
@@ -472,14 +474,20 @@ else
         if (_payFilter != "all") query += $"&paymentStatus={_payFilter}";
         if (_from is not null) query += $"&fromDate={_from:yyyy-MM-dd}";
         if (_to is not null) query += $"&toDate={_to:yyyy-MM-dd}";
-        var r = await Api.GetAsync<PagedResult<AdminOrderModel>>(query);
-        if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
+        var r = await Api.GetAsync<AdminOrderPagedResultModel>(query);
+        if (r.IsSuccess && r.Data is not null)
+        {
+            _items = r.Data.Items.ToList();
+            _total = r.Data.TotalCount;
+            _statusTotal = r.Data.StatusTotalCount;
+            _statusCounts = r.Data.StatusCounts;
+        }
         else _error = r.Message;
         _selected.Clear();
         _loading = false;
     }
 
-    private int CountStatus(byte status) => _items.Count(o => o.Status == status);
+    private int StatusCount(byte status) => _statusCounts.FirstOrDefault(x => x.Status == status)?.Count ?? 0;
     private static bool CanAct(byte status) => status is not (byte)OrderStatus.Completed
         and not (byte)OrderStatus.Cancelled and not (byte)OrderStatus.Refunded;
 
