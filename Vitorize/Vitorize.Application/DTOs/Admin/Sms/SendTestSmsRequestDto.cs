@@ -17,7 +17,7 @@ namespace Vitorize.Application.DTOs.Admin.Sms
 
     public class TestSmsParameterDto
     {
-        /// <summary>نام دقیق و حساس به حروف متغیر تاییدشده SMS.ir.</summary>
+        /// <summary>نام دقیق و حساس به حروف متغیر تاییدشده قالب آسانک.</summary>
         public string Name { get; set; } = string.Empty;
 
         /// <summary>مقدار غیرخالی متغیر قالب.</summary>

@@ -1132,7 +1132,7 @@ namespace Vitorize.Infrastructure.Services
                 $"پرداخت سفارش {order.OrderNumber} با موفقیت انجام شد.");
 
             // پیامک وضعیت سفارش از طریق Outbox؛ متن اختصاصی است تا به قالب عمومی
-            // «اطلاع‌رسانی جدید» SMS.ir وابسته نباشد و شکست ارسال هم پرداخت را برنگرداند.
+            // «اطلاع‌رسانی جدید» به ارائه‌دهنده پیامک وابسته نباشد و شکست ارسال هم پرداخت را برنگرداند.
             await _smsOutbox.EnqueueTextAsync(
                 customer?.Mobile,
                 OrderSmsMessages.Processing(order.OrderNumber),

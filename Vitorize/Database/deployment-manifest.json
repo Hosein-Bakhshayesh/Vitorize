@@ -764,6 +764,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 119,
+      "version": "V0035",
+      "name": "V0035__remove_smsir_provider_settings.sql",
+      "path": "Versioned/V0035__remove_smsir_provider_settings.sql",
+      "sha256": "641cbb2694d4edca3dbee1ddccbf3302a5d9bc3303329cbb6d7aa03502c22bad",
+      "classification": "required",
+      "dependencies": [
+        "V0034",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

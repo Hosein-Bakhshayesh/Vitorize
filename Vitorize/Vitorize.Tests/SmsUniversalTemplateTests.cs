@@ -251,7 +251,8 @@ public class SmsUniversalTemplateTests
         });
         var options = new SmsOptions
         {
-            ApiKey = "test-key",
+            AsanakUsername = "test-user",
+            AsanakPassword = "test-password",
             TemplateIds = templateIds,
             MaxRetryCount = 0
         };

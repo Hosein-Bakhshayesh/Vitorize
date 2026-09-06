@@ -247,8 +247,9 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     {
         var values = new Dictionary<string, string>
         {
-            ["Sms.IsEnabled"] = "true",
-            ["Sms.ApiKey"] = "integration-sms-key",
+            ["Sms.AsanakUsername"] = "integration-sms-user",
+            ["Sms.AsanakPassword"] = "integration-sms-password",
+            ["Sms.AsanakSource"] = "982100000000",
             ["Sms.OtpTemplateId"] = otpTemplateId.ToString(),
             ["Sms.NotificationTemplateId"] = notificationTemplateId.ToString(),
             ["Sms.OtpResendCooldownSeconds"] = "0",

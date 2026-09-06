@@ -167,7 +167,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 TextSendingMessage = options.CanSendText
                     ? "ارسال پیامک متنی سفارشی آماده است."
                     : SmsOptions.TextSendingNotReadyMessage,
-                Message = account.IsSuccess ? "اتصال به SMS.ir برقرار است." : account.UserMessage ?? message
+                Message = account.IsSuccess ? "اتصال به آسانک برقرار است." : account.UserMessage ?? message
             };
         }
 

@@ -89,7 +89,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 PublicReference = request.PublicReference,
                 SafeMessagePreview = request.SafeMessagePreview,
                 InternalNote = request.InternalNote,
-                Provider = options.Provider,
+                Provider = SmsOptions.ProviderName,
                 Status = (byte)SmsMessageStatus.Pending,
                 RetryCount = 0,
                 MaxRetryCount = Math.Clamp(request.MaxRetryCount, 1, 10),

@@ -90,10 +90,10 @@ else
                     @if (tab.Key == "notif")
                     {
                         <div class="vz-hint" style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
-                            برای SMS.ir فقط دو شناسه قالب وارد کنید: «قالب یکپارچه OTP» با پارامترهای
+                            برای آسانک فقط دو شناسه قالب وارد کنید: «قالب یکپارچه OTP» با پارامترهای
                             <code>CODE</code> و <code>EXPIRE</code>، و «قالب یکپارچه اعلان تجاری» با پارامترهای
                             فقط <code>ORDER_NUMBER</code>.
-                            برای «متن سفارشی» و «ارسال پیامک هم‌زمانِ اعلان»، شماره خط اختصاصی SMS.ir نیز الزامی است؛
+                            برای «متن سفارشی» و «ارسال پیامک هم‌زمانِ اعلان»، نام کاربری، رمز وب‌سرویس و شماره مبدأ آسانک نیز الزامی است؛
                             این مورد کلید فعال‌سازی جداگانه ندارد.
                         </div>
                     }
@@ -183,9 +183,7 @@ else
     // ترتیب نمایش کلیدهای پرکاربرد؛ بقیه بر اساس حروف الفبا.
     private static readonly string[] FieldOrder =
     {
-        SmsSettingKeys.Provider,
         SmsSettingKeys.AsanakUsername, SmsSettingKeys.AsanakPassword, SmsSettingKeys.AsanakSource,
-        SmsSettingKeys.ApiKey, SmsSettingKeys.DefaultLineNumber,
         "Sms.OtpTemplateId", "Sms.NotificationTemplateId",
         OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.Keys.CustomerNotice,
         ProductReviewSettings.AutoApproveKey,
@@ -387,9 +385,9 @@ else
                 {
                     <div class="vz-hint">این قالب فقط از متغیر ORDER_NUMBER استفاده می‌کند.</div>
                 }
-                else if (s.Key == SmsSettingKeys.DefaultLineNumber)
+                else if (s.Key == SmsSettingKeys.AsanakSource)
                 {
-                    <div class="vz-hint">برای پیامک متنی سفارشی و «ارسال پیامک هم‌زمان» الزامی است. شماره خط ارسال SMS.ir را وارد کنید، نه شماره موبایل یا آدرس سایت.</div>
+                    <div class="vz-hint">برای پیامک متنی سفارشی و «ارسال پیامک هم‌زمان» الزامی است. شماره مبدأ فعال آسانک را وارد کنید.</div>
                 }
                 else if (s.Key == "HomePopularProductsEnabled")
                 {

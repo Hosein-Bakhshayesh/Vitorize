@@ -334,8 +334,9 @@ FROM dbo.Products p JOIN @Fix09Products f ON f.Id = p.Id;
 UPDATE dbo.Settings SET [Value] = N'50000000' WHERE [Key] = N'Verification.OrderAmountThresholdToman';
 
 UPDATE dbo.Settings SET Value = N'true' WHERE [Key] IN (N'Sms.IsEnabled', N'SmsEnabled');
-UPDATE dbo.Settings SET Value = N'Testing' WHERE [Key] IN (N'Sms.Provider', N'SmsProvider');
-UPDATE dbo.Settings SET Value = N'e2e-testing-key' WHERE [Key] = N'Sms.ApiKey';
+UPDATE dbo.Settings SET Value = N'e2e-sms-user' WHERE [Key] = N'Sms.AsanakUsername';
+UPDATE dbo.Settings SET Value = N'e2e-sms-password' WHERE [Key] = N'Sms.AsanakPassword';
+UPDATE dbo.Settings SET Value = N'982100000000' WHERE [Key] = N'Sms.AsanakSource';
 UPDATE dbo.Settings SET Value = N'1001' WHERE [Key] IN
     (N'Sms.OtpTemplateId', N'Sms.LoginOtpTemplateId', N'Sms.RegisterOtpTemplateId', N'Sms.ForgotPasswordTemplateId');
 UPDATE dbo.Settings SET Value = N'1002' WHERE [Key] IN

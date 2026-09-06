@@ -133,16 +133,16 @@ public sealed class SmsAndSecurityUnitTests
         var result = await sut.SendLoginOtpAsync("+98 912 345 6789", "483921", 3);
 
         result.IsSuccess.Should().BeTrue();
-        await sender.Received(1).SendVerifyAsync(Arg.Is<SmsOptions>(x => x.ApiKey == "unit-test-api-key"), "09123456789", 101,
+        await sender.Received(1).SendVerifyAsync(Arg.Is<SmsOptions>(x => x.AsanakUsername == "unit-test-username"), "09123456789", 101,
             Arg.Is<IReadOnlyList<SmsTemplateParameter>>(x =>
                 x.Count == 2 && x[0].Name == "CODE" && x[0].Value == "483921" &&
                 x[1].Name == "EXPIRE" && x[1].Value == "3"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Sms_service_fails_before_provider_when_api_key_is_missing()
+    public async Task Sms_service_fails_before_asanak_when_credentials_are_missing()
     {
-        var options = new SmsOptions { ApiKey = null };
+        var options = new SmsOptions { AsanakUsername = null, AsanakPassword = null };
         var settings = Substitute.For<ISmsSettingsProvider>();
         var sender = Substitute.For<ISmsSender>();
         settings.GetAsync(Arg.Any<CancellationToken>()).Returns(options);

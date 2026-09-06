@@ -112,11 +112,11 @@ public sealed class ApiSecurityIntegrationTests
     }
 
     [Fact]
-    public async Task Public_settings_response_excludes_SMS_API_key_and_encryption_secrets()
+    public async Task Public_settings_response_excludes_Asanak_credentials_and_encryption_secrets()
     {
         await using (var db = _fixture.CreateDbContext())
         {
-            var smsKey = await db.Settings.SingleAsync(x => x.Key == "Sms.ApiKey");
+            var smsKey = await db.Settings.SingleAsync(x => x.Key == "Sms.AsanakPassword");
             smsKey.Value = "integration-secret-sms-key";
             await db.SaveChangesAsync();
         }
@@ -124,7 +124,7 @@ public sealed class ApiSecurityIntegrationTests
         using var client = _fixture.CreateClient();
         var body = await (await client.GetAsync("/api/settings/public")).Content.ReadAsStringAsync();
         body.Should().NotContain("integration-secret-sms-key")
-            .And.NotContain("Sms.ApiKey")
+            .And.NotContain("Sms.AsanakPassword")
             .And.NotContain("Encryption:Key")
             .And.NotContain("Jwt:SecretKey");
     }

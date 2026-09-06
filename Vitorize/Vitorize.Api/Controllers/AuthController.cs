@@ -219,7 +219,7 @@ namespace Vitorize.Api.Controllers
         [HttpPost("send-otp")]
         [SwaggerOperation(
             Summary = "ارسال کد تایید",
-            Description = "ارسال OTP برای تایید موبایل یا بازیابی رمز عبور از طریق سرویس پیامک (SMS.ir).")]
+            Description = "ارسال OTP برای تایید موبایل یا بازیابی رمز عبور از طریق سرویس پیامک آسانک.")]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult<ApiResult>> SendOtp(SendOtpRequestDto request)

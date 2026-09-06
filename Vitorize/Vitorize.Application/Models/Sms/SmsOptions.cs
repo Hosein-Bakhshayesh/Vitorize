@@ -9,13 +9,8 @@ namespace Vitorize.Application.Models.Sms
     /// </summary>
     public sealed class SmsOptions
     {
-        public string Provider { get; init; } = SmsProviderNames.SmsIr;
-        public string? ApiKey { get; init; }
-        public long? DefaultLineNumber { get; init; }
-        public string? SenderName { get; init; }
+        public const string ProviderName = "Asanak";
 
-        // These values are populated before the transport is switched to Asanak.
-        // They intentionally do not alter the currently registered SMS.ir sender.
         public string? AsanakUsername { get; init; }
         public string? AsanakPassword { get; init; }
         public string? AsanakSource { get; init; }
@@ -27,7 +22,7 @@ namespace Vitorize.Application.Models.Sms
         public bool CanSendAsanakText =>
             HasAsanakCredentials && !string.IsNullOrWhiteSpace(AsanakSource);
 
-        /// <summary>نگاشت کلید منطقی قالب → شناسه قالب SMS.ir (اگر تنظیم شده باشد).</summary>
+        /// <summary>نگاشت کلید منطقی قالب → شناسه قالب آسانک (اگر تنظیم شده باشد).</summary>
         public IReadOnlyDictionary<string, int> TemplateIds { get; init; }
             = new Dictionary<string, int>();
 
@@ -41,25 +36,17 @@ namespace Vitorize.Application.Models.Sms
         public int DailySmsLimitPerMobile { get; init; } = 30;
 
         public bool LogSensitiveData { get; init; }
-        public bool IsSmsIr => SmsProviderNames.IsSmsIr(Provider);
-        public bool IsAsanak => SmsProviderNames.IsAsanak(Provider);
-
-        /// <summary>آماده‌بودن پیامک متنی آزاد بر اساس Provider فعال.</summary>
-        public bool CanSendText => IsSmsIr
-            ? !string.IsNullOrWhiteSpace(ApiKey) && DefaultLineNumber is > 0
-            : IsAsanak && CanSendAsanakText;
+        public bool CanSendText => CanSendAsanakText;
 
         public bool CanSendNotificationText => CanSendText;
 
         public const string TextSendingNotReadyMessage =
-            "برای ارسال پیامک متنی سفارشی، اطلاعات اتصال و شماره مبدأ Provider فعال را در تنظیمات ← اعلان‌ها وارد کنید.";
+            "برای ارسال پیامک متنی سفارشی، نام کاربری، رمز وب‌سرویس و شماره مبدأ آسانک را در تنظیمات ← اعلان‌ها وارد کنید.";
 
         public int? GetTemplateId(string templateKey) =>
             TemplateIds.TryGetValue(templateKey, out var id) && id > 0 ? id : null;
 
         /// <summary>پیکربندی حداقلی لازم برای ارسال واقعی موجود است؟</summary>
-        public bool IsOperational => IsSmsIr
-            ? !string.IsNullOrWhiteSpace(ApiKey)
-            : IsAsanak && HasAsanakCredentials;
+        public bool IsOperational => HasAsanakCredentials;
     }
 }

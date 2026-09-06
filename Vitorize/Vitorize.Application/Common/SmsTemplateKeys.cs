@@ -2,7 +2,7 @@ namespace Vitorize.Application.Common
 {
     /// <summary>
     /// شناسه‌های منطقی قالب‌های پیامک. هر کلید به یک کلید تنظیمات (Template Id) نگاشت می‌شود
-    /// و شناسه واقعی قالب SMS.ir هرگز در کد هارد‌کد نمی‌شود.
+    /// و شناسه واقعی قالب آسانک هرگز در کد هارد‌کد نمی‌شود.
     /// </summary>
     public static class SmsTemplateKeys
     {
@@ -59,7 +59,7 @@ namespace Vitorize.Application.Common
             NotificationTemplates.Contains(templateKey, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>نام پارامترهای قالب SMS.ir؛ باید دقیقاً با متغیرهای تعریف‌شده در پنل مطابق باشد.</summary>
+    /// <summary>نام پارامترهای قالب آسانک؛ باید دقیقاً با متغیرهای تعریف‌شده در پنل مطابق باشد.</summary>
     public static class SmsTemplateParams
     {
         public const string Code = "CODE";

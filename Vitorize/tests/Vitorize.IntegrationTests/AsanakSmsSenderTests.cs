@@ -72,7 +72,6 @@ public sealed class AsanakSmsSenderTests
 
     private static SmsOptions Options() => new()
     {
-        Provider = "Asanak",
         AsanakUsername = "asanak-user",
         AsanakPassword = "asanak-password",
         AsanakSource = "982100000000"

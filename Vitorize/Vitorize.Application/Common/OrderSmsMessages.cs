@@ -2,7 +2,7 @@ namespace Vitorize.Application.Common;
 
 /// <summary>
 /// Customer-facing transactional SMS copy. These messages are sent as plain text through the
-/// durable SMS outbox, so they do not inherit the generic SMS.ir notification template.
+/// durable SMS outbox, so they do not inherit the generic Asanak notification template.
 /// </summary>
 public static class OrderSmsMessages
 {

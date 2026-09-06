@@ -75,10 +75,6 @@ namespace Vitorize.Infrastructure.Services.Sms
 
             return new SmsOptions
             {
-                Provider = GetString(map, SmsSettingKeys.Provider) ?? "SMS.ir",
-                ApiKey = GetString(map, SmsSettingKeys.ApiKey),
-                DefaultLineNumber = GetLong(map, SmsSettingKeys.DefaultLineNumber),
-                SenderName = GetString(map, SmsSettingKeys.SenderName),
                 AsanakUsername = GetString(map, SmsSettingKeys.AsanakUsername),
                 AsanakPassword = GetString(map, SmsSettingKeys.AsanakPassword),
                 AsanakSource = GetString(map, SmsSettingKeys.AsanakSource),
@@ -102,9 +98,6 @@ namespace Vitorize.Infrastructure.Services.Sms
 
         private static int GetInt(IReadOnlyDictionary<string, string?> map, string key, int fallback) =>
             map.TryGetValue(key, out var v) && int.TryParse(v, out var i) ? i : fallback;
-
-        private static long? GetLong(IReadOnlyDictionary<string, string?> map, string key) =>
-            map.TryGetValue(key, out var v) && long.TryParse(v, out var l) ? l : (long?)null;
 
         /// <summary>
         /// کلید اصلی اولویت دارد؛ کلیدهای قدیمی فقط برای مهاجرت نصب‌های قبلی fallback هستند.

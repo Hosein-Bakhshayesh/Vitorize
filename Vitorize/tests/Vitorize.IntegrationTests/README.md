@@ -31,7 +31,7 @@ variables and are restored at fixture teardown.
 
 ## External providers
 
-`WebApplicationFactory<Program>` replaces SMS.ir and Zarinpal adapters with deterministic
+`WebApplicationFactory<Program>` replaces Asanak and Zarinpal adapters with deterministic
 in-process fakes. All controllers, application/infrastructure services, EF Core mappings,
 middleware, authentication, validation, and SQL Server behavior remain real. Background
 workers are removed from the HTTP host so tests invoke no external network service and do

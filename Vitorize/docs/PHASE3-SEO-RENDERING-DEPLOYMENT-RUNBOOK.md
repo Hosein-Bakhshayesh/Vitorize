@@ -34,7 +34,7 @@ Rollback is restore-based. V0005 is additive, but do not drop columns/table duri
 - Set the public setting `Seo.CanonicalBaseUrl` to the single final HTTPS origin, for example `https://vitorize.com`. It must not include a path.
 - Choose one host convention at the proxy and redirect the alternate host to it before the application.
 - Keep `BootstrapAdmin:Enabled=false` except during the documented one-time bootstrap; clear its values immediately afterward.
-- Configure SMS.ir and payment sandbox/production values only in their intended environments. Never run E2E fixtures against staging or production.
+- Configure Asanak and payment sandbox/production values only in their intended environments. Never run E2E fixtures against staging or production.
 
 ## Reverse proxy, HTTPS, and headers
 

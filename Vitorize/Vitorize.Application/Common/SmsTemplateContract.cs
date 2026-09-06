@@ -3,7 +3,7 @@ using Vitorize.Application.Models.Sms;
 namespace Vitorize.Application.Common
 {
     /// <summary>
-    /// قرارداد دو قالب تاییدشده SMS.ir. نام پارامترها به حروف بزرگ/کوچک حساس است.
+    /// قرارداد دو قالب تاییدشده آسانک. نام پارامترها به حروف بزرگ/کوچک حساس است.
     /// </summary>
     public static class SmsTemplateContract
     {

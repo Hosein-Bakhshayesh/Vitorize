@@ -83,8 +83,9 @@ internal static class UnitFixtures
 
     public static SmsOptions SmsOptions() => new()
     {
-        ApiKey = "unit-test-api-key",
-        DefaultLineNumber = 30001234,
+        AsanakUsername = "unit-test-username",
+        AsanakPassword = "unit-test-password",
+        AsanakSource = "982100000000",
         MaxRetryCount = 0,
         TemplateIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {

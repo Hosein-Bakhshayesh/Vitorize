@@ -124,7 +124,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                     ? "قالب امن کد یکبار مصرف"
                     : publicReference is null ? null : $"اعلان با کد پیگیری {publicReference}",
                 InternalNote = string.IsNullOrWhiteSpace(internalNote) ? null : internalNote.Trim(),
-                Provider = options.Provider,
+                Provider = SmsOptions.ProviderName,
                 Status = (byte)SmsMessageStatus.Pending,
                 RetryCount = 0,
                 MaxRetryCount = 5,
@@ -200,7 +200,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 SendType = (byte)SmsSendType.CustomText,
                 SafeMessagePreview = text.Trim(),
                 InternalNote = string.IsNullOrWhiteSpace(internalNote) ? null : internalNote.Trim(),
-                Provider = options.Provider,
+                Provider = SmsOptions.ProviderName,
                 Status = (byte)SmsMessageStatus.Pending,
                 RetryCount = 0,
                 MaxRetryCount = 5,

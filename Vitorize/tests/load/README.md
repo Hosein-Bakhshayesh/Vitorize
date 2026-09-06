@@ -6,7 +6,7 @@ move up once a stage is stable.
 
 > **Never run these against Production.** `Run-LoadProfiles.ps1` refuses any non-local `BaseUrl`.
 > Auth/cart/checkout profiles require the **Testing** environment (fake SMS + fake payment
-> providers) and the deterministic seed. Real SMS.ir / Zarinpal are never involved.
+> providers) and the deterministic seed. Real Asanak / Zarinpal are never involved.
 
 ## Files
 

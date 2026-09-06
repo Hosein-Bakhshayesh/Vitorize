@@ -88,11 +88,6 @@ namespace Vitorize.Infrastructure
             services.AddSingleton<Services.Testing.TestingPaymentFaultService>();
 
             // ───────────── SMS providers ─────────────
-            services.AddHttpClient(SmsIrSender.HttpClientName, client =>
-            {
-                client.BaseAddress = new Uri("https://api.sms.ir/");
-                client.Timeout = TimeSpan.FromSeconds(20);
-            });
             services.AddHttpClient(AsanakSmsSender.HttpClientName, client =>
             {
                 client.BaseAddress = new Uri("https://sms.asanak.ir/");
@@ -106,9 +101,8 @@ namespace Vitorize.Infrastructure
             }
             else
             {
-                services.AddSingleton<SmsIrSender>();
                 services.AddSingleton<AsanakSmsSender>();
-                services.AddSingleton<ISmsSender, SmsSenderRouter>();
+                services.AddSingleton<ISmsSender>(provider => provider.GetRequiredService<AsanakSmsSender>());
             }
             services.AddSingleton<ISmsSettingsProvider, SmsSettingsProvider>();
             services.AddScoped<ISmsService, SmsService>();

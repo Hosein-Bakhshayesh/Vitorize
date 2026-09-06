@@ -31,7 +31,7 @@ namespace Vitorize.Application.DTOs.Outbox
 
     public sealed class SmsOutboxParameter
     {
-        /// <summary>نام دقیق متغیر تاییدشده SMS.ir.</summary>
+        /// <summary>نام دقیق متغیر تاییدشده قالب آسانک.</summary>
         public string Name { get; set; } = string.Empty;
 
         /// <summary>مقدار غیرخالی و غیرحساس متغیر.</summary>

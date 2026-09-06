@@ -19,10 +19,10 @@ public sealed class FakeSmsSender : ISmsSender
 {
     public int VerifyCallCount { get; private set; }
     public int BulkCallCount { get; private set; }
-    public string? LastApiKey { get; private set; }
+    public string? LastUsername { get; private set; }
     public string? LastMobile { get; private set; }
     public int? LastTemplateId { get; private set; }
-    public long? LastLineNumber { get; private set; }
+    public string? LastSource { get; private set; }
     public IReadOnlyList<SmsTemplateParameter>? LastParameters { get; private set; }
 
     private readonly Queue<SmsSendResult> _verifyResults = new();
@@ -38,7 +38,7 @@ public sealed class FakeSmsSender : ISmsSender
         IReadOnlyList<SmsTemplateParameter> parameters, CancellationToken cancellationToken = default)
     {
         VerifyCallCount++;
-        LastApiKey = options.ApiKey;
+        LastUsername = options.AsanakUsername;
         LastMobile = mobile;
         LastTemplateId = templateId;
         LastParameters = parameters;
@@ -50,9 +50,9 @@ public sealed class FakeSmsSender : ISmsSender
         SmsOptions options, string text, string mobile, CancellationToken cancellationToken = default)
     {
         BulkCallCount++;
-        LastApiKey = options.ApiKey;
+        LastUsername = options.AsanakUsername;
         LastMobile = mobile;
-        LastLineNumber = options.DefaultLineNumber;
+        LastSource = options.AsanakSource;
         return Task.FromResult(_defaultBulk);
     }
 

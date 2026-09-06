@@ -45,7 +45,7 @@ public sealed class TestingFaultInjectionTests
     {
         var sender = new TestingSmsSender(Faults(new TestingFaultInjectionOptions { Sms = mode }), Env("Testing"));
 
-        var result = await sender.SendVerifyAsync(new SmsOptions { ApiKey = "key" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
+        var result = await sender.SendVerifyAsync(new SmsOptions { AsanakUsername = "user", AsanakPassword = "password" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
 
         Assert.False(result.IsSuccess);
         Assert.Equal(expected, result.FailureReason);
@@ -57,7 +57,7 @@ public sealed class TestingFaultInjectionTests
         // Same fault configuration, but Production must never honour it.
         var sender = new TestingSmsSender(Faults(new TestingFaultInjectionOptions { Sms = "Timeout" }), Env("Production"));
 
-        var result = await sender.SendVerifyAsync(new SmsOptions { ApiKey = "key" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
+        var result = await sender.SendVerifyAsync(new SmsOptions { AsanakUsername = "user", AsanakPassword = "password" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
 
         Assert.True(result.IsSuccess);
     }
@@ -67,7 +67,7 @@ public sealed class TestingFaultInjectionTests
     {
         var sender = new TestingSmsSender(Faults(new TestingFaultInjectionOptions()), Env("Testing"));
 
-        var result = await sender.SendVerifyAsync(new SmsOptions { ApiKey = "key" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
+        var result = await sender.SendVerifyAsync(new SmsOptions { AsanakUsername = "user", AsanakPassword = "password" }, "09120000000", 1, Array.Empty<SmsTemplateParameter>());
 
         Assert.True(result.IsSuccess);
     }

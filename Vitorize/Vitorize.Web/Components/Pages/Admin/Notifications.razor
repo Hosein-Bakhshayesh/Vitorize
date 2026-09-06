@@ -153,7 +153,7 @@
             </div>
             <label class="sms-mirror-option">
                 <input type="checkbox" @bind="_sendSms" disabled="@(!SmsTextAvailable)" />
-                <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با SMS.ir ارسال می‌شود.</small></span>
+                <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با آسانک ارسال می‌شود.</small></span>
             </label>
             @if (!SmsTextAvailable)
             {
@@ -224,7 +224,7 @@
                 </div>
                 <label class="sms-mirror-option">
                     <input type="checkbox" @bind="_kycReminderSms" disabled="@(!SmsTextAvailable)" />
-                    <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با SMS.ir ارسال می‌شود.</small></span>
+                    <span><strong>ارسال پیامک هم‌زمان</strong><small>همین متن، بدون استفاده از قالب، با آسانک ارسال می‌شود.</small></span>
                 </label>
                 @if (!SmsTextAvailable)
                 {
@@ -441,7 +441,7 @@
     private bool SmsTextAvailable => _smsHealth?.CanSendText == true;
     private string SmsTextUnavailableMessage =>
         string.IsNullOrWhiteSpace(_smsHealth?.TextSendingMessage)
-            ? "برای ارسال پیامک متنی، تنظیمات SMS.ir را کامل کنید."
+            ? "برای ارسال پیامک متنی، تنظیمات آسانک را کامل کنید."
             : _smsHealth.TextSendingMessage;
 
     private static string AudienceTitle(byte audience) =>

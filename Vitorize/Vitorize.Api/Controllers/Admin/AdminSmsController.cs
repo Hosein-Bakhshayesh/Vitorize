@@ -129,7 +129,7 @@ namespace Vitorize.Api.Controllers.Admin
                 Credit = account.Credit,
                 Lines = account.Lines?.ToList() ?? new List<long>(),
                 Message = account.IsSuccess
-                    ? "اتصال به SMS.ir برقرار است."
+                    ? "اتصال به آسانک برقرار است."
                     : (account.UserMessage ?? message)
             };
 

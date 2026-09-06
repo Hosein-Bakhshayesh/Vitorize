@@ -11,8 +11,9 @@ public class SmsServiceTests
 {
     private static SmsOptions Enabled(Dictionary<string, int>? templates = null) => new()
     {
-        ApiKey = "test-key",
-        DefaultLineNumber = 30001234,
+        AsanakUsername = "test-user",
+        AsanakPassword = "test-password",
+        AsanakSource = "982100000000",
         TemplateIds = templates ?? new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 },
         MaxRetryCount = 3
     };
@@ -27,12 +28,13 @@ public class SmsServiceTests
     ];
 
     [Fact]
-    public async Task SendTemplate_WithApiKeyAndTemplate_SendsWithoutActivationSwitch()
+    public async Task SendTemplate_WithAsanakCredentialsAndTemplate_SendsWithoutActivationSwitch()
     {
         var sender = new FakeSmsSender();
         var svc = Build(new SmsOptions
         {
-            ApiKey = "k",
+            AsanakUsername = "user",
+            AsanakPassword = "password",
             TemplateIds = new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 }
         }, sender);
 
@@ -44,10 +46,10 @@ public class SmsServiceTests
     }
 
     [Fact]
-    public async Task SendTemplate_WhenApiKeyMissing_ReturnsNotConfigured()
+    public async Task SendTemplate_WhenAsanakCredentialsMissing_ReturnsNotConfigured()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(new SmsOptions { ApiKey = "" }, sender);
+        var svc = Build(new SmsOptions { AsanakUsername = "", AsanakPassword = "" }, sender);
 
         var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
             ValidOtpParameters());
@@ -133,7 +135,7 @@ public class SmsServiceTests
     public async Task SendText_WithoutLineNumber_ReturnsInvalidLineNumber()
     {
         var sender = new FakeSmsSender();
-        var options = new SmsOptions { ApiKey = "k", DefaultLineNumber = null };
+        var options = new SmsOptions { AsanakUsername = "user", AsanakPassword = "password", AsanakSource = null };
         var svc = Build(options, sender);
 
         var result = await svc.SendTextAsync("09123456789", "hello");

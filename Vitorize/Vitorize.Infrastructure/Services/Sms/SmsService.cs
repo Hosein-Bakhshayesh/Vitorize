@@ -82,7 +82,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 options.MaxRetryCount,
                 cancellationToken);
 
-            LogResult(result, templateKey, IranMobile.Mask(normalized), templateId, options.Provider);
+            LogResult(result, templateKey, IranMobile.Mask(normalized), templateId, SmsOptions.ProviderName);
             return result;
         }
 
@@ -110,7 +110,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 options.MaxRetryCount,
                 cancellationToken);
 
-            LogResult(result, "Text", IranMobile.Mask(normalized), null, options.Provider);
+            LogResult(result, "Text", IranMobile.Mask(normalized), null, SmsOptions.ProviderName);
             return result;
         }
 

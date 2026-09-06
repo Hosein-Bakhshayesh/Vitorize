@@ -34,7 +34,7 @@ Run `Deploy-Database.ps1`; do not execute the following list by hand in Producti
 | `2026-07-08_seed_settings_ui_customization.sql` | Required | Ledgered canonical seed | Requires `dbo.Settings`; overlaps idempotently with startup seeding |
 | `2026-07-13_create_sms_history.sql` | Required | Ledgered canonical schema | Requires `dbo.Users`; inspect manually if a partial SMS table already exists |
 | `2026-07-13_otpcodes_purpose_login_constraint.sql` | Environment-specific | Select `H20260713-OTP-COMPAT` only when preflight warns about a restrictive legacy constraint | Current reference schema has no Purpose constraint and needs no change |
-| `2026-07-13_seed_sms_settings.sql` | Required | Ledgered canonical seed | Requires `dbo.Settings`; no real SMS.ir ID/API key is hardcoded |
+| `2026-07-13_seed_sms_settings.sql` | Required | Ledgered legacy seed | Requires `dbo.Settings`; V0035 removes its obsolete SMS.ir connection settings |
 | `2026-07-14_optional_normalize_legacy_lucide_icons.sql` | Optional | Select `H20260714-LUCIDE-CLEANUP` only for legacy icon-key cleanup | Transactional; affects product/category icon data only |
 | `2026-07-14_product_experience_schema.sql` | Required | Ledgered canonical schema | Requires Products, CartItems, OrderItems and Users |
 | `2026-07-14_seed_product_experience_settings.sql` | Required | Ledgered canonical seed | Run after product schema; preserves values |

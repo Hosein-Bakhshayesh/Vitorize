@@ -8,14 +8,8 @@ namespace Vitorize.Application.Common
     {
         public const string Group = "SMS";
 
-        public const string Provider = "Sms.Provider";
-        public const string ApiKey = "Sms.ApiKey";
-        public const string DefaultLineNumber = "Sms.DefaultLineNumber";
-        public const string SenderName = "Sms.SenderName";
-
-        // Asanak credentials are deliberately separate from the legacy SMS.ir API key.
-        // Keeping the provider-specific names prevents an operator from accidentally
-        // treating a username/password pair as an API key during the cut-over.
+        // Asanak is the only supported transport. Its connection settings are kept separate
+        // so no generic or legacy provider credentials can accidentally be used for delivery.
         public const string AsanakUsername = "Sms.AsanakUsername";
         public const string AsanakPassword = "Sms.AsanakPassword";
         public const string AsanakSource = "Sms.AsanakSource";
@@ -108,7 +102,13 @@ namespace Vitorize.Application.Common
             "Sms.UseOutbox",
             "Sms.RequireConfirmation",
             "Sms.AllowImmediateSend",
-            "Sms.AllowRetryFailed"
+            "Sms.AllowRetryFailed",
+            // V0035 deletes these settings. Keep them hidden defensively until that
+            // migration has run, so an older database cannot expose obsolete inputs.
+            "Sms.Provider",
+            "Sms.ApiKey",
+            "Sms.DefaultLineNumber",
+            "Sms.SenderName"
         };
 
         /// <summary>
@@ -117,23 +117,10 @@ namespace Vitorize.Application.Common
         public static readonly IReadOnlySet<string> SecretKeys =
             new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             {
-                ApiKey,
-                DefaultLineNumber,
                 AsanakUsername,
                 AsanakPassword,
                 AsanakSource
             };
     }
 
-    public static class SmsProviderNames
-    {
-        public const string SmsIr = "SMS.ir";
-        public const string Asanak = "Asanak";
-
-        public static bool IsSmsIr(string? value) =>
-            string.Equals(value?.Trim(), SmsIr, System.StringComparison.OrdinalIgnoreCase);
-
-        public static bool IsAsanak(string? value) =>
-            string.Equals(value?.Trim(), Asanak, System.StringComparison.OrdinalIgnoreCase);
-    }
 }

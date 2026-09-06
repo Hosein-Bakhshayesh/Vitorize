@@ -413,17 +413,13 @@ namespace Vitorize.Infrastructure.Services
                 // ───────────── Product reviews ─────────────
                 S(ProductReviewSettings.AutoApproveKey, "true", ProductReviewSettings.GroupName, "bool", "تأیید خودکار نظرات خریداران"),
 
-                // ───────────── SMS.ir (تنظیمات اصلی پیامک) ─────────────
+                // ───────────── Asanak (تنظیمات اصلی پیامک) ─────────────
                 // نکته امنیتی: گروه «SMS» در endpoint عمومی تنظیمات قرار ندارد و هرگز آشکار نمی‌شود.
-                S(SmsSettingKeys.Provider, "SMS.ir", "SMS", "string", "ارائه‌دهنده پیامک"),
-                S(SmsSettingKeys.ApiKey, "", "SMS", "secret", "کلید API پنل SMS.ir (محرمانه)"),
-                S(SmsSettingKeys.DefaultLineNumber, "", "SMS", "string", "شماره خط اختصاصی برای پیامک متنی (محرمانه)"),
-                S(SmsSettingKeys.SenderName, "ویتورایز", "SMS", "string", "نام فرستنده (برای متن پیام)"),
                 S(SmsSettingKeys.AsanakUsername, "", "SMS", "secret", "نام کاربری وب سرویس آسانک (محرمانه)"),
                 S(SmsSettingKeys.AsanakPassword, "", "SMS", "secret", "رمز وب سرویس آسانک (محرمانه)"),
                 S(SmsSettingKeys.AsanakSource, "", "SMS", "secret", "شماره مبدأ پیامک آسانک (محرمانه)"),
 
-                // Template IDs (شناسه قالب‌های تاییدشده در پنل SMS.ir)
+                // Template IDs (شناسه قالب‌های تاییدشده در پنل آسانک)
                 S(SmsSettingKeys.OtpTemplateId, universalOtpTemplateId, "SMS", "int", "شناسه قالب کد یکبار مصرف"),
                 S(SmsSettingKeys.NotificationTemplateId, universalNotificationTemplateId, "SMS", "int", "شناسه قالب اطلاع‌رسانی عمومی"),
                 S(SmsSettingKeys.LoginOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
