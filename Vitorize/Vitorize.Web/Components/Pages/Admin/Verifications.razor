@@ -138,6 +138,10 @@
                         <dt>تاریخ تولد</dt><dd><PersianDateDisplay Value="v.BirthDate" /></dd>
                         <dt>موبایل ثبت‌نام</dt><dd class="vz-mono">@v.UserMobile</dd>
                         <dt>موبایل ثبت‌نام به نام صاحب کارت</dt><dd>@(v.RegisteredMobileBelongsToCardHolder == true ? "بله" : v.RegisteredMobileBelongsToCardHolder == false ? "خیر" : "—")</dd>
+                        @if (v.RegisteredMobileBelongsToCardHolder == false)
+                        {
+                            <dt>موبایل صاحب کارت</dt><dd class="vz-mono">@(string.IsNullOrWhiteSpace(v.CardHolderMobile) ? "—" : v.CardHolderMobile)</dd>
+                        }
                     </dl>
                 </div>
                 <div style="flex:1;min-width:220px">
