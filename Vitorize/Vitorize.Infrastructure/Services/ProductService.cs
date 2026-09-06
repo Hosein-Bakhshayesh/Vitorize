@@ -421,6 +421,7 @@ namespace Vitorize.Infrastructure.Services
                 .Select(x => new ProductLookupDto
                 {
                     Id = x.Id,
+                    ParentId = x.ParentId,
                     Title = x.Title,
                     Slug = x.Slug,
                     Icon = x.Icon,
@@ -463,7 +464,7 @@ namespace Vitorize.Infrastructure.Services
                 .Where(x => x.IsActive && !x.IsDeleted && x.Slug == slug)
                 .Select(x => new ProductLookupDto
                 {
-                    Id = x.Id, Title = x.Title, Slug = x.Slug, ImagePath = x.ImagePath,
+                    Id = x.Id, ParentId = x.ParentId, Title = x.Title, Slug = x.Slug, ImagePath = x.ImagePath,
                     ImageAltText = x.ImageAltText, Description = x.Description,
                     SeoTitle = x.SeoTitle, SeoDescription = x.SeoDescription,
                     CreatedAt = x.CreatedAt, UpdatedAt = x.UpdatedAt

@@ -393,6 +393,89 @@ else
     </Footer>
 </Modal>
 
+@if (_invoice is not null)
+{
+    <div class="vz-overlay invoice-print-root" role="presentation" @onclick="CloseInvoice">
+        <section class="invoice-print-dialog" role="dialog" aria-modal="true" aria-label="پیش‌نمایش فاکتور" @onclick:stopPropagation="true">
+            <header class="invoice-print-dialog__head invoice-print-actions">
+                <div>
+                    <div class="vz-dialog__title">پیش‌نمایش فاکتور</div>
+                    <div class="vz-card__sub">پیش از چاپ، اطلاعات سفارش را بررسی کنید.</div>
+                </div>
+                <button class="vz-dialog__close" type="button" @onclick="CloseInvoice" aria-label="بستن">
+                    <Icon Name="x" Size="18" />
+                </button>
+            </header>
+            <article class="invoice-print-sheet" dir="rtl">
+                <header class="invoice-print-sheet__header">
+                    <div>
+                        <div class="invoice-print-sheet__brand">ویتورایز</div>
+                        <div class="invoice-print-sheet__muted">فاکتور سفارش</div>
+                    </div>
+                    <div class="invoice-print-sheet__meta">
+                        <div><b>شماره سفارش:</b> @_invoice.OrderNumber</div>
+                        <div><b>تاریخ ثبت:</b> @_invoice.CreatedAt</div>
+                        @if (!string.IsNullOrWhiteSpace(_invoice.CompletedAt))
+                        {
+                            <div><b>زمان نهایی شدن:</b> @_invoice.CompletedAt</div>
+                        }
+                    </div>
+                </header>
+
+                <div class="invoice-print-sheet__grid">
+                    <section class="invoice-print-sheet__box">
+                        <h2>اطلاعات مشتری</h2>
+                        <div><b>نام مشتری:</b> @_invoice.CustomerName</div>
+                        <div><b>موبایل:</b> @_invoice.CustomerMobile</div>
+                        @if (!string.IsNullOrWhiteSpace(_invoice.CustomerEmail))
+                        {
+                            <div><b>ایمیل:</b> @_invoice.CustomerEmail</div>
+                        }
+                    </section>
+                    <section class="invoice-print-sheet__box">
+                        <h2>وضعیت سفارش</h2>
+                        <div><b>وضعیت سفارش:</b> @_invoice.OrderStatus</div>
+                        <div><b>وضعیت پرداخت:</b> @_invoice.PaymentStatus</div>
+                    </section>
+                </div>
+
+                <div class="invoice-print-sheet__table-wrap">
+                    <table class="invoice-print-sheet__table">
+                        <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in _invoice.Items)
+                            {
+                                <tr>
+                                    <td>@item.Title @if (!string.IsNullOrWhiteSpace(item.Variant)) { <small>@item.Variant</small> }</td>
+                                    <td>@item.Quantity</td>
+                                    <td>@item.UnitPrice</td>
+                                    <td>@item.TotalPrice</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <section class="invoice-print-sheet__totals">
+                    <h2>جمع‌بندی مبلغ</h2>
+                    <div><span>جمع اقلام</span><strong>@_invoice.Subtotal</strong></div>
+                    <div><span>تخفیف</span><strong>@_invoice.Discount</strong></div>
+                    @if (!string.IsNullOrWhiteSpace(_invoice.Vat))
+                    {
+                        <div><span>@_invoice.VatLabel</span><strong>@_invoice.Vat</strong></div>
+                    }
+                    <div class="invoice-print-sheet__total"><span>مبلغ نهایی</span><strong>@_invoice.Total</strong></div>
+                </section>
+                <footer class="invoice-print-sheet__footer">این فاکتور از پنل مدیریت ویتورایز صادر شده است.</footer>
+            </article>
+            <footer class="invoice-print-dialog__foot invoice-print-actions">
+                <button class="vz-btn vz-btn--outline" type="button" @onclick="CloseInvoice">بستن</button>
+                <button class="vz-btn vz-btn--primary" type="button" @onclick="PrintCurrentInvoice"><Icon Name="printer" Size="16" /> چاپ / ذخیره PDF</button>
+            </footer>
+        </section>
+    </div>
+}
+
 <Modal Visible="_kycSmsOpen" Title="ارسال پیامک احراز هویت" Icon="shield" Size="sm" OnClose="CloseKycReminder">
     <ChildContent>
         @if (_kycSmsOrder is not null)
@@ -482,6 +565,7 @@ else
     private bool _detailOpen, _loadingDetail, _acting;
     private AdminOrderModel? _detail;
     private List<Timeline.Entry> _timeline = new();
+    private InvoicePrintModel? _invoice;
 
     private bool _cancelOpen, _bulkCancel, _bulkBusy;
     private string _cancelReason = string.Empty;
@@ -649,39 +733,78 @@ else
     private static bool CanGenerateInvoice(AdminOrderModel order) => order.Status is
         (byte)OrderStatus.Completed or (byte)OrderStatus.Cancelled;
 
-    private async Task PrintInvoice()
+    private void PrintInvoice()
     {
         if (_detail is null || !CanGenerateInvoice(_detail)) return;
 
         var order = _detail;
-        var invoice = new
+        _invoice = new InvoicePrintModel
         {
-            title = "فاکتور سفارش ویتورایز",
-            orderNumber = order.OrderNumber,
-            createdAt = PersianDateHelper.ToDateTime(order.CreatedAt),
-            completedAt = order.CompletedAt.HasValue ? PersianDateHelper.ToDateTime(order.CompletedAt.Value) : null,
-            customerName = order.UserFullName,
-            customerMobile = order.UserMobile,
-            customerEmail = order.UserEmail,
-            orderStatus = AUI.OrderStatus(order.Status),
-            paymentStatus = AUI.PaymentStatus(order.PaymentStatus),
-            subtotal = AUI.MoneyFa(order.SubtotalAmount, order.CurrencyType),
-            discount = AUI.MoneyFa(order.DiscountAmount, order.CurrencyType),
-            vat = order.VatEnabled ? AUI.MoneyFa(order.VatAmount, order.CurrencyType) : null,
-            vatLabel = order.VatEnabled ? $"مالیات ({AUI.Percent(order.VatRatePercent)}٪)" : null,
-            total = AUI.MoneyFa(order.FinalAmount, order.CurrencyType),
-            items = Items(order).Select(item => new
+            OrderNumber = order.OrderNumber,
+            CreatedAt = PersianDateHelper.ToDateTime(order.CreatedAt),
+            CompletedAt = order.CompletedAt.HasValue ? PersianDateHelper.ToDateTime(order.CompletedAt.Value) : null,
+            CustomerName = order.UserFullName,
+            CustomerMobile = order.UserMobile,
+            CustomerEmail = order.UserEmail,
+            OrderStatus = AUI.OrderStatus(order.Status),
+            PaymentStatus = AUI.PaymentStatus(order.PaymentStatus),
+            Subtotal = AUI.MoneyFa(order.SubtotalAmount, order.CurrencyType),
+            Discount = AUI.MoneyFa(order.DiscountAmount, order.CurrencyType),
+            Vat = order.VatEnabled ? AUI.MoneyFa(order.VatAmount, order.CurrencyType) : null,
+            VatLabel = order.VatEnabled ? $"مالیات ({AUI.Percent(order.VatRatePercent)}٪)" : null,
+            Total = AUI.MoneyFa(order.FinalAmount, order.CurrencyType),
+            Items = Items(order).Select(item => new InvoicePrintItem
             {
-                title = item.ProductTitle,
-                variant = item.VariantTitle,
-                quantity = AUI.Number(item.Quantity),
-                unitPrice = AUI.MoneyFa(item.UnitPrice, order.CurrencyType),
-                totalPrice = AUI.MoneyFa(item.TotalPrice, order.CurrencyType)
+                Title = item.ProductTitle,
+                Variant = item.VariantTitle,
+                Quantity = AUI.Number(item.Quantity),
+                UnitPrice = AUI.MoneyFa(item.UnitPrice, order.CurrencyType),
+                TotalPrice = AUI.MoneyFa(item.TotalPrice, order.CurrencyType)
             }).ToList()
         };
+    }
 
-        var opened = await JS.InvokeAsync<bool>("vzAdmin.openInvoice", invoice);
-        if (!opened) Toasts.Warning("باز شدن پنجره فاکتور توسط مرورگر مسدود شد؛ لطفاً اجازه باز شدن پنجره جدید را بدهید.");
+    private void CloseInvoice() => _invoice = null;
+
+    private async Task PrintCurrentInvoice()
+    {
+        try
+        {
+            var opened = await JS.InvokeAsync<bool>("vzAdmin.printCurrentPage");
+            if (!opened)
+                Toasts.Warning("باز کردن پنجره چاپ ممکن نشد؛ لطفاً دوباره تلاش کنید.");
+        }
+        catch
+        {
+            Toasts.Error("پنجره چاپ باز نشد، اما پیش‌نمایش فاکتور محفوظ است.");
+        }
+    }
+
+    private sealed class InvoicePrintModel
+    {
+        public string OrderNumber { get; init; } = string.Empty;
+        public string CreatedAt { get; init; } = string.Empty;
+        public string? CompletedAt { get; init; }
+        public string CustomerName { get; init; } = string.Empty;
+        public string CustomerMobile { get; init; } = string.Empty;
+        public string? CustomerEmail { get; init; }
+        public string OrderStatus { get; init; } = string.Empty;
+        public string PaymentStatus { get; init; } = string.Empty;
+        public string Subtotal { get; init; } = string.Empty;
+        public string Discount { get; init; } = string.Empty;
+        public string? Vat { get; init; }
+        public string? VatLabel { get; init; }
+        public string Total { get; init; } = string.Empty;
+        public List<InvoicePrintItem> Items { get; init; } = [];
+    }
+
+    private sealed class InvoicePrintItem
+    {
+        public string Title { get; init; } = string.Empty;
+        public string? Variant { get; init; }
+        public string Quantity { get; init; } = string.Empty;
+        public string UnitPrice { get; init; } = string.Empty;
+        public string TotalPrice { get; init; } = string.Empty;
     }
 
     private string DeadlineInput(AdminOrderItemModel item)
@@ -1151,6 +1274,30 @@ else
     .vz-admin-delivery-note__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
     .vz-admin-delivery-note__content { margin-top: 7px; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 12px; line-height: 1.7; }
 
+    .invoice-print-root { z-index: 1200; padding: 20px; }
+    .invoice-print-dialog { width: min(900px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg, 18px); background: var(--surface); box-shadow: var(--shadow-lg); }
+    .invoice-print-dialog__head, .invoice-print-dialog__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-color: var(--border); background: var(--surface); }
+    .invoice-print-dialog__head { border-bottom: 1px solid var(--border); }
+    .invoice-print-dialog__foot { border-top: 1px solid var(--border); }
+    .invoice-print-sheet { margin: 18px; padding: 24px; border: 1px solid #dbe3ee; border-radius: 12px; color: #172033; background: #fff; font-family: Tahoma, Arial, sans-serif; font-size: 13px; line-height: 1.8; }
+    .invoice-print-sheet__header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 16px; border-bottom: 2px solid #0f766e; }
+    .invoice-print-sheet__brand { color: #0f766e; font-size: 24px; font-weight: 800; }
+    .invoice-print-sheet__muted, .invoice-print-sheet__footer { color: #64748b; }
+    .invoice-print-sheet__meta { display: grid; gap: 3px; text-align: end; }
+    .invoice-print-sheet__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+    .invoice-print-sheet__box, .invoice-print-sheet__totals { padding: 14px; border: 1px solid #dbe3ee; border-radius: 9px; }
+    .invoice-print-sheet h2 { margin: 0 0 8px; font-size: 14px; }
+    .invoice-print-sheet__box > div { padding: 3px 0; }
+    .invoice-print-sheet__table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+    .invoice-print-sheet__table th, .invoice-print-sheet__table td { padding: 9px; border: 1px solid #dbe3ee; text-align: right; vertical-align: top; }
+    .invoice-print-sheet__table th { background: #f1f5f9; }
+    .invoice-print-sheet__table small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; }
+    .invoice-print-sheet__totals { width: min(360px, 100%); margin-inline-start: auto; }
+    .invoice-print-sheet__totals > div { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; border-bottom: 1px dashed #e2e8f0; }
+    .invoice-print-sheet__totals > div:last-child { border: 0; }
+    .invoice-print-sheet__total { color: #0f766e; font-size: 15px; }
+    .invoice-print-sheet__footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid #dbe3ee; font-size: 11px; }
+
     @@media (max-width: 760px) {
         .orders-workflow { align-items: stretch; flex-direction: column; }
         .orders-workflow__main { display: grid; grid-template-columns: 1fr 1fr; }
@@ -1204,5 +1351,22 @@ else
         .orders-items-table td:nth-child(4)::before { content: "جمع"; }
         .orders-items-table td:nth-child(5)::before { content: "نوع تحویل"; }
         .orders-items-table td:nth-child(6)::before { content: "تحویل"; }
+        .invoice-print-root { align-items: flex-start; padding: 10px; overflow: auto; }
+        .invoice-print-dialog { max-height: none; min-height: calc(100vh - 20px); }
+        .invoice-print-sheet { margin: 10px; padding: 16px; font-size: 12px; }
+        .invoice-print-sheet__header, .invoice-print-sheet__grid { grid-template-columns: 1fr; flex-direction: column; gap: 12px; }
+        .invoice-print-sheet__meta { text-align: start; }
+        .invoice-print-sheet__table-wrap { overflow-x: auto; }
+        .invoice-print-sheet__table { min-width: 530px; }
+    }
+
+    @@media print {
+        @@page { size: A4; margin: 16mm; }
+        body * { visibility: hidden !important; }
+        .invoice-print-root, .invoice-print-root * { visibility: visible !important; }
+        .invoice-print-root { position: fixed !important; inset: 0 !important; display: block !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
+        .invoice-print-dialog { width: 100% !important; max-height: none !important; overflow: visible !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+        .invoice-print-sheet { margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; }
+        .invoice-print-actions { display: none !important; }
     }
 </style>

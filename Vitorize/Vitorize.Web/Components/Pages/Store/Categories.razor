@@ -17,15 +17,37 @@ else if (_categories.Count == 0)
 }
 else
 {
-    <div class="st-cats">
-        @foreach (var c in _categories)
+    <div class="st-category-groups">
+        @foreach (var parent in RootCategories)
         {
-            <a class="st-cat" href="@($"/category/{c.Slug}")">
-                <div class="st-cat__ic">
-                    <CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@(c.ImageAltText ?? c.Title)" IconSize="22" />
+            var children = ChildrenOf(parent);
+            <section class="st-category-group">
+                <div class="st-category-group__head">
+                    <a class="st-category-group__parent" href="@($"/category/{parent.Slug}")">
+                        <span class="st-category-group__ic"><CategoryMedia IconKey="@parent.Icon" ImagePath="@parent.ImagePath" Alt="@(parent.ImageAltText ?? parent.Title)" IconSize="20" /></span>
+                        <span>@parent.Title</span>
+                    </a>
+                    <a class="st-category-group__all" href="@($"/category/{parent.Slug}")">مشاهده همه <Icon Name="chevron-left" Size="14" /></a>
                 </div>
-                <div class="st-cat__t">@c.Title</div>
-            </a>
+                @if (children.Count == 0)
+                {
+                    <a class="st-category-group__empty" href="@($"/category/{parent.Slug}")">مشاهده محصولات این دسته</a>
+                }
+                else
+                {
+                    <div class="st-cats">
+                        @foreach (var child in children)
+                        {
+                            <a class="st-cat" href="@($"/category/{child.Slug}")">
+                                <div class="st-cat__ic">
+                                    <CategoryMedia IconKey="@child.Icon" ImagePath="@child.ImagePath" Alt="@(child.ImageAltText ?? child.Title)" IconSize="22" />
+                                </div>
+                                <div class="st-cat__t">@child.Title</div>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
         }
     </div>
 }
@@ -33,6 +55,9 @@ else
 @code {
     private bool _loading = true;
     private List<StoreLookupModel> _categories = new();
+    private List<StoreLookupModel> RootCategories => _categories.Where(x => x.ParentId is null).ToList();
+    private List<StoreLookupModel> ChildrenOf(StoreLookupModel category) =>
+        _categories.Where(x => x.ParentId == category.Id).ToList();
 
     protected override async Task OnInitializedAsync()
     {

@@ -27,7 +27,7 @@
                         <div class="st-catmenu" data-testid="catmenu"
                              @onmouseover="CancelCloseCats" @onmouseout="ScheduleCloseCats">
                             <aside class="st-catmenu__side">
-                                @foreach (var c in _categories)
+                                @foreach (var c in RootCategories)
                                 {
                                     <a class="st-catmenu__cat @(c.Id == _activeCat?.Id ? "active" : null)"
                                        href="@($"/category/{c.Slug}")"
@@ -50,6 +50,22 @@
                                             مشاهده همه <Icon Name="chevron-left" Size="14" />
                                         </a>
                                     </div>
+                                    @if (ActiveCatChildren.Count > 0)
+                                    {
+                                        <section class="st-catmenu__children" aria-label="زیر دسته‌های @_activeCat.Title">
+                                            <div class="st-catmenu__section-title">زیر دسته‌های @_activeCat.Title</div>
+                                            <div class="st-catmenu__child-grid">
+                                                @foreach (var child in ActiveCatChildren)
+                                                {
+                                                    <a class="st-catmenu__child" href="@($"/category/{child.Slug}")" @onclick="CloseCats">
+                                                        <span class="st-catmenu__child-ic"><CategoryMedia IconKey="@child.Icon" ImagePath="@child.ImagePath" Alt="@child.Title" IconSize="16" /></span>
+                                                        <span>@child.Title</span>
+                                                        <Icon Name="chevron-left" Size="14" />
+                                                    </a>
+                                                }
+                                            </div>
+                                        </section>
+                                    }
                                     @if (_panelLoading)
                                     {
                                         <div class="st-catmenu__grid">
@@ -62,6 +78,7 @@
                                     }
                                     else
                                     {
+                                        <div class="st-catmenu__section-title">محصولات @_activeCat.Title</div>
                                         <div class="st-catmenu__grid">
                                             @foreach (var p in ActiveCatProducts)
                                             {
@@ -205,6 +222,10 @@
 
     private List<StoreProductModel> ActiveCatProducts =>
         _activeCat is not null && _catProducts.TryGetValue(_activeCat.Id, out var items) ? items : new();
+    private List<StoreLookupModel> RootCategories => _categories.Where(x => x.ParentId is null).ToList();
+    private List<StoreLookupModel> ActiveCatChildren => _activeCat is null
+        ? new()
+        : _categories.Where(x => x.ParentId == _activeCat.Id).ToList();
     private string _search = string.Empty;
     private string _name = "کاربر";
     private string Initial => string.IsNullOrWhiteSpace(_name) ? "ک" : _name.Trim()[..1];
@@ -296,7 +317,7 @@
         CancelCloseCats();
         if (_catsOpen) return;
         _catsOpen = true; _searchOpen = false; _menuOpen = false;
-        if (_activeCat is null && _categories.Count > 0) await SelectCat(_categories[0]);
+        if (_activeCat is null && RootCategories.Count > 0) await SelectCat(RootCategories[0]);
     }
 
     private async Task ToggleCats()

@@ -140,6 +140,7 @@
     public class StoreLookupModel
     {
         public Guid Id { get; set; }
+        public Guid? ParentId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         /// <summary>Configured icon key; categories may be shown as an icon instead of an image.</summary>

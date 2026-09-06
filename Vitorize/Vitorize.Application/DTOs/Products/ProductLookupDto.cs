@@ -4,6 +4,12 @@
     {
         public Guid Id { get; set; }
 
+        /// <summary>
+        /// Parent category for storefront navigation. Null means that this is a top-level category.
+        /// Brands always leave this value null.
+        /// </summary>
+        public Guid? ParentId { get; set; }
+
         public string Title { get; set; } = string.Empty;
 
         public string Slug { get; set; } = string.Empty;
