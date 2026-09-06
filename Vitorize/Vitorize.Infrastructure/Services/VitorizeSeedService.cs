@@ -419,6 +419,9 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.ApiKey, "", "SMS", "secret", "کلید API پنل SMS.ir (محرمانه)"),
                 S(SmsSettingKeys.DefaultLineNumber, "", "SMS", "string", "شماره خط اختصاصی برای پیامک متنی (محرمانه)"),
                 S(SmsSettingKeys.SenderName, "ویتورایز", "SMS", "string", "نام فرستنده (برای متن پیام)"),
+                S(SmsSettingKeys.AsanakUsername, "", "SMS", "secret", "نام کاربری وب سرویس آسانک (محرمانه)"),
+                S(SmsSettingKeys.AsanakPassword, "", "SMS", "secret", "رمز وب سرویس آسانک (محرمانه)"),
+                S(SmsSettingKeys.AsanakSource, "", "SMS", "secret", "شماره مبدأ پیامک آسانک (محرمانه)"),
 
                 // Template IDs (شناسه قالب‌های تاییدشده در پنل SMS.ir)
                 S(SmsSettingKeys.OtpTemplateId, universalOtpTemplateId, "SMS", "int", "شناسه قالب کد یکبار مصرف"),

@@ -13,6 +13,13 @@ namespace Vitorize.Application.Common
         public const string DefaultLineNumber = "Sms.DefaultLineNumber";
         public const string SenderName = "Sms.SenderName";
 
+        // Asanak credentials are deliberately separate from the legacy SMS.ir API key.
+        // Keeping the provider-specific names prevents an operator from accidentally
+        // treating a username/password pair as an API key during the cut-over.
+        public const string AsanakUsername = "Sms.AsanakUsername";
+        public const string AsanakPassword = "Sms.AsanakPassword";
+        public const string AsanakSource = "Sms.AsanakSource";
+
         // Template ids
         public const string OtpTemplateId = "Sms.OtpTemplateId";
         public const string NotificationTemplateId = "Sms.NotificationTemplateId";
@@ -111,7 +118,10 @@ namespace Vitorize.Application.Common
             new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
             {
                 ApiKey,
-                DefaultLineNumber
+                DefaultLineNumber,
+                AsanakUsername,
+                AsanakPassword,
+                AsanakSource
             };
     }
 }

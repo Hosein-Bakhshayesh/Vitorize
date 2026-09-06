@@ -14,6 +14,19 @@ namespace Vitorize.Application.Models.Sms
         public long? DefaultLineNumber { get; init; }
         public string? SenderName { get; init; }
 
+        // These values are populated before the transport is switched to Asanak.
+        // They intentionally do not alter the currently registered SMS.ir sender.
+        public string? AsanakUsername { get; init; }
+        public string? AsanakPassword { get; init; }
+        public string? AsanakSource { get; init; }
+
+        public bool HasAsanakCredentials =>
+            !string.IsNullOrWhiteSpace(AsanakUsername) &&
+            !string.IsNullOrWhiteSpace(AsanakPassword);
+
+        public bool CanSendAsanakText =>
+            HasAsanakCredentials && !string.IsNullOrWhiteSpace(AsanakSource);
+
         /// <summary>نگاشت کلید منطقی قالب → شناسه قالب SMS.ir (اگر تنظیم شده باشد).</summary>
         public IReadOnlyDictionary<string, int> TemplateIds { get; init; }
             = new Dictionary<string, int>();

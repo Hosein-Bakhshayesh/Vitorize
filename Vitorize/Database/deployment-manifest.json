@@ -747,6 +747,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 118,
+      "version": "V0034",
+      "name": "V0034__seed_asanak_sms_settings.sql",
+      "path": "Versioned/V0034__seed_asanak_sms_settings.sql",
+      "sha256": "7f9c7e08489d52d7206b5c54a66e9b0f9ff6793e5321636cf6a46386a4a75045",
+      "classification": "required",
+      "dependencies": [
+        "V0033",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }
