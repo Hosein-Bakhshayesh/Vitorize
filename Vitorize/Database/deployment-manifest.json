@@ -798,6 +798,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 121,
+      "version": "V0037",
+      "name": "V0037__remove_asanak_otp_template_settings.sql",
+      "path": "Versioned/V0037__remove_asanak_otp_template_settings.sql",
+      "sha256": "dcbe240f2c3f2ad2bcf18a6d5e475e3e4e7ad51d9ebfc5b60b66a15b9feebc2e",
+      "classification": "required",
+      "dependencies": [
+        "V0036",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

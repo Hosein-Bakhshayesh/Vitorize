@@ -19,6 +19,9 @@ public static class SmsNotificationMessages
             : WithFooter(normalized);
     }
 
+    public static string Otp(string code, int expiryMinutes) =>
+        WithFooter($"کد تایید شما در ویتورایز:\n{code}\nاعتبار: {expiryMinutes} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.");
+
     public static string WalletTopUpSucceeded(decimal amount, string reference) =>
         WithFooter($"شارژ کیف پول شما با موفقیت انجام شد.\nمبلغ: {amount:#,0} تومان\nکد پیگیری: {reference}");
 

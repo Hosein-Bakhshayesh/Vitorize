@@ -13,32 +13,13 @@ namespace Vitorize.Application.Validators.Admin
                 .Must(x => IranMobile.TryNormalize(x, out _))
                 .WithMessage("شماره موبایل معتبر نیست.");
 
-            RuleFor(x => x)
-                .Must(x => !string.IsNullOrWhiteSpace(x.TemplateKey) || !string.IsNullOrWhiteSpace(x.Text))
-                .WithMessage("قالب یا متن پیامک را مشخص کنید.");
+            RuleFor(x => x.Text)
+                .NotEmpty()
+                .WithMessage("متن پیامک را مشخص کنید.");
 
-            When(x => !string.IsNullOrWhiteSpace(x.TemplateKey), () =>
-            {
-                RuleFor(x => x.TemplateKey!)
-                    .Must(x => SmsTemplateContract.GetRequiredParameterNames(x) is not null)
-                    .WithMessage("کلید قالب پیامک معتبر نیست.");
-
-                RuleFor(x => x)
-                    .Must(HasValidTemplateParameters)
-                    .WithMessage("پارامترهای قالب OTP باید دقیقاً CODE و EXPIRE و دارای مقدار باشند.");
-            });
-        }
-
-        private static bool HasValidTemplateParameters(SendTestSmsRequestDto request)
-        {
-            if (string.IsNullOrWhiteSpace(request.TemplateKey))
-                return true;
-
-            var parameters = (request.Parameters ?? new List<TestSmsParameterDto>())
-                .Select(x => new SmsTemplateParameter(x.Name, x.Value))
-                .ToList();
-
-            return SmsTemplateContract.HasExactParameters(request.TemplateKey, parameters);
+            RuleFor(x => x.TemplateKey)
+                .Empty()
+                .WithMessage("ارسال قالبی پیامک غیرفعال است.");
         }
     }
 }

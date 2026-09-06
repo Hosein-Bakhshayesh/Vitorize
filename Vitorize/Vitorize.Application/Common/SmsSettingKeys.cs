@@ -14,8 +14,8 @@ namespace Vitorize.Application.Common
         public const string AsanakPassword = "Sms.AsanakPassword";
         public const string AsanakSource = "Sms.AsanakSource";
 
-        // Only OTP has an active template. Notification template keys below are retained
-        // solely so V0036 can remove values from previously deployed databases.
+        // Historical template keys are retained only so deployment migrations can remove
+        // values from previously deployed databases. No SMS flow uses a template.
         public const string OtpTemplateId = "Sms.OtpTemplateId";
         public const string NotificationTemplateId = "Sms.NotificationTemplateId";
         public const string LoginOtpTemplateId = "Sms.LoginOtpTemplateId";
@@ -31,7 +31,7 @@ namespace Vitorize.Application.Common
         public const string WalletTopUpSuccessTemplateId = "Sms.WalletTopUpSuccessTemplateId";
 
         /// <summary>
-        /// کلید اصلی و کلیدهای قدیمی قالب یکپارچه OTP. تمام این کلیدها باید همواره مقدار یکسان داشته باشند.
+        /// کلیدهای تاریخی قالب OTP که با V0037 حذف می‌شوند.
         /// </summary>
         public static readonly IReadOnlyList<string> OtpTemplateIdKeys =
         [
@@ -57,12 +57,6 @@ namespace Vitorize.Application.Common
 
         public static bool TryGetTemplateIdGroup(string key, out IReadOnlyList<string> group)
         {
-            if (OtpTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
-            {
-                group = OtpTemplateIdKeys;
-                return true;
-            }
-
             group = Array.Empty<string>();
             return false;
         }
@@ -102,6 +96,10 @@ namespace Vitorize.Application.Common
             "Sms.ApiKey",
             "Sms.DefaultLineNumber",
             "Sms.SenderName",
+            "Sms.OtpTemplateId",
+            "Sms.LoginOtpTemplateId",
+            "Sms.RegisterOtpTemplateId",
+            "Sms.ForgotPasswordTemplateId",
             "Sms.NotificationTemplateId",
             "Sms.OrderPaidTemplateId",
             "Sms.OrderCompletedTemplateId",

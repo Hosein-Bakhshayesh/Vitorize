@@ -71,14 +71,11 @@ namespace Vitorize.Infrastructure.Services.Sms
             foreach (var row in rows)
                 map[row.Key] = row.Value;
 
-            var templateIds = BuildTemplateIds(map);
-
             return new SmsOptions
             {
                 AsanakUsername = GetString(map, SmsSettingKeys.AsanakUsername),
                 AsanakPassword = GetString(map, SmsSettingKeys.AsanakPassword),
                 AsanakSource = GetString(map, SmsSettingKeys.AsanakSource),
-                TemplateIds = templateIds,
                 MaxRetryCount = GetInt(map, SmsSettingKeys.MaxRetryCount, 3),
                 RetryDelaySeconds = GetInt(map, SmsSettingKeys.RetryDelaySeconds, 30),
                 OtpExpiryMinutes = GetInt(map, SmsSettingKeys.OtpExpiryMinutes, 3),
@@ -99,37 +96,5 @@ namespace Vitorize.Infrastructure.Services.Sms
         private static int GetInt(IReadOnlyDictionary<string, string?> map, string key, int fallback) =>
             map.TryGetValue(key, out var v) && int.TryParse(v, out var i) ? i : fallback;
 
-        /// <summary>
-        /// کلید اصلی اولویت دارد؛ کلیدهای قدیمی فقط برای مهاجرت نصب‌های قبلی fallback هستند.
-        /// خروجی عمداً برای تمام جریان‌های OTP یک ID و برای تمام اعلان‌های تجاری یک ID می‌سازد.
-        /// </summary>
-        public static IReadOnlyDictionary<string, int> BuildTemplateIds(
-            IReadOnlyDictionary<string, string?> settings)
-        {
-            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-            var otpId = GetFirstPositiveInt(settings, SmsSettingKeys.OtpTemplateIdKeys);
-            if (otpId.HasValue)
-            {
-                foreach (var templateKey in SmsTemplateKeys.OtpTemplates)
-                    result[templateKey] = otpId.Value;
-            }
-
-            return result;
-        }
-
-        private static int? GetFirstPositiveInt(
-            IReadOnlyDictionary<string, string?> settings,
-            IEnumerable<string> keys)
-        {
-            foreach (var key in keys)
-            {
-                if (settings.TryGetValue(key, out var raw) &&
-                    int.TryParse(raw, out var value) && value > 0)
-                    return value;
-            }
-
-            return null;
-        }
     }
 }

@@ -47,7 +47,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (string.IsNullOrWhiteSpace(mobile) || !IranMobile.TryNormalize(mobile, out var normalized))
                 return;
 
-            // Only OTP is template-based. Every notification must use EnqueueTextAsync.
+            // Template delivery is retired. New callers must use EnqueueTextAsync.
             if (!SmsAutomaticEventPolicy.IsAllowedTemplate(templateKey))
                 return;
 

@@ -886,9 +886,8 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            var templateKey = TemplateKeyForPurpose(purpose);
             var sendResult = await _smsService.SendOtpAsync(
-                mobile, templateKey, code, Math.Clamp(opts.OtpExpiryMinutes, 1, 15));
+                mobile, code, Math.Clamp(opts.OtpExpiryMinutes, 1, 15));
 
             await _smsHistory.RecordDirectResultAsync(
                 new SmsHistoryRecordRequest
@@ -897,9 +896,7 @@ namespace Vitorize.Infrastructure.Services
                     Mobile = mobile,
                     Purpose = purpose.ToString(),
                     SendType = (byte)SmsSendType.OtpTemplate,
-                    TemplateKey = templateKey,
-                    TemplateId = await _smsService.GetTemplateIdAsync(templateKey),
-                    SafeMessagePreview = "قالب امن کد یکبار مصرف؛ کد ذخیره نشده است",
+                    SafeMessagePreview = "کد امن یکبار مصرف؛ کد ذخیره نشده است",
                     RelatedEntityType = "OtpCode",
                     RelatedEntityId = otp.Id,
                     IdempotencyKey = $"sms:otp:{otp.Id:N}",
@@ -918,14 +915,14 @@ namespace Vitorize.Infrastructure.Services
             if (sendResult.IsSuccess)
             {
                 _logger.LogInformation(
-                    "OTP requested and sent. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} TemplateKey={TemplateKey} EventType={EventType}",
-                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, templateKey, OperationalEventNames.OtpRequested);
+                    "OTP requested and sent. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
+                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, OperationalEventNames.OtpRequested);
             }
             else
             {
                 _logger.LogWarning(
-                    "OTP delivery failed. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} TemplateKey={TemplateKey} FailureReason={FailureReason} EventType={EventType}",
-                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, templateKey, sendResult.FailureReason, OperationalEventNames.OtpFailed);
+                    "OTP delivery failed. UserId={UserId} MaskedMobile={MaskedMobile} Purpose={Purpose} FailureReason={FailureReason} EventType={EventType}",
+                    user.Id, SensitiveLogData.MaskMobile(mobile), purpose, sendResult.FailureReason, OperationalEventNames.OtpFailed);
             }
 
             // اگر ارسال پیامک شکست بخورد، کد یکبار‌مصرف عمل اصلی است؛ خطای امن برمی‌گردانیم.
@@ -1141,15 +1138,6 @@ namespace Vitorize.Infrastructure.Services
 
             return session;
         }
-
-        private static string TemplateKeyForPurpose(OtpPurpose purpose) => purpose switch
-        {
-            OtpPurpose.Login => SmsTemplateKeys.LoginOtp,
-            OtpPurpose.MobileVerification => SmsTemplateKeys.RegisterOtp,
-            OtpPurpose.ForgotPassword => SmsTemplateKeys.ForgotPassword,
-            _ => SmsTemplateKeys.GenericOtp
-        };
-
 
         public async Task VerifyOtpAsync(VerifyOtpRequestDto request)
         {

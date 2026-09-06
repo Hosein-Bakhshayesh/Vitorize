@@ -90,9 +90,8 @@ else
                     @if (tab.Key == "notif")
                     {
                         <div class="vz-hint" style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
-                            برای آسانک فقط شناسه «قالب OTP» با پارامترهای <code>CODE</code> و <code>EXPIRE</code> وارد می‌شود.
-                            همهٔ اطلاع‌رسانی‌های سفارش، کیف پول، تیکت و احراز هویت به‌صورت متن آزاد از صف پایدار ارسال می‌شوند.
-                            برای متن آزاد، نام کاربری، رمز وب‌سرویس و شماره مبدأ آسانک نیز الزامی است؛
+                            همهٔ پیامک‌ها، از جمله OTP، به‌صورت متن آزاد از آسانک ارسال می‌شوند.
+                            نام کاربری، رمز وب‌سرویس و شماره مبدأ آسانک الزامی است؛
                             این مورد کلید فعال‌سازی جداگانه ندارد.
                         </div>
                     }
@@ -183,7 +182,6 @@ else
     private static readonly string[] FieldOrder =
     {
         SmsSettingKeys.AsanakUsername, SmsSettingKeys.AsanakPassword, SmsSettingKeys.AsanakSource,
-        "Sms.OtpTemplateId",
         OrderKycSettings.Keys.ThresholdToman, OrderKycSettings.Keys.CustomerNotice,
         ProductReviewSettings.AutoApproveKey,
         "SiteName", "SiteDescription", "SiteTagline",
@@ -203,6 +201,7 @@ else
     private static readonly HashSet<string> HiddenLegacySmsTemplateKeys = new(
         new[]
         {
+            "Sms.OtpTemplateId",
             "Sms.LoginOtpTemplateId",
             "Sms.RegisterOtpTemplateId",
             "Sms.ForgotPasswordTemplateId",
@@ -376,11 +375,7 @@ else
             <div class="vz-setfield__meta">
                 <div class="vz-label">@(string.IsNullOrWhiteSpace(s.Description) ? s.Key : s.Description)</div>
                 <div class="vz-setfield__key">@s.Key</div>
-                @if (s.Key == "Sms.OtpTemplateId")
-                {
-                    <div class="vz-hint">این قالب فقط از متغیرهای CODE و EXPIRE استفاده می‌کند.</div>
-                }
-                else if (s.Key == SmsSettingKeys.AsanakSource)
+                @if (s.Key == SmsSettingKeys.AsanakSource)
                 {
                     <div class="vz-hint">برای پیامک متنی سفارشی و «ارسال پیامک هم‌زمان» الزامی است. شماره مبدأ فعال آسانک را وارد کنید.</div>
                 }

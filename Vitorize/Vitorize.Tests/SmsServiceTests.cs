@@ -9,136 +9,40 @@ namespace Vitorize.Tests;
 
 public class SmsServiceTests
 {
-    private static SmsOptions Enabled(Dictionary<string, int>? templates = null) => new()
+    private static SmsOptions Enabled() => new()
     {
         AsanakUsername = "test-user",
         AsanakPassword = "test-password",
         AsanakSource = "982100000000",
-        TemplateIds = templates ?? new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 },
-        MaxRetryCount = 3
+        MaxRetryCount = 0
     };
 
     private static SmsService Build(SmsOptions options, FakeSmsSender sender) =>
         new(new FakeSmsSettingsProvider(options), sender, NullLogger<SmsService>.Instance);
 
-    private static SmsTemplateParameter[] ValidOtpParameters() =>
-    [
-        new(SmsTemplateParams.Code, "123456"),
-        new(SmsTemplateParams.Expire, "3")
-    ];
-
     [Fact]
-    public async Task SendTemplate_WithAsanakCredentialsAndTemplate_SendsWithoutActivationSwitch()
+    public async Task SendOtp_UsesPlainTextAndNeverCallsTemplateTransport()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(new SmsOptions
-        {
-            AsanakUsername = "user",
-            AsanakPassword = "password",
-            TemplateIds = new Dictionary<string, int> { [SmsTemplateKeys.LoginOtp] = 111 }
-        }, sender);
+        var service = Build(Enabled(), sender);
 
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            ValidOtpParameters());
+        var result = await service.SendOtpAsync("+989123456789", "135790", 3);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(1, sender.VerifyCallCount);
-    }
-
-    [Fact]
-    public async Task SendTemplate_WhenAsanakCredentialsMissing_ReturnsNotConfigured()
-    {
-        var sender = new FakeSmsSender();
-        var svc = Build(new SmsOptions { AsanakUsername = "", AsanakPassword = "" }, sender);
-
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            ValidOtpParameters());
-
-        Assert.Equal(SmsFailureReason.NotConfigured, result.FailureReason);
+        Assert.Equal("09123456789", sender.LastMobile);
+        Assert.Equal(1, sender.BulkCallCount);
         Assert.Equal(0, sender.VerifyCallCount);
-    }
-
-    [Fact]
-    public async Task SendTemplate_InvalidMobile_ReturnsInvalidMobile()
-    {
-        var sender = new FakeSmsSender();
-        var svc = Build(Enabled(), sender);
-
-        var result = await svc.SendTemplateAsync("123", SmsTemplateKeys.LoginOtp,
-            Array.Empty<SmsTemplateParameter>());
-
-        Assert.Equal(SmsFailureReason.InvalidMobile, result.FailureReason);
-        Assert.Equal(0, sender.VerifyCallCount);
-    }
-
-    [Fact]
-    public async Task SendTemplate_MissingTemplateId_ReturnsInvalidTemplate()
-    {
-        var sender = new FakeSmsSender();
-        var svc = Build(Enabled(new Dictionary<string, int>()), sender); // no templates configured
-
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            ValidOtpParameters());
-
-        Assert.Equal(SmsFailureReason.InvalidTemplate, result.FailureReason);
-        Assert.Equal(0, sender.VerifyCallCount);
-    }
-
-    [Fact]
-    public async Task SendOtp_MapsCodeAndExpireParameters_AndNormalizesMobile()
-    {
-        var sender = new FakeSmsSender();
-        var svc = Build(Enabled(), sender);
-
-        var result = await svc.SendOtpAsync("+989123456789", SmsTemplateKeys.LoginOtp, "135790", 3);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, sender.VerifyCallCount);
-        Assert.Equal("09123456789", sender.LastMobile);   // normalized
-        Assert.Equal(111, sender.LastTemplateId);
-        Assert.Contains(sender.LastParameters!, p => p is { Name: "CODE", Value: "135790" });
-        Assert.Contains(sender.LastParameters!, p => p is { Name: "EXPIRE", Value: "3" });
-    }
-
-    [Fact]
-    public async Task SendTemplate_TransientFailure_IsRetriedThenSucceeds()
-    {
-        var sender = new FakeSmsSender();
-        sender.EnqueueVerifyResult(SmsSendResult.Failure(SmsFailureReason.Network));
-        sender.EnqueueVerifyResult(SmsSendResult.Success("99", 10m));
-        var svc = Build(Enabled(), sender);
-
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            ValidOtpParameters());
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, sender.VerifyCallCount);          // retried once
-        Assert.Equal("99", result.ProviderMessageId);
-    }
-
-    [Fact]
-    public async Task SendTemplate_NonTransientFailure_IsNotRetried()
-    {
-        var sender = new FakeSmsSender();
-        sender.SetDefaultVerify(SmsSendResult.Failure(SmsFailureReason.InsufficientCredit));
-        var svc = Build(Enabled(), sender);
-
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-            ValidOtpParameters());
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(SmsFailureReason.InsufficientCredit, result.FailureReason);
-        Assert.Equal(1, sender.VerifyCallCount);          // no retry
+        Assert.Contains("135790", sender.LastText);
+        Assert.EndsWith(SmsNotificationMessages.Footer, sender.LastText);
     }
 
     [Fact]
     public async Task SendText_WithoutLineNumber_ReturnsInvalidLineNumber()
     {
         var sender = new FakeSmsSender();
-        var options = new SmsOptions { AsanakUsername = "user", AsanakPassword = "password", AsanakSource = null };
-        var svc = Build(options, sender);
+        var service = Build(new SmsOptions { AsanakUsername = "user", AsanakPassword = "password" }, sender);
 
-        var result = await svc.SendTextAsync("09123456789", "hello");
+        var result = await service.SendTextAsync("09123456789", "hello");
 
         Assert.Equal(SmsFailureReason.InvalidLineNumber, result.FailureReason);
         Assert.Equal(0, sender.BulkCallCount);
@@ -148,70 +52,35 @@ public class SmsServiceTests
     public async Task SendText_AppendsTheStandardFooterOnce()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(Enabled(), sender);
+        var service = Build(Enabled(), sender);
 
-        var result = await svc.SendTextAsync("09123456789", "متن اطلاع‌رسانی");
-
-        Assert.True(result.IsSuccess);
+        await service.SendTextAsync("09123456789", "متن اطلاع‌رسانی");
         Assert.Equal($"متن اطلاع‌رسانی\n\n{SmsNotificationMessages.Footer}", sender.LastText);
 
-        await svc.SendTextAsync("09123456789", sender.LastText!);
+        await service.SendTextAsync("09123456789", sender.LastText!);
         Assert.Equal($"متن اطلاع‌رسانی\n\n{SmsNotificationMessages.Footer}", sender.LastText);
     }
 
     [Fact]
-    public async Task ValidateConfiguration_MissingTemplate_ReportsInvalid()
+    public async Task TemplateDelivery_IsRejected()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(Enabled(new Dictionary<string, int>()), sender);
+        var service = Build(Enabled(), sender);
 
-        var (isValid, _) = await svc.ValidateConfigurationAsync();
-
-        Assert.False(isValid);
-    }
-
-    [Fact]
-    public async Task SendTemplate_OtpWithWrongParameterNames_IsRejectedBeforeSender()
-    {
-        var sender = new FakeSmsSender();
-        var svc = Build(Enabled(), sender);
-
-        var result = await svc.SendTemplateAsync("09123456789", SmsTemplateKeys.LoginOtp,
-        [
-            new("code", "123456"),
-            new(SmsTemplateParams.Expire, "3")
-        ]);
-
-        Assert.Equal(SmsFailureReason.InvalidParameter, result.FailureReason);
-        Assert.Equal(0, sender.VerifyCallCount);
-    }
-
-    [Fact]
-    public async Task SendTemplate_NotificationIsRejectedBecauseOnlyOtpUsesTemplates()
-    {
-        var sender = new FakeSmsSender();
-        var options = Enabled();
-        var svc = Build(options, sender);
-        var parameters = SmsBusinessNotificationParameters.OrderPaid("VT-1");
-
-        var result = await svc.SendTemplateAsync(
-            "09123456789", SmsTemplateKeys.UniversalNotification, parameters);
+        var result = await service.SendTemplateAsync("09123456789", "Otp", []);
 
         Assert.Equal(SmsFailureReason.InvalidTemplate, result.FailureReason);
         Assert.Equal(0, sender.VerifyCallCount);
     }
 
     [Fact]
-    public async Task ValidateConfiguration_RequiresOnlyOtpTemplate()
+    public async Task ValidateConfiguration_RequiresTextCredentialsAndSource()
     {
         var sender = new FakeSmsSender();
-        var svc = Build(Enabled(new Dictionary<string, int>
-        {
-            [SmsTemplateKeys.GenericOtp] = 111
-        }), sender);
+        var service = Build(Enabled(), sender);
 
-        var (isValid, _) = await svc.ValidateConfigurationAsync();
+        var (valid, _) = await service.ValidateConfigurationAsync();
 
-        Assert.True(isValid);
+        Assert.True(valid);
     }
 }

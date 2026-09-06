@@ -140,11 +140,11 @@ test('settings exposes branding uploads, typography preview, trust seals and onl
   // By name, not index: the verification rework inserted its own tab and shifted positions.
   await tabs.filter({ hasText: 'اعلان‌ها' }).click();
   const keys = page.locator('.vz-setfield__key');
-  await expect(keys.filter({ hasText: 'Sms.OtpTemplateId' })).toHaveCount(1);
+  await expect(keys.filter({ hasText: 'Sms.OtpTemplateId' })).toHaveCount(0);
   await expect(keys.filter({ hasText: 'Sms.NotificationTemplateId' })).toHaveCount(0);
   await expect(keys.filter({ hasText: 'Sms.LoginOtpTemplateId' })).toHaveCount(0);
-  await expect(page.locator('.vz-card__body')).toContainText('CODE');
-  await expect(page.locator('.vz-card__body')).toContainText('EXPIRE');
+  await expect(page.locator('.vz-card__body')).toContainText('نام کاربری');
+  await expect(page.locator('.vz-card__body')).toContainText('شماره مبدأ');
   await expect(page.locator('.vz-card__body')).not.toContainText('ORDER_NUMBER');
 });
 

@@ -84,7 +84,6 @@ namespace Vitorize.Application.DTOs.Admin.Sms
         public bool ConnectionOk { get; set; }
         public decimal? Credit { get; set; }
         public IReadOnlyList<long> Lines { get; set; } = [];
-        public int? OtpTemplateId { get; set; }
         public int PendingOutboxCount { get; set; }
         public int FailedOutboxCount { get; set; }
         public bool CanSendText { get; set; }

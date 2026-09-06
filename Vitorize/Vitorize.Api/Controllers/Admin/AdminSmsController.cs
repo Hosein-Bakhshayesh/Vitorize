@@ -147,43 +147,21 @@ namespace Vitorize.Api.Controllers.Admin
 
             SmsSendResult result;
 
-            if (!string.IsNullOrWhiteSpace(request.TemplateKey))
-            {
-                if (!SmsTemplateKeys.IsOtp(request.TemplateKey))
-                    throw new BusinessException("فقط قالب OTP برای ارسال آزمایشی مجاز است.");
-
-                var parameters = (request.Parameters ?? new List<TestSmsParameterDto>())
-                    .Select(p => new SmsTemplateParameter(p.Name, p.Value))
-                    .ToList();
-
-                result = await _smsService.SendTemplateAsync(
-                    mobile, request.TemplateKey!, parameters, cancellationToken);
-            }
-            else if (!string.IsNullOrWhiteSpace(request.Text))
+            if (!string.IsNullOrWhiteSpace(request.Text))
             {
                 result = await _smsService.SendTextAsync(mobile, request.Text!, cancellationToken);
             }
             else
             {
-                throw new BusinessException("قالب یا متن پیامک را مشخص کنید.");
+                throw new BusinessException("متن پیامک را مشخص کنید.");
             }
 
-            var templateId = string.IsNullOrWhiteSpace(request.TemplateKey)
-                ? null
-                : await _smsService.GetTemplateIdAsync(request.TemplateKey!, cancellationToken);
-            var isOtp = !string.IsNullOrWhiteSpace(request.TemplateKey);
             await _history.RecordDirectResultAsync(new SmsHistoryRecordRequest
             {
                 Mobile = mobile,
                 Purpose = "AdminDiagnosticTest",
-                SendType = string.IsNullOrWhiteSpace(request.TemplateKey)
-                    ? (byte)SmsSendType.CustomText
-                    : (byte)SmsSendType.OtpTemplate,
-                TemplateKey = request.TemplateKey,
-                TemplateId = templateId,
-                SafeMessagePreview = isOtp
-                    ? "آزمایش قالب OTP؛ کد ذخیره نشده است"
-                    : request.Text,
+                SendType = (byte)SmsSendType.CustomText,
+                SafeMessagePreview = request.Text,
                 CreatedByUserId = _currentUserService.UserId,
                 RelatedEntityType = "Diagnostic",
                 IdempotencyKey = $"sms:test:{Guid.NewGuid():N}",

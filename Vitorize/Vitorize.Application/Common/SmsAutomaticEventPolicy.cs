@@ -1,18 +1,12 @@
 namespace Vitorize.Application.Common
 {
     /// <summary>
-    /// فهرست مرکزی و بسته‌ی رویدادهایی که اجازه دارند به‌صورت خودکار پیامک بفرستند.
-    /// کلیدهای قدیمی قالب برای سازگاری تنظیمات باقی مانده‌اند، اما حضور یک کلید در
-    /// SmsTemplateKeys به معنی مجاز بودن ارسال خودکار آن نیست.
+    /// مسیر قالبی پیامک حذف شده است؛ همهٔ ارسال‌های خودکار به متن آزاد Outbox می‌روند.
     /// </summary>
     public static class SmsAutomaticEventPolicy
     {
-        public static readonly IReadOnlySet<string> AllowedOtpTemplates = new HashSet<string>(
-        [
-            SmsTemplateKeys.LoginOtp,
-            SmsTemplateKeys.RegisterOtp,
-            SmsTemplateKeys.ForgotPassword
-        ], StringComparer.OrdinalIgnoreCase);
+        public static readonly IReadOnlySet<string> AllowedOtpTemplates =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public static readonly IReadOnlySet<string> RemovedAutomaticTemplates = new HashSet<string>(
         [

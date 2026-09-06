@@ -3,8 +3,7 @@ using Vitorize.Application.Models.Sms;
 namespace Vitorize.Application.Common
 {
     /// <summary>
-    /// قرارداد قالب OTP آسانک. نام پارامترها به حروف بزرگ/کوچک حساس است.
-    /// نام‌های اعلان فقط برای تبدیل payloadهای قدیمی Outbox نگه داشته شده‌اند.
+    /// قرارداد تاریخی قالب آسانک، فقط برای تبدیل payloadهای قدیمی Outbox نگه داشته شده است.
     /// </summary>
     public static class SmsTemplateContract
     {

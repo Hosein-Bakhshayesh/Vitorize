@@ -5,8 +5,7 @@ namespace Vitorize.Application.DTOs.Admin.Sms
         public string Mobile { get; set; } = string.Empty;
 
         /// <summary>
-        /// کلید منطقی قالب؛ فقط OTP با CODE/EXPIRE می‌پذیرد.
-        /// اگر خالی باشد از متن ساده استفاده می‌شود.
+        /// مسیر قالبی حذف شده است و این مقدار فقط برای ردکردن درخواست‌های قدیمی باقی مانده است.
         /// </summary>
         public string? TemplateKey { get; set; }
 

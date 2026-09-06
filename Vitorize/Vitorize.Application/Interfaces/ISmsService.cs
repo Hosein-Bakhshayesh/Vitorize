@@ -24,7 +24,6 @@ namespace Vitorize.Application.Interfaces
 
         Task<SmsSendResult> SendOtpAsync(
             string mobile,
-            string templateKey,
             string code,
             int expiryMinutes,
             CancellationToken cancellationToken = default);

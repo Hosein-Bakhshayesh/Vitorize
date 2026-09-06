@@ -22,7 +22,9 @@ namespace Vitorize.Application.Models.Sms
         public bool CanSendAsanakText =>
             HasAsanakCredentials && !string.IsNullOrWhiteSpace(AsanakSource);
 
-        /// <summary>نگاشت کلید منطقی قالب → شناسه قالب آسانک (اگر تنظیم شده باشد).</summary>
+        /// <summary>
+        /// فقط برای خواندن payloadهای قدیمی Outbox نگه داشته شده است؛ ارسال جدید هیچ قالبی ندارد.
+        /// </summary>
         public IReadOnlyDictionary<string, int> TemplateIds { get; init; }
             = new Dictionary<string, int>();
 

@@ -165,7 +165,6 @@ namespace Vitorize.Infrastructure.Services.Sms
                 ConnectionOk = account.IsSuccess,
                 Credit = account.Credit,
                 Lines = account.Lines ?? [],
-                OtpTemplateId = options.GetTemplateId(SmsTemplateKeys.GenericOtp),
                 PendingOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && (x.Status == 0 || x.Status == 1), cancellationToken),
                 FailedOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && x.Status == 3, cancellationToken),
                 CanSendText = options.CanSendText,
@@ -447,7 +446,7 @@ namespace Vitorize.Infrastructure.Services.Sms
 
         public static string SendTypeName(byte type) => (SmsSendType)type switch
         {
-            SmsSendType.OtpTemplate => "قالب OTP", SmsSendType.NotificationTemplate => "قالب اطلاع‌رسانی",
+            SmsSendType.OtpTemplate => "کد OTP", SmsSendType.NotificationTemplate => "قالب اطلاع‌رسانی قدیمی",
             SmsSendType.CustomText => "متن سفارشی", _ => "نامشخص"
         };
 

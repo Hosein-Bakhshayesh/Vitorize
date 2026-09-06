@@ -9,7 +9,7 @@ namespace Vitorize.Infrastructure.Services.Sms
 {
     /// <summary>
     /// سرویس متمرکز پیامک. تنها نقطه‌ای است که برنامه برای ارسال پیامک از آن استفاده می‌کند.
-    /// نرمال‌سازی شماره، انتخاب قالب، ارسال، نگاشت خطا و لاگ‌گیری امن (پنهان‌سازی شماره) را انجام می‌دهد.
+    /// نرمال‌سازی شماره، ارسال متن، نگاشت خطا و لاگ‌گیری امن (پنهان‌سازی شماره) را انجام می‌دهد.
     /// </summary>
     public sealed class SmsService : ISmsService
     {
@@ -51,42 +51,10 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (!TryNormalizeMobile(mobile, out var normalized))
                 return SmsSendResult.Failure(SmsFailureReason.InvalidMobile, "شماره موبایل معتبر نیست.");
 
-            if (!SmsTemplateKeys.IsOtp(templateKey))
-                return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
-
-            var requiredParameters = SmsTemplateContract.GetRequiredParameterNames(templateKey);
-            if (requiredParameters is null)
-                return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
-
-            if (!SmsTemplateContract.HasExactParameters(templateKey, parameters))
-                return SmsSendResult.Failure(
-                    SmsFailureReason.InvalidParameter,
-                    $"Required parameters: {string.Join(", ", requiredParameters)}");
-
-            // The application validates parameter names, while Asanak templates accept an
-            // ordered value list. Canonicalize once here so every provider receives the same
-            // stable contract order regardless of the caller's input order.
-            var orderedParameters = requiredParameters
-                .Select(name => parameters.Single(x => string.Equals(x.Name, name, StringComparison.Ordinal)))
-                .ToArray();
-
-            var templateId = options.GetTemplateId(templateKey);
-
-            if (templateId is null)
-            {
-                _logger.LogWarning(
-                    "SMS template not configured. TemplateKey={TemplateKey} Mobile={Mobile} EventType={EventType}",
-                    templateKey, IranMobile.Mask(normalized), OperationalEventNames.SmsFailed);
-                return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
-            }
-
-            var result = await SendWithRetryAsync(
-                ct => _sender.SendVerifyAsync(options, normalized, templateId.Value, orderedParameters, ct),
-                options.MaxRetryCount,
-                cancellationToken);
-
-            LogResult(result, templateKey, IranMobile.Mask(normalized), templateId, SmsOptions.ProviderName);
-            return result;
+            _logger.LogWarning(
+                "Template SMS is no longer supported. TemplateKey={TemplateKey} Mobile={Mobile} EventType={EventType}",
+                templateKey, IranMobile.Mask(normalized), OperationalEventNames.SmsFailed);
+            return SmsSendResult.Failure(SmsFailureReason.InvalidTemplate);
         }
 
         public async Task<SmsSendResult> SendTextAsync(
@@ -124,28 +92,21 @@ namespace Vitorize.Infrastructure.Services.Sms
 
         public Task<SmsSendResult> SendOtpAsync(
             string mobile,
-            string templateKey,
             string code,
             int expiryMinutes,
             CancellationToken cancellationToken = default)
         {
-            var parameters = new[]
-            {
-                new SmsTemplateParameter(SmsTemplateParams.Code, code),
-                new SmsTemplateParameter(SmsTemplateParams.Expire, expiryMinutes.ToString())
-            };
-
-            return SendTemplateAsync(mobile, templateKey, parameters, cancellationToken);
+            return SendTextAsync(mobile, SmsNotificationMessages.Otp(code, expiryMinutes), cancellationToken);
         }
 
         public Task<SmsSendResult> SendLoginOtpAsync(string mobile, string code, int expiryMinutes, CancellationToken ct = default) =>
-            SendOtpAsync(mobile, SmsTemplateKeys.LoginOtp, code, expiryMinutes, ct);
+            SendOtpAsync(mobile, code, expiryMinutes, ct);
 
         public Task<SmsSendResult> SendRegisterOtpAsync(string mobile, string code, int expiryMinutes, CancellationToken ct = default) =>
-            SendOtpAsync(mobile, SmsTemplateKeys.RegisterOtp, code, expiryMinutes, ct);
+            SendOtpAsync(mobile, code, expiryMinutes, ct);
 
         public Task<SmsSendResult> SendForgotPasswordOtpAsync(string mobile, string code, int expiryMinutes, CancellationToken ct = default) =>
-            SendOtpAsync(mobile, SmsTemplateKeys.ForgotPassword, code, expiryMinutes, ct);
+            SendOtpAsync(mobile, code, expiryMinutes, ct);
 
         public async Task<SmsAccountStatus> GetAccountStatusAsync(CancellationToken cancellationToken = default)
         {
@@ -164,8 +125,8 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (!options.IsOperational)
                 return (false, "اطلاعات اتصال سرویس پیامک تنظیم نشده است.");
 
-            if (options.GetTemplateId(SmsTemplateKeys.GenericOtp) is null)
-                return (false, "شناسه قالب یکپارچه OTP تنظیم نشده است (پارامترها: CODE و EXPIRE). ");
+            if (!options.CanSendText)
+                return (false, SmsOptions.TextSendingNotReadyMessage);
 
             return (true, "پیکربندی پیامک معتبر است.");
         }

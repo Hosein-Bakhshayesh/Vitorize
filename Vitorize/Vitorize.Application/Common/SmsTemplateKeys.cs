@@ -1,8 +1,8 @@
 namespace Vitorize.Application.Common
 {
     /// <summary>
-    /// شناسه‌های منطقی قالب‌های پیامک. فقط کلیدهای OTP فعال‌اند و به تنظیمات Template Id
-    /// نگاشت می‌شوند؛ کلیدهای اعلان صرفاً برای تبدیل payloadهای تاریخی Outbox نگه‌داری شده‌اند.
+    /// شناسه‌های منطقی تاریخی پیامک‌ها، فقط برای تفسیر payloadهای پیشین Outbox.
+    /// تمام ارسال‌های جدید (از جمله OTP) متن آزاد هستند.
     /// </summary>
     public static class SmsTemplateKeys
     {

@@ -252,7 +252,6 @@ namespace Vitorize.Infrastructure.Services
         {
             // شناسه واقعی OTP در کد seed نمی‌شود. چهار کلید سازگاری OTP با یک
             // مقدار مشترک ساخته می‌شوند و هنگام ذخیره ادمین همگام می‌مانند.
-            const string universalOtpTemplateId = "";
 
             var settings = new[]
             {
@@ -417,12 +416,6 @@ namespace Vitorize.Infrastructure.Services
                 S(SmsSettingKeys.AsanakUsername, "", "SMS", "secret", "نام کاربری وب سرویس آسانک (محرمانه)"),
                 S(SmsSettingKeys.AsanakPassword, "", "SMS", "secret", "رمز وب سرویس آسانک (محرمانه)"),
                 S(SmsSettingKeys.AsanakSource, "", "SMS", "secret", "شماره مبدأ پیامک آسانک (محرمانه)"),
-
-                // Template IDs (شناسه قالب‌های تاییدشده در پنل آسانک)
-                S(SmsSettingKeys.OtpTemplateId, universalOtpTemplateId, "SMS", "int", "شناسه قالب کد یکبار مصرف"),
-                S(SmsSettingKeys.LoginOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
-                S(SmsSettingKeys.RegisterOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
-                S(SmsSettingKeys.ForgotPasswordTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
 
                 // سیاست کد یکبار‌مصرف و پایداری
                 S(SmsSettingKeys.OtpExpiryMinutes, "3", "SMS", "int", "مدت اعتبار کد یکبار‌مصرف (دقیقه)"),

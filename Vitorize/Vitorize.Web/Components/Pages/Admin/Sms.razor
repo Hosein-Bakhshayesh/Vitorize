@@ -13,7 +13,7 @@
         <button class="vz-btn vz-btn--ghost vz-btn--icon" title="خروجی CSV" @onclick="Export"><Icon Name="download" Size="17" /></button>
         <button class="vz-btn vz-btn--outline" @onclick="RefreshAll"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
         <button class="vz-btn vz-btn--outline" disabled="@(!CanSendText)" title="@(CanSendText ? null : "نام کاربری، رمز و شماره مبدأ آسانک را در تنظیمات کامل کنید")" @onclick="OpenKycTemplate"><Icon Name="shield" Size="17" /> قالب احراز هویت</button>
-        <button class="vz-btn vz-btn--primary" disabled="@(!CanOpenCustomSend)" title="@(CanOpenCustomSend ? null : "نام کاربری، رمز و شماره مبدأ آسانک یا شناسه قالب را در تنظیمات کامل کنید")" @onclick="OpenCustomSend"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
+        <button class="vz-btn vz-btn--primary" disabled="@(!CanOpenCustomSend)" title="@(CanOpenCustomSend ? null : "نام کاربری، رمز و شماره مبدأ آسانک را در تنظیمات کامل کنید")" @onclick="OpenCustomSend"><Icon Name="send" Size="17" /> ارسال سفارشی</button>
     </Actions>
 </PageHeader>
 
@@ -25,7 +25,7 @@
     <div class="sms-health__facts">
         <span>ارسال: <b>همیشه فعال</b></span>
         <span>اعتبار: <b>@(_health?.Credit?.ToString("#,0") ?? "—")</b></span>
-        <span>OTP: <b>@(_health?.OtpTemplateId?.ToString() ?? "—")</b></span>
+        <span>OTP: <b>متن آزاد</b></span>
         <span>اعلان‌ها: <b>متن آزاد</b></span>
         <span>صف: <b>@(_health?.PendingOutboxCount ?? 0)</b></span>
     </div>

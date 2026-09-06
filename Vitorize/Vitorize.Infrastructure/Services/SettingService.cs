@@ -302,13 +302,7 @@ namespace Vitorize.Infrastructure.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        private static string TemplateDescription(string key) => key switch
-        {
-            SmsSettingKeys.OtpTemplateId => "شناسه قالب کد یکبار مصرف",
-            _ when SmsSettingKeys.OtpTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase) =>
-                "کلید سازگاری قالب OTP؛ با Sms.OtpTemplateId همگام می‌شود (CODE، EXPIRE)",
-            _ => "تنظیمات قالب OTP"
-        };
+        private static string TemplateDescription(string _) => "تنظیمات پیامک منسوخ";
 
         private static SettingDto Map(Setting setting)
         {

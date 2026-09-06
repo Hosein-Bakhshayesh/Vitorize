@@ -89,23 +89,26 @@ public sealed class SmsAndSecurityUnitTests
     }
 
     [Fact]
-    public async Task Sms_service_uses_normalized_mobile_shared_template_and_exact_otp_parameters()
+    public async Task Sms_service_sends_normalized_otp_as_plain_text()
     {
         var settings = Substitute.For<ISmsSettingsProvider>();
         var sender = Substitute.For<ISmsSender>();
         settings.GetAsync(Arg.Any<CancellationToken>()).Returns(UnitFixtures.SmsOptions());
-        sender.SendVerifyAsync(Arg.Any<SmsOptions>(), Arg.Any<string>(), Arg.Any<int>(),
-                Arg.Any<IReadOnlyList<SmsTemplateParameter>>(), Arg.Any<CancellationToken>())
+        sender.SendBulkAsync(Arg.Any<SmsOptions>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
             .Returns(SmsSendResult.Success("message-1"));
         var sut = new SmsService(settings, sender, Substitute.For<ILogger<SmsService>>());
 
         var result = await sut.SendLoginOtpAsync("+98 912 345 6789", "483921", 3);
 
         result.IsSuccess.Should().BeTrue();
-        await sender.Received(1).SendVerifyAsync(Arg.Is<SmsOptions>(x => x.AsanakUsername == "unit-test-username"), "09123456789", 101,
-            Arg.Is<IReadOnlyList<SmsTemplateParameter>>(x =>
-                x.Count == 2 && x[0].Name == "CODE" && x[0].Value == "483921" &&
-                x[1].Name == "EXPIRE" && x[1].Value == "3"), Arg.Any<CancellationToken>());
+        await sender.Received(1).SendBulkAsync(
+            Arg.Is<SmsOptions>(x => x.AsanakUsername == "unit-test-username"),
+            Arg.Is<string>(text => text.Contains("483921") && text.Contains("اعتبار: 3 دقیقه") &&
+                                   text.Contains(SmsNotificationMessages.Footer)),
+            "09123456789",
+            Arg.Any<CancellationToken>());
+        await sender.DidNotReceiveWithAnyArgs().SendVerifyAsync(default!, default!, default, default!, default);
     }
 
     [Fact]

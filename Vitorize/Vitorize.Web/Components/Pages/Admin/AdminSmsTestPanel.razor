@@ -37,37 +37,23 @@
             }
         }
 
-        <div class="vz-setgroup__title">آزمایش قالب OTP</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="vz-setgroup__title">آزمایش OTP متنی</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
             <div class="vz-field">
                 <label class="vz-label">شماره موبایل</label>
                 <input class="vz-input" @bind="_mobile" inputmode="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" />
             </div>
             <div class="vz-field">
-                <label class="vz-label">قالب</label>
-                <select class="vz-input" @bind="_templateKey">
-                    @foreach (var t in Templates)
-                    {
-                        <option value="@t.Key">@t.Value</option>
-                    }
-                </select>
+                <label class="vz-label">کد آزمایشی</label>
+                <input class="vz-input ltr-cell" @bind="_code" inputmode="numeric" maxlength="6" />
+            </div>
+            <div class="vz-field">
+                <label class="vz-label">اعتبار (دقیقه)</label>
+                <input class="vz-input ltr-cell" @bind="_expiry" inputmode="numeric" maxlength="2" />
             </div>
         </div>
 
-        <div class="vz-hint" style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;white-space:pre-line">@TemplateHelp</div>
-
-        @if (TemplateParams.TryGetValue(_templateKey, out var pnames) && pnames.Length > 0)
-        {
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:8px">
-                @foreach (var p in pnames)
-                {
-                    <div class="vz-field">
-                        <label class="vz-label">@p</label>
-                        <input class="vz-input" value="@GetParam(p)" @onchange="e => SetParam(p, e.Value?.ToString())" placeholder="@p" />
-                    </div>
-                }
-            </div>
-        }
+        <div class="vz-hint" style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;white-space:pre-line">@TestMessage</div>
 
         <div style="margin-top:14px">
             <button class="vz-btn vz-btn--primary" @onclick="SendTest" disabled="@_sending">
@@ -100,31 +86,13 @@
 @code {
     private bool _loadingStatus, _sending;
     private string _mobile = string.Empty;
-    private string _templateKey = "Otp";
-    private readonly Dictionary<string, string> _params = new()
-    {
-        ["CODE"] = "123456",
-        ["EXPIRE"] = "3"
-    };
+    private string _code = "123456", _expiry = "3";
     private SmsStatusModel? _status;
     private SmsTestModel? _result;
 
-    private static readonly Dictionary<string, string> Templates = new()
-    {
-        ["Otp"] = "قالب یکپارچه OTP"
-    };
-
-    private static readonly Dictionary<string, string[]> TemplateParams = new()
-    {
-        ["Otp"] = new[] { "CODE", "EXPIRE" }
-    };
-
-    private const string TemplateHelp = "پارامترهای الزامی: CODE و EXPIRE\nمتن قالب:\nکد تایید شما در ویتورایز:\n#CODE#\nاعتبار: #EXPIRE# دقیقه\nاین کد را در اختیار دیگران قرار ندهید.\n\nباتشکر، ویتورایز\nVitorize.com";
+    private string TestMessage => $"کد تایید شما در ویتورایز:\n{_code}\nاعتبار: {_expiry} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.\n\nباتشکر، ویتورایز\nVitorize.com";
 
     protected override Task OnInitializedAsync() => LoadStatus();
-
-    private string GetParam(string name) => _params.TryGetValue(name, out var v) ? v : "";
-    private void SetParam(string name, string? v) => _params[name] = v ?? "";
 
     private RenderFragment Pill(bool ok, string text, string icon) =>
         @<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;
@@ -150,15 +118,10 @@
         _result = null;
         _sending = true;
 
-        var parameters = TemplateParams.TryGetValue(_templateKey, out var pnames)
-            ? pnames.Select(p => new { Name = p, Value = GetParam(p) }).ToList()
-            : new();
-
         var r = await Api.PostAsync<SmsTestModel>("admin/sms/test", new
         {
             Mobile = _mobile.Trim(),
-            TemplateKey = _templateKey,
-            Parameters = parameters
+            Text = TestMessage
         });
         _sending = false;
 
