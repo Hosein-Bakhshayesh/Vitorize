@@ -440,7 +440,7 @@ internal sealed class FakeSmsSender : ISmsSender
     public ConcurrentQueue<SmsSendResult> PlannedResults { get; } = new();
     public ConcurrentDictionary<string, SmsSendResult> ResultsByMobile { get; } = new();
 
-    public Task<SmsSendResult> SendVerifyAsync(string apiKey, string mobile, int templateId,
+    public Task<SmsSendResult> SendVerifyAsync(SmsOptions options, string mobile, int templateId,
         IReadOnlyList<SmsTemplateParameter> parameters, CancellationToken cancellationToken = default)
     {
         Sent.Enqueue(new CapturedSms(mobile, templateId, parameters.ToArray(), null));
@@ -451,7 +451,7 @@ internal sealed class FakeSmsSender : ISmsSender
             : SmsSendResult.Success($"sms-{Guid.NewGuid():N}"));
     }
 
-    public Task<SmsSendResult> SendBulkAsync(string apiKey, long lineNumber, string text, string mobile,
+    public Task<SmsSendResult> SendBulkAsync(SmsOptions options, string text, string mobile,
         CancellationToken cancellationToken = default)
     {
         Sent.Enqueue(new CapturedSms(mobile, null, Array.Empty<SmsTemplateParameter>(), text));
@@ -462,7 +462,7 @@ internal sealed class FakeSmsSender : ISmsSender
             : SmsSendResult.Success($"sms-{Guid.NewGuid():N}"));
     }
 
-    public Task<SmsAccountStatus> GetAccountStatusAsync(string apiKey, CancellationToken cancellationToken = default) =>
+    public Task<SmsAccountStatus> GetAccountStatusAsync(SmsOptions options, CancellationToken cancellationToken = default) =>
         Task.FromResult(new SmsAccountStatus { IsSuccess = true, Credit = 1000, Lines = new long[] { 3000 } });
 
     public void Clear()

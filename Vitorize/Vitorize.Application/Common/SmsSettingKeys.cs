@@ -124,4 +124,16 @@ namespace Vitorize.Application.Common
                 AsanakSource
             };
     }
+
+    public static class SmsProviderNames
+    {
+        public const string SmsIr = "SMS.ir";
+        public const string Asanak = "Asanak";
+
+        public static bool IsSmsIr(string? value) =>
+            string.Equals(value?.Trim(), SmsIr, System.StringComparison.OrdinalIgnoreCase);
+
+        public static bool IsAsanak(string? value) =>
+            string.Equals(value?.Trim(), Asanak, System.StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -33,13 +33,13 @@ public sealed class SmsIrSender : ISmsSender
     }
 
     public Task<SmsSendResult> SendVerifyAsync(
-        string apiKey,
+        SmsOptions options,
         string mobile,
         int templateId,
         IReadOnlyList<SmsTemplateParameter> parameters,
         CancellationToken cancellationToken = default) =>
         SendAsync<VerifyRequest, VerifyResponse>(
-            apiKey,
+            options.ApiKey!,
             "v1/send/verify",
             new VerifyRequest(
                 mobile,
@@ -50,19 +50,18 @@ public sealed class SmsIrSender : ISmsSender
             cancellationToken);
 
     public Task<SmsSendResult> SendBulkAsync(
-        string apiKey,
-        long lineNumber,
+        SmsOptions options,
         string text,
         string mobile,
         CancellationToken cancellationToken = default)
     {
-        if (lineNumber <= 0)
+        if (options.DefaultLineNumber is not > 0)
             return Task.FromResult(SmsSendResult.Failure(SmsFailureReason.InvalidLineNumber));
 
         return SendAsync<BulkRequest, BulkResponse>(
-            apiKey,
+            options.ApiKey!,
             "v1/send/bulk",
-            new BulkRequest(lineNumber, text, [mobile], null),
+            new BulkRequest(options.DefaultLineNumber.Value, text, [mobile], null),
             response =>
             {
                 var messageId = response.Data?.MessageIds?.FirstOrDefault().ToString()
@@ -73,21 +72,21 @@ public sealed class SmsIrSender : ISmsSender
     }
 
     public async Task<SmsAccountStatus> GetAccountStatusAsync(
-        string apiKey,
+        SmsOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(apiKey))
+        if (string.IsNullOrWhiteSpace(options.ApiKey))
             return new SmsAccountStatus { IsSuccess = false, UserMessage = "کلید API تنظیم نشده است." };
 
         try
         {
             var client = _httpClientFactory.CreateClient(HttpClientName);
-            using var creditResponse = await SendGetAsync(client, "v1/credit", apiKey, cancellationToken);
+            using var creditResponse = await SendGetAsync(client, "v1/credit", options.ApiKey, cancellationToken);
             var credit = await ReadResponseAsync<decimal>(creditResponse, cancellationToken);
             if (!credit.IsSuccessful)
                 return FailedAccountStatus(credit);
 
-            using var linesResponse = await SendGetAsync(client, "v1/line", apiKey, cancellationToken);
+            using var linesResponse = await SendGetAsync(client, "v1/line", options.ApiKey, cancellationToken);
             var lines = await ReadResponseAsync<long[]>(linesResponse, cancellationToken);
             if (!lines.IsSuccessful)
                 return FailedAccountStatus(lines);

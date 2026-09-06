@@ -34,11 +34,11 @@ public sealed class FakeSmsSender : ISmsSender
     public void SetDefaultBulk(SmsSendResult result) => _defaultBulk = result;
 
     public Task<SmsSendResult> SendVerifyAsync(
-        string apiKey, string mobile, int templateId,
+        SmsOptions options, string mobile, int templateId,
         IReadOnlyList<SmsTemplateParameter> parameters, CancellationToken cancellationToken = default)
     {
         VerifyCallCount++;
-        LastApiKey = apiKey;
+        LastApiKey = options.ApiKey;
         LastMobile = mobile;
         LastTemplateId = templateId;
         LastParameters = parameters;
@@ -47,15 +47,15 @@ public sealed class FakeSmsSender : ISmsSender
     }
 
     public Task<SmsSendResult> SendBulkAsync(
-        string apiKey, long lineNumber, string text, string mobile, CancellationToken cancellationToken = default)
+        SmsOptions options, string text, string mobile, CancellationToken cancellationToken = default)
     {
         BulkCallCount++;
-        LastApiKey = apiKey;
+        LastApiKey = options.ApiKey;
         LastMobile = mobile;
-        LastLineNumber = lineNumber;
+        LastLineNumber = options.DefaultLineNumber;
         return Task.FromResult(_defaultBulk);
     }
 
-    public Task<SmsAccountStatus> GetAccountStatusAsync(string apiKey, CancellationToken cancellationToken = default) =>
+    public Task<SmsAccountStatus> GetAccountStatusAsync(SmsOptions options, CancellationToken cancellationToken = default) =>
         Task.FromResult(new SmsAccountStatus { IsSuccess = true, Credit = 5000m });
 }

@@ -3,14 +3,14 @@ using Vitorize.Application.Models.Sms;
 namespace Vitorize.Application.Interfaces
 {
     /// <summary>
-    /// درگاه سطح‌پایین ارائه‌دهنده پیامک (Adapter مستقیم روی API رسمی SMS.ir).
-    /// کلید API به‌صورت صریح پاس داده می‌شود تا فقط از تنظیمات محرمانهٔ برنامه خوانده شود.
+    /// درگاه سطح‌پایین ارائه‌دهنده پیامک. تنظیمات محرمانه فقط به Adapter زیرساختی پاس داده می‌شود
+    /// و هرگز در API یا کلاینت برگردانده نمی‌شود.
     /// </summary>
     public interface ISmsSender
     {
         /// <summary>ارسال قالبی (Verify) برای پیام‌های تراکنشی/کد یکبار‌مصرف.</summary>
         Task<SmsSendResult> SendVerifyAsync(
-            string apiKey,
+            SmsOptions options,
             string mobile,
             int templateId,
             IReadOnlyList<SmsTemplateParameter> parameters,
@@ -18,15 +18,14 @@ namespace Vitorize.Application.Interfaces
 
         /// <summary>ارسال متن ساده (Bulk) روی خط اختصاصی.</summary>
         Task<SmsSendResult> SendBulkAsync(
-            string apiKey,
-            long lineNumber,
+            SmsOptions options,
             string text,
             string mobile,
             CancellationToken cancellationToken = default);
 
         /// <summary>دریافت موجودی و خطوط حساب (برای بررسی سلامت در پنل ادمین).</summary>
         Task<SmsAccountStatus> GetAccountStatusAsync(
-            string apiKey,
+            SmsOptions options,
             CancellationToken cancellationToken = default);
     }
 }

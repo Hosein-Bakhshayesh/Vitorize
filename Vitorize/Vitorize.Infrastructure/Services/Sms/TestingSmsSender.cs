@@ -31,7 +31,7 @@ public sealed class TestingSmsSender : ISmsSender
     }
 
     public async Task<SmsSendResult> SendVerifyAsync(
-        string apiKey,
+        SmsOptions options,
         string mobile,
         int templateId,
         IReadOnlyList<SmsTemplateParameter> parameters,
@@ -47,8 +47,7 @@ public sealed class TestingSmsSender : ISmsSender
     }
 
     public async Task<SmsSendResult> SendBulkAsync(
-        string apiKey,
-        long lineNumber,
+        SmsOptions options,
         string text,
         string mobile,
         CancellationToken cancellationToken = default)
@@ -86,7 +85,7 @@ public sealed class TestingSmsSender : ISmsSender
     }
 
     public Task<SmsAccountStatus> GetAccountStatusAsync(
-        string apiKey,
+        SmsOptions options,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new SmsAccountStatus
         {

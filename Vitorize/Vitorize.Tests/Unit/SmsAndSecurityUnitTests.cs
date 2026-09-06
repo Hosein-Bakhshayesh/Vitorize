@@ -125,7 +125,7 @@ public sealed class SmsAndSecurityUnitTests
         var settings = Substitute.For<ISmsSettingsProvider>();
         var sender = Substitute.For<ISmsSender>();
         settings.GetAsync(Arg.Any<CancellationToken>()).Returns(UnitFixtures.SmsOptions());
-        sender.SendVerifyAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(),
+        sender.SendVerifyAsync(Arg.Any<SmsOptions>(), Arg.Any<string>(), Arg.Any<int>(),
                 Arg.Any<IReadOnlyList<SmsTemplateParameter>>(), Arg.Any<CancellationToken>())
             .Returns(SmsSendResult.Success("message-1"));
         var sut = new SmsService(settings, sender, Substitute.For<ILogger<SmsService>>());
@@ -133,7 +133,7 @@ public sealed class SmsAndSecurityUnitTests
         var result = await sut.SendLoginOtpAsync("+98 912 345 6789", "483921", 3);
 
         result.IsSuccess.Should().BeTrue();
-        await sender.Received(1).SendVerifyAsync("unit-test-api-key", "09123456789", 101,
+        await sender.Received(1).SendVerifyAsync(Arg.Is<SmsOptions>(x => x.ApiKey == "unit-test-api-key"), "09123456789", 101,
             Arg.Is<IReadOnlyList<SmsTemplateParameter>>(x =>
                 x.Count == 2 && x[0].Name == "CODE" && x[0].Value == "483921" &&
                 x[1].Name == "EXPIRE" && x[1].Value == "3"), Arg.Any<CancellationToken>());

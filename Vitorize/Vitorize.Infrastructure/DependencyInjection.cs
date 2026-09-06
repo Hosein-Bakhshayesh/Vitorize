@@ -87,12 +87,15 @@ namespace Vitorize.Infrastructure
                 configuration.GetSection(Services.Testing.TestingFaultInjectionOptions.SectionName));
             services.AddSingleton<Services.Testing.TestingPaymentFaultService>();
 
-            // ───────────── SMS (SMS.ir) ─────────────
-            // ارتباط با SMS.ir از طریق API رسمی HTTP انجام می‌شود؛ HttpClientFactory اتصال‌ها را
-            // بازاستفاده می‌کند و کلید API همچنان فقط از تنظیماتِ پایگاه داده خوانده می‌شود.
+            // ───────────── SMS providers ─────────────
             services.AddHttpClient(SmsIrSender.HttpClientName, client =>
             {
                 client.BaseAddress = new Uri("https://api.sms.ir/");
+                client.Timeout = TimeSpan.FromSeconds(20);
+            });
+            services.AddHttpClient(AsanakSmsSender.HttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("https://sms.asanak.ir/");
                 client.Timeout = TimeSpan.FromSeconds(20);
             });
             if (configuration.GetValue<bool>("Testing:UseFakeSms"))
@@ -103,7 +106,9 @@ namespace Vitorize.Infrastructure
             }
             else
             {
-                services.AddSingleton<ISmsSender, SmsIrSender>();
+                services.AddSingleton<SmsIrSender>();
+                services.AddSingleton<AsanakSmsSender>();
+                services.AddSingleton<ISmsSender, SmsSenderRouter>();
             }
             services.AddSingleton<ISmsSettingsProvider, SmsSettingsProvider>();
             services.AddScoped<ISmsService, SmsService>();

@@ -9,7 +9,7 @@ namespace Vitorize.Application.Models.Sms
     /// </summary>
     public sealed class SmsOptions
     {
-        public string Provider { get; init; } = "SMS.ir";
+        public string Provider { get; init; } = SmsProviderNames.SmsIr;
         public string? ApiKey { get; init; }
         public long? DefaultLineNumber { get; init; }
         public string? SenderName { get; init; }
@@ -41,23 +41,25 @@ namespace Vitorize.Application.Models.Sms
         public int DailySmsLimitPerMobile { get; init; } = 30;
 
         public bool LogSensitiveData { get; init; }
-        /// <summary>
-        /// پیامک متنی آزاد (متن سفارشی یا متنِ هم‌زمانِ اعلان) در SMS.ir به خط ارسال
-        /// اختصاصی نیاز دارد. این یک مجوز قابل خاموش/روشن‌شدن نیست؛ فقط وضعیت آماده‌بودن
-        /// پیکربندی ارائه‌دهنده است.
-        /// </summary>
-        public bool CanSendText => IsOperational && DefaultLineNumber is > 0;
+        public bool IsSmsIr => SmsProviderNames.IsSmsIr(Provider);
+        public bool IsAsanak => SmsProviderNames.IsAsanak(Provider);
+
+        /// <summary>آماده‌بودن پیامک متنی آزاد بر اساس Provider فعال.</summary>
+        public bool CanSendText => IsSmsIr
+            ? !string.IsNullOrWhiteSpace(ApiKey) && DefaultLineNumber is > 0
+            : IsAsanak && CanSendAsanakText;
 
         public bool CanSendNotificationText => CanSendText;
 
         public const string TextSendingNotReadyMessage =
-            "برای ارسال پیامک متنی سفارشی، «شماره خط اختصاصی SMS.ir» را در تنظیمات ← اعلان‌ها وارد کنید. این مورد گزینهٔ فعال‌سازی جداگانه ندارد.";
+            "برای ارسال پیامک متنی سفارشی، اطلاعات اتصال و شماره مبدأ Provider فعال را در تنظیمات ← اعلان‌ها وارد کنید.";
 
         public int? GetTemplateId(string templateKey) =>
             TemplateIds.TryGetValue(templateKey, out var id) && id > 0 ? id : null;
 
         /// <summary>پیکربندی حداقلی لازم برای ارسال واقعی موجود است؟</summary>
-        public bool IsOperational =>
-            !string.IsNullOrWhiteSpace(ApiKey);
+        public bool IsOperational => IsSmsIr
+            ? !string.IsNullOrWhiteSpace(ApiKey)
+            : IsAsanak && HasAsanakCredentials;
     }
 }

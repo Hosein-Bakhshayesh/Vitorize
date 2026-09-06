@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Vitorize.Application.Models.Sms;
 using Vitorize.Infrastructure.Services.Sms;
 
 namespace Vitorize.IntegrationTests;
@@ -16,7 +17,7 @@ public sealed class SmsIrSenderTests
         var sender = CreateSender(handler);
 
         var result = await sender.SendVerifyAsync(
-            "api-key-for-test",
+            SmsIrOptions(),
             "989120000000",
             123456,
             [new("CODE", "1234")]);
@@ -42,7 +43,7 @@ public sealed class SmsIrSenderTests
             """{"status":1,"message":"موفق","data":{"packId":"2b99e63c-9bf8-4a21-9bfe-3f72dc1b46f1","messageIds":[86522023],"cost":2}}"""));
         var sender = CreateSender(handler);
 
-        var result = await sender.SendBulkAsync("api-key-for-test", 30004505000017, "پیام احراز هویت", "989120000000");
+        var result = await sender.SendBulkAsync(SmsIrOptions(), "پیام احراز هویت", "989120000000");
 
         result.IsSuccess.Should().BeTrue();
         result.ProviderMessageId.Should().Be("86522023");
@@ -58,6 +59,12 @@ public sealed class SmsIrSenderTests
     private static SmsIrSender CreateSender(RecordingHandler handler) =>
         new(new TestHttpClientFactory(new HttpClient(handler) { BaseAddress = new Uri("https://api.sms.ir/") }),
             NullLogger<SmsIrSender>.Instance);
+
+    private static SmsOptions SmsIrOptions() => new()
+    {
+        ApiKey = "api-key-for-test",
+        DefaultLineNumber = 30004505000017
+    };
 
     private static HttpResponseMessage Json(HttpStatusCode status, string json) =>
         new(status) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };

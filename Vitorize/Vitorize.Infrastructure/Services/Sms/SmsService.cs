@@ -45,7 +45,7 @@ namespace Vitorize.Infrastructure.Services.Sms
         {
             var options = await _settings.GetAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
+            if (!options.IsOperational)
                 return SmsSendResult.Failure(SmsFailureReason.NotConfigured);
 
             if (!TryNormalizeMobile(mobile, out var normalized))
@@ -60,6 +60,13 @@ namespace Vitorize.Infrastructure.Services.Sms
                     SmsFailureReason.InvalidParameter,
                     $"Required parameters: {string.Join(", ", requiredParameters)}");
 
+            // The application validates parameter names, while Asanak templates accept an
+            // ordered value list. Canonicalize once here so every provider receives the same
+            // stable contract order regardless of the caller's input order.
+            var orderedParameters = requiredParameters
+                .Select(name => parameters.Single(x => string.Equals(x.Name, name, StringComparison.Ordinal)))
+                .ToArray();
+
             var templateId = options.GetTemplateId(templateKey);
 
             if (templateId is null)
@@ -71,7 +78,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             }
 
             var result = await SendWithRetryAsync(
-                ct => _sender.SendVerifyAsync(options.ApiKey!, normalized, templateId.Value, parameters, ct),
+                ct => _sender.SendVerifyAsync(options, normalized, templateId.Value, orderedParameters, ct),
                 options.MaxRetryCount,
                 cancellationToken);
 
@@ -86,10 +93,10 @@ namespace Vitorize.Infrastructure.Services.Sms
         {
             var options = await _settings.GetAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
+            if (!options.IsOperational)
                 return SmsSendResult.Failure(SmsFailureReason.NotConfigured);
 
-            if (options.DefaultLineNumber is null or <= 0)
+            if (!options.CanSendText)
                 return SmsSendResult.Failure(SmsFailureReason.InvalidLineNumber);
 
             if (!TryNormalizeMobile(mobile, out var normalized))
@@ -99,7 +106,7 @@ namespace Vitorize.Infrastructure.Services.Sms
                 return SmsSendResult.Failure(SmsFailureReason.InvalidParameter);
 
             var result = await SendWithRetryAsync(
-                ct => _sender.SendBulkAsync(options.ApiKey!, options.DefaultLineNumber!.Value, text, normalized, ct),
+                ct => _sender.SendBulkAsync(options, text, normalized, ct),
                 options.MaxRetryCount,
                 cancellationToken);
 
@@ -140,18 +147,18 @@ namespace Vitorize.Infrastructure.Services.Sms
         {
             var options = await _settings.GetAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
-                return new SmsAccountStatus { IsSuccess = false, UserMessage = "کلید API تنظیم نشده است." };
+            if (!options.IsOperational)
+                return new SmsAccountStatus { IsSuccess = false, UserMessage = "اطلاعات اتصال سرویس پیامک تنظیم نشده است." };
 
-            return await _sender.GetAccountStatusAsync(options.ApiKey!, cancellationToken);
+            return await _sender.GetAccountStatusAsync(options, cancellationToken);
         }
 
         public async Task<(bool IsValid, string Message)> ValidateConfigurationAsync(CancellationToken cancellationToken = default)
         {
             var options = await _settings.GetAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(options.ApiKey))
-                return (false, "کلید API پیامک تنظیم نشده است.");
+            if (!options.IsOperational)
+                return (false, "اطلاعات اتصال سرویس پیامک تنظیم نشده است.");
 
             if (options.GetTemplateId(SmsTemplateKeys.GenericOtp) is null)
                 return (false, "شناسه قالب یکپارچه OTP تنظیم نشده است (پارامترها: CODE و EXPIRE). ");
