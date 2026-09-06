@@ -28,9 +28,12 @@ public static class SeoEndpoints
 
         var branding = await brandingService.GetAsync();
         var sitemap = SeoUrlBuilder.Canonical(branding, RequestOrigin(context), "/sitemap.xml");
-        var text = "User-agent: *\nAllow: /\n" +
-                   "Disallow: /admin\nDisallow: /customer\nDisallow: /cart\nDisallow: /checkout\n" +
-                   "Disallow: /payment\nDisallow: /search\nDisallow: /api\n" +
+        // Robots manages crawler load for private areas. Public utility pages (search, cart,
+        // checkout, auth and payment results) remain crawlable so their page-level noindex tag
+        // can be observed; a robots Disallow alone does not reliably prevent indexing.
+        var text = "# Vitorize crawler policy\n" +
+                   "User-agent: *\nAllow: /\n" +
+                   "Disallow: /admin\nDisallow: /customer\nDisallow: /api\n" +
                    $"Sitemap: {sitemap}\n";
         return Results.Text(text, "text/plain", Encoding.UTF8);
     }
