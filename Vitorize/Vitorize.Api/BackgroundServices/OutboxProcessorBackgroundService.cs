@@ -326,7 +326,31 @@ namespace Vitorize.Api.BackgroundServices
                 }
 
                 SmsSendResult result;
-                if (!string.IsNullOrWhiteSpace(payload.TemplateKey))
+                if (!string.IsNullOrWhiteSpace(payload.TemplateKey) &&
+                    SmsTemplateKeys.IsNotification(payload.TemplateKey))
+                {
+                    // Pending rows created before the OTP-only migration still carry a
+                    // notification template key. Deliver them as free text instead of
+                    // leaving operational messages permanently stuck in the queue.
+                    var parameters = SmsTemplateContract.NormalizeQueuedParameters(
+                        payload.TemplateKey,
+                        (payload.Parameters ?? new List<SmsOutboxParameter>())
+                            .Select(p => new SmsTemplateParameter(p.Name, p.Value))
+                            .ToList());
+                    var reference = parameters.FirstOrDefault(p => p.Name == SmsTemplateParams.OrderNumber)?.Value
+                        ?? "—";
+                    var text = SmsNotificationMessages.LegacyNotification(payload.TemplateKey, reference);
+                    result = await smsService.SendTextAsync(payload.Mobile, text, cancellationToken);
+
+                    if (history is not null)
+                    {
+                        history.SendType = (byte)SmsSendType.CustomText;
+                        history.TemplateKey = null;
+                        history.TemplateId = null;
+                        history.SafeMessagePreview = text;
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(payload.TemplateKey))
                 {
                     IReadOnlyList<SmsTemplateParameter> parameters = (payload.Parameters ?? new List<SmsOutboxParameter>())
                         .Select(p => new SmsTemplateParameter(p.Name, p.Value))

@@ -17,8 +17,7 @@ namespace Vitorize.Application.DTOs.Outbox
         public string? TemplateKey { get; set; }
 
         /// <summary>
-        /// OTP: CODE/EXPIRE. اعلان تجاری جدید: ORDER_NUMBER.
-        /// payloadهای قدیمی در پردازشگر Outbox normalize می‌شوند.
+        /// OTP: CODE/EXPIRE. payloadهای اعلانِ قدیمی در پردازشگر به متن آزاد تبدیل می‌شوند.
         /// </summary>
         public List<SmsOutboxParameter> Parameters { get; set; } = new();
 

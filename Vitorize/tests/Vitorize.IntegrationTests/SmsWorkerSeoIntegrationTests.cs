@@ -95,8 +95,8 @@ public sealed class SmsWorkerSeoIntegrationTests
         {
             var db = scope.ServiceProvider.GetRequiredService<Vitorize.Infrastructure.Persistence.VitorizeDbContext>();
             var outbox = scope.ServiceProvider.GetRequiredService<ISmsOutboxEnqueuer>();
-            await outbox.EnqueueTemplateAsync("09350000002", SmsTemplateKeys.OrderPaid,
-                SmsBusinessNotificationParameters.OrderPaid("VT-RETRY-1"), "OrderPaid", modernAggregateId);
+            await outbox.EnqueueTextAsync("09350000002", OrderSmsMessages.Processing("VT-RETRY-1"),
+                "OrderPaid", modernAggregateId);
             await db.SaveChangesAsync();
             modernOutboxId = await db.OutboxMessages.Where(x => x.AggregateId == modernAggregateId)
                 .Select(x => x.Id).SingleAsync();
@@ -121,8 +121,9 @@ public sealed class SmsWorkerSeoIntegrationTests
             await db.SaveChangesAsync();
         }
         var legacyCapture = sender.Sent.First(x => x.Mobile == "09350000001");
-        legacyCapture.Parameters.Should().ContainSingle(x => x.Name == "ORDER_NUMBER" && x.Value == "VT-LEGACY-1");
-        legacyCapture.Parameters.Should().NotContain(x => x.Name == "REFERENCE" || x.Name == "DETAIL");
+        legacyCapture.TemplateId.Should().BeNull();
+        legacyCapture.Text.Should().Contain("VT-LEGACY-1");
+        legacyCapture.Text.Should().Contain("در حال آماده‌سازی");
 
         sender.ResultsByMobile["09350000002"] = SmsSendResult.Success("retry-success");
         (await InvokeOneIterationAsync(worker)).Should().BeGreaterThan(0);
@@ -133,8 +134,8 @@ public sealed class SmsWorkerSeoIntegrationTests
         {
             var db = scope.ServiceProvider.GetRequiredService<Vitorize.Infrastructure.Persistence.VitorizeDbContext>();
             var outbox = scope.ServiceProvider.GetRequiredService<ISmsOutboxEnqueuer>();
-            await outbox.EnqueueTemplateAsync("09350000003", SmsTemplateKeys.OrderPaid,
-                SmsBusinessNotificationParameters.OrderPaid("VT-DEAD-1"), "OrderPaid", deadAggregateId);
+            await outbox.EnqueueTextAsync("09350000003", OrderSmsMessages.Processing("VT-DEAD-1"),
+                "OrderPaid", deadAggregateId);
             await db.SaveChangesAsync();
             var dead = await db.OutboxMessages.SingleAsync(x => x.AggregateId == deadAggregateId);
             deadLetterOutboxId = dead.Id;
@@ -142,7 +143,7 @@ public sealed class SmsWorkerSeoIntegrationTests
             dead.Payload = JsonSerializer.Serialize(new SmsOutboxPayload
             {
                 SmsMessageId = await db.SmsMessages.Where(x => x.OutboxMessageId == dead.Id).Select(x => x.Id).SingleAsync(),
-                Mobile = "09350000003", TemplateKey = SmsTemplateKeys.OrderPaid, Purpose = "InvalidContract",
+                Mobile = "09350000003", TemplateKey = "UnknownTemplate", Purpose = "InvalidContract",
                 Parameters = []
             });
             await db.SaveChangesAsync();

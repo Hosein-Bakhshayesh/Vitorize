@@ -322,17 +322,16 @@ namespace Vitorize.Infrastructure.Services
                     .FirstOrDefaultAsync();
 
                 // idempotency بر اساس شناسه‌ی همین پیام پاسخ (نه شناسه تیکت) تا هر پاسخ یک پیامک بدهد.
-                await _smsOutbox.EnqueueTemplateAsync(
+                var publicReference = Vitorize.Application.Common.SmsPublicReference.ForTicket(ticket.Id);
+                await _smsOutbox.EnqueueTextAsync(
                     mobile,
-                    Vitorize.Application.Common.SmsTemplateKeys.TicketReply,
-                    Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.TicketReply(
-                        Vitorize.Application.Common.SmsPublicReference.ForTicket(ticket.Id)),
+                    Vitorize.Application.Common.SmsNotificationMessages.TicketReply(publicReference),
                     purpose: "TicketReply",
                     aggregateId: ticketMessageId,
                     userId: ticket.UserId,
                     createdByUserId: adminUserId,
                     relatedEntityType: "Ticket",
-                    relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForTicket(ticket.Id));
+                    relatedEntityReference: publicReference);
 
                 await _notificationService.CreateAsync(
                     ticket.UserId,

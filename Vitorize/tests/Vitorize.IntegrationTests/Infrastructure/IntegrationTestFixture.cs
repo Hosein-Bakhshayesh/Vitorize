@@ -243,7 +243,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         return (user, token);
     }
 
-    public async Task ConfigureSmsAsync(int otpTemplateId = 1001, int notificationTemplateId = 1002)
+    public async Task ConfigureSmsAsync(int otpTemplateId = 1001)
     {
         var values = new Dictionary<string, string>
         {
@@ -251,7 +251,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             ["Sms.AsanakPassword"] = "integration-sms-password",
             ["Sms.AsanakSource"] = "982100000000",
             ["Sms.OtpTemplateId"] = otpTemplateId.ToString(),
-            ["Sms.NotificationTemplateId"] = notificationTemplateId.ToString(),
             ["Sms.OtpResendCooldownSeconds"] = "0",
             ["Sms.OtpMaxAttempts"] = "3",
             ["Sms.DailyOtpLimitPerMobile"] = "20"

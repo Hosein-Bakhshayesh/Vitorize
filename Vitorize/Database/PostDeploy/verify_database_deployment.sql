@@ -141,7 +141,7 @@ BEGIN
     DECLARE @RequiredSettings TABLE ([Key] nvarchar(200) PRIMARY KEY);
     INSERT @RequiredSettings VALUES
         (N'HeaderLogoPath'), (N'FaviconPath'), (N'Sms.OtpTemplateId'),
-        (N'Sms.NotificationTemplateId'), (N'Typography.FontFamily'),
+        (N'Typography.FontFamily'),
         (N'StorefrontPersianFont'), (N'StorefrontEnglishFont'),
         (N'Branding.AssetVersion'), (N'Verification.OrderAmountThresholdToman'),
         (N'Verification.CustomerNotice'), (N'TrustSeal.FooterHtml');

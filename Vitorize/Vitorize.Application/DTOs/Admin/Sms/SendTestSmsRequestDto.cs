@@ -5,7 +5,7 @@ namespace Vitorize.Application.DTOs.Admin.Sms
         public string Mobile { get; set; } = string.Empty;
 
         /// <summary>
-        /// کلید منطقی قالب؛ OTP فقط CODE/EXPIRE و اعلان تجاری فقط ORDER_NUMBER می‌پذیرد.
+        /// کلید منطقی قالب؛ فقط OTP با CODE/EXPIRE می‌پذیرد.
         /// اگر خالی باشد از متن ساده استفاده می‌شود.
         /// </summary>
         public string? TemplateKey { get; set; }

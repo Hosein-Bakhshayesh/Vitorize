@@ -26,7 +26,7 @@
         <span>ارسال: <b>همیشه فعال</b></span>
         <span>اعتبار: <b>@(_health?.Credit?.ToString("#,0") ?? "—")</b></span>
         <span>OTP: <b>@(_health?.OtpTemplateId?.ToString() ?? "—")</b></span>
-        <span>اعلان: <b>@(_health?.NotificationTemplateId?.ToString() ?? "—")</b></span>
+        <span>اعلان‌ها: <b>متن آزاد</b></span>
         <span>صف: <b>@(_health?.PendingOutboxCount ?? 0)</b></span>
     </div>
 </div>
@@ -152,7 +152,7 @@ else
 
 <SlidePanel Visible="_sendOpen" Title="ارسال پیامک سفارشی" Subtitle="ارسال کنترل‌شده و ثبت‌شده توسط مدیر" Icon="send" OnClose="CloseSend">
     <ChildContent>
-        <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">قالب اطلاع‌رسانی</button><button class="@(_sendMode == "text" ? "active" : null)" @onclick="SelectTextMode">متن سفارشی</button><button class="@(_sendMode == "kyc" ? "active" : null)" @onclick="SelectKycReminderMode">قالب احراز هویت</button></div>
+        <div class="sms-mode"><button class="@(_sendMode == "notification" ? "active" : null)" @onclick="SelectNotificationMode">اطلاع‌رسانی آماده</button><button class="@(_sendMode == "text" ? "active" : null)" @onclick="SelectTextMode">متن سفارشی</button><button class="@(_sendMode == "kyc" ? "active" : null)" @onclick="SelectKycReminderMode">یادآوری احراز هویت</button></div>
         @if (SelectedModeNeedsTextLine && !CanSendText)
         {
             <div class="sms-warning"><Icon Name="info" Size="17" /> @TextSendingSetupHint</div>
@@ -263,12 +263,12 @@ else
     private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
     private static readonly Dictionary<byte,string> Statuses = new() { [0]="در انتظار",[1]="در حال ارسال",[2]="ارسال‌شده",[3]="ناموفق",[4]="بازتلاش",[5]="متوقف‌شده",[6]="غیرفعال",[7]="لغوشده" };
 
-    private string NotificationPreview => $"ویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n{_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
+    private string NotificationPreview => $"اطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\nکد پیگیری: {_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری شوید.\nویتورایز\nvitorize.com";
     private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
     private int KycSegmentCount => string.IsNullOrEmpty(_kycReminderText) ? 0 : (int)Math.Ceiling(_kycReminderText.Length / (_kycReminderText.Any(c => c > 127) ? 67d : 153d));
     private bool CanSendText => _health?.CanSendText == true;
     private bool CanOpenCustomSend => CanSendText || _health?.IsConfigured == true;
-    private bool SelectedModeNeedsTextLine => _sendMode is "text" or "kyc";
+    private bool SelectedModeNeedsTextLine => _sendMode is "notification" or "text" or "kyc";
     private string TextSendingSetupHint => string.IsNullOrWhiteSpace(_health?.TextSendingMessage)
         ? "برای ارسال پیامک متنی، تنظیمات آسانک را کامل کنید."
         : _health.TextSendingMessage;

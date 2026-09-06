@@ -14,16 +14,6 @@ namespace Vitorize.Application.Common
             SmsTemplateKeys.ForgotPassword
         ], StringComparer.OrdinalIgnoreCase);
 
-        public static readonly IReadOnlySet<string> AllowedNotificationTemplates = new HashSet<string>(
-        [
-            SmsTemplateKeys.OrderPaid,
-            SmsTemplateKeys.GiftCodeDelivered,
-            SmsTemplateKeys.TicketReply,
-            SmsTemplateKeys.VerificationApproved,
-            SmsTemplateKeys.VerificationRejected,
-            SmsTemplateKeys.WalletTopUpSuccess
-        ], StringComparer.OrdinalIgnoreCase);
-
         public static readonly IReadOnlySet<string> RemovedAutomaticTemplates = new HashSet<string>(
         [
             SmsTemplateKeys.OrderCreated,
@@ -36,7 +26,6 @@ namespace Vitorize.Application.Common
         ], StringComparer.OrdinalIgnoreCase);
 
         public static bool IsAllowedTemplate(string templateKey) =>
-            AllowedOtpTemplates.Contains(templateKey) ||
-            AllowedNotificationTemplates.Contains(templateKey);
+            AllowedOtpTemplates.Contains(templateKey);
     }
 }

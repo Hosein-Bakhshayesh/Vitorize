@@ -35,37 +35,6 @@ public sealed class SmsAndSecurityUnitTests
         ]).Should().BeTrue();
     }
 
-    [Theory]
-    [InlineData(SmsTemplateKeys.OrderPaid)]
-    [InlineData(SmsTemplateKeys.GiftCodeDelivered)]
-    [InlineData(SmsTemplateKeys.TicketReply)]
-    [InlineData(SmsTemplateKeys.WalletTopUpSuccess)]
-    [InlineData(SmsTemplateKeys.VerificationApproved)]
-    [InlineData(SmsTemplateKeys.VerificationRejected)]
-    public void Every_business_notification_has_only_order_number(string template)
-    {
-        SmsTemplateContract.GetRequiredParameterNames(template).Should().Equal("ORDER_NUMBER");
-        SmsTemplateContract.HasExactParameters(template, [new("ORDER_NUMBER", "VT-123456")]).Should().BeTrue();
-    }
-
-    [Theory]
-    [MemberData(nameof(InvalidNotificationParameters))]
-    public void Notification_contract_rejects_missing_duplicate_legacy_or_unknown_parameters(
-        IReadOnlyList<SmsTemplateParameter> parameters)
-    {
-        SmsTemplateContract.HasExactParameters(SmsTemplateKeys.OrderPaid, parameters).Should().BeFalse();
-    }
-
-    public static TheoryData<IReadOnlyList<SmsTemplateParameter>> InvalidNotificationParameters => new()
-    {
-        Array.Empty<SmsTemplateParameter>(),
-        new[] { new SmsTemplateParameter("ORDER_NUMBER", "") },
-        new[] { new SmsTemplateParameter("REFERENCE", "VT-1") },
-        new[] { new SmsTemplateParameter("DETAIL", "secret") },
-        new[] { new SmsTemplateParameter("ORDER_NUMBER", "VT-1"), new SmsTemplateParameter("ORDER_NUMBER", "VT-1") },
-        new[] { new SmsTemplateParameter("ORDER_NUMBER", "VT-1"), new SmsTemplateParameter("TITLE", "unsafe") }
-    };
-
     [Fact]
     public void Legacy_outbox_reference_maps_to_order_number_and_drops_title_detail()
     {
@@ -156,7 +125,7 @@ public sealed class SmsAndSecurityUnitTests
     }
 
     [Fact]
-    public async Task Sms_service_rejects_unknown_or_legacy_parameters_without_provider_call()
+    public async Task Sms_service_rejects_legacy_notification_templates_without_provider_call()
     {
         var settings = Substitute.For<ISmsSettingsProvider>();
         var sender = Substitute.For<ISmsSender>();
@@ -165,7 +134,7 @@ public sealed class SmsAndSecurityUnitTests
 
         var result = await sut.SendTemplateAsync("09123456789", SmsTemplateKeys.OrderPaid, [new("REFERENCE", "VT-1")]);
 
-        result.FailureReason.Should().Be(SmsFailureReason.InvalidParameter);
+        result.FailureReason.Should().Be(SmsFailureReason.InvalidTemplate);
         await sender.DidNotReceiveWithAnyArgs().SendVerifyAsync(default!, default!, default, default!, default);
     }
 

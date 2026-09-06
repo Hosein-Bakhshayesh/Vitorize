@@ -172,33 +172,27 @@ public class SmsServiceTests
     }
 
     [Fact]
-    public async Task SendTemplate_NotificationRequiresOnlyOrderNumber()
+    public async Task SendTemplate_NotificationIsRejectedBecauseOnlyOtpUsesTemplates()
     {
         var sender = new FakeSmsSender();
-        var options = Enabled(new Dictionary<string, int>
-        {
-            [SmsTemplateKeys.UniversalNotification] = 222
-        });
+        var options = Enabled();
         var svc = Build(options, sender);
         var parameters = SmsBusinessNotificationParameters.OrderPaid("VT-1");
 
         var result = await svc.SendTemplateAsync(
             "09123456789", SmsTemplateKeys.UniversalNotification, parameters);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(222, sender.LastTemplateId);
-        Assert.Equal(new[] { "ORDER_NUMBER" },
-            sender.LastParameters!.Select(x => x.Name));
+        Assert.Equal(SmsFailureReason.InvalidTemplate, result.FailureReason);
+        Assert.Equal(0, sender.VerifyCallCount);
     }
 
     [Fact]
-    public async Task ValidateConfiguration_RequiresBothUniversalTemplates()
+    public async Task ValidateConfiguration_RequiresOnlyOtpTemplate()
     {
         var sender = new FakeSmsSender();
         var svc = Build(Enabled(new Dictionary<string, int>
         {
-            [SmsTemplateKeys.GenericOtp] = 111,
-            [SmsTemplateKeys.UniversalNotification] = 222
+            [SmsTemplateKeys.GenericOtp] = 111
         }), sender);
 
         var (isValid, _) = await svc.ValidateConfigurationAsync();

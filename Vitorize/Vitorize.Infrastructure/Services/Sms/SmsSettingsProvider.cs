@@ -115,13 +115,6 @@ namespace Vitorize.Infrastructure.Services.Sms
                     result[templateKey] = otpId.Value;
             }
 
-            var notificationId = GetFirstPositiveInt(settings, SmsSettingKeys.NotificationTemplateIdKeys);
-            if (notificationId.HasValue)
-            {
-                foreach (var templateKey in SmsTemplateKeys.NotificationTemplates)
-                    result[templateKey] = notificationId.Value;
-            }
-
             return result;
         }
 

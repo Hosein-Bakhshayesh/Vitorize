@@ -65,7 +65,6 @@ namespace Vitorize.Web.Models.Admin.Sms
         public decimal? Credit { get; set; }
         public List<long> Lines { get; set; } = new();
         public int? OtpTemplateId { get; set; }
-        public int? NotificationTemplateId { get; set; }
         public int PendingOutboxCount { get; set; }
         public int FailedOutboxCount { get; set; }
         public bool CanSendText { get; set; }

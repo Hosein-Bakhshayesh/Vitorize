@@ -781,6 +781,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 120,
+      "version": "V0036",
+      "name": "V0036__remove_notification_template_settings.sql",
+      "path": "Versioned/V0036__remove_notification_template_settings.sql",
+      "sha256": "b85b637544d59515cbdaf9e8f7842e13c2207a8bb0afdc6692c5928542f36815",
+      "classification": "required",
+      "dependencies": [
+        "V0035",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

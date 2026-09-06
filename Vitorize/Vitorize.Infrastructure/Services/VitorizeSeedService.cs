@@ -250,10 +250,9 @@ namespace Vitorize.Infrastructure.Services
 
         private async Task SeedSettingsAsync(CancellationToken cancellationToken)
         {
-            // شناسه واقعی در کد seed نمی‌شود. هر چهار کلید OTP و هر نه کلید اعلان
-            // با یک مقدار پیش‌فرض مشترک ساخته می‌شوند و هنگام ذخیره ادمین همگام می‌مانند.
+            // شناسه واقعی OTP در کد seed نمی‌شود. چهار کلید سازگاری OTP با یک
+            // مقدار مشترک ساخته می‌شوند و هنگام ذخیره ادمین همگام می‌مانند.
             const string universalOtpTemplateId = "";
-            const string universalNotificationTemplateId = "";
 
             var settings = new[]
             {
@@ -421,18 +420,9 @@ namespace Vitorize.Infrastructure.Services
 
                 // Template IDs (شناسه قالب‌های تاییدشده در پنل آسانک)
                 S(SmsSettingKeys.OtpTemplateId, universalOtpTemplateId, "SMS", "int", "شناسه قالب کد یکبار مصرف"),
-                S(SmsSettingKeys.NotificationTemplateId, universalNotificationTemplateId, "SMS", "int", "شناسه قالب اطلاع‌رسانی عمومی"),
                 S(SmsSettingKeys.LoginOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
                 S(SmsSettingKeys.RegisterOtpTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
                 S(SmsSettingKeys.ForgotPasswordTemplateId, universalOtpTemplateId, "SMS", "int", "کلید سازگاری قالب OTP؛ همگام با Sms.OtpTemplateId (CODE، EXPIRE)"),
-                S(SmsSettingKeys.OrderPaidTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.OrderCompletedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.OrderStatusChangedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.GiftCodeDeliveredTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.TicketReplyTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.VerificationApprovedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.VerificationRejectedTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
-                S(SmsSettingKeys.WalletTopUpSuccessTemplateId, universalNotificationTemplateId, "SMS", "int", "کلید سازگاری اطلاع رسانی؛ همگام با Sms.NotificationTemplateId (ORDER_NUMBER)"),
 
                 // سیاست کد یکبار‌مصرف و پایداری
                 S(SmsSettingKeys.OtpExpiryMinutes, "3", "SMS", "int", "مدت اعتبار کد یکبار‌مصرف (دقیقه)"),

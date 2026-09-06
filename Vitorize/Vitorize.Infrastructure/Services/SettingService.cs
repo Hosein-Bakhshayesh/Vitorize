@@ -305,10 +305,9 @@ namespace Vitorize.Infrastructure.Services
         private static string TemplateDescription(string key) => key switch
         {
             SmsSettingKeys.OtpTemplateId => "شناسه قالب کد یکبار مصرف",
-            SmsSettingKeys.NotificationTemplateId => "شناسه قالب اطلاع‌رسانی عمومی",
             _ when SmsSettingKeys.OtpTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase) =>
                 "کلید سازگاری قالب OTP؛ با Sms.OtpTemplateId همگام می‌شود (CODE، EXPIRE)",
-            _ => "کلید سازگاری قالب اطلاع رسانی؛ با Sms.NotificationTemplateId همگام می‌شود (ORDER_NUMBER)"
+            _ => "تنظیمات قالب OTP"
         };
 
         private static SettingDto Map(Setting setting)

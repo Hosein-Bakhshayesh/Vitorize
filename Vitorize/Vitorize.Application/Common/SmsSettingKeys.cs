@@ -14,7 +14,8 @@ namespace Vitorize.Application.Common
         public const string AsanakPassword = "Sms.AsanakPassword";
         public const string AsanakSource = "Sms.AsanakSource";
 
-        // Template ids
+        // Only OTP has an active template. Notification template keys below are retained
+        // solely so V0036 can remove values from previously deployed databases.
         public const string OtpTemplateId = "Sms.OtpTemplateId";
         public const string NotificationTemplateId = "Sms.NotificationTemplateId";
         public const string LoginOtpTemplateId = "Sms.LoginOtpTemplateId";
@@ -40,9 +41,7 @@ namespace Vitorize.Application.Common
             ForgotPasswordTemplateId
         ];
 
-        /// <summary>
-        /// کلید اصلی و کلیدهای قدیمی قالب یکپارچه اعلان تجاری. تمام این کلیدها باید همواره مقدار یکسان داشته باشند.
-        /// </summary>
+        /// <summary>کلیدهای تاریخی قالب اعلان که با V0036 حذف می‌شوند.</summary>
         public static readonly IReadOnlyList<string> NotificationTemplateIdKeys =
         [
             NotificationTemplateId,
@@ -61,12 +60,6 @@ namespace Vitorize.Application.Common
             if (OtpTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
             {
                 group = OtpTemplateIdKeys;
-                return true;
-            }
-
-            if (NotificationTemplateIdKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
-            {
-                group = NotificationTemplateIdKeys;
                 return true;
             }
 
@@ -108,7 +101,16 @@ namespace Vitorize.Application.Common
             "Sms.Provider",
             "Sms.ApiKey",
             "Sms.DefaultLineNumber",
-            "Sms.SenderName"
+            "Sms.SenderName",
+            "Sms.NotificationTemplateId",
+            "Sms.OrderPaidTemplateId",
+            "Sms.OrderCompletedTemplateId",
+            "Sms.OrderStatusChangedTemplateId",
+            "Sms.GiftCodeDeliveredTemplateId",
+            "Sms.TicketReplyTemplateId",
+            "Sms.VerificationApprovedTemplateId",
+            "Sms.VerificationRejectedTemplateId",
+            "Sms.WalletTopUpSuccessTemplateId"
         };
 
         /// <summary>

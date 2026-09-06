@@ -84,7 +84,8 @@ read-only checks after each stage:
 | V0003 | `SELECT COUNT(*) FROM dbo.Roles WHERE Name IN (N'SuperAdmin',N'Admin',N'Support',N'Customer');` → `4` |
 | V0005 | `LegacyRedirects` exists; `Products.FocusKeyword`, `Products.ThumbnailAltText`, and `ProductTags.Aliases` exist; `UX_LegacyRedirects_SourcePath` is unique |
 | H20260708-UI | `HeaderLogoPath` and `FaviconPath` each exist exactly once in `dbo.Settings` |
-| H20260713-SMS-SEED | `Sms.OtpTemplateId` and `Sms.NotificationTemplateId` each exist exactly once; configured values remain unchanged |
+| H20260713-SMS-SEED | `Sms.OtpTemplateId` exists exactly once; configured value remains unchanged |
+| V0036 | هیچ‌یک از کلیدهای `Sms.NotificationTemplateId` و کلیدهای سازگاری اطلاع‌رسانی در `dbo.Settings` باقی نمانده‌اند |
 | H20260714-PRODUCT-SEED | `Typography.FontFamily`, `Branding.AssetVersion`, and `TrustSeal.Enamad.Enabled` each exist exactly once |
 
 ## New environment

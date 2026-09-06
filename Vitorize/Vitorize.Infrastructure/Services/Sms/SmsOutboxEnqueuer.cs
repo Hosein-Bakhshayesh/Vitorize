@@ -47,13 +47,8 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (string.IsNullOrWhiteSpace(mobile) || !IranMobile.TryNormalize(mobile, out var normalized))
                 return;
 
-            // اعلان سفارشی مدیر تنها استثناست؛ سایر رویدادهای خودکار باید صریحاً در
-            // سیاست مرکزی مجاز شده باشند. این محافظ از بازگشت ناخواسته‌ی رویدادهای
-            // حذف‌شده مانند OrderCreated و WalletTransaction جلوگیری می‌کند.
-            var isAdminNotification =
-                templateKey.Equals(SmsTemplateKeys.UniversalNotification, StringComparison.OrdinalIgnoreCase) &&
-                purpose.Equals("AdminCustomNotification", StringComparison.OrdinalIgnoreCase);
-            if (!isAdminNotification && !SmsAutomaticEventPolicy.IsAllowedTemplate(templateKey))
+            // Only OTP is template-based. Every notification must use EnqueueTextAsync.
+            if (!SmsAutomaticEventPolicy.IsAllowedTemplate(templateKey))
                 return;
 
             // جلوگیری از پیامک تکراری برای یک رویداد مشخص.

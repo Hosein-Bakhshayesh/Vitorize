@@ -141,11 +141,11 @@ test('settings exposes branding uploads, typography preview, trust seals and onl
   await tabs.filter({ hasText: 'اعلان‌ها' }).click();
   const keys = page.locator('.vz-setfield__key');
   await expect(keys.filter({ hasText: 'Sms.OtpTemplateId' })).toHaveCount(1);
-  await expect(keys.filter({ hasText: 'Sms.NotificationTemplateId' })).toHaveCount(1);
+  await expect(keys.filter({ hasText: 'Sms.NotificationTemplateId' })).toHaveCount(0);
   await expect(keys.filter({ hasText: 'Sms.LoginOtpTemplateId' })).toHaveCount(0);
   await expect(page.locator('.vz-card__body')).toContainText('CODE');
   await expect(page.locator('.vz-card__body')).toContainText('EXPIRE');
-  await expect(page.locator('.vz-card__body')).toContainText('ORDER_NUMBER');
+  await expect(page.locator('.vz-card__body')).not.toContainText('ORDER_NUMBER');
 });
 
 test('admin imports and removes an isolated encrypted gift-code batch', async ({ page }) => {

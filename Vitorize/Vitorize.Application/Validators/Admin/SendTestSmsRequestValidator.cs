@@ -25,7 +25,7 @@ namespace Vitorize.Application.Validators.Admin
 
                 RuleFor(x => x)
                     .Must(HasValidTemplateParameters)
-                    .WithMessage("پارامترهای قالب باید دقیقاً CODE/EXPIRE یا ORDER_NUMBER و دارای مقدار باشند.");
+                    .WithMessage("پارامترهای قالب OTP باید دقیقاً CODE و EXPIRE و دارای مقدار باشند.");
             });
         }
 

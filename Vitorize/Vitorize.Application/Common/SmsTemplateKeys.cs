@@ -1,8 +1,8 @@
 namespace Vitorize.Application.Common
 {
     /// <summary>
-    /// شناسه‌های منطقی قالب‌های پیامک. هر کلید به یک کلید تنظیمات (Template Id) نگاشت می‌شود
-    /// و شناسه واقعی قالب آسانک هرگز در کد هارد‌کد نمی‌شود.
+    /// شناسه‌های منطقی قالب‌های پیامک. فقط کلیدهای OTP فعال‌اند و به تنظیمات Template Id
+    /// نگاشت می‌شوند؛ کلیدهای اعلان صرفاً برای تبدیل payloadهای تاریخی Outbox نگه‌داری شده‌اند.
     /// </summary>
     public static class SmsTemplateKeys
     {
@@ -34,6 +34,7 @@ namespace Vitorize.Application.Common
             ForgotPassword
         ];
 
+        /// <summary>کلیدهای تاریخی اعلان؛ مسیر جدید نباید با آن‌ها قالب ارسال کند.</summary>
         public static readonly IReadOnlyList<string> NotificationTemplates =
         [
             UniversalNotification,

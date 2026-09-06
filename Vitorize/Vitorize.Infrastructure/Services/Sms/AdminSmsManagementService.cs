@@ -143,8 +143,14 @@ namespace Vitorize.Infrastructure.Services.Sms
                 FailedToday = await _db.SmsMessages.CountAsync(x => (x.Status == (byte)SmsMessageStatus.Failed || x.Status == (byte)SmsMessageStatus.DeadLetter) && x.CreatedAt >= today, cancellationToken),
                 PendingOrRetrying = await _db.SmsMessages.CountAsync(x => x.Status == (byte)SmsMessageStatus.Pending || x.Status == (byte)SmsMessageStatus.Processing || x.Status == (byte)SmsMessageStatus.Retrying, cancellationToken),
                 OtpMessages = await _db.SmsMessages.CountAsync(x => x.SendType == (byte)SmsSendType.OtpTemplate && x.CreatedAt >= today, cancellationToken),
-                NotificationMessages = await _db.SmsMessages.CountAsync(x => x.SendType == (byte)SmsSendType.NotificationTemplate && x.CreatedAt >= today, cancellationToken),
-                CustomMessages = await _db.SmsMessages.CountAsync(x => x.SendType == (byte)SmsSendType.CustomText && x.CreatedAt >= today, cancellationToken)
+                NotificationMessages = await _db.SmsMessages.CountAsync(x =>
+                    x.SendType == (byte)SmsSendType.CustomText &&
+                    x.Purpose != "AdminCustomText" &&
+                    x.CreatedAt >= today, cancellationToken),
+                CustomMessages = await _db.SmsMessages.CountAsync(x =>
+                    x.SendType == (byte)SmsSendType.CustomText &&
+                    x.Purpose == "AdminCustomText" &&
+                    x.CreatedAt >= today, cancellationToken)
             };
         }
 
@@ -160,7 +166,6 @@ namespace Vitorize.Infrastructure.Services.Sms
                 Credit = account.Credit,
                 Lines = account.Lines ?? [],
                 OtpTemplateId = options.GetTemplateId(SmsTemplateKeys.GenericOtp),
-                NotificationTemplateId = options.GetTemplateId(SmsTemplateKeys.UniversalNotification),
                 PendingOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && (x.Status == 0 || x.Status == 1), cancellationToken),
                 FailedOutboxCount = await _db.OutboxMessages.CountAsync(x => x.MessageType == OutboxMessageTypes.SmsSend && x.Status == 3, cancellationToken),
                 CanSendText = options.CanSendText,
@@ -199,22 +204,20 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (existing is not null)
                 return new SmsActionResultDto { SmsMessageId = existing.Id, Queued = existing.Status == 0, Success = existing.Status == 2, Message = "درخواست تکراری بود؛ رکورد موجود بازگردانده شد." };
 
-            var parameters = SmsBusinessNotificationParameters.Create(reference);
+            var text = SmsNotificationMessages.AdminReferenceNotification(reference);
             var immediate = request.SendImmediately;
             Guid historyId;
             if (immediate)
             {
-                var result = await _sms.SendTemplateAsync(mobile, SmsTemplateKeys.UniversalNotification, parameters, cancellationToken);
+                var result = await _sms.SendTextAsync(mobile, text, cancellationToken);
                 historyId = await _history.RecordDirectResultAsync(new SmsHistoryRecordRequest
                 {
                     UserId = request.UserId,
                     Mobile = mobile,
                     Purpose = "AdminCustomNotification",
-                    SendType = (byte)SmsSendType.NotificationTemplate,
-                    TemplateKey = SmsTemplateKeys.UniversalNotification,
-                    TemplateId = await _sms.GetTemplateIdAsync(SmsTemplateKeys.UniversalNotification, cancellationToken),
+                    SendType = (byte)SmsSendType.CustomText,
                     PublicReference = reference,
-                    SafeMessagePreview = $"اعلان عمومی با کد پیگیری {reference}",
+                    SafeMessagePreview = text,
                     InternalNote = request.InternalNote?.Trim(),
                     CreatedByUserId = adminUserId,
                     RelatedEntityType = "AdminCustom",
@@ -226,7 +229,7 @@ namespace Vitorize.Infrastructure.Services.Sms
             }
 
             var aggregateId = Guid.NewGuid();
-            await _outbox.EnqueueTemplateAsync(mobile, SmsTemplateKeys.UniversalNotification, parameters,
+            await _outbox.EnqueueTextAsync(mobile, text,
                 "AdminCustomNotification", aggregateId, cancellationToken,
                 request.UserId, adminUserId, "AdminCustom", reference, key, request.InternalNote);
             await _db.SaveChangesAsync(cancellationToken);

@@ -149,6 +149,9 @@ namespace Vitorize.Api.Controllers.Admin
 
             if (!string.IsNullOrWhiteSpace(request.TemplateKey))
             {
+                if (!SmsTemplateKeys.IsOtp(request.TemplateKey))
+                    throw new BusinessException("فقط قالب OTP برای ارسال آزمایشی مجاز است.");
+
                 var parameters = (request.Parameters ?? new List<TestSmsParameterDto>())
                     .Select(p => new SmsTemplateParameter(p.Name, p.Value))
                     .ToList();
@@ -168,21 +171,19 @@ namespace Vitorize.Api.Controllers.Admin
             var templateId = string.IsNullOrWhiteSpace(request.TemplateKey)
                 ? null
                 : await _smsService.GetTemplateIdAsync(request.TemplateKey!, cancellationToken);
-            var isOtp = !string.IsNullOrWhiteSpace(request.TemplateKey) && SmsTemplateKeys.IsOtp(request.TemplateKey!);
-            var reference = request.Parameters?.FirstOrDefault(x => x.Name == SmsTemplateParams.OrderNumber)?.Value;
+            var isOtp = !string.IsNullOrWhiteSpace(request.TemplateKey);
             await _history.RecordDirectResultAsync(new SmsHistoryRecordRequest
             {
                 Mobile = mobile,
                 Purpose = "AdminDiagnosticTest",
                 SendType = string.IsNullOrWhiteSpace(request.TemplateKey)
                     ? (byte)SmsSendType.CustomText
-                    : isOtp ? (byte)SmsSendType.OtpTemplate : (byte)SmsSendType.NotificationTemplate,
+                    : (byte)SmsSendType.OtpTemplate,
                 TemplateKey = request.TemplateKey,
                 TemplateId = templateId,
-                PublicReference = reference,
                 SafeMessagePreview = isOtp
                     ? "آزمایش قالب OTP؛ کد ذخیره نشده است"
-                    : string.IsNullOrWhiteSpace(request.TemplateKey) ? request.Text : $"آزمایش اعلان با کد {reference}",
+                    : request.Text,
                 CreatedByUserId = _currentUserService.UserId,
                 RelatedEntityType = "Diagnostic",
                 IdempotencyKey = $"sms:test:{Guid.NewGuid():N}",

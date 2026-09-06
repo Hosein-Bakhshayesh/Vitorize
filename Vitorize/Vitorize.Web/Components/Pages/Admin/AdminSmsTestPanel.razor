@@ -37,7 +37,7 @@
             }
         }
 
-        <div class="vz-setgroup__title">آزمایش دو قالب یکپارچه</div>
+        <div class="vz-setgroup__title">آزمایش قالب OTP</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="vz-field">
                 <label class="vz-label">شماره موبایل</label>
@@ -104,27 +104,22 @@
     private readonly Dictionary<string, string> _params = new()
     {
         ["CODE"] = "123456",
-        ["EXPIRE"] = "3",
-        ["ORDER_NUMBER"] = "VT-123456"
+        ["EXPIRE"] = "3"
     };
     private SmsStatusModel? _status;
     private SmsTestModel? _result;
 
     private static readonly Dictionary<string, string> Templates = new()
     {
-        ["Otp"] = "قالب یکپارچه OTP",
-        ["Notification"] = "قالب یکپارچه اعلان تجاری"
+        ["Otp"] = "قالب یکپارچه OTP"
     };
 
     private static readonly Dictionary<string, string[]> TemplateParams = new()
     {
-        ["Otp"] = new[] { "CODE", "EXPIRE" },
-        ["Notification"] = new[] { "ORDER_NUMBER" }
+        ["Otp"] = new[] { "CODE", "EXPIRE" }
     };
 
-    private string TemplateHelp => _templateKey == "Otp"
-        ? "پارامترهای الزامی: CODE و EXPIRE\nمتن قالب:\nکد تایید شما در ویتورایز:\n#CODE#\nاعتبار: #EXPIRE# دقیقه\nاین کد را در اختیار دیگران قرار ندهید."
-        : "پارامتر الزامی: ORDER_NUMBER\nمتن قالب:\nویتورایز\n\nاطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\n\nکد پیگیری:\n#ORDER_NUMBER#\n\nبرای مشاهده جزئیات وارد حساب کاربری خود شوید.\n\nhttps://vitorize.com";
+    private const string TemplateHelp = "پارامترهای الزامی: CODE و EXPIRE\nمتن قالب:\nکد تایید شما در ویتورایز:\n#CODE#\nاعتبار: #EXPIRE# دقیقه\nاین کد را در اختیار دیگران قرار ندهید.";
 
     protected override Task OnInitializedAsync() => LoadStatus();
 

@@ -297,20 +297,19 @@ namespace Vitorize.Infrastructure.Services
                 .Select(x => x.Mobile)
                 .FirstOrDefaultAsync();
 
-            await _smsOutbox.EnqueueTemplateAsync(
+            var publicReference = Vitorize.Application.Common.SmsPublicReference.ForWalletTopUp(
+                topUp.Id,
+                topUp.ReferenceNumber);
+            await _smsOutbox.EnqueueTextAsync(
                 mobile,
-                Vitorize.Application.Common.SmsTemplateKeys.WalletTopUpSuccess,
-                Vitorize.Application.Models.Sms.SmsBusinessNotificationParameters.WalletTopUp(
-                    Vitorize.Application.Common.SmsPublicReference.ForWalletTopUp(
-                        topUp.Id,
-                        topUp.ReferenceNumber)),
+                Vitorize.Application.Common.SmsNotificationMessages.WalletTopUpSucceeded(
+                    topUp.Amount,
+                    publicReference),
                 purpose: "WalletTopUpSuccess",
                 aggregateId: topUp.Id,
                 userId: topUp.UserId,
                 relatedEntityType: "WalletTopUp",
-                relatedEntityReference: Vitorize.Application.Common.SmsPublicReference.ForWalletTopUp(
-                    topUp.Id,
-                    topUp.ReferenceNumber));
+                relatedEntityReference: publicReference);
 
             return wallet;
         }
