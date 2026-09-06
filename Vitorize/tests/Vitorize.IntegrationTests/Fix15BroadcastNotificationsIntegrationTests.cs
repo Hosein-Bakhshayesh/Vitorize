@@ -234,7 +234,7 @@ public sealed class Fix15BroadcastNotificationsIntegrationTests
     [Fact]
     public async Task A_send_at_the_cap_boundary_is_accepted_by_the_bulk_path()
     {
-        // Exercises the batching path itself (5,000 rows / 500 per batch) without the HTTP layer,
+        // Exercises the bounded batching path without the HTTP layer,
         // proving the bulk insert is not a per-recipient SaveChanges loop.
         var (owner, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var recipients = Enumerable.Repeat(owner.Id, 1).ToList();
@@ -258,7 +258,7 @@ public sealed class Fix15BroadcastNotificationsIntegrationTests
         var delivered = await notifications.CreateBulkAsync(broadcastId, recipients, "مرزی", "متن");
 
         delivered.Should().Be(recipients.Count);
-        BroadcastRecipientRules.BatchSize.Should().Be(500);
+        BroadcastRecipientRules.BatchSize.Should().Be(200);
         BroadcastRecipientRules.MaximumRecipients.Should().Be(5000);
     }
 

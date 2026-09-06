@@ -185,16 +185,24 @@ namespace Vitorize.Api.BackgroundServices
 
         private static async Task<int> CleanupOperationalLogs(VitorizeDbContext db, CancellationToken ct)
         {
+            var now = DateTime.UtcNow;
             var auditCutoff = DateTime.UtcNow.AddDays(-365);
             var securityCutoff = DateTime.UtcNow.AddDays(-730);
+            var errorCutoff = now.AddDays(-365);
             var audits = await db.AuditLogs.Where(x => x.CreatedAt < auditCutoff)
                 .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Take(500).ToListAsync(ct);
             var security = await db.SecurityLogs.Where(x => x.CreatedAt < securityCutoff)
                 .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Take(500).ToListAsync(ct);
+            var errors = await db.ErrorLogs.Where(x => x.CreatedAt < errorCutoff)
+                .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Take(500).ToListAsync(ct);
             if (audits.Count > 0) db.AuditLogs.RemoveRange(audits);
             if (security.Count > 0) db.SecurityLogs.RemoveRange(security);
-            if (audits.Count > 0 || security.Count > 0) await db.SaveChangesAsync(ct);
-            return audits.Count + security.Count;
+            if (errors.Count > 0) db.ErrorLogs.RemoveRange(errors);
+
+            // Financial audit records intentionally have no automatic deletion here. Their
+            // retention is an accounting/compliance decision, not an operational-log policy.
+            if (audits.Count > 0 || security.Count > 0 || errors.Count > 0) await db.SaveChangesAsync(ct);
+            return audits.Count + security.Count + errors.Count;
         }
 
         private static async Task<int> ProtectLegacySensitiveData(

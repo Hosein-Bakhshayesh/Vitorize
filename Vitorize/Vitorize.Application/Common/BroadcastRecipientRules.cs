@@ -13,8 +13,12 @@ public static class BroadcastRecipientRules
     /// <summary>Approved v1 hard cap. A larger audience is blocked, never silently truncated.</summary>
     public const int MaximumRecipients = 5000;
 
-    /// <summary>Insert batch size inside the single send transaction.</summary>
-    public const int BatchSize = 500;
+    /// <summary>
+    /// Maximum rows written in one short database transaction while dispatching a broadcast.
+    /// A whole broadcast can contain up to <see cref="MaximumRecipients"/> recipients, but it
+    /// must never keep all of those writes in one SQL Server transaction.
+    /// </summary>
+    public const int BatchSize = 200;
 
     public const string CustomerRole = "Customer";
 

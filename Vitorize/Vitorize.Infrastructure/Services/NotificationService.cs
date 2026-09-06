@@ -189,8 +189,9 @@ namespace Vitorize.Infrastructure.Services
             var now = DateTime.UtcNow;
             var created = 0;
 
-            // Bounded batches keep the change tracker and the SQL round trip small. The caller owns
-            // the surrounding transaction, so a failure in any batch rolls the whole send back.
+            // Each batch is its own short SaveChanges transaction. This keeps SQL Server's
+            // transaction log reusable during a large broadcast instead of retaining every
+            // notification and SMS outbox row until the final recipient is processed.
             foreach (var batch in recipientUserIds.Chunk(BroadcastRecipientRules.BatchSize))
             {
                 var notifications = batch.Select(userId => new Notification
@@ -224,6 +225,13 @@ namespace Vitorize.Infrastructure.Services
                     _dbContext.Entry(notification).State = EntityState.Detached;
 
                 created += notifications.Count;
+
+                // Keep history truthful even if a later batch fails or the process stops. This is
+                // deliberately a small, independent update after the batch itself is durable.
+                await _dbContext.NotificationBroadcasts
+                    .Where(x => x.Id == broadcastId)
+                    .ExecuteUpdateAsync(update => update
+                        .SetProperty(x => x.RecipientCount, created), cancellationToken);
             }
 
             return created;

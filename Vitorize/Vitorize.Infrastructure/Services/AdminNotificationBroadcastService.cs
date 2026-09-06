@@ -91,24 +91,26 @@ namespace Vitorize.Infrastructure.Services
                 CreatedAt = now
             };
 
-            // One transaction for the whole send. The 5,000-recipient cap is what makes this safe:
-            // either every recipient row lands and history is truthful, or nothing is persisted.
-            var isRelational = _dbContext.Database.IsRelational();
-            await using var transaction = isRelational
-                ? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
-                : null;
+            // Persist the header before delivery. NotificationService commits a bounded batch at a
+            // time; holding 5,000 notification/outbox rows in a single transaction would retain
+            // SQL Server's transaction log until the entire broadcast completed.
+            await _dbContext.NotificationBroadcasts.AddAsync(broadcast, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
             try
             {
-                await _dbContext.NotificationBroadcasts.AddAsync(broadcast, cancellationToken);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-
                 var delivered = await _notificationService.CreateBulkAsync(
                     broadcast.Id, recipients, title, message, request.SendSms, actorUserId, cancellationToken);
 
                 if (delivered != recipients.Count)
                     throw new BusinessException("ارسال گروهی کامل نشد؛ عملیات لغو شد.");
 
-                // Recorded from rows actually created, never from the preview estimate.
+                // The final state and its one audit record are still committed together. Individual
+                // recipient batches were already committed independently to bound transaction-log
+                // use and lock duration.
+                await using var finalization = _dbContext.Database.IsRelational()
+                    ? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
+                    : null;
                 broadcast.RecipientCount = delivered;
                 broadcast.Status = (byte)BroadcastStatus.Sent;
                 broadcast.SentAt = DateTime.UtcNow;
@@ -125,13 +127,22 @@ namespace Vitorize.Infrastructure.Services
                     _currentUser.IpAddress,
                     _currentUser.UserAgent);
 
-                if (transaction is not null)
-                    await transaction.CommitAsync(cancellationToken);
+                if (finalization is not null)
+                    await finalization.CommitAsync(cancellationToken);
             }
             catch
             {
-                if (transaction is not null)
-                    await transaction.RollbackAsync(cancellationToken);
+                // Earlier batches may already be durable. Reflect their real count and make the
+                // incomplete broadcast visible to administrators instead of leaving it "Sending".
+                _dbContext.ChangeTracker.Clear();
+                var delivered = await _dbContext.Notifications
+                    .AsNoTracking()
+                    .CountAsync(x => x.BroadcastId == broadcast.Id, cancellationToken);
+                await _dbContext.NotificationBroadcasts
+                    .Where(x => x.Id == broadcast.Id)
+                    .ExecuteUpdateAsync(update => update
+                        .SetProperty(x => x.RecipientCount, delivered)
+                        .SetProperty(x => x.Status, (byte)BroadcastStatus.Failed), cancellationToken);
                 throw;
             }
 

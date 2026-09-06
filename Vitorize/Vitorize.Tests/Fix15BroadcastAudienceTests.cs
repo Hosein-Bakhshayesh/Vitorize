@@ -88,10 +88,10 @@ public sealed class Fix15BroadcastAudienceTests
     }
 
     [Fact]
-    public void The_approved_limits_are_five_thousand_recipients_in_batches_of_five_hundred()
+    public void The_approved_limits_are_five_thousand_recipients_in_batches_of_two_hundred()
     {
         BroadcastRecipientRules.MaximumRecipients.Should().Be(5000);
-        BroadcastRecipientRules.BatchSize.Should().Be(500);
+        BroadcastRecipientRules.BatchSize.Should().Be(200);
         BroadcastRecipientRules.StaffRoles.Should()
             .BeEquivalentTo("Admin", "SuperAdmin", "Support", "KycViewer");
     }
