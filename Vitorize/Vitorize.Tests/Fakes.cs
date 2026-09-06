@@ -23,6 +23,7 @@ public sealed class FakeSmsSender : ISmsSender
     public string? LastMobile { get; private set; }
     public int? LastTemplateId { get; private set; }
     public string? LastSource { get; private set; }
+    public string? LastText { get; private set; }
     public IReadOnlyList<SmsTemplateParameter>? LastParameters { get; private set; }
 
     private readonly Queue<SmsSendResult> _verifyResults = new();
@@ -53,6 +54,7 @@ public sealed class FakeSmsSender : ISmsSender
         LastUsername = options.AsanakUsername;
         LastMobile = mobile;
         LastSource = options.AsanakSource;
+        LastText = text;
         return Task.FromResult(_defaultBulk);
     }
 

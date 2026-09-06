@@ -517,7 +517,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 await _smsOutbox.EnqueueTextAsync(
                     user.Mobile,
-                    "ویتورایز\nاحراز هویت شما با موفقیت تایید شد.",
+                    SmsNotificationMessages.WithFooter("احراز هویت شما با موفقیت تایید شد."),
                     purpose: "VerificationApproved",
                     aggregateId: profile.Id,
                     userId: user.Id,
@@ -535,9 +535,10 @@ namespace Vitorize.Infrastructure.Services
             {
                 await _smsOutbox.EnqueueTextAsync(
                     user.Mobile,
-                    string.IsNullOrWhiteSpace(request.AdminNote)
-                        ? "ویتورایز\nدرخواست احراز هویت شما رد شد."
-                        : $"ویتورایز\nدرخواست احراز هویت شما رد شد. علت: {request.AdminNote.Trim()}",
+                    SmsNotificationMessages.WithFooter(
+                        string.IsNullOrWhiteSpace(request.AdminNote)
+                            ? "درخواست احراز هویت شما رد شد."
+                            : $"درخواست احراز هویت شما رد شد. علت: {request.AdminNote.Trim()}"),
                     purpose: "VerificationRejected",
                     aggregateId: profile.Id,
                     userId: user.Id,

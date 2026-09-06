@@ -57,7 +57,7 @@ public class SmsUniversalTemplateTests
         var text = SmsNotificationMessages.LegacyNotification(templateKey, reference);
 
         Assert.Contains(expectedText, text);
-        Assert.Contains("vitorize.com", text);
+        Assert.EndsWith(SmsNotificationMessages.Footer, text);
         Assert.DoesNotContain("{{", text);
     }
 
@@ -67,6 +67,22 @@ public class SmsUniversalTemplateTests
         Assert.True(SmsAutomaticEventPolicy.IsAllowedTemplate(SmsTemplateKeys.LoginOtp));
         Assert.False(SmsAutomaticEventPolicy.IsAllowedTemplate(SmsTemplateKeys.TicketReply));
         Assert.False(SmsAutomaticEventPolicy.IsAllowedTemplate(SmsTemplateKeys.WalletTopUpSuccess));
+    }
+
+    [Fact]
+    public void SystemNotificationMessages_UseTheStandardFooter()
+    {
+        var messages = new[]
+        {
+            OrderSmsMessages.Processing("VT-1"),
+            OrderSmsMessages.Completed("VT-2"),
+            OrderSmsMessages.Cancelled("VT-3"),
+            SmsNotificationMessages.WalletTopUpSucceeded(50_000, "WL-1"),
+            SmsNotificationMessages.TicketReply("TK-1"),
+            SmsNotificationMessages.AdminReferenceNotification("ADMIN-1")
+        };
+
+        Assert.All(messages, message => Assert.EndsWith(SmsNotificationMessages.Footer, message));
     }
 
     [Fact]

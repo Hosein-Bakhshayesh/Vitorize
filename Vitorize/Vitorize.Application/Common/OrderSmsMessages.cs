@@ -7,11 +7,11 @@ namespace Vitorize.Application.Common;
 public static class OrderSmsMessages
 {
     public static string Processing(string orderNumber) =>
-        $"سفارش شما با موفقیت ثبت شد و اکنون در حال آماده‌سازی است.\nشماره سفارش: {orderNumber}\n\nبا تشکر، ویتورایز\nvitorize.com";
+        SmsNotificationMessages.WithFooter($"سفارش شما با موفقیت ثبت شد و اکنون در حال آماده‌سازی است.\nشماره سفارش: {orderNumber}");
 
     public static string Completed(string orderNumber) =>
-        $"سفارش شما با موفقیت تکمیل شد.\nشماره سفارش: {orderNumber}\n\nبا تشکر، ویتورایز\nvitorize.com";
+        SmsNotificationMessages.WithFooter($"سفارش شما با موفقیت تکمیل شد.\nشماره سفارش: {orderNumber}");
 
     public static string Cancelled(string orderNumber) =>
-        $"سفارش شما لغو شد.\nشماره سفارش: {orderNumber}\n\nبا تشکر، ویتورایز\nvitorize.com";
+        SmsNotificationMessages.WithFooter($"سفارش شما لغو شد.\nشماره سفارش: {orderNumber}");
 }

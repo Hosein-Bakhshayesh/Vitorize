@@ -108,8 +108,9 @@ namespace Vitorize.Infrastructure.Services.Sms
             if (string.IsNullOrWhiteSpace(text))
                 return SmsSendResult.Failure(SmsFailureReason.InvalidParameter);
 
+            var textWithFooter = SmsNotificationMessages.EnsureFooter(text);
             var result = await SendWithRetryAsync(
-                ct => _sender.SendBulkAsync(options, text, normalized, ct),
+                ct => _sender.SendBulkAsync(options, textWithFooter, normalized, ct),
                 options.MaxRetryCount,
                 cancellationToken);
 

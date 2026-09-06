@@ -260,10 +260,10 @@ else
     private string _kycRecipientSearch = "";
     private List<KycReminderRecipientModel> _kycRecipients = new();
     private string _kycReminderText = KycReminderDefaultText;
-    private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nبا تشکر، ویتورایز\nvitorize.com";
+    private const string KycReminderDefaultText = "با سلام، سفارش شما نیازمند تکمیل احراز هویت است. لطفاً برای ادامه فرایند تحویل، احراز هویت خود را در حساب کاربری تکمیل کنید.\n\nباتشکر، ویتورایز\nVitorize.com";
     private static readonly Dictionary<byte,string> Statuses = new() { [0]="در انتظار",[1]="در حال ارسال",[2]="ارسال‌شده",[3]="ناموفق",[4]="بازتلاش",[5]="متوقف‌شده",[6]="غیرفعال",[7]="لغوشده" };
 
-    private string NotificationPreview => $"اطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\nکد پیگیری: {_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری شوید.\nویتورایز\nvitorize.com";
+    private string NotificationPreview => $"اطلاع‌رسانی جدیدی در حساب کاربری شما ثبت شد.\nکد پیگیری: {_orderNumber}\n\nبرای مشاهده جزئیات وارد حساب کاربری شوید.\n\nباتشکر، ویتورایز\nVitorize.com";
     private int SegmentCount => string.IsNullOrEmpty(_customText) ? 0 : (int)Math.Ceiling(_customText.Length / (_customText.Any(c => c > 127) ? 67d : 153d));
     private int KycSegmentCount => string.IsNullOrEmpty(_kycReminderText) ? 0 : (int)Math.Ceiling(_kycReminderText.Length / (_kycReminderText.Any(c => c > 127) ? 67d : 153d));
     private bool CanSendText => _health?.CanSendText == true;

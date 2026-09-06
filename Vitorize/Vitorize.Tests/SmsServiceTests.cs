@@ -145,6 +145,21 @@ public class SmsServiceTests
     }
 
     [Fact]
+    public async Task SendText_AppendsTheStandardFooterOnce()
+    {
+        var sender = new FakeSmsSender();
+        var svc = Build(Enabled(), sender);
+
+        var result = await svc.SendTextAsync("09123456789", "متن اطلاع‌رسانی");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal($"متن اطلاع‌رسانی\n\n{SmsNotificationMessages.Footer}", sender.LastText);
+
+        await svc.SendTextAsync("09123456789", sender.LastText!);
+        Assert.Equal($"متن اطلاع‌رسانی\n\n{SmsNotificationMessages.Footer}", sender.LastText);
+    }
+
+    [Fact]
     public async Task ValidateConfiguration_MissingTemplate_ReportsInvalid()
     {
         var sender = new FakeSmsSender();
