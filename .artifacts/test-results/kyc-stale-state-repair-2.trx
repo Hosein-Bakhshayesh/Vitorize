@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="65be6490-eee2-4b35-a87c-5a6173df6fe3" name="Bakhshayesh.Hossein@UMS001N10068 2026-09-07 09:46:53" runUser="GIG\Bakhshayesh.Hossein" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-07T09:46:53.6277899+03:30" queuing="2026-09-07T09:46:53.6277903+03:30" start="2026-09-07T09:46:09.9151880+03:30" finish="2026-09-07T09:46:57.3307071+03:30" />
+  <TestSettings name="default" id="ec32cfae-61e2-4d2d-b535-a79d04790351">
+    <Deployment runDeploymentRoot="Bakhshayesh.Hossein_UMS001N10068_2026-09-07_09_46_53" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="5557d380-d1eb-4db6-bcee-823d29d88938" testId="540b4b07-1231-84fe-c5b3-fa8cbea62cf5" testName="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Approval_never_releases_a_stale_submission_state_when_its_required_document_is_missing" computerName="UMS001N10068" duration="00:00:02.1933085" startTime="2026-09-07T09:46:53.6025491+03:30" endTime="2026-09-07T09:46:53.6025615+03:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5557d380-d1eb-4db6-bcee-823d29d88938" />
+    <UnitTestResult executionId="db867375-4e05-4175-87ef-9a18b363a9a1" testId="169e978b-2162-dda5-80b6-288411d104f2" testName="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Approval_repairs_a_stale_submission_state_only_when_that_items_required_documents_exist" computerName="UMS001N10068" duration="00:00:00.5558031" startTime="2026-09-07T09:46:54.1600225+03:30" endTime="2026-09-07T09:46:54.1600226+03:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="db867375-4e05-4175-87ef-9a18b363a9a1" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Approval_never_releases_a_stale_submission_state_when_its_required_document_is_missing" storage="d:\vitorize\vitorize\tests\vitorize.integrationtests\bin\debug\net8.0\vitorize.integrationtests.dll" id="540b4b07-1231-84fe-c5b3-fa8cbea62cf5">
+      <Execution id="5557d380-d1eb-4db6-bcee-823d29d88938" />
+      <TestMethod codeBase="D:\Vitorize\Vitorize\tests\Vitorize.IntegrationTests\bin\Debug\net8.0\Vitorize.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests" name="Approval_never_releases_a_stale_submission_state_when_its_required_document_is_missing" />
+    </UnitTest>
+    <UnitTest name="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests.Approval_repairs_a_stale_submission_state_only_when_that_items_required_documents_exist" storage="d:\vitorize\vitorize\tests\vitorize.integrationtests\bin\debug\net8.0\vitorize.integrationtests.dll" id="169e978b-2162-dda5-80b6-288411d104f2">
+      <Execution id="db867375-4e05-4175-87ef-9a18b363a9a1" />
+      <TestMethod codeBase="D:\Vitorize\Vitorize\tests\Vitorize.IntegrationTests\bin\Debug\net8.0\Vitorize.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Vitorize.IntegrationTests.Fix09Phase2DVerificationLifecycleIntegrationTests" name="Approval_repairs_a_stale_submission_state_only_when_that_items_required_documents_exist" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="540b4b07-1231-84fe-c5b3-fa8cbea62cf5" executionId="5557d380-d1eb-4db6-bcee-823d29d88938" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="169e978b-2162-dda5-80b6-288411d104f2" executionId="db867375-4e05-4175-87ef-9a18b363a9a1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="2" executed="2" passed="2" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.28)&#xD;
+[xUnit.net 00:00:00.09]   Discovering: Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.17]   Discovered:  Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.17]   Starting:    Vitorize.IntegrationTests&#xD;
+[09:46:46 INF] Vitorize API bootstrap starting&#xD;
+[2026-09-07 09:46:50.101 +03:30 WRN] [Vitorize.Api] [SeqDisabled] [CorrelationId:] [TraceId:] Seq is disabled; console and file sinks remain active. EventType=SeqDisabled&#xD;
+[2026-09-07 09:46:50.240 +03:30 INF] [Vitorize.Api] [ApplicationStarted] [CorrelationId:] [TraceId:] Vitorize API started in Testing. EventType=ApplicationStarted&#xD;
+[2026-09-07 09:46:53.494 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] KYC item remains blocked because required documents are incomplete. UserId=49de2e15-6b96-47c7-b48a-8a7698cd6009 ProfileId=8b2867e1-265a-4ba4-97fe-d9f49ed0e14c OrderItemId=93a75444-e765-4471-8c67-65ede2247875&#xD;
+[2026-09-07 09:46:54.164 +03:30 INF] [Vitorize.Api] [ApplicationStopping] [CorrelationId:] [TraceId:] Vitorize API is stopping. EventType=ApplicationStopping&#xD;
+[xUnit.net 00:00:46.96]   Finished:    Vitorize.IntegrationTests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

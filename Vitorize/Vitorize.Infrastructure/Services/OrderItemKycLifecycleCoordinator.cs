@@ -67,7 +67,15 @@ public sealed class OrderItemKycLifecycleCoordinator : IOrderItemKycLifecycleCoo
 
     public async Task SynchronizeReviewAsync(Guid userId, Guid verificationProfileId, bool approved, CancellationToken cancellationToken = default)
     {
-        var states = await ManagedStatesAsync(userId, [(byte)OrderItemKycStatus.AwaitingReview], cancellationToken);
+        // Older/incomplete flows could leave an item in AwaitingSubmission even
+        // though the profile subsequently reached a valid approved state.  On
+        // approval we repair only that stale state, and only after checking the
+        // persisted document requirements below. Rejections continue to affect
+        // items that had actually reached review.
+        var statuses = approved
+            ? new[] { (byte)OrderItemKycStatus.AwaitingReview, (byte)OrderItemKycStatus.AwaitingSubmission }
+            : new[] { (byte)OrderItemKycStatus.AwaitingReview };
+        var states = await ManagedStatesAsync(userId, statuses, cancellationToken);
         if (states.Count == 0) return;
 
         if (approved)
@@ -80,8 +88,49 @@ public sealed class OrderItemKycLifecycleCoordinator : IOrderItemKycLifecycleCoo
                     userId, verificationProfileId);
                 return;
             }
+
+            // The profile approval guard in VerificationService validates the
+            // union of requirements. Keep this per-item check here too, so a
+            // caller can never release a stale item merely because a user's
+            // status says "Verified". Pending is included because this method
+            // runs inside the same transaction as the review, before the new
+            // document statuses are committed as Verified.
+            var uploadedDocumentIds = await _dbContext.VerificationDocuments.AsNoTracking()
+                .Where(x => x.UserVerificationProfileId == verificationProfileId &&
+                            x.KycDocumentTypeId.HasValue &&
+                            !string.IsNullOrWhiteSpace(x.FilePath) &&
+                            (x.Status == (byte)VerificationStatus.Pending ||
+                             x.Status == (byte)VerificationStatus.Verified))
+                .Select(x => x.KycDocumentTypeId!.Value)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var policyIds = states.Select(x => x.OrderItem.KycPolicyVersionId!.Value).Distinct().ToList();
+            var requirements = await _dbContext.KycPolicyDocumentRequirements.AsNoTracking()
+                .Where(x => policyIds.Contains(x.KycPolicyVersionId) && x.IsRequired)
+                .Select(x => new { x.KycPolicyVersionId, x.KycDocumentTypeId })
+                .ToListAsync(cancellationToken);
+
             foreach (var state in states)
+            {
+                var requiredDocumentIds = requirements
+                    .Where(x => x.KycPolicyVersionId == state.OrderItem.KycPolicyVersionId)
+                    .Select(x => x.KycDocumentTypeId);
+                if (!requiredDocumentIds.All(uploadedDocumentIds.Contains))
+                {
+                    _logger.LogWarning(
+                        "KYC item remains blocked because required documents are incomplete. UserId={UserId} ProfileId={ProfileId} OrderItemId={OrderItemId}",
+                        userId, verificationProfileId, state.OrderItemId);
+                    continue;
+                }
+
+                // Preserve the state-machine's legal path. Both transitions
+                // are committed atomically, so the customer never sees an
+                // intermediate state; the first one only repairs legacy data.
+                if ((OrderItemKycStatus)state.Status == OrderItemKycStatus.AwaitingSubmission)
+                    Transition(state, OrderItemKycStatus.AwaitingReview, null);
                 Transition(state, OrderItemKycStatus.Satisfied, verificationProfileId);
+            }
         }
         else
         {

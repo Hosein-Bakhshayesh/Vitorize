@@ -53,6 +53,49 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
     }
 
     [Fact]
+    public async Task Approval_repairs_a_stale_submission_state_only_when_that_items_required_documents_exist()
+    {
+        var seed = await SeedAsync();
+        var profileId = await CreateVerifiedProfileAsync(seed, includeDocumentB: true);
+
+        using (var scope = _fixture.Factory.Services.CreateScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<IOrderItemKycLifecycleCoordinator>()
+                .SynchronizeReviewAsync(seed.User.Id, profileId, approved: true);
+            await scope.ServiceProvider.GetRequiredService<Vitorize.Infrastructure.Persistence.VitorizeDbContext>().SaveChangesAsync();
+        }
+
+        await using var verified = _fixture.CreateDbContext();
+        var repaired = await verified.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id);
+        repaired.Status.Should().Be((byte)OrderItemKycStatus.Satisfied);
+        repaired.SatisfiedByVerificationProfileId.Should().Be(profileId);
+        (await verified.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V2Item.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.Satisfied);
+    }
+
+    [Fact]
+    public async Task Approval_never_releases_a_stale_submission_state_when_its_required_document_is_missing()
+    {
+        var seed = await SeedAsync();
+        var profileId = await CreateVerifiedProfileAsync(seed, includeDocumentB: false);
+
+        using (var scope = _fixture.Factory.Services.CreateScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<IOrderItemKycLifecycleCoordinator>()
+                .SynchronizeReviewAsync(seed.User.Id, profileId, approved: true);
+            await scope.ServiceProvider.GetRequiredService<Vitorize.Infrastructure.Persistence.VitorizeDbContext>().SaveChangesAsync();
+        }
+
+        await using var blocked = _fixture.CreateDbContext();
+        (await blocked.UserVerificationProfiles.SingleAsync(x => x.Id == profileId)).Status
+            .Should().Be((byte)VerificationStatus.Verified);
+        (await blocked.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.Satisfied);
+        (await blocked.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V2Item.Id)).Status
+            .Should().Be((byte)OrderItemKycStatus.AwaitingSubmission);
+    }
+
+    [Fact]
     public async Task Rejected_item_resubmits_but_final_rejected_item_never_reopens()
     {
         var seed = await SeedAsync();
@@ -280,6 +323,60 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
             new OrderItemKycState { Id = Guid.NewGuid(), OrderItemId = item2.Id, Status = (byte)OrderItemKycStatus.AwaitingSubmission, CreatedAt = now, UpdatedAt = now });
         await db.SaveChangesAsync();
         return (user, userToken, admin, adminToken, order, item1, item2, docA, docB);
+    }
+
+    private async Task<Guid> CreateVerifiedProfileAsync(
+        (User User, string UserToken, User Admin, string AdminToken, Order Order, OrderItem V1Item, OrderItem V2Item, KycDocumentType DocumentA, KycDocumentType DocumentB) seed,
+        bool includeDocumentB)
+    {
+        var now = DateTime.UtcNow;
+        var profile = new UserVerificationProfile
+        {
+            Id = Guid.NewGuid(),
+            UserId = seed.User.Id,
+            FirstName = "Verified",
+            LastName = "Customer",
+            NationalCode = "1234567890",
+            Status = (byte)VerificationStatus.Verified,
+            SubmittedAt = now,
+            ReviewedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+            EncryptedPayload = "test-payload",
+            EncryptionVersion = 1
+        };
+        profile.VerificationDocuments.Add(new VerificationDocument
+        {
+            Id = Guid.NewGuid(),
+            DocumentType = 1,
+            KycDocumentTypeId = seed.DocumentA.Id,
+            FilePath = $"kyc-private:{seed.User.Id:N}/document-a.jpg",
+            Status = (byte)VerificationStatus.Verified,
+            CreatedAt = now,
+            ReviewedAt = now
+        });
+        if (includeDocumentB)
+        {
+            profile.VerificationDocuments.Add(new VerificationDocument
+            {
+                Id = Guid.NewGuid(),
+                DocumentType = 2,
+                KycDocumentTypeId = seed.DocumentB.Id,
+                FilePath = $"kyc-private:{seed.User.Id:N}/document-b.jpg",
+                Status = (byte)VerificationStatus.Verified,
+                CreatedAt = now,
+                ReviewedAt = now
+            });
+        }
+
+        await using var db = _fixture.CreateDbContext();
+        var user = await db.Users.SingleAsync(x => x.Id == seed.User.Id);
+        user.IsMobileConfirmed = true;
+        user.VerificationStatus = (byte)VerificationStatus.Verified;
+        user.UpdatedAt = now;
+        db.UserVerificationProfiles.Add(profile);
+        await db.SaveChangesAsync();
+        return profile.Id;
     }
 
     private static SubmitVerificationRequestDto Request() => new()
