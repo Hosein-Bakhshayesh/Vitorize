@@ -3,7 +3,9 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
 import { auditResponsivePage } from '../framework/responsive';
 
 const visualProjects = new Set([
-  'phone-320-light', 'phone-390-dark', 'tablet-768-light', 'desktop-1440-dark'
+  'phone-320-light', 'phone-390-dark', 'tablet-768-light', 'desktop-1440-dark',
+  // These are the active project names in playwright.config.ts.
+  'mobile-light', 'mobile-dark'
 ]);
 
 const commonDynamic = (page: Page) => page.locator('time,.st-mono,.vz-mono,.st-avatar');

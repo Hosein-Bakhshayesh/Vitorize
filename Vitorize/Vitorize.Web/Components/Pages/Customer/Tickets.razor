@@ -24,7 +24,24 @@ else if (_tickets.Count == 0)
 else
 {
     <div class="st-card">
-        <div class="st-table-wrap">
+        <div class="st-mobile-records customer-ticket-records">
+            @foreach (var t in _tickets)
+            {
+                <article class="st-mobile-record">
+                    <div class="st-mobile-record__head">
+                        <strong>@t.Subject</strong>
+                        <StoreBadge Text="@AUI.TicketStatus(t.Status)" Intent="@TicketIntent(t.Status)" />
+                    </div>
+                    <dl class="customer-ticket-record__details">
+                        <div><dt>بخش</dt><dd>@AUI.TicketDepartment(t.Department)</dd></div>
+                        <div><dt>اولویت</dt><dd>@AUI.TicketPriority(t.Priority)</dd></div>
+                        <div><dt>آخرین بروزرسانی</dt><dd><PersianDateDisplay Value="@(t.UpdatedAt ?? t.CreatedAt)" WithTime="true" /></dd></div>
+                    </dl>
+                    <a class="st-btn st-btn--outline st-btn--sm customer-ticket-record__action" href="@($"/customer/tickets/{t.Id}")">مشاهدهٔ تیکت</a>
+                </article>
+            }
+        </div>
+        <div class="st-table-wrap st-mobile-records-desktop">
             <table class="st-table">
                 <thead><tr><th>موضوع</th><th>بخش</th><th>اولویت</th><th>وضعیت</th><th>آخرین بروزرسانی</th><th></th></tr></thead>
                 <tbody>
@@ -44,6 +61,22 @@ else
         </div>
     </div>
 }
+
+<style>
+    .customer-ticket-record__details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 14px;
+        margin: 14px 0;
+        padding-block: 12px;
+        border-block: 1px solid var(--st-border, #e5e7eb);
+    }
+    .customer-ticket-record__details > div { min-width: 0; }
+    .customer-ticket-record__details dt { margin-bottom: 3px; color: var(--st-text-3, #64748b); font-size: 11px; font-weight: 700; }
+    .customer-ticket-record__details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; }
+    .customer-ticket-record__action { width: 100%; justify-content: center; }
+    @@media (max-width: 360px) { .customer-ticket-record__details { grid-template-columns: 1fr; } }
+</style>
 
 @code {
     private bool _loading = true;

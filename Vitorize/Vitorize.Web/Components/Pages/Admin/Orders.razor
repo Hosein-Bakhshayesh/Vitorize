@@ -201,14 +201,14 @@ else
         else if (_detail is not null)
         {
             var d = _detail;
-            <div class="vz-stack">
+            <div class="vz-stack orders-detail-content">
                 <div class="vz-card" style="box-shadow:none">
                     <div class="vz-card__body">
                         <Stepper Steps="BuildSteps(d)" />
                     </div>
                 </div>
 
-                <div class="vz-row" style="gap:14px;flex-wrap:wrap">
+                <div class="vz-row orders-detail-summary" style="gap:14px;flex-wrap:wrap">
                     <div style="flex:1;min-width:200px">
                         <dl class="vz-deflist">
                             <dt>مشتری</dt><dd>@d.UserFullName</dd>
@@ -275,7 +275,7 @@ else
                                 @foreach (var item in Items(d))
                                 {
                                     <tr>
-                                        <td class="vz-cell-title">
+                                        <td class="vz-cell-title orders-detail-item-product">
                                             @item.ProductTitle @(string.IsNullOrWhiteSpace(item.VariantTitle) ? "" : $"— {item.VariantTitle}")
                                             @if (item.InputValues.Count > 0)
                                             {
@@ -292,7 +292,7 @@ else
                                         <td><MoneyDisplay Amount="item.UnitPrice" /></td>
                                         <td><MoneyDisplay Amount="item.TotalPrice" /></td>
                                         <td>@AUI.DeliveryType(item.DeliveryType)</td>
-                                        <td>
+                                        <td class="orders-detail-item-delivery">
                                             <StatusBadge Text="@AUI.DeliveryStatus(item.DeliveryStatus)" Intent="muted" Dot="false" />
                                             @if (ManualDeliveries(item).Count > 0)
                                             {
@@ -1333,10 +1333,16 @@ else
         .orders-mobile-card__statuses { display: flex; grid-column: 1 / -1; gap: 6px; flex-wrap: wrap; }
 
         .orders-detail-table { overflow: visible; }
+        .orders-detail-summary { flex-direction: column; align-items: stretch; }
+        .orders-detail-summary > div { width: 100%; min-width: 0 !important; }
         .orders-detail-table .vz-table, .orders-detail-table .vz-table tbody { display: block; width: 100%; }
         .orders-detail-table .vz-table thead { display: none; }
         .orders-detail-table .vz-table tr { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 9px; }
         .orders-detail-table .vz-table td { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0; border: 0; text-align: end; overflow-wrap: anywhere; }
+        .orders-detail-table .vz-table td.orders-detail-item-product,
+        .orders-detail-table .vz-table td.orders-detail-item-delivery { display: block; text-align: start; }
+        .orders-detail-table .vz-table td.orders-detail-item-product::before,
+        .orders-detail-table .vz-table td.orders-detail-item-delivery::before { display: block; margin-bottom: 7px; }
         .orders-detail-table .vz-admin-delivery-notes { width: 100%; }
         .orders-detail-table .vz-table td::before { flex: 0 0 auto; color: var(--text-3); font-size: 11px; font-weight: 700; text-align: start; }
         .orders-payment-table td:nth-child(1)::before { content: "درگاه"; }
@@ -1351,6 +1357,13 @@ else
         .orders-items-table td:nth-child(4)::before { content: "جمع"; }
         .orders-items-table td:nth-child(5)::before { content: "نوع تحویل"; }
         .orders-items-table td:nth-child(6)::before { content: "تحویل"; }
+        .orders-detail-table .vz-order-inputs { display: grid; gap: 8px; margin: 10px 0 0; }
+        .orders-detail-table .vz-order-inputs > div { display: grid; grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1fr); gap: 5px 10px; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+        .orders-detail-table .vz-order-inputs dt { min-width: 0; color: var(--text-3); font-size: 11px; font-weight: 700; }
+        .orders-detail-table .vz-order-inputs dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; }
+        .orders-detail-table .vz-order-inputs button { grid-column: 2; justify-self: start; }
+        .orders-detail-table .orders-detail-item-delivery > * { max-width: 100%; overflow-wrap: anywhere; }
+        .orders-detail-table .orders-detail-item-delivery .vz-muted { display: block; }
         .invoice-print-root { align-items: flex-start; padding: 10px; overflow: auto; }
         .invoice-print-dialog { max-height: none; min-height: calc(100vh - 20px); }
         .invoice-print-sheet { margin: 10px; padding: 16px; font-size: 12px; }

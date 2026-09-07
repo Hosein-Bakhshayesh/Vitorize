@@ -90,7 +90,11 @@ export const responsiveRoutes: ResponsiveRoute[] = [
 
 export const fullInventoryProjects = new Set([
   'phone-320-light', 'phone-390-dark', 'tablet-768-light',
-  'tablet-820-dark', 'desktop-1440-light', 'desktop-1440-dark'
+  'tablet-820-dark', 'desktop-1440-light', 'desktop-1440-dark',
+  // Keep the inventory test in sync with the active Playwright projects.
+  // Without these, `mobile-light` and `mobile-dark` silently inspect only
+  // the high-risk routes instead of the complete mobile route inventory.
+  'mobile-light', 'mobile-dark'
 ]);
 
 export const localScrollAllowList = [

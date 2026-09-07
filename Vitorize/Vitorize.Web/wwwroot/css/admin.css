@@ -763,6 +763,67 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
     .vz-deflist dd { overflow-wrap: anywhere; }
 }
 
+/* Generic phone cards for tables that do not provide a page-specific mobile list. Header labels
+   are supplied at runtime from the semantic table head by mobile-table-cards.js. */
+@media (max-width: 760px) {
+    .vz-table-wrap.vz-mobile-cards { overflow: visible; }
+    .vz-table-wrap.vz-mobile-cards .vz-table,
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody { display: block; width: 100%; }
+    .vz-table-wrap.vz-mobile-cards .vz-table thead { display: none; }
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody { display: grid; gap: 10px; padding: 10px; }
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody tr {
+        display: block; min-width: 0; padding: 12px; border: 1px solid var(--border);
+        border-radius: var(--clip-sm); background: var(--surface-solid); box-shadow: var(--shadow-sm);
+    }
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody td {
+        display: grid; grid-template-columns: minmax(92px, .75fr) minmax(0, 1.25fr); align-items: start;
+        gap: 8px 12px; min-width: 0; padding: 9px 0; border: 0; border-bottom: 1px solid var(--border);
+        text-align: start; white-space: normal; overflow-wrap: anywhere;
+    }
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody td:last-child { border-bottom: 0; }
+    .vz-table-wrap.vz-mobile-cards .vz-table tbody td::before {
+        content: attr(data-mobile-label); color: var(--text-3); font-size: 11px; font-weight: 800;
+    }
+    .vz-table-wrap.vz-mobile-cards .vz-table .col-actions { display: flex; align-items: center; flex-wrap: wrap; }
+    .vz-table-wrap.vz-mobile-cards .vz-table .col-actions::before { flex: 0 0 92px; }
+    .vz-table-wrap.vz-mobile-cards .vz-table .vz-cell-main { min-width: 0; }
+    .vz-table-wrap.vz-mobile-cards .vz-table .vz-cell-title,
+    .vz-table-wrap.vz-mobile-cards .vz-table .vz-cell-sub { overflow-wrap: anywhere; white-space: normal; }
+}
+
+/* Detail dialogs and slide panels are frequently used to inspect long customer-provided values.
+   On phones their content must reflow into one readable column instead of creating narrow text
+   columns or a hidden horizontal scroll area. */
+@media (max-width: 600px) {
+    .vz-dialog__head > :not(.vz-dialog__close),
+    .vz-slidepanel__head > :not(.vz-slidepanel__close) { min-width: 0; }
+    .vz-dialog__title, .vz-slidepanel__title,
+    .vz-dialog__head .vz-card__sub, .vz-slidepanel__sub { overflow-wrap: anywhere; }
+    .vz-dialog__body, .vz-slidepanel__body { min-width: 0; overflow-x: clip; }
+    /* Detail panes frequently contain two equal-width columns or inline status
+       blocks. Keeping that desktop layout on a phone was the source of words
+       wrapping one character per line. Read these values as a single column. */
+    .vz-dialog__body .vz-row, .vz-slidepanel__body .vz-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .vz-dialog__body .vz-row > *, .vz-slidepanel__body .vz-row > * { min-width: 0 !important; }
+    .vz-dialog__body .vz-row > [style*="margin-inline-start:auto"],
+    .vz-slidepanel__body .vz-row > [style*="margin-inline-start:auto"] { margin-inline-start: 0 !important; }
+
+    /* A dialog must never use a thin, horizontally clipped table column for
+       unbounded user content. Component-specific layouts may turn these into
+       labeled cards; this common fallback keeps every value readable. */
+    .vz-dialog__body .vz-table-wrap, .vz-slidepanel__body .vz-table-wrap { max-width: 100%; }
+    .vz-dialog__body .vz-table td, .vz-slidepanel__body .vz-table td {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+}
+
 @media (max-width: 360px) {
     .vz-dialog__foot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .vz-dialog__foot > * { width: 100%; min-width: 0; }
@@ -1263,9 +1324,16 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
         box-shadow: var(--shadow-sm);
     }
     .users-mobile-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-    .users-mobile-card__head .vz-cell-main { min-width: 0; }
+    .users-mobile-card__head .vz-cell-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+    .users-mobile-card__head .vz-cell-main > div { min-width: 0; }
+    /* Names and emails are user-provided. On a phone, preserve the entire value
+       on readable lines instead of letting it flow beneath the avatar or status. */
     .users-mobile-card__head .vz-cell-title,
-    .users-mobile-card__head .vz-cell-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .users-mobile-card__head .vz-cell-sub {
+        overflow-wrap: anywhere;
+        white-space: normal;
+        text-overflow: clip;
+    }
     .users-mobile-card__details {
         display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
         margin: 14px 0; padding: 12px 0; border-block: 1px solid var(--border);

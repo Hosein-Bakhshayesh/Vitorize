@@ -1072,6 +1072,29 @@ button {
 
 /* ----- tables ----- */
 .st-table-wrap { overflow-x: auto; }
+
+/* Tables without a dedicated customer mobile-record list become labeled cards on phones.
+   The labels are copied from the table head by mobile-table-cards.js. */
+@media (max-width: 760px) {
+    .st-table-wrap.st-mobile-cards { overflow: visible; }
+    .st-table-wrap.st-mobile-cards .st-table,
+    .st-table-wrap.st-mobile-cards .st-table tbody { display: block; width: 100%; }
+    .st-table-wrap.st-mobile-cards .st-table thead { display: none; }
+    .st-table-wrap.st-mobile-cards .st-table tbody { display: grid; gap: 10px; padding: 10px; }
+    .st-table-wrap.st-mobile-cards .st-table tbody tr {
+        display: block; min-width: 0; padding: 13px; border: 1px solid var(--st-border);
+        border-radius: var(--st-radius-md, 16px); background: var(--st-surface, #fff);
+    }
+    .st-table-wrap.st-mobile-cards .st-table tbody td {
+        display: grid; grid-template-columns: minmax(92px, .75fr) minmax(0, 1.25fr); gap: 8px 12px;
+        min-width: 0; padding: 9px 0; border: 0; border-bottom: 1px solid var(--st-border);
+        text-align: start; white-space: normal; overflow-wrap: anywhere;
+    }
+    .st-table-wrap.st-mobile-cards .st-table tbody td:last-child { border-bottom: 0; }
+    .st-table-wrap.st-mobile-cards .st-table tbody td::before {
+        content: attr(data-mobile-label); color: var(--st-text-3); font-size: 11px; font-weight: 800;
+    }
+}
 .st-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .st-table thead th { text-align: start; padding: 13px 15px; color: var(--st-muted); font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; background: var(--st-surface-2); border-bottom: 1px solid var(--st-border); white-space: nowrap; }
 .st-table tbody td { padding: 14px 15px; border-bottom: 1px solid var(--st-border); }
