@@ -32,9 +32,9 @@ namespace Vitorize.Application.Models.Sms
         public int RetryDelaySeconds { get; init; } = 30;
 
         public int OtpExpiryMinutes { get; init; } = 3;
-        public int OtpResendCooldownSeconds { get; init; } = 90;
         public int OtpMaxAttempts { get; init; } = 5;
-        public int DailyOtpLimitPerMobile { get; init; } = 10;
+        public int OtpSendBurstLimit { get; init; } = 5;
+        public int OtpSendBurstWindowMinutes { get; init; } = 5;
         public int DailySmsLimitPerMobile { get; init; } = 30;
 
         public bool LogSensitiveData { get; init; }

@@ -210,6 +210,38 @@ public sealed class RegistrationOtpGateIntegrationTests
     }
 
     [Fact]
+    public async Task OTP_sending_is_limited_to_five_per_mobile_and_automatically_resets_after_the_window()
+    {
+        await _fixture.ConfigureSmsAsync(otpSendBurstLimit: 5, otpSendBurstWindowMinutes: 5);
+        using var client = _fixture.CreateClient();
+        var mobile = UnusedMobile();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var response = await client.PostAsJsonAsync("/api/auth/register", Registration(mobile));
+            response.StatusCode.Should().Be(HttpStatusCode.OK, $"send {attempt + 1} is inside the allowed burst");
+        }
+
+        var blocked = await client.PostAsJsonAsync("/api/auth/register", Registration(mobile));
+        blocked.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var blockedBody = await blocked.Content.ReadFromJsonAsync<ApiResult<RegistrationChallengeDto>>();
+        blockedBody!.Message.Should().Contain("حداکثر 5 کد");
+
+        // Simulate the five sends falling outside the configured five-minute window; no manual unlock exists.
+        await using (var db = _fixture.CreateDbContext())
+        {
+            var codes = await db.OtpCodes.Where(x => x.Mobile == mobile).ToListAsync();
+            codes.Should().HaveCount(5);
+            foreach (var code in codes)
+                code.CreatedAt = DateTime.UtcNow.AddMinutes(-6);
+            await db.SaveChangesAsync();
+        }
+
+        var afterReset = await client.PostAsJsonAsync("/api/auth/register", Registration(mobile));
+        afterReset.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task A_completed_account_cannot_ask_for_a_registration_code_again()
     {
         await _fixture.ConfigureSmsAsync();

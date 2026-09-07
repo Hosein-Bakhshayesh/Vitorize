@@ -243,16 +243,16 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
         return (user, token);
     }
 
-    public async Task ConfigureSmsAsync()
+    public async Task ConfigureSmsAsync(int otpSendBurstLimit = 20, int otpSendBurstWindowMinutes = 5)
     {
         var values = new Dictionary<string, string>
         {
             ["Sms.AsanakUsername"] = "integration-sms-user",
             ["Sms.AsanakPassword"] = "integration-sms-password",
             ["Sms.AsanakSource"] = "982100000000",
-            ["Sms.OtpResendCooldownSeconds"] = "0",
             ["Sms.OtpMaxAttempts"] = "3",
-            ["Sms.DailyOtpLimitPerMobile"] = "20"
+            ["Sms.OtpSendBurstLimit"] = otpSendBurstLimit.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Sms.OtpSendBurstWindowMinutes"] = otpSendBurstWindowMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)
         };
         await using var db = CreateDbContext();
         var settings = await db.Settings.Where(x => values.Keys.Contains(x.Key)).ToListAsync();

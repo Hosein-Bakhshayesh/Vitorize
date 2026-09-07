@@ -140,7 +140,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 MaskedMobile = IranMobile.Mask(mobile),
                 ExpirySeconds = Math.Clamp(opts.OtpExpiryMinutes, 1, 15) * 60,
-                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds),
+                ResendCooldownSeconds = 0,
                 Outcome = AuthOutcomeCodes.RegistrationOtpSent
             };
         }
@@ -177,7 +177,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 MaskedMobile = IranMobile.Mask(mobile),
                 ExpirySeconds = Math.Clamp(opts.OtpExpiryMinutes, 1, 15) * 60,
-                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds),
+                ResendCooldownSeconds = 0,
                 Outcome = AuthOutcomeCodes.RegistrationOtpSent
             };
         }
@@ -837,7 +837,7 @@ namespace Vitorize.Infrastructure.Services
 
         /// <summary>
         /// تولید امن کد، ابطال کدهای فعال قبلی، ذخیره‌ی هش و ارسال از طریق سرویس متمرکز پیامک.
-        /// اعمال محدودیت روزانه و فاصله‌ی ارسال مجدد (cooldown) نیز اینجا انجام می‌شود.
+        /// محدودیت کوتاه‌مدتِ هر شماره نیز اینجا انجام می‌شود.
         /// </summary>
         private async Task IssueAndSendOtpAsync(
             User user,
@@ -849,8 +849,10 @@ namespace Vitorize.Infrastructure.Services
             var opts = await _smsSettingsProvider.GetAsync();
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-            await SqlServerTransactionLock.AcquireAsync(
-                _dbContext, $"otp:{mobile}:{(byte)purpose}");
+            // The delivery ceiling spans every OTP purpose for this mobile.  Lock at the mobile
+            // level too, otherwise simultaneous requests through different purposes could each
+            // observe room below the same shared limit.
+            await SqlServerTransactionLock.AcquireAsync(_dbContext, $"otp:{mobile}");
 
             await EnforceOtpRateLimitsAsync(mobile, (byte)purpose, opts);
 
@@ -936,42 +938,29 @@ namespace Vitorize.Infrastructure.Services
         private async Task EnforceOtpRateLimitsAsync(string mobile, byte purpose, SmsOptions opts)
         {
             var now = DateTime.UtcNow;
+            var limit = Math.Clamp(opts.OtpSendBurstLimit, 1, 20);
+            var window = TimeSpan.FromMinutes(Math.Clamp(opts.OtpSendBurstWindowMinutes, 1, 60));
+            var windowStart = now - window;
 
-            // محدودیت روزانه برای هر شماره (همه‌ی هدف‌ها).
-            var since = now.Date;
-            var todayCount = await _dbContext.OtpCodes
-                .CountAsync(x => x.Mobile == mobile && x.CreatedAt >= since);
+            // A short per-mobile window is the only delivery throttle. It permits a customer to
+            // request a replacement code when needed, without one person's retries blocking every
+            // other mobile or imposing an arbitrary all-day lockout.
+            var sentInWindow = await _dbContext.OtpCodes
+                .Where(x => x.Mobile == mobile && x.CreatedAt >= windowStart)
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => x.CreatedAt)
+                .ToListAsync();
 
-            if (todayCount >= Math.Max(1, opts.DailyOtpLimitPerMobile))
-            {
-                _logger.LogWarning(
-                    "OTP daily rate limit reached. MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
-                    SensitiveLogData.MaskMobile(mobile), purpose, OperationalEventNames.OtpRateLimited);
-                throw new BusinessException(
-                    "تعداد درخواست‌های کد تایید برای امروز به حداکثر رسیده است. لطفاً فردا دوباره تلاش کنید.");
-            }
+            if (sentInWindow.Count < limit)
+                return;
 
-            // فاصله‌ی ارسال مجدد (cooldown).
-            var lastCreatedAt = await _dbContext.OtpCodes
-                .Where(x => x.Mobile == mobile && x.Purpose == purpose)
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(x => (DateTime?)x.CreatedAt)
-                .FirstOrDefaultAsync();
-
-            if (lastCreatedAt.HasValue)
-            {
-                var elapsed = now - lastCreatedAt.Value;
-                var cooldown = TimeSpan.FromSeconds(Math.Max(0, opts.OtpResendCooldownSeconds));
-
-                if (elapsed < cooldown)
-                {
-                    _logger.LogWarning(
-                        "OTP resend cooldown active. MaskedMobile={MaskedMobile} Purpose={Purpose} EventType={EventType}",
-                        SensitiveLogData.MaskMobile(mobile), purpose, OperationalEventNames.OtpRateLimited);
-                    throw new BusinessException(
-                        "کد تایید اخیراً ارسال شده است. لطفاً پس از پایان شمارش معکوس دوباره تلاش کنید.");
-                }
-            }
+            var retryAt = sentInWindow[0].Add(window);
+            var retryAfterSeconds = Math.Max(1, (int)Math.Ceiling((retryAt - now).TotalSeconds));
+            _logger.LogWarning(
+                "OTP burst limit reached. MaskedMobile={MaskedMobile} Purpose={Purpose} Limit={Limit} WindowMinutes={WindowMinutes} RetryAfterSeconds={RetryAfterSeconds} EventType={EventType}",
+                SensitiveLogData.MaskMobile(mobile), purpose, limit, window.TotalMinutes, retryAfterSeconds, OperationalEventNames.OtpRateLimited);
+            throw new BusinessException(
+                $"برای این شماره حداکثر {limit} کد در {window.TotalMinutes:0} دقیقه ارسال می‌شود. لطفاً چند دقیقه دیگر دوباره تلاش کنید.");
         }
 
         public async Task<RequestOtpLoginResponseDto> RequestLoginOtpAsync(
@@ -990,7 +979,7 @@ namespace Vitorize.Infrastructure.Services
             {
                 MaskedMobile = IranMobile.Mask(mobile),
                 ExpirySeconds = Math.Max(1, opts.OtpExpiryMinutes) * 60,
-                ResendCooldownSeconds = Math.Max(0, opts.OtpResendCooldownSeconds)
+                ResendCooldownSeconds = 0
             };
 
             var user = await _dbContext.Users

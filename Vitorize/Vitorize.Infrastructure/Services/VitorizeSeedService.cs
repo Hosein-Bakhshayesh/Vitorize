@@ -419,9 +419,9 @@ namespace Vitorize.Infrastructure.Services
 
                 // سیاست کد یکبار‌مصرف و پایداری
                 S(SmsSettingKeys.OtpExpiryMinutes, "3", "SMS", "int", "مدت اعتبار کد یکبار‌مصرف (دقیقه)"),
-                S(SmsSettingKeys.OtpResendCooldownSeconds, "90", "SMS", "int", "فاصله ارسال مجدد کد (ثانیه)"),
                 S(SmsSettingKeys.OtpMaxAttempts, "5", "SMS", "int", "حداکثر تلاش مجاز برای هر کد"),
-                S(SmsSettingKeys.DailyOtpLimitPerMobile, "10", "SMS", "int", "سقف کد روزانه برای هر شماره"),
+                S(SmsSettingKeys.OtpSendBurstLimit, "5", "SMS", "int", "حداکثر ارسال کد برای هر شماره در بازه"),
+                S(SmsSettingKeys.OtpSendBurstWindowMinutes, "5", "SMS", "int", "بازه بازنشانی سقف ارسال کد (دقیقه)"),
                 S(SmsSettingKeys.DailySmsLimitPerMobile, "30", "SMS", "int", "سقف پیامک روزانه برای هر شماره"),
                 S(SmsSettingKeys.MaxRetryCount, "5", "SMS", "int", "حداکثر تعداد بازتلاش ارسال"),
                 S(SmsSettingKeys.RetryDelaySeconds, "30", "SMS", "int", "پایه تأخیر بازتلاش (ثانیه)"),

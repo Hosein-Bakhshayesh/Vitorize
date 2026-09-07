@@ -486,6 +486,11 @@ namespace Vitorize.Web.Services
                     response.StatusCode == HttpStatusCode.Forbidden)
                     return AuthFailure<T>("دسترسی شما به این بخش مجاز نیست یا نشست شما منقضی شده است.");
 
+                // A proxy or an older API instance may still return an empty 429.  Keep the
+                // failure actionable instead of incorrectly implying that the server disappeared.
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    return CreateFailure<T>("تعداد درخواست‌های شما زیاد است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.");
+
                 return CreateFailure<T>("پاسخی از سرور دریافت نشد. لطفاً دوباره تلاش کنید.");
             }
 

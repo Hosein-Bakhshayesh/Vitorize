@@ -79,9 +79,9 @@ namespace Vitorize.Infrastructure.Services.Sms
                 MaxRetryCount = GetInt(map, SmsSettingKeys.MaxRetryCount, 3),
                 RetryDelaySeconds = GetInt(map, SmsSettingKeys.RetryDelaySeconds, 30),
                 OtpExpiryMinutes = GetInt(map, SmsSettingKeys.OtpExpiryMinutes, 3),
-                OtpResendCooldownSeconds = GetInt(map, SmsSettingKeys.OtpResendCooldownSeconds, 90),
                 OtpMaxAttempts = GetInt(map, SmsSettingKeys.OtpMaxAttempts, 5),
-                DailyOtpLimitPerMobile = GetInt(map, SmsSettingKeys.DailyOtpLimitPerMobile, 10),
+                OtpSendBurstLimit = GetInt(map, SmsSettingKeys.OtpSendBurstLimit, 5),
+                OtpSendBurstWindowMinutes = GetInt(map, SmsSettingKeys.OtpSendBurstWindowMinutes, 5),
                 DailySmsLimitPerMobile = GetInt(map, SmsSettingKeys.DailySmsLimitPerMobile, 30),
                 LogSensitiveData = GetBool(map, SmsSettingKeys.LogSensitiveData, false)
             };

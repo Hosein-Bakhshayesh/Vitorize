@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
+using System.Threading.RateLimiting;
 using Serilog;
 using Vitorize.Api.BackgroundServices;
 using Vitorize.Api.Extensions;
@@ -262,27 +263,25 @@ namespace Vitorize.Api
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-                options.AddFixedWindowLimiter("login", opt =>
+                options.OnRejected = async (context, cancellationToken) =>
                 {
-                    opt.PermitLimit = testingRateLimit ?? 5;
-                    opt.Window = TimeSpan.FromMinutes(1);
-                    opt.QueueProcessingOrder =
-                        System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                    opt.QueueLimit = 0;
-                });
+                    // The built-in limiter otherwise returns an empty 429 response.  The Web
+                    // client must be able to distinguish a deliberate retry limit from a server
+                    // outage, especially during registration where an SMS may already have arrived.
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json; charset=utf-8";
+                    await context.HttpContext.Response.WriteAsJsonAsync(
+                        ApiResult.Failure("تعداد درخواست‌های شما زیاد است. لطفاً چند دقیقه دیگر دوباره تلاش کنید."),
+                        cancellationToken);
+                };
 
-                options.AddFixedWindowLimiter("otp", opt =>
-                {
-                    opt.PermitLimit = testingRateLimit ?? 3;
-                    opt.Window = TimeSpan.FromMinutes(1);
-                });
-
-                options.AddFixedWindowLimiter("register", opt =>
-                {
-                    opt.PermitLimit = testingRateLimit ?? 3;
-                    opt.Window = TimeSpan.FromMinutes(5);
-                });
+                // These are intentionally partitioned per visitor rather than globally. The OTP
+                // delivery paths enforce their own per-mobile burst limit in AuthService; HTTP
+                // throttling remains only for password login and administrative SMS operations.
+                options.AddPolicy("login", context => CreateClientFixedWindowPartition(
+                    context, "login", testingRateLimit ?? 5, TimeSpan.FromMinutes(1)));
+                options.AddPolicy("otp", context => CreateClientFixedWindowPartition(
+                    context, "otp", testingRateLimit ?? 3, TimeSpan.FromMinutes(1)));
             });
 
             // Background Services
@@ -592,6 +591,29 @@ namespace Vitorize.Api
             {
                 Log.CloseAndFlush();
             }
+        }
+
+        private static RateLimitPartition<string> CreateClientFixedWindowPartition(
+            HttpContext context,
+            string policy,
+            int permitLimit,
+            TimeSpan window)
+        {
+            // Use RemoteIpAddress after UseForwardedHeaders has applied the trusted proxy's
+            // forwarded address. Do not read X-Forwarded-For directly: an untrusted caller could
+            // forge it and bypass the protection.
+            var clientAddress = context.Connection.RemoteIpAddress?.ToString();
+            var partitionKey = string.IsNullOrWhiteSpace(clientAddress) ? "unknown" : clientAddress;
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"{policy}:{partitionKey}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = window,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                });
         }
     }
 }

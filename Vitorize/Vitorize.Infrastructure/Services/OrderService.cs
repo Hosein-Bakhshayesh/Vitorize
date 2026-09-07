@@ -80,6 +80,7 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.InputValues)
+                        .ThenInclude(x => x.ProductInputField)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
                 .Include(x => x.Payments)
@@ -167,6 +168,7 @@ namespace Vitorize.Infrastructure.Services
                     .ThenInclude(x => x.OrderItemDeliveries)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.InputValues)
+                        .ThenInclude(x => x.ProductInputField)
                 .Include(x => x.OrderItems)
                     .ThenInclude(x => x.KycLifecycleState)
                 .Include(x => x.OrderItems)
@@ -968,7 +970,18 @@ namespace Vitorize.Infrastructure.Services
                     RequiresVerification = i.RequiresVerification,
                     CreatedAt = i.CreatedAt,
                     DeliveredAt = i.DeliveredAt,
-                    InputValues = i.InputValues.Select(MapInputValue).ToList(),
+                    // Order input values are stored as a purchase-time snapshot, but their linked
+                    // field still carries the merchant's deliberate display order.  Collection
+                    // enumeration has no database ordering guarantee, so always make it explicit
+                    // for both the admin and customer order-detail screens.  Legacy values whose
+                    // original field no longer exists retain their creation order as a stable
+                    // fallback instead of jumping around between page loads.
+                    InputValues = i.InputValues
+                        .OrderBy(value => value.ProductInputField?.SortOrder ?? int.MaxValue)
+                        .ThenBy(value => value.ProductInputField is null ? value.CreatedAt : DateTime.MinValue)
+                        .ThenBy(value => value.FieldKey, StringComparer.OrdinalIgnoreCase)
+                        .Select(MapInputValue)
+                        .ToList(),
                     Deliveries = i.OrderItemDeliveries
                         .Where(d => includePrivateDeliveries || d.IsVisibleToCustomer)
                         .Select(d => new OrderDeliveryDto

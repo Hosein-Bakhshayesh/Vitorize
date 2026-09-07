@@ -65,9 +65,9 @@ namespace Vitorize.Application.Common
         public const string MaxRetryCount = "Sms.MaxRetryCount";
         public const string RetryDelaySeconds = "Sms.RetryDelaySeconds";
         public const string OtpExpiryMinutes = "Sms.OtpExpiryMinutes";
-        public const string OtpResendCooldownSeconds = "Sms.OtpResendCooldownSeconds";
         public const string OtpMaxAttempts = "Sms.OtpMaxAttempts";
-        public const string DailyOtpLimitPerMobile = "Sms.DailyOtpLimitPerMobile";
+        public const string OtpSendBurstLimit = "Sms.OtpSendBurstLimit";
+        public const string OtpSendBurstWindowMinutes = "Sms.OtpSendBurstWindowMinutes";
         public const string DailySmsLimitPerMobile = "Sms.DailySmsLimitPerMobile";
         public const string LogSensitiveData = "Sms.LogSensitiveData";
         public const string MaxCustomRecipients = "Sms.MaxCustomRecipients";
@@ -90,6 +90,8 @@ namespace Vitorize.Application.Common
             "Sms.RequireConfirmation",
             "Sms.AllowImmediateSend",
             "Sms.AllowRetryFailed",
+            "Sms.OtpResendCooldownSeconds",
+            "Sms.DailyOtpLimitPerMobile",
             // V0035 deletes these settings. Keep them hidden defensively until that
             // migration has run, so an older database cannot expose obsolete inputs.
             "Sms.Provider",

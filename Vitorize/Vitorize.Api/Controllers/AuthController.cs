@@ -25,7 +25,6 @@ namespace Vitorize.Api.Controllers
             _currentUserService = currentUserService;
         }
 
-        [EnableRateLimiting("register")]
         [HttpPost("register")]
         [SwaggerOperation(
             Summary = "شروع ثبت‌نام و ارسال کد تأیید",
@@ -43,7 +42,6 @@ namespace Vitorize.Api.Controllers
                 "کد تأیید به شماره شما ارسال شد."));
         }
 
-        [EnableRateLimiting("register")]
         [HttpPost("register/verify")]
         [SwaggerOperation(
             Summary = "تأیید کد ثبت‌نام و ورود خودکار",
@@ -59,7 +57,6 @@ namespace Vitorize.Api.Controllers
             return Ok(ApiResult<AuthResponseDto>.Success(result, "ثبت‌نام با موفقیت تکمیل شد."));
         }
 
-        [EnableRateLimiting("register")]
         [HttpPost("register/resend")]
         [SwaggerOperation(
             Summary = "ارسال مجدد کد ثبت‌نام",
@@ -215,7 +212,6 @@ namespace Vitorize.Api.Controllers
             return Ok(ApiResult.Success("رمز عبور با موفقیت بازیابی شد."));
         }
 
-        [EnableRateLimiting("otp")]
         [HttpPost("send-otp")]
         [SwaggerOperation(
             Summary = "ارسال کد تایید",
@@ -242,7 +238,6 @@ namespace Vitorize.Api.Controllers
             return Ok(ApiResult.Success("کد تایید با موفقیت تایید شد."));
         }
 
-        [EnableRateLimiting("otp")]
         [HttpPost("login/otp/request")]
         [SwaggerOperation(
             Summary = "درخواست کد ورود یکبار‌مصرف",

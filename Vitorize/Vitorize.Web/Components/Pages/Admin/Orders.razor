@@ -280,15 +280,20 @@ else
                                             @if (item.InputValues.Count > 0)
                                             {
                                                 <dl class="vz-order-inputs">
-                                                    @foreach (var value in item.InputValues)
+                                                    @for (var inputIndex = 0; inputIndex < item.InputValues.Count; inputIndex++)
                                                     {
-                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)"><span>@DisplayInputValue(value.FieldType, value.Value, value.IsSensitive && value.IsMasked)</span>
+                                                        var value = item.InputValues[inputIndex];
+                                                        <div class="vz-order-inputs__field"><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)"><span>@DisplayInputValue(value.FieldType, value.Value, value.IsSensitive && value.IsMasked)</span>
                                                         @if (CanCopyInput(value))
                                                         {
                                                             <button type="button" class="vz-iconaction vz-order-input-copy" data-testid="admin-order-input-copy" title="کپی مقدار @value.FieldLabel" aria-label="کپی مقدار @value.FieldLabel" @onclick="() => CopyInputValue(value)" @onclick:stopPropagation="true"><Icon Name="copy" Size="14" /></button>
                                                         }
                                                         </dd>
                                                         @if (value.IsSensitive && value.IsMasked && value.Id.HasValue) { <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => RevealInput(d.Id, value)"><Icon Name="eye" Size="12" /> نمایش با ثبت گزارش</button> }</div>
+                                                        @if (inputIndex < item.InputValues.Count - 1)
+                                                        {
+                                                            <div class="vz-order-inputs__separator" aria-hidden="true"></div>
+                                                        }
                                                     }
                                                 </dl>
                                             }
@@ -1376,7 +1381,8 @@ else
         .orders-items-table td:nth-child(5)::before { content: "نوع تحویل"; }
         .orders-items-table td:nth-child(6)::before { content: "تحویل"; }
         .orders-detail-table .vz-order-inputs { display: grid; gap: 8px; margin: 10px 0 0; }
-        .orders-detail-table .vz-order-inputs > div { display: grid; grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1fr); gap: 5px 10px; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+        .orders-detail-table .vz-order-inputs__field { display: grid; grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1fr); gap: 5px 10px; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+        .orders-detail-table .vz-order-inputs__separator { width: 100%; height: 1px; background: var(--border); opacity: .95; }
         .orders-detail-table .vz-order-inputs dt { min-width: 0; color: var(--text-3); font-size: 11px; font-weight: 700; }
         .orders-detail-table .vz-order-inputs dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; display: flex; align-items: flex-start; gap: 6px; }
         .orders-detail-table .vz-order-inputs dd > span { min-width: 0; flex: 1 1 auto; }
