@@ -282,7 +282,12 @@ else
                                                 <dl class="vz-order-inputs">
                                                     @foreach (var value in item.InputValues)
                                                     {
-                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)">@DisplayInputValue(value.FieldType, value.Value, value.IsSensitive && value.IsMasked)</dd>
+                                                        <div><dt>@value.FieldLabel</dt><dd class="@(value.IsSensitive && value.IsMasked ? "masked" : null)"><span>@DisplayInputValue(value.FieldType, value.Value, value.IsSensitive && value.IsMasked)</span>
+                                                        @if (CanCopyInput(value))
+                                                        {
+                                                            <button type="button" class="vz-iconaction vz-order-input-copy" data-testid="admin-order-input-copy" title="کپی مقدار @value.FieldLabel" aria-label="کپی مقدار @value.FieldLabel" @onclick="() => CopyInputValue(value)" @onclick:stopPropagation="true"><Icon Name="copy" Size="14" /></button>
+                                                        }
+                                                        </dd>
                                                         @if (value.IsSensitive && value.IsMasked && value.Id.HasValue) { <button class="vz-btn vz-btn--ghost vz-btn--sm" @onclick="() => RevealInput(d.Id, value)"><Icon Name="eye" Size="12" /> نمایش با ثبت گزارش</button> }</div>
                                                     }
                                                 </dl>
@@ -729,6 +734,19 @@ else
         fieldType == (byte)ProductInputFieldType.Checkbox
             ? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1" ? "✅" : "❌"
             : value ?? "—";
+
+    private static bool CanCopyInput(AdminOrderInputValueModel value) =>
+        !value.IsMasked &&
+        value.FieldType != (byte)ProductInputFieldType.Checkbox &&
+        !string.IsNullOrWhiteSpace(value.Value);
+
+    private async Task CopyInputValue(AdminOrderInputValueModel value)
+    {
+        if (!CanCopyInput(value)) return;
+        var ok = await JS.InvokeAsync<bool>("vzAdmin.copy", value.Value!);
+        if (ok) Toasts.Success($"مقدار «{value.FieldLabel}» کپی شد.");
+        else Toasts.Error("کپی مقدار ممکن نشد. دوباره تلاش کنید.");
+    }
 
     private static bool CanGenerateInvoice(AdminOrderModel order) => order.Status is
         (byte)OrderStatus.Completed or (byte)OrderStatus.Cancelled;
@@ -1360,7 +1378,9 @@ else
         .orders-detail-table .vz-order-inputs { display: grid; gap: 8px; margin: 10px 0 0; }
         .orders-detail-table .vz-order-inputs > div { display: grid; grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1fr); gap: 5px 10px; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
         .orders-detail-table .vz-order-inputs dt { min-width: 0; color: var(--text-3); font-size: 11px; font-weight: 700; }
-        .orders-detail-table .vz-order-inputs dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; }
+        .orders-detail-table .vz-order-inputs dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; display: flex; align-items: flex-start; gap: 6px; }
+        .orders-detail-table .vz-order-inputs dd > span { min-width: 0; flex: 1 1 auto; }
+        .orders-detail-table .vz-order-input-copy { flex: 0 0 auto; width: 30px; height: 30px; min-width: 30px; margin-top: -4px; }
         .orders-detail-table .vz-order-inputs button { grid-column: 2; justify-self: start; }
         .orders-detail-table .orders-detail-item-delivery > * { max-width: 100%; overflow-wrap: anywhere; }
         .orders-detail-table .orders-detail-item-delivery .vz-muted { display: block; }
