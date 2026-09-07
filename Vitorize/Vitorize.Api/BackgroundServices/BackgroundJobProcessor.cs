@@ -54,6 +54,7 @@ namespace Vitorize.Api.BackgroundServices
                     await scope.ServiceProvider.GetRequiredService<IGiftCodeReservationService>()
                         .ReleaseExpiredReservationsAsync();
                     var processed = reconciliationCount;
+                    processed += await ExpireManagedStockReservations(db, stoppingToken);
                     processed += await CleanupOtp(db, stoppingToken);
                     processed += await CleanupRefreshTokens(db, stoppingToken);
                     processed += await CleanupIdempotency(db, stoppingToken);
@@ -145,6 +146,38 @@ namespace Vitorize.Api.BackgroundServices
                 await db.SaveChangesAsync(ct);
             }
             return old.Count;
+        }
+
+        /// <summary>
+        /// Returns quantity holds created at checkout once their payment window has elapsed.
+        /// Physical stock is not changed here: it is decremented only after a successful payment.
+        /// Paid orders are intentionally excluded so a worker race cannot release a hold while the
+        /// payment callback is finalising it.
+        /// </summary>
+        private static async Task<int> ExpireManagedStockReservations(VitorizeDbContext db, CancellationToken ct)
+        {
+            var now = DateTime.UtcNow;
+            var expired = await (
+                    from reservation in db.ManagedStockReservations
+                    join order in db.Orders on reservation.OrderId equals order.Id
+                    where reservation.Status == (byte)ManagedStockReservationStatus.Active
+                          && reservation.ExpiresAt <= now
+                          && order.PaymentStatus != (byte)PaymentStatus.Paid
+                    orderby reservation.ExpiresAt, reservation.Id
+                    select reservation)
+                .Take(500)
+                .ToListAsync(ct);
+
+            foreach (var reservation in expired)
+            {
+                reservation.Status = (byte)ManagedStockReservationStatus.Expired;
+                reservation.ReleasedAt = now;
+            }
+
+            if (expired.Count > 0)
+                await db.SaveChangesAsync(ct);
+
+            return expired.Count;
         }
 
         private async Task<int> CleanupRefreshTokens(VitorizeDbContext db, CancellationToken ct)

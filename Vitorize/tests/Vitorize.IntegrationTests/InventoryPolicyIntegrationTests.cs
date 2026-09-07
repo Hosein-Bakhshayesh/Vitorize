@@ -49,6 +49,8 @@ public sealed class InventoryPolicyIntegrationTests
         // unlimited SKU can never count down to "out of stock".
         variant.StockQuantity.Should().Be(0);
         variant.StockMode.Should().Be((byte)ProductVariantStockMode.Unlimited);
+        (await verify.ManagedStockReservations.CountAsync(x => x.OrderId == order.OrderId))
+            .Should().Be(0, "unlimited stock must never be held");
 
         // And it is still available for the next customer.
         (await AvailabilityOfAsync(product.Id)).Should().BeTrue();
@@ -83,6 +85,8 @@ public sealed class InventoryPolicyIntegrationTests
         await using var verify = _fixture.CreateDbContext();
         (await verify.ProductVariants.SingleAsync(x => x.ProductId == product.Id))
             .StockQuantity.Should().Be(3, "the replay must not decrement again");
+        (await verify.ManagedStockReservations.SingleAsync(x => x.OrderId == order.OrderId)).Status
+            .Should().Be((byte)ManagedStockReservationStatus.Consumed);
     }
 
     [Fact]
@@ -163,6 +167,66 @@ public sealed class InventoryPolicyIntegrationTests
 
         // Unlimited is the only thing that lifts the ceiling; Manual keeps it.
         (await AddToCartAsync(user.Id, product.Id, quantity: 2)).Items.Single().Quantity.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Counted_stock_reservations_allow_only_available_quantity_during_concurrent_checkouts()
+    {
+        var product = await SeedAsync(ProductVariantStockMode.Manual, stock: 6);
+        var users = new List<User>();
+        for (var i = 0; i < 9; i++)
+        {
+            var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+            users.Add(user);
+            await AddToCartAsync(user.Id, product.Id, quantity: 1);
+        }
+
+        // Every caller reaches checkout at the same time. The variant application lock makes the
+        // read of existing holds and write of a new hold one serial operation per SKU.
+        var results = await Task.WhenAll(users.Select(async user =>
+        {
+            try
+            {
+                await CheckoutAsync(user.Id);
+                return true;
+            }
+            catch (BusinessException)
+            {
+                return false;
+            }
+        }));
+
+        results.Count(x => x).Should().Be(6);
+        results.Count(x => !x).Should().Be(3);
+
+        await using var verify = _fixture.CreateDbContext();
+        var variant = await verify.ProductVariants.SingleAsync(x => x.ProductId == product.Id);
+        // Checkout places a hold but must not reduce physical stock before payment succeeds.
+        variant.StockQuantity.Should().Be(6);
+        (await verify.ManagedStockReservations
+                .Where(x => x.ProductVariantId == variant.Id &&
+                            x.Status == (byte)ManagedStockReservationStatus.Active)
+                .SumAsync(x => (int?)x.Quantity) ?? 0)
+            .Should().Be(6);
+    }
+
+    [Fact]
+    public async Task Cancelling_an_unpaid_counted_order_releases_its_quantity_hold_immediately()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var product = await SeedAsync(ProductVariantStockMode.Manual, stock: 2);
+        await AddToCartAsync(user.Id, product.Id, quantity: 1);
+        var order = await CheckoutAsync(user.Id);
+
+        using (var scope = _fixture.Factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<IOrderService>()
+                .CancelMyOrderAsync(user.Id, order.OrderId);
+
+        await using var verify = _fixture.CreateDbContext();
+        (await verify.ManagedStockReservations.SingleAsync(x => x.OrderId == order.OrderId)).Status
+            .Should().Be((byte)ManagedStockReservationStatus.Released);
+        (await verify.ProductVariants.SingleAsync(x => x.ProductId == product.Id)).StockQuantity
+            .Should().Be(2, "an unpaid cancellation never consumes physical stock");
     }
 
     // ---------------------------------------------------------------- helpers

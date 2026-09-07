@@ -95,6 +95,24 @@ namespace Vitorize.Infrastructure.Services
                 foreach (var lockKey in instantLockKeys)
                     await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
 
+                // Counted stock has no individual code rows to lock. Serialize every checkout
+                // against the variant itself before calculating active quantity holds.
+                var managedLockKeys = (await _dbContext.Database
+                    .SqlQuery<string>($@"
+                        SELECT DISTINCT LOWER(REPLACE(CONVERT(varchar(36), ci.ProductVariantId), '-', '')) AS Value
+                        FROM CartItems AS ci WITH (READCOMMITTEDLOCK)
+                        INNER JOIN Carts AS c WITH (READCOMMITTEDLOCK) ON c.Id = ci.CartId
+                        INNER JOIN Products AS p WITH (READCOMMITTEDLOCK) ON p.Id = ci.ProductId
+                        WHERE c.UserId = {userId}
+                          AND ci.ProductVariantId IS NOT NULL
+                          AND p.DeliveryType <> {(byte)DeliveryType.Instant}")
+                    .ToListAsync())
+                    .Select(x => $"managed-stock-reservation:{x}")
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .ToList();
+                foreach (var lockKey in managedLockKeys)
+                    await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
+
                 // Cart prices are display caches; authoritative catalog state is reloaded and
                 // repriced inside this serializable transaction.
                 var cart = await _dbContext.Carts
@@ -292,10 +310,9 @@ namespace Vitorize.Infrastructure.Services
                 // GiftCodeReservationService است تا تخصیص کد در همهٔ مسیرها سریالی شود.
                 // قفل‌ها به ترتیب یکسان (مرتب‌شده) گرفته می‌شوند تا هنگام رزرو چند کد به‌صورت
                 // هم‌زمان، نه بن‌بست ردیفی (deadlock) رخ دهد و نه بن‌بست ناشی از ترتیب قفل‌ها.
-                // Managed inventory is validated here but deliberately NOT reserved: stock is consumed
-                // only on authoritative payment success, so an abandoned checkout never holds units.
-                // This is a pre-payment guard against the obvious case; the atomic decrement at payment
-                // capture remains the real defence, because stock can still change after this point.
+                // Managed inventory is checked before its short-lived checkout reservation is made.
+                // Physical stock is still consumed only on authoritative payment success; the hold
+                // merely prevents parallel payment windows from promising the same units.
                 foreach (var orderItem in orderItems)
                 {
                     if (orderItem.DeliveryType == (byte)DeliveryType.Instant)
@@ -327,6 +344,37 @@ namespace Vitorize.Infrastructure.Services
                     if (sku.StockQuantity < orderItem.Quantity)
                         throw new BusinessException(
                             $"موجودی محصول {orderItem.ProductTitle} کافی نیست؛ موجودی فعلی: {sku.StockQuantity}.");
+                }
+
+                var managedReservationExpiresAt = now.AddMinutes(_paymentTiming.ManagedStockReservationLifetimeMinutes);
+                foreach (var orderItem in orderItems)
+                {
+                    if (orderItem.DeliveryType == (byte)DeliveryType.Instant || orderItem.ProductVariantId is null)
+                        continue;
+
+                    var variant = await _dbContext.ProductVariants
+                        .Where(x => x.Id == orderItem.ProductVariantId.Value)
+                        .Select(x => new { x.StockQuantity, x.StockMode })
+                        .SingleOrDefaultAsync();
+                    if (variant is null || !ProductAvailabilityRules.ConsumesStockOnPayment(
+                            orderItem.DeliveryType, (ProductVariantStockMode)variant.StockMode))
+                        continue;
+
+                    var activeReserved = await _dbContext.ManagedStockReservations
+                        .Where(x => x.ProductVariantId == orderItem.ProductVariantId.Value &&
+                                    x.Status == (byte)ManagedStockReservationStatus.Active &&
+                                    x.ExpiresAt > now)
+                        .SumAsync(x => (int?)x.Quantity) ?? 0;
+                    if (variant.StockQuantity - activeReserved < orderItem.Quantity)
+                        throw new BusinessException($"موجودی محصول {orderItem.ProductTitle} در حال حاضر توسط خریدهای در انتظار پرداخت رزرو شده است.");
+
+                    await _dbContext.ManagedStockReservations.AddAsync(new ManagedStockReservation
+                    {
+                        Id = Guid.NewGuid(), OrderId = order.Id, OrderItemId = orderItem.Id,
+                        ProductVariantId = orderItem.ProductVariantId.Value, Quantity = orderItem.Quantity,
+                        Status = (byte)ManagedStockReservationStatus.Active,
+                        ReservedAt = now, ExpiresAt = managedReservationExpiresAt
+                    });
                 }
 
                 foreach (var orderItem in orderItems)

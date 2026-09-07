@@ -187,6 +187,7 @@ namespace Vitorize.Infrastructure.Services
                 }
 
                 await EnsureInstantReservationsAsync(order, now);
+                await EnsureManagedStockReservationsAsync(order, now);
                 current.ProviderStatusCode = "INITIALIZING";
                 current.RawRequestData = JsonSerializer.Serialize(new
                 {
@@ -331,6 +332,84 @@ namespace Vitorize.Infrastructure.Services
                     order.GiftCodeReservations.Add(reservation);
                     await _dbContext.GiftCodeReservations.AddAsync(reservation);
                 }
+            }
+        }
+
+        /// <summary>
+        /// A customer can retry payment after an abandoned gateway session. Re-check and, when
+        /// necessary, renew the order's counted-stock hold under the same variant lock used by
+        /// checkout. This prevents an expired hold from turning a later retry into an oversell.
+        /// </summary>
+        private async Task EnsureManagedStockReservationsAsync(Order order, DateTime now)
+        {
+            var managedItems = order.OrderItems
+                .Where(x => x.ProductVariantId is not null && x.DeliveryType != (byte)DeliveryType.Instant)
+                .ToList();
+            if (managedItems.Count == 0)
+                return;
+
+            var variants = await _dbContext.ProductVariants
+                .Where(x => managedItems.Select(item => item.ProductVariantId!.Value).Contains(x.Id))
+                .Select(x => new { x.Id, x.StockQuantity, x.StockMode })
+                .ToDictionaryAsync(x => x.Id);
+
+            var reservableItems = managedItems
+                .Where(item => variants.TryGetValue(item.ProductVariantId!.Value, out var variant) &&
+                    ProductAvailabilityRules.ConsumesStockOnPayment(
+                        item.DeliveryType, (ProductVariantStockMode)variant.StockMode))
+                .ToList();
+            if (reservableItems.Count == 0)
+                return;
+
+            foreach (var lockKey in reservableItems
+                .Select(x => $"managed-stock-reservation:{x.ProductVariantId!.Value:N}")
+                .Distinct().OrderBy(x => x, StringComparer.Ordinal))
+            {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
+            }
+
+            var orderItemIds = reservableItems.Select(x => x.Id).ToArray();
+            var ownReservations = await _dbContext.ManagedStockReservations
+                .Where(x => orderItemIds.Contains(x.OrderItemId))
+                .ToListAsync();
+            var expiresAt = now.AddMinutes(_paymentTiming.ManagedStockReservationLifetimeMinutes);
+
+            foreach (var item in reservableItems)
+            {
+                var reservation = ownReservations.SingleOrDefault(x => x.OrderItemId == item.Id);
+                if (reservation is not null &&
+                    reservation.Status == (byte)ManagedStockReservationStatus.Active &&
+                    reservation.ExpiresAt > now &&
+                    reservation.Quantity == item.Quantity)
+                    continue;
+
+                var otherReserved = await _dbContext.ManagedStockReservations
+                    .Where(x => x.ProductVariantId == item.ProductVariantId!.Value &&
+                                x.OrderItemId != item.Id &&
+                                x.Status == (byte)ManagedStockReservationStatus.Active &&
+                                x.ExpiresAt > now)
+                    .SumAsync(x => (int?)x.Quantity) ?? 0;
+
+                var variant = variants[item.ProductVariantId!.Value];
+                if (variant.StockQuantity - otherReserved < item.Quantity)
+                    throw new BusinessException("موجودی این محصول در حال حاضر توسط خریدهای در انتظار پرداخت رزرو شده است.");
+
+                if (reservation is null)
+                {
+                    reservation = new ManagedStockReservation
+                    {
+                        Id = Guid.NewGuid(), OrderId = order.Id, OrderItemId = item.Id,
+                        ProductVariantId = item.ProductVariantId.Value
+                    };
+                    await _dbContext.ManagedStockReservations.AddAsync(reservation);
+                }
+
+                reservation.Quantity = item.Quantity;
+                reservation.Status = (byte)ManagedStockReservationStatus.Active;
+                reservation.ReservedAt = now;
+                reservation.ExpiresAt = expiresAt;
+                reservation.ReleasedAt = null;
+                reservation.ConsumedAt = null;
             }
         }
 
@@ -1203,12 +1282,10 @@ namespace Vitorize.Infrastructure.Services
         /// last unit cannot both succeed and stock can never go negative — the database, not the
         /// application, arbitrates. A read-modify-save would lose that guarantee.
         ///
-        /// Because inventory is deliberately not reserved at cart or checkout, a second buyer can
-        /// still complete payment after the last unit is gone. That payment is real and is never
-        /// discarded: the order stays paid and in Processing (the queue administrators already work),
-        /// and a distinct financial audit event records the shortfall so it is traceable and can be
-        /// resolved through the existing finance/manual path. We do not fabricate a delivery, and we
-        /// do not silently drive stock negative.
+        /// Checkout places a short-lived quantity hold before the buyer is redirected to the gateway.
+        /// Here the hold becomes consumed only after the conditional decrement succeeds. Legacy orders
+        /// created before the reservation feature still use the guarded decrement, so they stay safe
+        /// even though no historical hold exists for them.
         /// </summary>
         private async Task ConsumeManagedStockAsync(Order order, Guid userId, DateTime now)
         {
@@ -1224,6 +1301,20 @@ namespace Vitorize.Infrastructure.Services
                     VariantTitle = oi.ProductVariant!.Title
                 })
                 .ToListAsync();
+
+            var activeReservations = await _dbContext.ManagedStockReservations
+                .Where(x => x.OrderId == order.Id && x.Status == (byte)ManagedStockReservationStatus.Active)
+                .ToListAsync();
+
+            foreach (var lockKey in managedItems
+                .Where(x => ProductAvailabilityRules.ConsumesStockOnPayment(
+                    x.DeliveryType, (ProductVariantStockMode)x.StockMode))
+                .Select(x => $"managed-stock-reservation:{x.VariantId:N}")
+                .Distinct()
+                .OrderBy(x => x, StringComparer.Ordinal))
+            {
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
+            }
 
             foreach (var item in managedItems)
             {
@@ -1241,6 +1332,25 @@ UPDATE dbo.ProductVariants
 SET    StockQuantity = StockQuantity - {item.Quantity}
 WHERE  Id = {item.VariantId}
   AND  StockQuantity >= {item.Quantity}");
+
+                if (affected == 1)
+                {
+                    foreach (var reservation in activeReservations.Where(x => x.OrderItemId == item.Id))
+                    {
+                        reservation.Status = (byte)ManagedStockReservationStatus.Consumed;
+                        reservation.ConsumedAt = now;
+                    }
+                }
+                else
+                {
+                    // Do not leave an unusable hold live when a legacy/late callback cannot consume
+                    // stock. The paid order remains visible for manual financial fulfilment.
+                    foreach (var reservation in activeReservations.Where(x => x.OrderItemId == item.Id))
+                    {
+                        reservation.Status = (byte)ManagedStockReservationStatus.Released;
+                        reservation.ReleasedAt = now;
+                    }
+                }
 
                 await _dbContext.FinancialAuditLogs.AddAsync(new FinancialAuditLog
                 {

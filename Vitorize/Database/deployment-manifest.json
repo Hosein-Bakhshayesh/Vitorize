@@ -815,6 +815,44 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 122,
+      "version": "V0038",
+      "name": "V0038__reconcile_verified_kyc_order_items.sql",
+      "path": "Versioned/V0038__reconcile_verified_kyc_order_items.sql",
+      "sha256": "863ab9d5613c97ac3b605825dcdfda8178f47f2675a3541369524b675968b9c6",
+      "classification": "required",
+      "dependencies": [
+        "V0037",
+        "dbo.OrderItemKycStates",
+        "dbo.UserVerificationProfiles",
+        "dbo.VerificationDocuments"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 123,
+      "version": "V0039",
+      "name": "V0039__managed_stock_payment_reservations.sql",
+      "path": "Versioned/V0039__managed_stock_payment_reservations.sql",
+      "sha256": "7e63f5a390573c21963a7922553f90bbcc4b9ddf280bbb47da041cd845dcbdb4",
+      "classification": "required",
+      "dependencies": [
+        "V0038",
+        "dbo.Orders",
+        "dbo.OrderItems",
+        "dbo.ProductVariants"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

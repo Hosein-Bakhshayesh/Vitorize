@@ -379,6 +379,8 @@ namespace Vitorize.Infrastructure.Services
                 }
             }
 
+            await ReleaseManagedStockReservationsAsync(order.Id, now);
+
             order.Status = (byte)OrderStatus.Cancelled;
             order.AdminNote = reason;
             order.UpdatedAt = now;
@@ -467,6 +469,8 @@ namespace Vitorize.Infrastructure.Services
                     reservation.GiftCode.UpdatedAt = now;
                 }
 
+                await ReleaseManagedStockReservationsAsync(order.Id, now);
+
                 // Close the open attempts so no expired session is left looking live. Only
                 // non-terminal attempts are touched; a Paid attempt cannot exist here.
                 foreach (var payment in order.Payments.Where(x => x.Status == (byte)PaymentStatus.Pending))
@@ -524,6 +528,19 @@ namespace Vitorize.Infrastructure.Services
             {
                 await transaction.RollbackAsync();
                 throw;
+            }
+        }
+
+        private async Task ReleaseManagedStockReservationsAsync(Guid orderId, DateTime now)
+        {
+            var reservations = await _dbContext.ManagedStockReservations
+                .Where(x => x.OrderId == orderId && x.Status == (byte)ManagedStockReservationStatus.Active)
+                .ToListAsync();
+
+            foreach (var reservation in reservations)
+            {
+                reservation.Status = (byte)ManagedStockReservationStatus.Released;
+                reservation.ReleasedAt = now;
             }
         }
 

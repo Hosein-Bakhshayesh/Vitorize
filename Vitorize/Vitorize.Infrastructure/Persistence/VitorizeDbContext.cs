@@ -47,6 +47,7 @@ public partial class VitorizeDbContext : DbContext
     public virtual DbSet<GiftCodeBatch> GiftCodeBatches { get; set; }
 
     public virtual DbSet<GiftCodeReservation> GiftCodeReservations { get; set; }
+    public virtual DbSet<ManagedStockReservation> ManagedStockReservations { get; set; }
 
     public virtual DbSet<IdempotencyKey> IdempotencyKeys { get; set; }
 
@@ -502,6 +503,19 @@ public partial class VitorizeDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_GiftCodeReservations_Users");
+        });
+
+        modelBuilder.Entity<ManagedStockReservation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.Quantity).IsRequired();
+            entity.HasIndex(e => new { e.ProductVariantId, e.Status, e.ExpiresAt }, "IX_ManagedStockReservations_Variant_Status_ExpiresAt");
+            entity.HasIndex(e => e.OrderId, "IX_ManagedStockReservations_OrderId");
+            entity.HasIndex(e => e.OrderItemId, "UX_ManagedStockReservations_OrderItemId").IsUnique();
+            entity.HasOne<Order>().WithMany().HasForeignKey(e => e.OrderId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<OrderItem>().WithMany().HasForeignKey(e => e.OrderItemId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ProductVariant>().WithMany().HasForeignKey(e => e.ProductVariantId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<IdempotencyKey>(entity =>

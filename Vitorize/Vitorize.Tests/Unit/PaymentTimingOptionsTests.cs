@@ -14,6 +14,7 @@ public sealed class PaymentTimingOptionsTests
 
         Assert.False(result.Failed);
         Assert.True(options.PendingPaymentReconciliationAgeMinutes < options.InstantCodeReservationLifetimeMinutes);
+        Assert.True(options.GatewayAttemptLifetimeMinutes < options.ManagedStockReservationLifetimeMinutes);
     }
 
     [Fact]
