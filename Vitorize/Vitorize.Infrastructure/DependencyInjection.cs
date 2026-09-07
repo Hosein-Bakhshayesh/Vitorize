@@ -32,6 +32,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<ITorobCatalogService, TorobCatalogService>();
             services.AddScoped<IAdminCategoryService, AdminCategoryService>();
             services.AddScoped<IAdminBrandService, AdminBrandService>();
             services.AddScoped<IAdminProductService, AdminProductService>();

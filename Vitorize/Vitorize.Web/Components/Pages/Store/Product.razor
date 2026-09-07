@@ -307,6 +307,9 @@ else
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    // Torob (and any other catalogue partner) can deep-link a concrete SKU. Keeping this in the
+    // route query selects the matching purchase option without changing the canonical product URL.
+    [SupplyParameterFromQuery(Name = "variant")] public Guid? VariantId { get; set; }
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private bool _loading = true, _busy, _wishBusy;
@@ -321,6 +324,7 @@ else
     private List<CustomerReviewModel> _structuredReviews = new();
     private List<StoreProductModel> _related = new();
     private string? _loadedSlug;
+    private Guid? _loadedVariantId;
 
     private decimal CurrentBase => _variant?.Price ?? _p?.BasePrice ?? 0;
     private decimal CurrentPrice => _variant?.FinalPrice ?? _p?.FinalPrice ?? 0;
@@ -416,8 +420,9 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Slug == _loadedSlug) return;
+        if (Slug == _loadedSlug && VariantId == _loadedVariantId) return;
         _loadedSlug = Slug;
+        _loadedVariantId = VariantId;
         await Load();
     }
 
@@ -448,7 +453,10 @@ else
             // sellable; otherwise the first available one does, so an out-of-stock SKU is never
             // preselected while a purchasable sibling exists.
             var selectable = SelectableVariants.OrderBy(v => v.SortOrder).ToList();
-            _variant = selectable.FirstOrDefault(v => v.IsDefault && SkuAvailable(v))
+            _variant = VariantId.HasValue
+                ? selectable.FirstOrDefault(v => v.Id == VariantId.Value)
+                : null;
+            _variant ??= selectable.FirstOrDefault(v => v.IsDefault && SkuAvailable(v))
                 ?? selectable.FirstOrDefault(SkuAvailable)
                 ?? selectable.FirstOrDefault(v => v.IsDefault)
                 ?? selectable.FirstOrDefault();

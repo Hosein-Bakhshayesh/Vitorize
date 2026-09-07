@@ -234,11 +234,20 @@ var apiClientBuilder = builder.Services.AddHttpClient<ApiClient>(client =>
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(60);
 });
+var torobProxyClientBuilder = builder.Services.AddHttpClient("TorobProxy", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // در محیط توسعه، گواهی self-signed لوکال API پذیرفته می‌شود
 if (builder.Environment.IsDevelopment())
 {
     apiClientBuilder.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
+    torobProxyClientBuilder.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
@@ -306,6 +315,7 @@ app.MapAuthSessionEndpoints();
 app.MapAdminEditorUploadEndpoints();
 app.MapProtectedMediaEndpoints();
 app.MapSeoEndpoints();
+app.MapTorobEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

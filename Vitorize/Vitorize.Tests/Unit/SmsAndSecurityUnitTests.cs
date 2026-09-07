@@ -105,7 +105,8 @@ public sealed class SmsAndSecurityUnitTests
         await sender.Received(1).SendBulkAsync(
             Arg.Is<SmsOptions>(x => x.AsanakUsername == "unit-test-username"),
             Arg.Is<string>(text => text.Contains("483921") && text.Contains("اعتبار: 3 دقیقه") &&
-                                   text.Contains(SmsNotificationMessages.Footer)),
+                                   text.Contains("ویتورایز\nvitorize.com") &&
+                                   !text.Contains("باتشکر")),
             "09123456789",
             Arg.Any<CancellationToken>());
         await sender.DidNotReceiveWithAnyArgs().SendVerifyAsync(default!, default!, default, default!, default);
