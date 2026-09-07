@@ -6,7 +6,8 @@ namespace Vitorize.Application.Common;
 /// </summary>
 public static class SmsNotificationMessages
 {
-    public const string Footer = "باتشکر، ویتورایز\nVitorize.com";
+    public const string Footer = "باتشکر، ویتورایز\nvitorize.com";
+    public const string OtpFooter = "ویتورایز\nvitorize.com";
 
     public static string WithFooter(string message) => $"{message.TrimEnd()}\n\n{Footer}";
 
@@ -14,13 +15,14 @@ public static class SmsNotificationMessages
     public static string EnsureFooter(string message)
     {
         var normalized = message.TrimEnd();
-        return normalized.EndsWith(Footer, StringComparison.Ordinal)
+        return normalized.EndsWith(Footer, StringComparison.Ordinal) ||
+               normalized.EndsWith(OtpFooter, StringComparison.Ordinal)
             ? normalized
             : WithFooter(normalized);
     }
 
     public static string Otp(string code, int expiryMinutes) =>
-        WithFooter($"کد تایید شما در ویتورایز:\n{code}\nاعتبار: {expiryMinutes} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.");
+        $"کد تایید شما در ویتورایز:\n{code}\nاعتبار: {expiryMinutes} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.\n\n{OtpFooter}";
 
     public static string WalletTopUpSucceeded(decimal amount, string reference) =>
         WithFooter($"شارژ کیف پول شما با موفقیت انجام شد.\nمبلغ: {amount:#,0} تومان\nکد پیگیری: {reference}");

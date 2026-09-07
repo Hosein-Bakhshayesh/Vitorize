@@ -21,17 +21,17 @@ public class SmsUniversalTemplateTests
     }
 
     [Fact]
-    public void OtpTextAndSystemNotificationsUseTheStandardFooter()
+    public void Otp_uses_its_compact_footer_and_system_notifications_use_the_standard_footer()
     {
-        var messages = new[]
+        var notifications = new[]
         {
-            SmsNotificationMessages.Otp("123456", 3),
             OrderSmsMessages.Processing("VT-1"),
             SmsNotificationMessages.WalletTopUpSucceeded(50_000, "WL-1"),
             SmsNotificationMessages.TicketReply("TK-1")
         };
 
-        Assert.All(messages, message => Assert.EndsWith(SmsNotificationMessages.Footer, message));
+        Assert.EndsWith(SmsNotificationMessages.OtpFooter, SmsNotificationMessages.Otp("123456", 3));
+        Assert.All(notifications, message => Assert.EndsWith(SmsNotificationMessages.Footer, message));
     }
 
     [Theory]

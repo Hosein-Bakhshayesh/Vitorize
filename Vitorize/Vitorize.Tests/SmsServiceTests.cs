@@ -33,7 +33,8 @@ public class SmsServiceTests
         Assert.Equal(1, sender.BulkCallCount);
         Assert.Equal(0, sender.VerifyCallCount);
         Assert.Contains("135790", sender.LastText);
-        Assert.EndsWith(SmsNotificationMessages.Footer, sender.LastText);
+        Assert.EndsWith(SmsNotificationMessages.OtpFooter, sender.LastText);
+        Assert.DoesNotContain("باتشکر", sender.LastText);
     }
 
     [Fact]

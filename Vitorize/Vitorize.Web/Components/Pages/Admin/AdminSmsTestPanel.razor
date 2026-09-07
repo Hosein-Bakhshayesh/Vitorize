@@ -90,7 +90,7 @@
     private SmsStatusModel? _status;
     private SmsTestModel? _result;
 
-    private string TestMessage => $"کد تایید شما در ویتورایز:\n{_code}\nاعتبار: {_expiry} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.\n\nباتشکر، ویتورایز\nVitorize.com";
+    private string TestMessage => $"کد تایید شما در ویتورایز:\n{_code}\nاعتبار: {_expiry} دقیقه\nاین کد را در اختیار دیگران قرار ندهید.\n\nویتورایز\nvitorize.com";
 
     protected override Task OnInitializedAsync() => LoadStatus();
 
