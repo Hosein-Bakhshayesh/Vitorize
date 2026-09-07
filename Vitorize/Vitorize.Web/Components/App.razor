@@ -194,7 +194,7 @@
     <script src="js/persian-date-mask.js?v=@AssetVersion"></script>
     @if (_needsAdminAssets)
     {
-        <script src="js/admin.js"></script>
+        <script src="js/admin.js?v=@AssetVersion"></script>
         <script src="js/lucide-picker.js?v=@AssetVersion"></script>
     }
     <script src="js/storefront-theme.js?v=@AssetVersion"></script>
@@ -222,7 +222,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260905-product-quantity-value-aligned";
+    private const string AssetVersion = "20260907-production-release";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";
