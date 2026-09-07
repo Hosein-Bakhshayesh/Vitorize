@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="2cb0a9c1-d4ab-41c7-9bfd-533e079ca36c" name="Bakhshayesh.Hossein@UMS001N10068 2026-09-07 15:48:12" runUser="GIG\Bakhshayesh.Hossein" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-07T15:48:12.3020200+03:30" queuing="2026-09-07T15:48:12.3020207+03:30" start="2026-09-07T15:46:53.5681352+03:30" finish="2026-09-07T15:48:15.1519721+03:30" />
+  <TestSettings name="default" id="09d1457a-435f-4121-9bdb-4010c7b974ea">
+    <Deployment runDeploymentRoot="Bakhshayesh.Hossein_UMS001N10068_2026-09-07_15_48_12" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="e71403bf-54a1-4cc1-b0fe-f2c3a6ea6842" testId="04f4cfc4-1ad1-f5c5-ef6c-aa110082ec10" testName="Vitorize.IntegrationTests.Fix10VerificationUxIntegrationTests.Final_submission_promotes_staged_documents_with_the_text_payload_in_one_request" computerName="UMS001N10068" duration="00:00:02.6488771" startTime="2026-09-07T15:48:11.8669148+03:30" endTime="2026-09-07T15:48:11.8670627+03:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e71403bf-54a1-4cc1-b0fe-f2c3a6ea6842" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Vitorize.IntegrationTests.Fix10VerificationUxIntegrationTests.Final_submission_promotes_staged_documents_with_the_text_payload_in_one_request" storage="d:\vitorize\vitorize\tests\vitorize.integrationtests\bin\debug\net8.0\vitorize.integrationtests.dll" id="04f4cfc4-1ad1-f5c5-ef6c-aa110082ec10">
+      <Execution id="e71403bf-54a1-4cc1-b0fe-f2c3a6ea6842" />
+      <TestMethod codeBase="D:\Vitorize\Vitorize\tests\Vitorize.IntegrationTests\bin\Debug\net8.0\Vitorize.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Vitorize.IntegrationTests.Fix10VerificationUxIntegrationTests" name="Final_submission_promotes_staged_documents_with_the_text_payload_in_one_request" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="04f4cfc4-1ad1-f5c5-ef6c-aa110082ec10" executionId="e71403bf-54a1-4cc1-b0fe-f2c3a6ea6842" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.28)&#xD;
+[xUnit.net 00:00:00.17]   Discovering: Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.27]   Discovered:  Vitorize.IntegrationTests&#xD;
+[xUnit.net 00:00:00.27]   Starting:    Vitorize.IntegrationTests&#xD;
+[15:47:58 INF] Vitorize API bootstrap starting&#xD;
+[2026-09-07 15:48:06.076 +03:30 WRN] [Vitorize.Api] [SeqDisabled] [CorrelationId:] [TraceId:] Seq is disabled; console and file sinks remain active. EventType=SeqDisabled&#xD;
+[2026-09-07 15:48:06.376 +03:30 INF] [Vitorize.Api] [ApplicationStarted] [CorrelationId:] [TraceId:] Vitorize API started in Testing. EventType=ApplicationStarted&#xD;
+[2026-09-07 15:48:11.490 +03:30 WRN] [Vitorize.Api] [] [CorrelationId:] [TraceId:] Savepoints are disabled because Multiple Active Result Sets (MARS) is enabled. If 'SaveChanges' fails, then the transaction cannot be automatically rolled back to a known clean state. Instead, the transaction should be rolled back by the application before retrying 'SaveChanges'. See https://go.microsoft.com/fwlink/?linkid=2149338 for more information and examples. To identify the code which triggers this warning, call 'ConfigureWarnings(w =&gt; w.Throw(SqlServerEventId.SavepointsDisabledBecauseOfMARS))'.&#xD;
+[2026-09-07 15:48:11.529 +03:30 INF] [Vitorize.Api] [KycUploaded] [CorrelationId:] [TraceId:] KYC profile submitted. UserId=5e809814-3cc8-40ac-be14-ff65de767c22 ProfileId=ba4be679-b73d-4362-80f2-da192c21fe51 DocumentCount=2 EventType=KycUploaded&#xD;
+[2026-09-07 15:48:11.881 +03:30 INF] [Vitorize.Api] [ApplicationStopping] [CorrelationId:] [TraceId:] Vitorize API is stopping. EventType=ApplicationStopping&#xD;
+[xUnit.net 00:01:20.78]   Finished:    Vitorize.IntegrationTests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -25,12 +25,10 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
-            await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
             await using var beforeSubmit = _fixture.CreateDbContext();
-            (await beforeSubmit.UserVerificationProfiles.SingleAsync(x => x.UserId == seed.User.Id)).SubmittedAt.Should().BeNull();
+            (await beforeSubmit.UserVerificationProfiles.CountAsync(x => x.UserId == seed.User.Id)).Should().Be(0);
             (await beforeSubmit.OrderItemKycStates.SingleAsync(x => x.OrderItemId == seed.V1Item.Id)).Status.Should().Be((byte)OrderItemKycStatus.AwaitingSubmission);
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
+            profileId = (await service.SubmitAsync(seed.User.Id, Request(seed, "initial"))).Id;
         }
 
         await using (var afterSubmission = _fixture.CreateDbContext())
@@ -103,9 +101,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a1.jpg", seed.DocumentA.Id, seed.V1Item.Id);
-            await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b1.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
+            profileId = (await service.SubmitAsync(seed.User.Id, Request(seed, "first"))).Id;
             await service.ReviewAsync(profileId, seed.Admin.Id, new ReviewVerificationRequestDto { Approve = false });
             await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/a2.jpg", seed.DocumentA.Id, seed.V1Item.Id);
             await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/b2.jpg", seed.DocumentB.Id, seed.V2Item.Id);
@@ -133,9 +129,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/con-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
-            await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/con-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-            profileId = (await service.SubmitAsync(seed.User.Id, Request())).Id;
+            profileId = (await service.SubmitAsync(seed.User.Id, Request(seed, "concurrent"))).Id;
         }
 
         int profileAuditsBeforeRace;
@@ -174,15 +168,9 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
     public async Task Concurrent_duplicate_customer_submits_are_idempotent()
     {
         var seed = await SeedAsync();
-        using (var scope = _fixture.Factory.Services.CreateScope())
-        {
-            var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-            await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/submit-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
-            await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/submit-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-        }
         using var first = _fixture.CreateClient(seed.UserToken);
         using var second = _fixture.CreateClient(seed.UserToken);
-        var requests = await PostConcurrentlyAsync(first, second, "/api/verification/submit", Request(), Request());
+        var requests = await PostConcurrentlyAsync(first, second, "/api/verification/submit", Request(seed, "submit"), Request(seed, "submit"));
         requests.Should().OnlyContain(x => x.IsSuccessStatusCode);
         await using var verify = _fixture.CreateDbContext();
         (await verify.OrderItemKycStates.Where(x => x.OrderItemId == seed.V1Item.Id || x.OrderItemId == seed.V2Item.Id).ToListAsync())
@@ -292,9 +280,7 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
     {
         using var scope = _fixture.Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IVerificationService>();
-        await service.AddDocumentAsync(seed.User.Id, 1, $"kyc-private:{seed.User.Id:N}/review-a.jpg", seed.DocumentA.Id, seed.V1Item.Id);
-        await service.AddDocumentAsync(seed.User.Id, 2, $"kyc-private:{seed.User.Id:N}/review-b.jpg", seed.DocumentB.Id, seed.V2Item.Id);
-        var profile = await service.SubmitAsync(seed.User.Id, Request());
+        var profile = await service.SubmitAsync(seed.User.Id, Request(seed, "review"));
         return profile.Id;
     }
 
@@ -384,4 +370,17 @@ public sealed class Fix09Phase2DVerificationLifecycleIntegrationTests
         FirstName = "Test", LastName = "User", NationalCode = "1234567890", BirthDate = new DateOnly(1990, 1, 1),
         RegisteredMobileBelongsToCardHolder = true
     };
+
+    private static SubmitVerificationRequestDto Request(
+        (User User, string UserToken, User Admin, string AdminToken, Order Order, OrderItem V1Item, OrderItem V2Item, KycDocumentType DocumentA, KycDocumentType DocumentB) seed,
+        string fileNamePrefix)
+    {
+        var request = Request();
+        request.Documents =
+        [
+            new() { DocumentType = 1, KycDocumentTypeId = seed.DocumentA.Id, OrderItemId = seed.V1Item.Id, FilePath = $"kyc-private:{seed.User.Id:N}/{fileNamePrefix}-a.jpg" },
+            new() { DocumentType = 2, KycDocumentTypeId = seed.DocumentB.Id, OrderItemId = seed.V2Item.Id, FilePath = $"kyc-private:{seed.User.Id:N}/{fileNamePrefix}-b.jpg" }
+        ];
+        return request;
+    }
 }

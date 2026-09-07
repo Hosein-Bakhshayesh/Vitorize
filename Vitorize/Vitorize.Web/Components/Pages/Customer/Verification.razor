@@ -135,7 +135,7 @@ else
                                 }
                                 else if (!ReadOnly)
                                 {
-                                    <DocumentRedactionUpload Value="@((string?)null)" ValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId)" RedactedValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId, true)" Label="آپلود تصویر" Endpoint="uploads/verification-document" OrderItemId="@OrderItemId" RedactionMode="@document.RedactionMode" RedactionInstructions="@document.RedactionInstructions" TestId="@document.KycDocumentTypeId?.ToString("N")" />
+                                    <DocumentRedactionUpload Value="@((string?)null)" ValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId, document.OrderItemId)" RedactedValueChanged="(p) => AddDoc(document.DocumentType, p, document.KycDocumentTypeId, document.OrderItemId, true)" Label="آپلود تصویر" Endpoint="uploads/verification-document" OrderItemId="@document.OrderItemId" RedactionMode="@document.RedactionMode" RedactionInstructions="@document.RedactionInstructions" TestId="@document.KycDocumentTypeId?.ToString("N")" />
                                 }
                             </div>
                         }
@@ -243,6 +243,7 @@ else
     private bool _loading = true, _submitting, _whyNoticeExpanded;
     private CustomerVerificationModel? _profile;
     private StoreOrderItemKycModel? _orderItemContext;
+    private readonly List<OrderItemVerificationContext> _orderItemContexts = new();
     private OrderKycSettingsModel? _kycSettings;
 
     private string _firstName = "", _lastName = "", _nationalCode = "";
@@ -251,15 +252,17 @@ else
     private string? _cardHolderMobile;
     private string? _birthDateError;
 
-    private bool CustomerActionExpired => _orderItemContext?.CustomerAction == "DeadlineExpired" ||
-        _orderItemContext?.LifecycleStatus == (byte)OrderItemKycStatus.Expired;
+    private bool CustomerActionExpired => _orderItemContexts.Count > 0 && _orderItemContexts.All(context =>
+        context.Kyc.CustomerAction == "DeadlineExpired" ||
+        context.Kyc.LifecycleStatus == (byte)OrderItemKycStatus.Expired);
 
     // A profile becomes Pending as soon as the customer supplies identity data or
     // an individual document.  It must remain actionable while this specific
     // paid item still requests Customer submission; otherwise a two-document
     // purchase would lock after its first document.  AwaitingReview has no such
     // customer action and remains read-only.
-    private bool HasActiveCustomerSubmission => _orderItemContext?.CustomerAction is "SubmitVerification" or "ResubmitVerification";
+    private bool HasActiveCustomerSubmission => _orderItemContexts.Any(context =>
+        context.Kyc.CustomerAction is "SubmitVerification" or "ResubmitVerification");
 
     private bool ReadOnly => CustomerActionExpired || (_profile is not null &&
         (_profile.Status == (byte)VerificationStatus.Verified ||
@@ -274,9 +277,23 @@ else
     {
         get
         {
-            if (_orderItemContext?.Documents.Count > 0)
-                return _orderItemContext.Documents.Select((document, index) => new DocumentSlot(
-                    (byte)(index + 1), document.Title, document.DocumentTypeId, document.IsRequired, document.Instructions, document.RedactionMode, document.RedactionInstructions));
+            if (_orderItemContexts.Count > 0)
+            {
+                // The generic account-menu entry has no orderItem query parameter. Resolve every
+                // current customer action, then retain the owning item ID beside each policy document.
+                // This is what prevents an uploaded file from looking selected in the browser while
+                // being unrecognised by the server's policy-ID validation at final submission.
+                return _orderItemContexts
+                    .SelectMany(context => context.Kyc.Documents.Select((document, index) => new DocumentSlot(
+                        (byte)(index + 1), document.Title, document.DocumentTypeId, document.IsRequired,
+                        document.Instructions, document.RedactionMode, document.RedactionInstructions, context.OrderItemId)))
+                    .GroupBy(document => document.KycDocumentTypeId)
+                    .Select(group => group
+                        .OrderByDescending(document => document.IsRequired)
+                        .ThenBy(document => document.DocumentType)
+                        .First())
+                    .ToList();
+            }
 
             // A legacy partial request may have policy-bound documents but no
             // submitted text payload.  Keep those documents visible when the
@@ -294,9 +311,10 @@ else
                         true,
                         null,
                         0,
+                        null,
                         null));
 
-            return DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, true, DocumentInstructions(document.Key), 0, null));
+            return DocTypes.Select(document => new DocumentSlot(document.Key, document.Value, null, true, DocumentInstructions(document.Key), 0, null, null));
         }
     }
 
@@ -317,18 +335,39 @@ else
         _profile = result.IsSuccess ? result.Data : null;
         _kycSettings = settingsResult.IsSuccess ? settingsResult.Data : null;
         _orderItemContext = null;
+        _orderItemContexts.Clear();
         if (!OrderItemId.HasValue && OrderId.HasValue)
         {
             var order = await Api.GetAsync<StoreOrderModel>($"orders/{OrderId.Value}");
             OrderItemId = order.Data?.Items.FirstOrDefault(x =>
                 x.Kyc?.CustomerAction is "SubmitVerification" or "ResubmitVerification")?.Id;
         }
+        var candidateItemIds = new List<Guid>();
         if (OrderItemId.HasValue)
         {
-            var context = await Api.GetAsync<StoreOrderItemKycModel>($"orders/items/{OrderItemId.Value}/kyc-context");
-            if (context.IsSuccess) _orderItemContext = context.Data;
-            else Toasts.Warning("اطلاعات احراز هویت این آیتم در دسترس نیست.");
+            candidateItemIds.Add(OrderItemId.Value);
         }
+        else
+        {
+            // Customers commonly reach this page from the account menu, not from an order-detail
+            // link. Find the paid order items that explicitly request a KYC submission so their
+            // real document IDs (rather than the legacy 1/4 placeholders) are used end-to-end.
+            var orders = await Api.GetAsync<List<StoreOrderModel>>("orders");
+            candidateItemIds.AddRange((orders.Data ?? [])
+                .OrderByDescending(order => order.CreatedAt)
+                .SelectMany(order => order.Items)
+                .Where(item => item.Kyc?.CustomerAction is "SubmitVerification" or "ResubmitVerification")
+                .Select(item => item.Id));
+        }
+        foreach (var itemId in candidateItemIds.Distinct())
+        {
+            var context = await Api.GetAsync<StoreOrderItemKycModel>($"orders/items/{itemId}/kyc-context");
+            if (context.IsSuccess && context.Data is not null)
+                _orderItemContexts.Add(new OrderItemVerificationContext(itemId, context.Data));
+            else if (OrderItemId == itemId)
+                Toasts.Warning("اطلاعات احراز هویت این آیتم در دسترس نیست.");
+        }
+        _orderItemContext = _orderItemContexts.FirstOrDefault()?.Kyc;
         if (_profile is not null && !preserveForm)
         {
             _firstName = _profile.FirstName;
@@ -369,7 +408,7 @@ else
             {
                 document.DocumentType,
                 document.KycDocumentTypeId,
-                OrderItemId,
+                document.OrderItemId,
                 document.FilePath,
                 document.IsRedacted
             }).ToList()
@@ -385,21 +424,22 @@ else
 
     /// <summary>Documents picked on the base identity form, held locally until «ثبت نهایی».</summary>
     private readonly Dictionary<string, StagedDocument> _stagedDocs = new();
-    private sealed record StagedDocument(byte DocumentType, Guid? KycDocumentTypeId, string FilePath, bool IsRedacted);
+    private sealed record StagedDocument(byte DocumentType, Guid? KycDocumentTypeId, Guid? OrderItemId, string FilePath, bool IsRedacted);
     private static string SlotKey(DocumentSlot slot) => slot.KycDocumentTypeId?.ToString("N") ?? $"type-{slot.DocumentType}";
     private void RemoveStagedDoc(DocumentSlot slot) => _stagedDocs.Remove(SlotKey(slot));
 
-    private async Task AddDoc(byte docType, string? path, Guid? kycDocumentTypeId = null, bool isRedacted = false)
+    private Task AddDoc(byte docType, string? path, Guid? kycDocumentTypeId = null, Guid? orderItemId = null, bool isRedacted = false)
     {
-        if (string.IsNullOrWhiteSpace(path)) return;
+        if (string.IsNullOrWhiteSpace(path)) return Task.CompletedTask;
 
         // Selecting a file only stores its private upload token in this form.
         // The database document and the identity payload are saved together by
         // the final-submit endpoint, including when this page was opened from
         // a specific order item.
         _stagedDocs[kycDocumentTypeId?.ToString("N") ?? $"type-{docType}"] =
-            new StagedDocument(docType, kycDocumentTypeId, path, isRedacted);
+            new StagedDocument(docType, kycDocumentTypeId, orderItemId, path, isRedacted);
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private async Task DeleteDoc(Guid id)
@@ -443,5 +483,6 @@ else
         if (value) _cardHolderMobile = null;
     }
 
-    private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, bool IsRequired, string? Instructions, byte RedactionMode, string? RedactionInstructions);
+    private sealed record OrderItemVerificationContext(Guid OrderItemId, StoreOrderItemKycModel Kyc);
+    private sealed record DocumentSlot(byte DocumentType, string Title, Guid? KycDocumentTypeId, bool IsRequired, string? Instructions, byte RedactionMode, string? RedactionInstructions, Guid? OrderItemId);
 }

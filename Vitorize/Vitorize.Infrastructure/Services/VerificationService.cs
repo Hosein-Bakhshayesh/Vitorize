@@ -181,6 +181,14 @@ namespace Vitorize.Infrastructure.Services
             user.NationalCode = null;
             user.UpdatedAt = now;
 
+            // SynchronizeSubmissionAsync reads the persisted document rows to
+            // decide whether each paid order item has every policy-required
+            // document.  Flush the profile and the browser-staged documents
+            // inside this same transaction before that read; otherwise a new
+            // final submission can appear complete to the customer while its
+            // order item remains AwaitingSubmission.
+            await _dbContext.SaveChangesAsync();
+
             var transitioned = _lifecycleCoordinator is null || profile.Id == Guid.Empty
                 ? 0
                 : await _lifecycleCoordinator.SynchronizeSubmissionAsync(userId, profile.Id);
