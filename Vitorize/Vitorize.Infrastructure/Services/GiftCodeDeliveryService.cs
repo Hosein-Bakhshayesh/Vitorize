@@ -20,15 +20,18 @@ namespace Vitorize.Infrastructure.Services
         private readonly VitorizeDbContext _dbContext;
         private readonly IEncryptionService _encryptionService;
         private readonly ILogger<GiftCodeDeliveryService> _logger;
+        private readonly ISmsOutboxEnqueuer? _smsOutbox;
 
         public GiftCodeDeliveryService(
             VitorizeDbContext dbContext,
             IEncryptionService encryptionService,
-            ILogger<GiftCodeDeliveryService>? logger = null)
+            ILogger<GiftCodeDeliveryService>? logger = null,
+            ISmsOutboxEnqueuer? smsOutbox = null)
         {
             _dbContext = dbContext;
             _encryptionService = encryptionService;
             _logger = logger ?? NullLogger<GiftCodeDeliveryService>.Instance;
+            _smsOutbox = smsOutbox;
         }
 
         public async Task DeliverOrderAsync(
@@ -146,8 +149,10 @@ namespace Vitorize.Infrastructure.Services
                 });
             }
 
+            var completedNow = false;
             if (OrderFulfillmentRules.CanComplete(order.PaymentStatus, order.OrderItems.Select(x => x.DeliveryStatus)))
             {
+                completedNow = order.Status != (byte)OrderStatus.Completed;
                 order.Status = (byte)OrderStatus.Completed;
                 order.CompletedAt = now;
             }
@@ -166,6 +171,9 @@ namespace Vitorize.Infrastructure.Services
             };
 
             await _dbContext.OrderStatusHistories.AddAsync(history);
+
+            if (completedNow)
+                await QueueOrderCompletedSmsAsync(order);
 
             await _dbContext.SaveChangesAsync();
             _logger.LogInformation(
@@ -264,9 +272,11 @@ namespace Vitorize.Infrastructure.Services
 
                 item.DeliveryStatus = (byte)DeliveryStatus.Delivered;
                 item.DeliveredAt = now;
+                var completedNow = false;
                 if (OrderFulfillmentRules.CanComplete(item.Order.PaymentStatus,
                         item.Order.OrderItems.Select(x => x.DeliveryStatus)))
                 {
+                    completedNow = item.Order.Status != (byte)OrderStatus.Completed;
                     item.Order.Status = (byte)OrderStatus.Completed;
                     item.Order.CompletedAt ??= now;
                 }
@@ -284,6 +294,8 @@ namespace Vitorize.Infrastructure.Services
                     EntityId = item.Id, UserId = deliveredByUserId, CorrelationId = item.OrderId,
                     Detail = $"kyc-release:item:{item.Id:N};quantity:{item.Quantity}", CreatedAt = now
                 }, cancellationToken);
+                if (completedNow)
+                    await QueueOrderCompletedSmsAsync(item.Order, cancellationToken);
                 await _dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 _logger.LogInformation(
@@ -296,6 +308,26 @@ namespace Vitorize.Infrastructure.Services
                 await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
+        }
+
+        private async Task QueueOrderCompletedSmsAsync(Order order, CancellationToken cancellationToken = default)
+        {
+            if (_smsOutbox is null)
+                return;
+
+            var mobile = await _dbContext.Users
+                .Where(user => user.Id == order.UserId)
+                .Select(user => user.Mobile)
+                .FirstOrDefaultAsync(cancellationToken);
+            await _smsOutbox.EnqueueTextAsync(
+                mobile,
+                OrderSmsMessages.Completed(order.OrderNumber),
+                "OrderCompleted",
+                order.Id,
+                cancellationToken,
+                userId: order.UserId,
+                relatedEntityType: "Order",
+                relatedEntityReference: order.OrderNumber);
         }
     }
 }

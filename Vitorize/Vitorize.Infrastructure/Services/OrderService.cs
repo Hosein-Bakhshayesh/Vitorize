@@ -710,8 +710,10 @@ namespace Vitorize.Infrastructure.Services
             item.DeliveredAt = now;
 
             var fromStatus = order.Status;
+            var completedNow = false;
             if (OrderFulfillmentRules.CanComplete(order.PaymentStatus, order.OrderItems.Select(x => x.DeliveryStatus)))
             {
+                completedNow = order.Status != (byte)OrderStatus.Completed;
                 order.Status = (byte)OrderStatus.Completed;
                 order.CompletedAt ??= now;
             }
@@ -732,6 +734,8 @@ namespace Vitorize.Infrastructure.Services
             });
             await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.ManualDeliveryCompleted,
                 "تحویل دستی سفارش", $"تحویل دستی آیتم سفارش {order.OrderNumber} با موفقیت ثبت شد.");
+            if (completedNow)
+                await QueueOrderSmsAsync(order, OrderSmsMessages.Completed(order.OrderNumber), "OrderCompleted");
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 

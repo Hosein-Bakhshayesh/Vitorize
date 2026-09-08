@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Vitorize.Web.Services.Auth;
 
 namespace Vitorize.Web.Endpoints;
@@ -9,7 +10,15 @@ public static class AuthSessionEndpoints
     public static void MapAuthSessionEndpoints(this WebApplication app)
     {
         app.MapPost("/auth/session/tokens", PersistRotatedTokensAsync)
-            .RequireAuthorization()
+            // This endpoint serves both browser areas.  The default smart scheme treats
+            // /auth/... as customer-facing, which meant an administrator's perfectly valid
+            // cookie was never considered here and a rotated admin token could not be saved.
+            // Ask authorization to authenticate either explicit area instead; the handler then
+            // verifies that the requested scheme itself owns a valid ticket before it writes it.
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = $"{VitorizeAuthSchemes.AdminScheme},{VitorizeAuthSchemes.CustomerScheme}"
+            })
             .DisableAntiforgery();
 
         // Ends one scheme in the browser's own cookie jar. Deliberately anonymous: it is reached when
@@ -55,11 +64,16 @@ public static class AuthSessionEndpoints
 
     private static async Task<IResult> PersistRotatedTokensAsync(HttpContext context, RotatedTokensRequest request)
     {
-        var scheme = context.User.Identity?.AuthenticationType;
-        if (scheme is not (VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme) ||
-            !string.Equals(scheme, request.Scheme, StringComparison.Ordinal)) return Results.Forbid();
+        if (request.Scheme is not (VitorizeAuthSchemes.AdminScheme or VitorizeAuthSchemes.CustomerScheme))
+            return Results.BadRequest();
 
-        return await AuthSessionCookieWriter.PersistAsync(context, scheme, request.AccessToken, request.RefreshToken)
+        // Do not infer the area from the route or the default identity: this route is deliberately
+        // shared.  Authenticate the exact scheme requested by the already-running circuit instead.
+        var ticket = await context.AuthenticateAsync(request.Scheme);
+        if (!ticket.Succeeded || ticket.Principal?.Identity?.IsAuthenticated != true)
+            return Results.Forbid();
+
+        return await AuthSessionCookieWriter.PersistAsync(context, request.Scheme, request.AccessToken, request.RefreshToken)
             ? Results.NoContent()
             : Results.BadRequest();
     }

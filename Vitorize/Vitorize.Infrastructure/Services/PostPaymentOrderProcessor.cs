@@ -126,14 +126,6 @@ public sealed class PostPaymentOrderProcessor : IPostPaymentOrderProcessor
                 await _giftCodeDeliveryService.DeliverOrderAsync(order.Id, order.UserId);
                 await _notificationService.CreateAsync(order.UserId, (byte)NotificationType.GiftCodeDelivered,
                     "تحویل سفارش", $"کدهای سفارش {order.OrderNumber} با موفقیت تحویل شدند.");
-                if (_smsOutbox is not null)
-                {
-                    await _smsOutbox.EnqueueTextAsync(order.User.Mobile,
-                        OrderSmsMessages.Completed(order.OrderNumber),
-                        purpose: "OrderCompleted", aggregateId: order.Id, userId: order.UserId,
-                        relatedEntityType: "Order", relatedEntityReference: order.OrderNumber,
-                        cancellationToken: cancellationToken);
-                }
             }
 
             await CreateSupportTicketIfRequiredAsync(order, now, cancellationToken);

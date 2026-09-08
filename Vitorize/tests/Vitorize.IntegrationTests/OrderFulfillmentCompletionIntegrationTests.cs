@@ -136,6 +136,29 @@ public sealed class OrderFulfillmentCompletionIntegrationTests
     }
 
     [Fact]
+    public async Task Manual_completion_queues_exactly_one_order_completed_sms()
+    {
+        var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var (admin, _) = await _fixture.CreateUserAndTokenAsync("SuperAdmin");
+        var (order, manual, _) = await SeedOrderAsync(user.Id, DeliveryType.Manual);
+        var sms = new RecordingSmsOutbox();
+
+        await using (var db = _fixture.CreateDbContext())
+            await new OrderService(db, new NullNotifications(), Crypto(), smsOutbox: sms).DeliverManualAsync(
+                order.Id, admin.Id, new ManualDeliveryRequestDto
+                {
+                    OrderItemId = manual.Id, Content = "manual fulfillment", IsVisibleToCustomer = true
+                });
+
+        sms.Messages.Should().ContainSingle();
+        var message = sms.Messages.Single();
+        message.Purpose.Should().Be("OrderCompleted");
+        message.AggregateId.Should().Be(order.Id);
+        message.UserId.Should().Be(user.Id);
+        message.Text.Should().Contain(order.OrderNumber);
+    }
+
+    [Fact]
     public async Task Completion_api_rejects_a_paid_pending_item_with_the_specific_business_reason()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
@@ -178,5 +201,26 @@ public sealed class OrderFulfillmentCompletionIntegrationTests
         public Task MarkAllAsReadAsync(Guid userId) => Task.CompletedTask;
         public Task<int> GetUnreadCountAsync(Guid userId) => Task.FromResult(0);
         public Task<List<Vitorize.Application.DTOs.Notifications.NotificationDto>> GetMyNotificationsAsync(Guid userId) => Task.FromResult(new List<Vitorize.Application.DTOs.Notifications.NotificationDto>());
+    }
+
+    private sealed class RecordingSmsOutbox : ISmsOutboxEnqueuer
+    {
+        public List<(string? Mobile, string Text, string Purpose, Guid? AggregateId, Guid? UserId)> Messages { get; } = [];
+
+        public Task EnqueueTemplateAsync(string? mobile, string templateKey,
+            IReadOnlyList<Vitorize.Application.Models.Sms.SmsTemplateParameter> parameters, string purpose,
+            Guid? aggregateId, CancellationToken cancellationToken = default, Guid? userId = null,
+            Guid? createdByUserId = null, string? relatedEntityType = null,
+            string? relatedEntityReference = null, string? idempotencyKey = null, string? internalNote = null) =>
+            Task.CompletedTask;
+
+        public Task EnqueueTextAsync(string? mobile, string text, string purpose, Guid? aggregateId,
+            CancellationToken cancellationToken = default, Guid? userId = null, Guid? createdByUserId = null,
+            string? relatedEntityType = null, string? relatedEntityReference = null,
+            string? idempotencyKey = null, string? internalNote = null)
+        {
+            Messages.Add((mobile, text, purpose, aggregateId, userId));
+            return Task.CompletedTask;
+        }
     }
 }
