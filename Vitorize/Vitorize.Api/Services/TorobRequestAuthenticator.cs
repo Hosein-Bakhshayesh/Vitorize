@@ -25,7 +25,7 @@ public sealed class TorobRequestAuthenticator : ITorobRequestAuthenticator
     public bool TryValidate(HttpRequest request, out string error)
     {
         error = "";
-        if (!request.Headers.TryGetValue("X-Torob-Token-Version", out var version) ||
+        if (!request.Headers.TryGetValue("C-Torob-Token-Version", out var version) ||
             !string.Equals(version.ToString(), "1", StringComparison.Ordinal))
         {
             error = "نسخه توکن ترب معتبر نیست.";

@@ -50,7 +50,7 @@ public static class TorobEndpoints
             request.Content.Headers.TryAddWithoutValidation("Content-Type", context.Request.ContentType);
 
         CopyHeader("X-Torob-Token");
-        CopyHeader("X-Torob-Token-Version");
+        CopyHeader("C-Torob-Token-Version");
 
         try
         {
