@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Vitorize.Api.Controllers;
 using Vitorize.Api.Services;
 using Vitorize.Application.DTOs.Torob;
@@ -13,15 +12,26 @@ namespace Vitorize.Tests;
 public sealed class TorobControllerTests
 {
     [Fact]
-    public void Uses_the_documented_C_Torob_token_version_header()
+    public void Accepts_any_non_empty_required_torob_headers()
     {
-        var authenticator = new TorobRequestAuthenticator(
-            new ConfigurationBuilder().AddInMemoryCollection().Build());
+        var authenticator = new TorobRequestAuthenticator();
         var request = new DefaultHttpContext().Request;
-        request.Headers["C-Torob-Token-Version"] = "1";
+        request.Headers["X-Torob-Token"] = "any-non-empty-value";
+        request.Headers["C-Torob-Token-Version"] = "any-non-empty-version";
+
+        authenticator.TryValidate(request, out var error).Should().BeTrue();
+        error.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Rejects_a_request_without_a_torob_token_version_header()
+    {
+        var authenticator = new TorobRequestAuthenticator();
+        var request = new DefaultHttpContext().Request;
+        request.Headers["X-Torob-Token"] = "any-non-empty-value";
 
         authenticator.TryValidate(request, out var error).Should().BeFalse();
-        error.Should().Be("توکن ترب ارسال نشده است.");
+        error.Should().Be("نسخه توکن ترب ارسال نشده است.");
     }
 
     [Fact]

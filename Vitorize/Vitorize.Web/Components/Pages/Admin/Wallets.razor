@@ -28,7 +28,7 @@
     <div class="vz-filterbar__row">
         <div class="vz-field">
             <label class="vz-label">جستجو</label>
-            <input id="wallet-search" class="vz-input" placeholder="نام یا موبایل کاربر ... ( / )" @bind="_search" @bind:event="oninput" @bind:after="() => _page = 1" />
+            <input id="wallet-search" class="vz-input" placeholder="نام یا موبایل کاربر ... ( / )" @bind="_search" @bind:event="oninput" @bind:after="SearchChangedAsync" />
         </div>
     </div>
 </div>
@@ -167,6 +167,12 @@
         if (r.IsSuccess && r.Data is not null) { _items = r.Data.Items.ToList(); _total = r.Data.TotalCount; }
         else _error = r.Message;
         _loading = false;
+    }
+
+    private async Task SearchChangedAsync()
+    {
+        _page = 1;
+        await Load();
     }
 
     private List<WalletModel> Filtered => _items;
