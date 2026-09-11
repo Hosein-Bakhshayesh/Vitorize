@@ -1,0 +1,43 @@
+Torob probe 20260910-105257 against https://vitorize.com/api/v1/thirdparties/torob/products
+[OK ] A page+sort json -> 200 (expected 200) CT=application/json; charset=utf-8
+    {"api_version":"torob_api_v3","current_page":1,"total":168,"max_pages":2,"next_cursor":null,"products":[{"page_unique":"variant:b7b0c08a-004a-4658-8203-666c03dac9fc","page_url":"https://vitorize.com/product/telegram-stars?variant=b7b0c08a-004a-4658-8203-666c03dac9fc","title":"?????? ?????? Telegram Stars (????? ????) — ?,??? ?????? ???????","subtitle":"?????? ??????","product_group_id":"20fce804-b...
+[MISMATCH] B page as string + limit/size -> 400 (expected 200) CT=application/json; charset=utf-8
+    {"error":"???? ??????? ???? ?? ??? JSON ????? ?? ??? ???? ????????? ????."}
+[MISMATCH] C page as float -> 400 (expected 200) CT=application/json; charset=utf-8
+    {"error":"???? ??????? ???? ?? ??? JSON ????? ?? ??? ???? ????????? ????."}
+[MISMATCH] D form-urlencoded -> 415 (expected 200) CT=application/json
+    
+[MISMATCH] E multipart -> 415 (expected 200) CT=application/json
+    
+[MISMATCH] F text/plain json -> 415 (expected 200) CT=application/json
+    
+[MISMATCH] G no content-type -> 415 (expected 200) CT=application/json; charset=utf-8
+    {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.16","title":"Unsupported Media Type","status":415,"traceId":"00-ab20e32f34072e5517bba675d81fdd01-8f5001a97ce020c5-00"}
+[OK ] H json with BOM -> 200 (expected 200) CT=application/json; charset=utf-8
+    {"api_version":"torob_api_v3","current_page":1,"total":168,"max_pages":2,"next_cursor":null,"products":[{"page_unique":"variant:b7b0c08a-004a-4658-8203-666c03dac9fc","page_url":"https://vitorize.com/product/telegram-stars?variant=b7b0c08a-004a-4658-8203-666c03dac9fc","title":"?????? ?????? Telegram Stars (????? ????) — ?,??? ?????? ???????","subtitle":"?????? ??????","product_group_id":"20fce804-b...
+[MISMATCH] I no token -> 401 (expected 200) CT=application/json; charset=utf-8
+    {"error":"???? ??? ????? ???? ???."}
+[MISMATCH] J cursor first page -> 400 (expected 200) CT=application/json; charset=utf-8
+    {"error":"??????? ???????? ?? ??????? ????? ??? ???."}
+[OK ] K bare product url -> 200 (expected 200) CT=application/json; charset=utf-8
+    {"api_version":"torob_api_v3","current_page":1,"total":0,"max_pages":1,"next_cursor":null,"products":[]}
+[OK ] L empty body -> 400 (expected 400) CT=application/json; charset=utf-8
+    {"error":"???? ??????? ?????? ???."}
+[OK ] M page without sort -> 400 (expected 400) CT=application/json; charset=utf-8
+    {"error":"sort ???? date_added_desc ?? date_updated_desc ????."}
+[OK ] N page 0 -> 400 (expected 400) CT=application/json; charset=utf-8
+    {"error":"page ???? ?? ? ???? ???."}
+[OK ] O broken json -> 400 (expected 400) CT=application/json; charset=utf-8
+    {"error":"???? ??????? ???? ?? ??? JSON ????? ?? ??? ???? ????????? ????."}
+[MISMATCH] P form page=abc -> 415 (expected 400) CT=application/json
+    
+
+== Response-shape checks on the first page ==
+count present and equal to total: False
+next_cursor key present: True
+first product keys: page_unique,page_url,title,subtitle,product_group_id,current_price,availability,image_links,spec,category_name,date_added,date_updated
+guarantee key present: False
+old_price key present: False
+date_added format ok (seconds + offset): False -> 2026-09-03T15:34:33.4179467+00:00
+current_price (must equal the Toman price on https://vitorize.com/product/telegram-stars?variant=b7b0c08a-004a-4658-8203-666c03dac9fc): 59634630
+bare product url total: 0

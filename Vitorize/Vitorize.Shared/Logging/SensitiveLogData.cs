@@ -17,8 +17,10 @@ public static partial class SensitiveLogData
     public static bool IsSensitiveProperty(string? propertyName)
     {
         if (string.IsNullOrWhiteSpace(propertyName)) return false;
-        if (propertyName.Equals("Key", StringComparison.OrdinalIgnoreCase)) return true;
-        return SensitiveNames.Any(name => propertyName.Contains(name, StringComparison.OrdinalIgnoreCase));
+        // snake_case / kebab-case wire names (api_key, refresh-token) must match the same list as PascalCase ones.
+        var normalized = propertyName.Replace("_", "").Replace("-", "").Replace(" ", "");
+        if (normalized.Equals("Key", StringComparison.OrdinalIgnoreCase)) return true;
+        return SensitiveNames.Any(name => normalized.Contains(name, StringComparison.OrdinalIgnoreCase));
     }
 
     public static string MaskMobile(string? mobile)
@@ -53,6 +55,11 @@ public static partial class SensitiveLogData
         safe = EmailAddress().Replace(safe, match => MaskEmail(match.Value));
         safe = IranMobile().Replace(safe, match => MaskMobile(match.Value));
         safe = NamedSecret().Replace(safe, match => $"{match.Groups[1].Value}={Redacted}");
+        // JSON-quoted keys ("password": "x") are not caught by the key=value pattern above; judge them
+        // by the same property-name rule used for structured log properties.
+        safe = JsonPair().Replace(safe, match => IsSensitiveProperty(match.Groups[1].Value)
+            ? $"\"{match.Groups[1].Value}\":\"{Redacted}\""
+            : match.Value);
         return safe;
     }
 
@@ -76,4 +83,8 @@ public static partial class SensitiveLogData
 
     [GeneratedRegex("(?i)\\b(password|passwordhash|secret|token|refreshtoken|accesstoken|authorization|apikey|encryptionkey|giftcode|otp|nationalcode|cookie)\\s*[:=]\\s*[^;,\\s]+", RegexOptions.CultureInvariant)]
     private static partial Regex NamedSecret();
+
+    // "key": <string | number | literal | flat array>; the key is judged separately by IsSensitiveProperty.
+    [GeneratedRegex("\"((?:[^\"\\\\]|\\\\.){1,200})\"\\s*:\\s*(?:\"(?:[^\"\\\\]|\\\\.)*\"|-?\\d[\\d.eE+-]*|true|false|null|\\[[^\\[\\]]*\\])", RegexOptions.CultureInvariant)]
+    private static partial Regex JsonPair();
 }

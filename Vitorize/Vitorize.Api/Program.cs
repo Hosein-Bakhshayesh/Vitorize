@@ -60,6 +60,7 @@ namespace Vitorize.Api
             });
             builder.Services.AddSingleton<HostingStoragePaths>();
             builder.Services.AddSingleton<ITorobRequestAuthenticator, TorobRequestAuthenticator>();
+            builder.Services.AddSingleton<ITorobRequestParser, TorobRequestParser>();
             var hostingPaths = new HostingStoragePaths(builder.Environment, builder.Configuration);
             builder.Services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(hostingPaths.DataProtectionKeysPath))

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Vitorize.Application.Common;
@@ -102,13 +103,48 @@ public sealed class TorobCatalogService : ITorobCatalogService
             .ToList();
 
         IReadOnlyList<TorobProductDto> selected;
+        if (request.Sort == "product_id_desc")
+        {
+            TorobCursor? cursor = null;
+            if (request.Cursor is not null && !TorobCursor.TryDecode(request.Cursor, out cursor))
+                throw new ArgumentException("Invalid Torob cursor.", nameof(request));
+
+            var next = catalogue
+                .Where(product => cursor is null || StringComparer.Ordinal.Compare(product.PageUnique, cursor.LastId) < 0)
+                .OrderByDescending(product => product.PageUnique, StringComparer.Ordinal)
+                .Take(PageSize + 1)
+                .ToList();
+            var offers = next.Take(PageSize).ToList();
+            var currentPage = cursor?.Page ?? 1;
+            return new TorobProductsResponse
+            {
+                CurrentPage = currentPage,
+                Total = catalogue.Count,
+                MaxPages = Math.Max(1, (int)Math.Ceiling(catalogue.Count / (double)PageSize)),
+                NextCursor = next.Count > PageSize
+                    ? new TorobCursor(offers[^1].PageUnique, currentPage + 1).Encode()
+                    : null,
+                Products = offers
+            };
+        }
+
         if (request.PageUrls is { Count: > 0 })
         {
             var requested = request.PageUrls
                 .Where(url => !string.IsNullOrWhiteSpace(url))
                 .Select(NormalizeRequestedUrl)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            selected = catalogue.Where(product => requested.Contains(NormalizeRequestedUrl(product.PageUrl))).ToList();
+            // The storefront's canonical URL and JSON-LD offer URL are the bare product page without a
+            // variant query. Torob crawls that URL and asks for it back, so a bare URL matches every
+            // offer of the product while a variant deep link still matches exactly one.
+            var bareRequested = requested
+                .Where(url => !url.Contains('?'))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            selected = catalogue.Where(product =>
+            {
+                var normalized = NormalizeRequestedUrl(product.PageUrl);
+                return requested.Contains(normalized) || bareRequested.Contains(StripQuery(normalized));
+            }).ToList();
         }
         else if (request.PageUniques is { Count: > 0 })
         {
@@ -132,7 +168,7 @@ public sealed class TorobCatalogService : ITorobCatalogService
         var page = request.Page ?? 1;
         var maxPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
         var pageProducts = request.Page.HasValue
-            ? selected.Skip((page - 1) * PageSize).Take(PageSize).ToList()
+            ? selected.Skip((int)Math.Min((long)(page - 1) * PageSize, int.MaxValue)).Take(PageSize).ToList()
             : selected;
 
         return new TorobProductsResponse
@@ -197,13 +233,14 @@ public sealed class TorobCatalogService : ITorobCatalogService
             Title = Trim(title, 500),
             Subtitle = TrimOrNull(product.CategoryTitle, 500),
             ProductGroupId = product.Id.ToString("D"),
-            CurrentPrice = ToRial(finalPrice, product.CurrencyType),
-            OldPrice = basePrice > finalPrice ? ToRial(basePrice, product.CurrencyType) : null,
+            CurrentPrice = ToToman(finalPrice, product.CurrencyType),
+            OldPrice = basePrice > finalPrice ? ToToman(basePrice, product.CurrencyType) : null,
             Availability = availability,
             ImageLinks = ProductImages(product),
             Spec = BuildSpecifications(product.Features),
-            CategoryName = TrimOrNull(product.CategoryTitle, 500),
-            ShortDescription = TrimOrNull(product.ShortDescription, 3_000),
+            CategoryName = TrimOrNull(product.CategoryTitle, 200),
+            ShortDescription = TrimOrNull(product.ShortDescription, 500),
+            Guarantee = null,
             DateAdded = ToIso8601(createdAt),
             DateUpdated = ToIso8601(updatedAt)
         };
@@ -214,7 +251,7 @@ public sealed class TorobCatalogService : ITorobCatalogService
             .Concat(product.Images)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Select(path => AbsoluteUrl(_mediaBaseUrl, path!))
-            .Where(url => url.Length <= 1_500)
+            .Where(url => url.Length <= 1_000)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -233,22 +270,64 @@ public sealed class TorobCatalogService : ITorobCatalogService
         return result;
     }
 
-    private static long ToRial(decimal price, byte currencyType)
+    /// <summary>Torob prices are Toman integers; Vitorize stores each product in Rial or Toman.</summary>
+    private static long ToToman(decimal price, byte currencyType)
     {
-        var rial = currencyType == (byte)CurrencyType.Toman ? price * 10m : price;
-        return (long)Math.Max(0m, Math.Round(rial, 0, MidpointRounding.AwayFromZero));
+        var toman = currencyType == (byte)CurrencyType.Rial ? price / 10m : price;
+        return (long)Math.Max(0m, Math.Round(toman, 0, MidpointRounding.AwayFromZero));
     }
 
     private static DateTime Max(DateTime left, DateTime right) => left >= right ? left : right;
+
+    /// <summary>
+    /// Torob documents <c>YYYY-MM-DD[T]HH:MM[:SS[.ffffff]][Z or ±HH:MM]</c>: at most six fractional digits and
+    /// a mandatory zone. Seconds precision with a fixed UTC offset keeps the string order chronological,
+    /// which the numbered sort relies on.
+    /// </summary>
     private static string ToIso8601(DateTime value) =>
-        new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToString("O");
+        new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
     private static string Trim(string value, int max) => value.Trim().Length <= max ? value.Trim() : value.Trim()[..max];
     private static string? TrimOrNull(string? value, int max) => string.IsNullOrWhiteSpace(value) ? null : Trim(value, max);
     private static string NormalizeBaseUrl(string? value, string fallback) => (string.IsNullOrWhiteSpace(value) ? fallback : value).TrimEnd('/');
     private static string AbsoluteUrl(string baseUrl, string path) => Uri.TryCreate(path, UriKind.Absolute, out var absolute)
         ? absolute.ToString()
         : $"{baseUrl}/{path.TrimStart('/')}";
-    private static string NormalizeRequestedUrl(string value) => value.Trim().TrimEnd('/');
+    /// <summary>
+    /// Canonical form for comparing crawler URLs with exported <c>page_url</c>s: https, no "www.", unescaped
+    /// path without a trailing slash, and only the <c>variant</c> query parameter (tracking parameters dropped).
+    /// </summary>
+    private static string NormalizeRequestedUrl(string value)
+    {
+        var trimmed = value.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return trimmed.TrimEnd('/');
+
+        var host = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.Host[4..] : uri.Host;
+        if (!uri.IsDefaultPort) host = $"{host}:{uri.Port}";
+        var path = Uri.UnescapeDataString(uri.AbsolutePath).TrimEnd('/');
+        var variant = ExtractVariant(uri.Query);
+        return variant is null ? $"https://{host}{path}" : $"https://{host}{path}?variant={variant}";
+    }
+
+    private static string? ExtractVariant(string query)
+    {
+        foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = pair.IndexOf('=');
+            var key = Uri.UnescapeDataString(separator < 0 ? pair : pair[..separator]);
+            if (!string.Equals(key, "variant", StringComparison.OrdinalIgnoreCase)) continue;
+            var raw = separator < 0 ? string.Empty : Uri.UnescapeDataString(pair[(separator + 1)..]).Trim();
+            return raw.Length == 0 ? null : raw;
+        }
+        return null;
+    }
+
+    private static string StripQuery(string url)
+    {
+        var index = url.IndexOf('?');
+        return index < 0 ? url : url[..index];
+    }
 
     private sealed class CatalogProductSource
     {
