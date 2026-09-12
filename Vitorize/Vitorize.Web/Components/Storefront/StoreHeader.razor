@@ -134,6 +134,11 @@
                         @onclick="OpenMobileSearch">
                     <Icon Name="search" Size="19" />
                 </button>
+                <button class="st-iconbtn st-mobile-only st-mobile-menu-toggle" type="button" title="منو"
+                        aria-label="باز کردن منو" aria-expanded="@(_mobileMenuOpen ? "true" : "false")"
+                        @onclick="ToggleMobileMenu">
+                    <Icon Name="menu" Size="20" />
+                </button>
 
                 @if (_authenticated)
                 {
@@ -180,7 +185,7 @@
                 }
                 else
                 {
-                    <a class="st-btn st-btn--primary" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="log-in" Size="17" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
+                    <a class="st-btn st-btn--primary" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="user-round" Size="17" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
                 }
             </div>
         </div>
@@ -202,6 +207,20 @@
             </form>
         </div>
     }
+
+    @if (_mobileMenuOpen)
+    {
+        <div class="st-mobile-nav" role="dialog" aria-modal="true" aria-label="منوی اصلی">
+            <button class="st-mobile-nav__backdrop" aria-label="بستن منو" @onclick="CloseMobileMenu"></button>
+            <nav class="st-mobile-nav__sheet">
+                <a href="/shop" @onclick="CloseMobileMenu">فروشگاه</a>
+                <a href="/categories" @onclick="CloseMobileMenu">خدمات‌ها</a>
+                <a href="/about" @onclick="CloseMobileMenu">درباره ما</a>
+                <a href="/contact" @onclick="CloseMobileMenu">ارتباط با ما</a>
+                <a href="/blog" @onclick="CloseMobileMenu">بلاگ‌ها</a>
+            </nav>
+        </div>
+    }
 </header>
 
 @code {
@@ -212,6 +231,7 @@
     private bool _catsOpen;
     private bool _searchOpen;
     private bool _mobileSearchOpen;
+    private bool _mobileMenuOpen;
     private bool _focusMobileSearch;
     private bool _panelLoading;
     private ElementReference _mobileSearchInput;
@@ -280,6 +300,7 @@
     private void OpenMobileSearch()
     {
         _mobileSearchOpen = true;
+        _mobileMenuOpen = false;
         _focusMobileSearch = true;
         _searchOpen = false;
         CloseCats();
@@ -405,6 +426,16 @@
         try { await InvokeAsync(StateHasChanged); }
         catch (InvalidOperationException) { }
     }
+
+    private void ToggleMobileMenu()
+    {
+        _mobileMenuOpen = !_mobileMenuOpen;
+        _mobileSearchOpen = false;
+        CloseCats();
+        CloseMenu();
+    }
+
+    private void CloseMobileMenu() => _mobileMenuOpen = false;
 
     private string Active(string path)
     {

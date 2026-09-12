@@ -35,15 +35,20 @@
                     @Social(_b.YouTubeUrl, "youtube", "یوتیوب")
                     @Social(_b.DiscordUrl, "message-circle", "دیسکورد")
                     @Social(_b.FacebookUrl, "facebook", "فیسبوک")
-                    @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
-                    {
-                        <a href="tel:@_b.SupportPhone" title="تماس" aria-label="تماس با پشتیبانی"><Icon Name="phone" Size="18" /></a>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
-                    {
-                        <a href="mailto:@_b.SupportEmail" title="ایمیل" aria-label="ارسال ایمیل به پشتیبانی"><Icon Name="mail" Size="18" /></a>
-                    }
                 </div>
+                @if (!string.IsNullOrWhiteSpace(_b.SupportPhone) || !string.IsNullOrWhiteSpace(_b.SupportEmail))
+                {
+                    <div class="st-footer__quick-contact">
+                        @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
+                        {
+                            <a href="tel:@_b.SupportPhone"><Icon Name="phone" Size="15" /> @_b.SupportPhone</a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
+                        {
+                            <a href="mailto:@_b.SupportEmail"><Icon Name="mail" Size="15" /> @_b.SupportEmail</a>
+                        }
+                    </div>
+                }
             </div>
             <div class="st-footer__col">
                 <h4>دسترسی سریع</h4>
