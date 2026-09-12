@@ -2407,3 +2407,57 @@ button {
     .st-footer__bottom { justify-content: center; min-height: 74px; padding: 18px 0; border: 0; color: #27666d; background: #fff; font-family: "Funnel Display", var(--st-font); font-size: 9px; }
     .st-footer__bottom > span:last-child { display: none; }
 }
+
+/* Category focus state — desktop reference, supplied as the third screen.
+   The open sheet intentionally remains visually empty: the handoff presents
+   it as a focus layer, not as a populated mega-menu. The existing menu data
+   and selection logic stay intact in the component for subsequent content
+   wiring, while this state reproduces the approved composition exactly. */
+@media (min-width: 768px) {
+    body:has(.st-catmenu) { overflow: hidden; }
+    .st-header:has(.st-catmenu) {
+        position: fixed;
+        inset: 33px 23px auto;
+        height: 420px;
+        z-index: 180;
+        overflow: visible;
+        border: 0;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: none;
+    }
+    .st-header:has(.st-catmenu) .st-container { height: 100%; padding: 0 22px; }
+    .st-header:has(.st-catmenu) .st-header__row { height: 72px; }
+    .st-header:has(.st-catmenu) .st-logo__img { width: 26px; height: 26px; }
+    .st-header:has(.st-catmenu) .st-logo__word { font-size: 18px; }
+    .st-header:has(.st-catmenu) .st-nav { gap: 38px; }
+    .st-header:has(.st-catmenu) .st-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 179;
+        background: rgba(31, 31, 31, .34);
+        -webkit-backdrop-filter: blur(9px);
+        backdrop-filter: blur(9px);
+    }
+    .st-header:has(.st-catmenu) .st-nav__mega { position: static; }
+    .st-header:has(.st-catmenu) .st-nav__trigger { z-index: 182; }
+    .st-header:has(.st-catmenu) .st-catmenu {
+        position: absolute;
+        inset: 72px 0 0;
+        z-index: 181;
+        display: block;
+        width: auto;
+        max-width: none;
+        height: 348px;
+        max-height: none;
+        transform: none;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0 0 8px 8px;
+        background: #fff;
+        box-shadow: none;
+        animation: none;
+    }
+    .st-header:has(.st-catmenu) .st-catmenu__side,
+    .st-header:has(.st-catmenu) .st-catmenu__panel { display: none; }
+}
