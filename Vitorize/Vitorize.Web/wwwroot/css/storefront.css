@@ -2461,3 +2461,37 @@ button {
     .st-header:has(.st-catmenu) .st-catmenu__side,
     .st-header:has(.st-catmenu) .st-catmenu__panel { display: none; }
 }
+
+/* Home-reference finishing details: the campaign pagination and the review
+   rail are discrete sections in the supplied composition. */
+@media (min-width: 768px) {
+    .vz-showcase { position: relative; }
+    .vz-showcase__dots { position: absolute; bottom: 84px; inset-inline-start: max(76px, calc((100vw - 1530px) / 2 + 12px)); width: 70px; height: 12px; background: radial-gradient(circle at 6px 6px, #fff 0 4px, transparent 4.5px), radial-gradient(circle at 22px 6px, #fff 0 4px, transparent 4.5px), radial-gradient(circle at 38px 6px, #efefef 0 4px, transparent 4.5px), radial-gradient(circle at 54px 6px, #efefef 0 4px, transparent 4.5px), radial-gradient(circle at 70px 6px, #efefef 0 4px, transparent 4.5px); }
+    .vz-testimonials { overflow: hidden; padding-inline: 0; }
+    .vz-testimonials > h2 { margin-bottom: 43px; }
+    .vz-testimonial-track { display: flex; width: max-content; gap: 48px; padding-inline: 0; transform: translateX(96px); }
+    .vz-testimonial { width: 340px; min-height: 212px; padding: 14px; border-radius: 6px; background: #ededed; }
+    .vz-testimonial__head { display: flex; align-items: center; gap: 12px; min-height: 46px; }
+    .vz-testimonial__head > div { display: grid; gap: 1px; text-align: right; }
+    .vz-testimonial__head strong { color: #171a1c; font-size: 15px; font-weight: 800; }
+    .vz-testimonial__head span { color: #252525; font-size: 9px; }
+    .vz-testimonial__head i { width: 42px; height: 42px; margin-inline-start: auto; border-radius: 50%; background: #d7d7d7; }
+    .vz-testimonial__rating { align-self: flex-start; padding: 4px 9px; border-radius: 2px; background: #fff; color: #555; font-family: "Funnel Display", var(--st-font); font-size: 15px; font-weight: 700; }
+    .vz-testimonial > p { min-height: 125px; margin-top: 10px; padding: 20px 18px; border-radius: 3px; background: #fff; color: #282828; font-size: 12px; line-height: 1.9; }
+}
+
+@media (max-width: 767px) {
+    .vz-showcase { position: relative; }
+    .vz-showcase__dots { position: absolute; bottom: 53px; inset-inline-start: 39px; width: 45px; height: 8px; transform: scale(.7); transform-origin: left center; background: radial-gradient(circle at 5px 4px, #fff 0 3px, transparent 3.5px), radial-gradient(circle at 17px 4px, #fff 0 3px, transparent 3.5px), radial-gradient(circle at 29px 4px, #efefef 0 3px, transparent 3.5px), radial-gradient(circle at 41px 4px, #efefef 0 3px, transparent 3.5px); }
+    .vz-testimonials { overflow: hidden; padding: 39px 0 42px; }
+    .vz-testimonials > h2 { margin-bottom: 28px; }
+    .vz-testimonial-track { display: flex; width: max-content; gap: 14px; padding-inline: 14px; transform: translateX(83px); }
+    .vz-testimonial { width: 151px; min-height: 151px; padding: 7px; border-radius: 3px; background: #ededed; }
+    .vz-testimonial__head { min-height: 30px; gap: 6px; }
+    .vz-testimonial__head > div { display: grid; gap: 0; }
+    .vz-testimonial__head strong { font-size: 9px; font-weight: 800; }
+    .vz-testimonial__head span { font-size: 6px; }
+    .vz-testimonial__head i { width: 28px; height: 28px; margin-inline-start: auto; border-radius: 50%; background: #d7d7d7; }
+    .vz-testimonial__rating { align-self: flex-start; padding: 3px 5px; border-radius: 1px; background: #fff; color: #555; font-family: "Funnel Display", var(--st-font); font-size: 8px; font-weight: 700; }
+    .vz-testimonial > p { min-height: 92px; margin-top: 6px; padding: 11px 9px; border-radius: 1px; background: #fff; color: #282828; font-size: 7px; line-height: 1.8; }
+}

@@ -96,6 +96,7 @@ else
             {
                 <div class="vz-showcase__media" aria-hidden="true"></div>
             }
+            <span class="vz-showcase__dots" aria-hidden="true"></span>
         </section>
 
         @if (_branding.HomeFeatures.Count > 0)
@@ -131,6 +132,23 @@ else
                 </div>
             </section>
         }
+
+        <section class="vz-section vz-testimonials" aria-label="نظرات شما">
+            <h2>نظرات شما</h2>
+            <div class="vz-testimonial-track">
+                @foreach (var testimonial in Testimonials)
+                {
+                    <article class="vz-testimonial">
+                        <div class="vz-testimonial__head">
+                            <span class="vz-testimonial__rating">@testimonial.Rating</span>
+                            <div><strong>@testimonial.Name</strong><span>@testimonial.Role</span></div>
+                            <i aria-hidden="true"></i>
+                        </div>
+                        <p>@testimonial.Text</p>
+                    </article>
+                }
+            </div>
+        </section>
 
         <section class="vz-section vz-promo">
             <div class="vz-promo__card">
@@ -187,6 +205,14 @@ else
     private List<StoreProductModel> _latest = new();
     private List<StoreProductModel> _popular = new();
     private string _newsletterEmail = string.Empty;
+
+    private static readonly TestimonialPreview[] Testimonials =
+    [
+        new("نام", "مشتری ۱ ساله", "۴/۵", "خدایی خیلی سریع بود؛ من خودم سفارش‌هام رو از شما می‌گیرم، دمت گرم."),
+        new("گیمینگ ۷۸", "کاربر ویتورایز", "۱/۵", "ویتو چی؟ این چیه؟ بخش جانبی خیلی زود فعّال شد و تجربهٔ خرید خوبی داشتم."),
+        new("وایزری", "مشتری قدیمی", "۵/۵", "چون بهتراشو می‌دم."),
+        new("احمد", "مشتری قدیمی", "۵/۵", "خرید من کارت رو بدون مشکل و در کمترین زمان انجام دادم.")
+    ];
 
     private List<StoreBannerModel> HeroBanners => _data.Banners
         .Where(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
@@ -290,4 +316,6 @@ else
             ["@context"] = "https://schema.org", ["@graph"] = new object[] { organization, website }
         });
     }
+
+    private sealed record TestimonialPreview(string Name, string Role, string Rating, string Text);
 }
