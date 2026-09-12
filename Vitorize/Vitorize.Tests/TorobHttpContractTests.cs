@@ -66,6 +66,25 @@ public sealed class TorobHttpContractTests(TorobHttpFixture fixture) : IClassFix
         dates.Should().BeInDescendingOrder(StringComparer.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    [InlineData("\"   \"")]
+    public async Task Page_without_sort_matches_explicit_date_added_sort_across_all_pages(string? sortJson)
+    {
+        for (var page = 1; page <= 3; page++)
+        {
+            var body = sortJson is null ? $"{{\"page\":{page}}}"
+                : $"{{\"page\":{page},\"sort\":{sortJson}}}";
+            using var actual = await fixture.PostAsync(body);
+            actual.StatusCode.Should().Be(HttpStatusCode.OK);
+            using var expected = await PostOkAsync(new { page, sort = "date_added_desc" });
+            using var actualJson = JsonDocument.Parse(await actual.Content.ReadAsStringAsync());
+            actualJson.RootElement.GetRawText().Should().Be(expected.RootElement.GetRawText());
+        }
+    }
+
     [Fact]
     public async Task Cursor_traversal_returns_every_offer_once_and_null_at_the_end()
     {
@@ -139,8 +158,7 @@ public sealed class TorobHttpContractTests(TorobHttpFixture fixture) : IClassFix
     [InlineData("[]")]
     [InlineData("text")]
     [InlineData("{}")]
-    [InlineData("{\"page\":1}")]
-    [InlineData("{\"page\":1,\"sort\":null}")]
+    [InlineData("{\"page\":1,\"sort\":{}}")]
     [InlineData("{\"page\":0,\"sort\":\"date_added_desc\"}")]
     [InlineData("{\"page\":\"abc\",\"sort\":\"date_added_desc\"}")]
     [InlineData("{\"page\":1.5,\"sort\":\"date_added_desc\"}")]
@@ -216,8 +234,7 @@ public sealed class TorobHttpContractTests(TorobHttpFixture fixture) : IClassFix
 
         using var badPage = await fixture.PostAsync(new FormUrlEncodedContent([new("page", "abc"), new("sort", "date_added_desc")]));
         await ExpectDocumentedError(badPage);
-        using var noSort = await fixture.PostAsync(new FormUrlEncodedContent([new("page", "1")]));
-        await ExpectDocumentedError(noSort);
+        await ExpectFirstPage(new FormUrlEncodedContent([new("page", "1")]));
 
         async Task ExpectFirstPage(HttpContent content)
         {

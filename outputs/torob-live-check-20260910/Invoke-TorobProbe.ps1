@@ -10,7 +10,8 @@
   Expected after the 2026-09-10 release:
     A..K  -> 200  (page as string/float, extra limit/size, form, multipart, text/plain, no Content-Type,
                    BOM, missing token, cursor mode, bare product URL)
-    L..P  -> 400  with body exactly {"error":"..."}  (empty body, page without sort, page 0, broken JSON, form page=abc)
+    M     -> 200  page without sort defaults to date_added_desc
+    L,N..P -> 400 with body exactly {"error":"..."} (empty body, page 0, broken JSON, form page=abc)
     First product: current_price equals the Toman price on the storefront page, dates like
     2026-09-03T15:35:38+00:00, "count" present, "guarantee" present (null), no omitted optional keys.
 
@@ -67,7 +68,7 @@ if ($cursorPage) {
 }
 $bare = Probe 'K bare product url'           'POST' ('{"page_urls": ["' + $ProductUrl + '"]}') 'application/json' $token 200
 $null = Probe 'L empty body'                         'POST' '' 'application/json' $token 400
-$null = Probe 'M page without sort'                  'POST' '{"page": 1}' 'application/json' $token 400
+$null = Probe 'M page without sort'                  'POST' '{"page": 1}' 'application/json' $token 200
 $null = Probe 'N page 0'                             'POST' '{"page": 0, "sort": "date_added_desc"}' 'application/json' $token 400
 $null = Probe 'O broken json'                        'POST' '{' 'application/json' $token 400
 $null = Probe 'P form page=abc'                      'POST' 'page=abc&sort=date_added_desc' 'application/x-www-form-urlencoded' $token 400

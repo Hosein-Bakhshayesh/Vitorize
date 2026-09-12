@@ -84,4 +84,12 @@ dotnet test Vitorize/Vitorize.Tests/Vitorize.Tests.csproj -p:NuGetAudit=false --
 Select-String -Path '<ApiRoot>\logs\vitorize-api-*.log' -Pattern 'TorobProductsRequest'
 ```
 
+## راستی‌آزمایی پس از انتشار — ۲۰۲۶-۰۹-۱۲
+
+هر دو برنامه منتشر شدند و `Invoke-TorobProbe.ps1` روی `https://vitorize.com/api/v1/thirdparties/torob/products` اجرا شد (گزارش: `outputs/torob-live-check-20260910/torob-probe-20260912-083047.txt`). نتیجه: **همهٔ ۱۸ ردیف OK**؛ ۱۳ شکل مجاز (page رشته‌ای/اعشاری، `limit`/`size`، form، multipart، text/plain، بدون Content-Type، BOM، بدون توکن، cursor صفحهٔ اول و دوم، URL خام محصول) ⇒ 200 و ۵ شکل غیرمجاز ⇒ 400 با `{"error"}`.
+
+تطبیق با فروشگاه: `telegram-stars` در فروشگاه ۹ تنوع دارد و URL خام همان ۹ offer را با همان قیمت‌های تومانی (۱۹۸٬۷۸۲ تا ۵٬۹۶۳٬۴۶۳) و همان وضعیت موجودی برمی‌گرداند؛ تنوع «اکانت آماده آمریکا» شمارهٔ مجازی در فروشگاه «۲۰,۰۰۰ تومان ناموجود» و در فید `current_price: 20000, availability: false`. پاسخ شامل `count`، همهٔ ۱۵ کلید محصول با null صریح، `guarantee` و تاریخ با فرمت `2026-09-11T00:04:02+00:00` است.
+
+باقی‌مانده: درخواست بازبینی مجدد از ترب و سپس خواندن خطوط `TorobProductsRequest` در لاگ API برای دیدن درخواست واقعی ربات.
+
 تصمیم‌های ثبت‌شده: `{"page":1}` بدون `sort` طبق مستند اصلی 400 می‌ماند (نمونهٔ curl راهنمای توکن ترب همین بدنه را نشان می‌دهد؛ اگر در لاگ دیده شد، پیش‌فرض `date_added_desc` اضافه شود). اجباری‌کردن توکن فقط پس از دیدن `JwtSignatureValid=True` روی درخواست واقعی ترب.

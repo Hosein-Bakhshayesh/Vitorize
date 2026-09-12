@@ -64,7 +64,6 @@ public sealed class TorobRequestParser : ITorobRequestParser
     public const string CursorWithoutSortError = "cursor فقط همراه sort برابر product_id_desc مجاز است.";
     public const string PageNotIntegerError = "page باید یک عدد صحیح باشد.";
     public const string PageBelowOneError = "page باید از ۱ شروع شود.";
-    public const string SortMissingError = "sort الزامی است؛ date_added_desc یا date_updated_desc.";
     public const string SortInvalidError = "sort باید date_added_desc یا date_updated_desc باشد.";
     public const string NoModeError = "دقیقاً یکی از page، page_urls یا page_uniques باید ارسال شود.";
 
@@ -240,8 +239,11 @@ public sealed class TorobRequestParser : ITorobRequestParser
             if (pageField.List is not null || pageField.Malformed || !TryCoerceInt(pageField.Scalar, out var page))
                 return Bad(PageNotIntegerError);
             if (page < 1) return Bad(PageBelowOneError);
-            if (sort is null) return Bad(SortMissingError);
-            var canonicalSort = sort.ToLowerInvariant();
+            if (fields.TryGetValue("sort", out var sortField) && sortField.Malformed)
+                return Bad(SortInvalidError);
+            // Compatibility with the page-only example in Torob's token guide, explicitly
+            // requested by the store owner. Only numbered pagination gets this default.
+            var canonicalSort = sort?.ToLowerInvariant() ?? "date_added_desc";
             if (canonicalSort is not ("date_added_desc" or "date_updated_desc")) return Bad(SortInvalidError);
             return Ok(new TorobProductsRequest { Page = page, Sort = canonicalSort }, TorobRequestMode.Page, "page", "sort");
         }

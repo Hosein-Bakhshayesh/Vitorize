@@ -17,6 +17,11 @@ public sealed class TorobRequestParserTests
     [InlineData("{\"page\":1e0,\"sort\":\"date_added_desc\"}", 1)]
     [InlineData("{\"page\":\"۴\",\"sort\":\"date_added_desc\"}", 4)]
     [InlineData("{\"Page\":5,\"SORT\":\"Date_Added_Desc\"}", 5)]
+    [InlineData("{\"page\":1}", 1)]
+    [InlineData("{\"page\":2}", 2)]
+    [InlineData("{\"page\":1,\"sort\":null}", 1)]
+    [InlineData("{\"page\":1,\"sort\":\"\"}", 1)]
+    [InlineData("{\"page\":1,\"sort\":\"   \"}", 1)]
     public async Task Page_is_coerced_from_numbers_strings_and_persian_digits(string body, int expectedPage)
     {
         var result = await Parse(body);
@@ -34,9 +39,7 @@ public sealed class TorobRequestParserTests
     [InlineData("{\"page\":true,\"sort\":\"date_added_desc\"}", TorobRequestParser.PageNotIntegerError)]
     [InlineData("{\"page\":[1],\"sort\":\"date_added_desc\"}", TorobRequestParser.PageNotIntegerError)]
     [InlineData("{\"page\":0,\"sort\":\"date_added_desc\"}", TorobRequestParser.PageBelowOneError)]
-    [InlineData("{\"page\":1}", TorobRequestParser.SortMissingError)]
-    [InlineData("{\"page\":1,\"sort\":\"\"}", TorobRequestParser.SortMissingError)]
-    [InlineData("{\"page\":1,\"sort\":null}", TorobRequestParser.SortMissingError)]
+    [InlineData("{\"page\":1,\"sort\":{}}", TorobRequestParser.SortInvalidError)]
     [InlineData("{\"page\":1,\"sort\":\"unknown\"}", TorobRequestParser.SortInvalidError)]
     [InlineData("{}", TorobRequestParser.NoModeError)]
     [InlineData("{\"limit\":100}", TorobRequestParser.NoModeError)]
