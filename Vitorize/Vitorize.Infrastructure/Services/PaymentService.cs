@@ -140,6 +140,9 @@ namespace Vitorize.Infrastructure.Services
                 if (!Enum.IsDefined(typeof(CurrencyType), order.CurrencyType))
                     throw new BusinessException("واحد پول پرداخت با سفارش همخوانی ندارد.");
 
+                if (order.FinalAmount != decimal.Truncate(order.FinalAmount))
+                    throw new BusinessException("مبلغ این سفارش قدیمی نیاز به اصلاح دارد. لطفاً با پشتیبانی تماس بگیرید.");
+
                 var current = order.Payments
                     .Where(x => x.Status == (byte)PaymentStatus.Pending &&
                                 (x.Gateway == ZarinpalGatewayName || x.Gateway == "Mock"))

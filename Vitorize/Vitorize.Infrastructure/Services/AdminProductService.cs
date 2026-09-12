@@ -529,8 +529,8 @@ namespace Vitorize.Infrastructure.Services
                 RedirectUrl = NormalizeRedirectUrl(request.RedirectUrl),
                 ProductType = request.ProductType,
                 DeliveryType = request.DeliveryType,
-                BasePrice = request.BasePrice,
-                DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice),
+                BasePrice = OrderPricingCalculator.RoundMoney(request.BasePrice),
+                DiscountPrice = RoundDiscountPrice(request.DiscountPrice),
                 CurrencyType = request.CurrencyType,
                 ForceOutOfStock = request.ForceOutOfStock,
                 RequiresSupportMessage = request.RequiresSupportMessage,
@@ -585,8 +585,8 @@ namespace Vitorize.Infrastructure.Services
             product.RedirectUrl = NormalizeRedirectUrl(request.RedirectUrl);
             product.ProductType = request.ProductType;
             product.DeliveryType = request.DeliveryType;
-            product.BasePrice = request.BasePrice;
-            product.DiscountPrice = NormalizeDiscountPrice(request.DiscountPrice);
+            product.BasePrice = OrderPricingCalculator.RoundMoney(request.BasePrice);
+            product.DiscountPrice = RoundDiscountPrice(request.DiscountPrice);
             product.CurrencyType = request.CurrencyType;
             product.RequiresSupportMessage = request.RequiresSupportMessage;
             product.MinOrderQuantity = request.MinOrderQuantity;
@@ -667,11 +667,11 @@ namespace Vitorize.Infrastructure.Services
                 throw new BusinessException("مقدار نهایی قیمت بیش از حد مجاز است.");
             }
 
-            changed = Math.Max(0m, changed);
+            changed = OrderPricingCalculator.RoundMoney(Math.Max(0m, changed));
             if (changed > MaximumPrice)
                 throw new BusinessException("مقدار نهایی قیمت بیش از حد مجاز است.");
 
-            return decimal.Round(changed, 2, MidpointRounding.AwayFromZero);
+            return changed;
         }
 
         private static decimal? ApplyDiscountChange(decimal? discountPrice, decimal basePrice, string operation, decimal value)
@@ -891,6 +891,14 @@ namespace Vitorize.Infrastructure.Services
                 return null;
 
             return value.Value;
+        }
+
+        private static decimal? RoundDiscountPrice(decimal? value)
+        {
+            var normalized = NormalizeDiscountPrice(value);
+            if (normalized is null) return null;
+            var rounded = OrderPricingCalculator.RoundMoney(normalized.Value);
+            return rounded > 0 ? rounded : null;
         }
     }
 }

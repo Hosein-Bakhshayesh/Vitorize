@@ -35,6 +35,7 @@ else
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private bool _maintenance;
+    private bool _disposed;
     private ErrorStateInfo _info =
         ErrorStates.Resolve("503", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
 
@@ -54,9 +55,10 @@ else
         // simply leave the current maintenance verdict in place.
         try
         {
+            if (_disposed) return;
             var was = _maintenance;
             await EvaluateAsync();
-            if (_maintenance != was) await InvokeAsync(StateHasChanged);
+            if (!_disposed && _maintenance != was) await InvokeAsync(StateHasChanged);
         }
         catch
         {
@@ -88,5 +90,9 @@ else
         }
     }
 
-    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+    public void Dispose()
+    {
+        _disposed = true;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }

@@ -100,12 +100,12 @@ public sealed class Fix13VatCalculatorTests
     }
 
     [Theory]
-    // 12.5% of 1,000.05 = 125.00625 -> 125.01 away from zero.
-    [InlineData(1000.05, 12.5, 125.01)]
-    // Exact .005 midpoint must round up, never to even.
-    [InlineData(100.10, 5, 5.01)]
-    [InlineData(0.10, 5, 0.01)]
-    public void Vat_rounds_to_two_decimals_away_from_zero(decimal subtotal, decimal rate, decimal expectedVat)
+    [InlineData(1000.05, 12.5, 125)]
+    [InlineData(150, 1, 2)]
+    [InlineData(100.10, 5, 5)]
+    [InlineData(0.10, 5, 0)]
+    [InlineData(198782.10, 1, 1988)]
+    public void Vat_rounds_to_whole_units_away_from_zero(decimal subtotal, decimal rate, decimal expectedVat)
     {
         var pricing = OrderPricingCalculator.Calculate(subtotal, 0m, Before(rate));
 
@@ -130,7 +130,7 @@ public sealed class Fix13VatCalculatorTests
     [Theory]
     [InlineData(1000.05, 333.33, 12.5)]
     [InlineData(12345.67, 1234.56, 7.35)]
-    public void Every_returned_amount_is_scaled_to_two_decimals(decimal subtotal, decimal discount, decimal rate)
+    public void Every_returned_amount_is_a_whole_currency_unit(decimal subtotal, decimal discount, decimal rate)
     {
         foreach (var pricing in new[]
                  {
@@ -144,7 +144,7 @@ public sealed class Fix13VatCalculatorTests
                          pricing.VatAmount, pricing.FinalAmount, pricing.DiscountedProductAmount
                      })
             {
-                decimal.Round(amount, 2).Should().Be(amount, "decimal(18,2) must never round a persisted amount");
+                decimal.Truncate(amount).Should().Be(amount, "the gateway accepts whole currency units only");
             }
         }
     }
@@ -178,13 +178,13 @@ public sealed class Fix13VatCalculatorTests
     [Fact]
     public void Fractional_line_totals_and_quantities_stay_consistent()
     {
-        // Three lines of 33.33 x 3 = 299.97 subtotal.
-        var subtotal = 3 * (33.33m * 3);
+        // Round each unit before multiplying, just like cart and checkout.
+        var subtotal = 3 * (OrderPricingCalculator.RoundMoney(33.33m) * 3);
         var pricing = OrderPricingCalculator.Calculate(subtotal, 0m, After(9m));
 
-        pricing.SubtotalAmount.Should().Be(299.97m);
-        pricing.VatTaxableAmount.Should().Be(299.97m);
+        pricing.SubtotalAmount.Should().Be(297m);
+        pricing.VatTaxableAmount.Should().Be(297m);
         pricing.VatAmount.Should().Be(27.00m);
-        pricing.FinalAmount.Should().Be(326.97m);
+        pricing.FinalAmount.Should().Be(324m);
     }
 }

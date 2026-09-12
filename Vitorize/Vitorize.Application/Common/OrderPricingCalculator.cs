@@ -28,8 +28,8 @@ public sealed record OrderPricing(
 
 public static class OrderPricingCalculator
 {
-    /// <summary>Money scale used by every persisted decimal(18,2) amount.</summary>
-    public const int MoneyScale = 2;
+    /// <summary>Rial and toman amounts use whole units. Storage can remain decimal(18,2).</summary>
+    public const int MoneyScale = 0;
 
     /// <summary>
     /// FIX-13 establishes the explicit money rounding convention. Every amount the calculator
@@ -51,7 +51,7 @@ public static class OrderPricingCalculator
 
         if (!vat.Enabled)
         {
-            // Byte-identical to the pre-FIX-13 behaviour: final payable is subtotal minus discount.
+            // Final payable is the difference of the normalized whole-unit amounts.
             return new OrderPricing(
                 normalizedSubtotal, normalizedDiscount, false, 0m, VatCalculationMode.BeforeDiscount,
                 0m, 0m, discountedProductAmount, discountedProductAmount);

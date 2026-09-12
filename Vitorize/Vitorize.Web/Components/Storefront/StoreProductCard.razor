@@ -83,9 +83,20 @@
 
     protected override void OnInitialized() => Wishlist.OnChange += OnWishlistChange;
 
-    private void OnWishlistChange() => InvokeAsync(StateHasChanged);
+    private async void OnWishlistChange()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); }
+        catch (InvalidOperationException) { }
+    }
 
-    public void Dispose() => Wishlist.OnChange -= OnWishlistChange;
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Wishlist.OnChange -= OnWishlistChange;
+    }
 
     private async Task ToggleWishlist()
     {

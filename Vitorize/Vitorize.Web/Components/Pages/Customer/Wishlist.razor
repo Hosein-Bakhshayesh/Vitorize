@@ -149,7 +149,18 @@ else
     private static string Unit(CustomerWishlistItemModel item)
         => item.CurrencyType == (byte)CurrencyType.Rial ? "ریال" : "تومان";
 
-    private void OnWishlistChange() => InvokeAsync(StateHasChanged);
+    private bool _disposed;
 
-    public void Dispose() => WishState.OnChange -= OnWishlistChange;
+    private async void OnWishlistChange()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); }
+        catch (InvalidOperationException) { }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        WishState.OnChange -= OnWishlistChange;
+    }
 }

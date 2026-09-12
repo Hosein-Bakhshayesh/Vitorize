@@ -45,6 +45,9 @@ namespace Vitorize.Infrastructure.Services
             if (request.Amount <= 0)
                 throw new BusinessException("مبلغ شارژ معتبر نیست.");
 
+            if (request.Amount != decimal.Truncate(request.Amount))
+                throw new BusinessException("مبلغ شارژ کیف پول باید به تومان و بدون اعشار باشد.");
+
             var user = await _dbContext.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == userId && !x.IsDeleted);

@@ -1,3 +1,4 @@
+@implements IDisposable
 @inject IJSRuntime JS
 
 @if (Visible)
@@ -40,6 +41,7 @@
     private readonly string _titleId = $"dialog-title-{Guid.NewGuid():N}";
     private ElementReference _dialog;
     private bool _focused;
+    private bool _disposed;
 
     [Parameter] public bool Visible { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
@@ -68,17 +70,26 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed) return;
+
         if (Visible && !_focused)
         {
             _focused = true;
-            if (!string.IsNullOrWhiteSpace(InitialFocusId))
-                await JS.InvokeVoidAsync("vzStorefront.focusAndScroll", InitialFocusId);
-            else
-                await _dialog.FocusAsync();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(InitialFocusId))
+                    await JS.InvokeVoidAsync("vzStorefront.focusAndScroll", InitialFocusId);
+                else
+                    await _dialog.FocusAsync();
+            }
+            catch (JSDisconnectedException) { }
+            catch (InvalidOperationException) { }
         }
         else if (!Visible)
         {
             _focused = false;
         }
     }
+
+    public void Dispose() => _disposed = true;
 }

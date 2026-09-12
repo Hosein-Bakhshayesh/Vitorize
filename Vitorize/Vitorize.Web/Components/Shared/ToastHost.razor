@@ -15,9 +15,18 @@
 </div>
 
 @code {
+    private bool _disposed;
+
     protected override void OnInitialized() => Toasts.OnChange += OnChange;
 
-    private async void OnChange() => await InvokeAsync(StateHasChanged);
+    private async void OnChange()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); }
+        // A toast can be raised at the same moment a browser tab/circuit closes. There is no UI
+        // left to refresh, so the notification must not fault the circuit.
+        catch (InvalidOperationException) { }
+    }
 
     private static string LevelClass(ToastLevel level) => level switch
     {
@@ -35,5 +44,9 @@
         _ => "bell"
     };
 
-    public void Dispose() => Toasts.OnChange -= OnChange;
+    public void Dispose()
+    {
+        _disposed = true;
+        Toasts.OnChange -= OnChange;
+    }
 }

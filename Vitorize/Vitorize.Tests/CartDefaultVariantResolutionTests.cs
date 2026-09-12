@@ -26,6 +26,17 @@ public sealed class CartDefaultVariantResolutionTests
     private static CartService NewService(VitorizeDbContext db) =>
         new(db, new TestEncryption(), new VatSettingsProvider(db));
 
+    [Fact]
+    public async Task Reading_an_authenticated_empty_cart_does_not_create_a_database_row()
+    {
+        await using var db = CreateDb();
+
+        var result = await NewService(db).GetAsync(CartIdentity.ForUser(Guid.NewGuid()));
+
+        Assert.Empty(result.Items);
+        Assert.Empty(await db.Carts.ToListAsync());
+    }
+
     private static Product SeedProduct(VitorizeDbContext db, DeliveryType delivery,
         params (string Title, int Stock, bool IsDefault)[] variants)
     {

@@ -416,7 +416,14 @@ else
     private string TelegramShare => $"https://t.me/share/url?url={Uri.EscapeDataString(ShareUrl)}&text={Uri.EscapeDataString(_p?.Title ?? "")}";
 
     protected override void OnInitialized() => Wishlist.OnChange += OnWishChange;
-    private void OnWishChange() => InvokeAsync(StateHasChanged);
+    private async void OnWishChange()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); }
+        catch (InvalidOperationException) { }
+    }
+
+    private bool _disposed;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -663,7 +670,11 @@ else
         if (ok) Toasts.Success("لینک محصول کپی شد.");
     }
 
-    public void Dispose() => Wishlist.OnChange -= OnWishChange;
+    public void Dispose()
+    {
+        _disposed = true;
+        Wishlist.OnChange -= OnWishChange;
+    }
 
     private static string Stars(int rating) => new string('★', Math.Clamp(rating, 0, 5)) + new string('☆', 5 - Math.Clamp(rating, 0, 5));
 }

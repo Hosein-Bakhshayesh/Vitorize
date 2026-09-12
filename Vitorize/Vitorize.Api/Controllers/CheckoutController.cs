@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Checkout;
@@ -20,17 +21,23 @@ namespace Vitorize.Api.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdempotencyService _idempotencyService;
         private readonly IOrderKycSettingsProvider _orderKycSettingsProvider;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<CheckoutController> _logger;
 
         public CheckoutController(
             ICheckoutService checkoutService,
             ICurrentUserService currentUserService,
             IIdempotencyService idempotencyService,
-            IOrderKycSettingsProvider orderKycSettingsProvider)
+            IOrderKycSettingsProvider orderKycSettingsProvider,
+            IServiceScopeFactory scopeFactory,
+            ILogger<CheckoutController> logger)
         {
             _checkoutService = checkoutService;
             _currentUserService = currentUserService;
             _idempotencyService = idempotencyService;
             _orderKycSettingsProvider = orderKycSettingsProvider;
+            _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
         [HttpGet("kyc-settings")]
@@ -73,9 +80,17 @@ namespace Vitorize.Api.Controllers
 
             try
             {
-                var result = await _checkoutService.CheckoutAsync(
-                    userId,
-                    request);
+                var result = await Vitorize.Api.Services.SqlDeadlockRetry.ExecuteOnceAsync(
+                    () => _checkoutService.CheckoutAsync(userId, request),
+                    async () =>
+                    {
+                        await using var scope = _scopeFactory.CreateAsyncScope();
+                        return await scope.ServiceProvider.GetRequiredService<ICheckoutService>()
+                            .CheckoutAsync(userId, request);
+                    },
+                    _logger,
+                    "Checkout.CreateOrder",
+                    HttpContext.RequestAborted);
 
                 var response = ApiResult<CheckoutResultDto>.Success(
                     result,

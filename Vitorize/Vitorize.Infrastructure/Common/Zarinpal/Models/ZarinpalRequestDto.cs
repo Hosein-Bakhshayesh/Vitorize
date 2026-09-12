@@ -4,7 +4,7 @@
     {
         public string merchant_id { get; set; } = string.Empty;
 
-        public decimal amount { get; set; }
+        public long amount { get; set; }
 
         public string currency { get; set; } = "IRT";
 

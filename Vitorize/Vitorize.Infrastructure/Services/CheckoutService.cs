@@ -65,7 +65,9 @@ namespace Vitorize.Infrastructure.Services
             try
             {
                 var now = DateTime.UtcNow;
-                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"checkout:user:{userId:N}");
+                // Cart changes and checkout must share one owner lock. Otherwise a cart
+                // mutation could interleave with this serializable checkout transaction.
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, $"cart:user:{userId:N}");
 
                 var user = await _dbContext.Users.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == userId && !x.IsDeleted)
@@ -116,6 +118,7 @@ namespace Vitorize.Infrastructure.Services
                 // Cart prices are display caches; authoritative catalog state is reloaded and
                 // repriced inside this serializable transaction.
                 var cart = await _dbContext.Carts
+                    .AsSplitQuery()
                     .Include(x => x.CartItems).ThenInclude(x => x.Product)
                     .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
                     .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
@@ -529,6 +532,6 @@ namespace Vitorize.Infrastructure.Services
         }
 
         private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
-            discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
+            OrderPricingCalculator.RoundMoney(discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice);
     }
 }

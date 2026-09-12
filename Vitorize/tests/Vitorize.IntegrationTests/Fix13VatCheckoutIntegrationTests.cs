@@ -25,6 +25,23 @@ public sealed class Fix13VatCheckoutIntegrationTests
     public Fix13VatCheckoutIntegrationTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
     [Fact]
+    public async Task Legacy_fractional_catalogue_price_is_rounded_before_quantity_and_payment()
+    {
+        await SetVatAsync(true, 1m);
+        var (_, token) = await _fixture.CreateUserAndTokenAsync("Customer");
+        var product = await CreateProductAsync(198782.10m);
+        var checkout = await CheckoutAsync(token, product.Id, 2);
+        checkout.SubtotalAmount.Should().Be(397564m);
+        checkout.VatAmount.Should().Be(3976m);
+        checkout.FinalAmount.Should().Be(401540m);
+        await using var db = _fixture.CreateDbContext();
+        var item = await db.OrderItems.SingleAsync(x => x.OrderId == checkout.OrderId);
+        item.UnitPrice.Should().Be(198782m);
+        item.TotalPrice.Should().Be(checkout.SubtotalAmount);
+        (await db.Payments.SingleAsync(x => x.OrderId == checkout.OrderId)).Amount.Should().Be(401540m);
+    }
+
+    [Fact]
     public async Task Vat_disabled_leaves_the_order_totals_exactly_as_before()
     {
         await SetVatAsync(enabled: false);

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Annotations;
 using Vitorize.Application.DTOs.Auth;
 using Vitorize.Application.Interfaces;
@@ -16,13 +17,19 @@ namespace Vitorize.Api.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ILogger<AuthController> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public AuthController(
             IAuthService authService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            ILogger<AuthController> logger,
+            IServiceScopeFactory scopeFactory)
         {
             _authService = authService;
             _currentUserService = currentUserService;
+            _logger = logger;
+            _scopeFactory = scopeFactory;
         }
 
         [HttpPost("register")]
@@ -96,7 +103,11 @@ namespace Vitorize.Api.Controllers
         [ProducesResponseType(typeof(ApiResult), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ApiResult<AuthResponseDto>>> RefreshToken(RefreshTokenRequestDto request)
         {
-            var result = await _authService.RefreshTokenAsync(request);
+            // A deadlock victim must never turn into a random logout. The refresh transaction is
+            // atomic and rotation has a grace cache, so one retry from a fresh DbContext is safe.
+            var result = await ExecuteWithDeadlockRetryAsync(
+                "Auth.RefreshToken",
+                service => service.RefreshTokenAsync(request));
 
             return Ok(ApiResult<AuthResponseDto>.Success(
                 result,
@@ -277,6 +288,20 @@ namespace Vitorize.Api.Controllers
 
         private string? GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        private Task<T> ExecuteWithDeadlockRetryAsync<T>(
+            string operationName,
+            Func<IAuthService, Task<T>> operation) =>
+            Vitorize.Api.Services.SqlDeadlockRetry.ExecuteOnceAsync(
+                () => operation(_authService),
+                async () =>
+                {
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    return await operation(scope.ServiceProvider.GetRequiredService<IAuthService>());
+                },
+                _logger,
+                operationName,
+                HttpContext.RequestAborted);
 
         private string? GetUserAgent()
         {

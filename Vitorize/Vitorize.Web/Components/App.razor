@@ -207,11 +207,13 @@
        not run chat widgets or phone home to seal providers. *@
     @if (_isStorefront && !_maintenance && !string.IsNullOrWhiteSpace(_trustSealScripts))
     {
-        @((MarkupString)_trustSealScripts)
+        @* External seal/chat scripts may mutate their own DOM. Keeping that island permanent stops
+           enhanced navigation from reconciling a node tree it does not own. *@
+        <div id="vz-third-party-scripts" data-permanent>@((MarkupString)_trustSealScripts)</div>
     }
     @if (_isStorefront && !_maintenance && !string.IsNullOrWhiteSpace(_b.CustomFooterHtml))
     {
-        @((MarkupString)_b.CustomFooterHtml)
+        <div id="vz-custom-footer-html" data-permanent>@((MarkupString)_b.CustomFooterHtml)</div>
     }
 </body>
 

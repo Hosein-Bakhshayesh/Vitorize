@@ -15,7 +15,7 @@ namespace Vitorize.IntegrationTests;
 /// <summary>
 /// Phase 4 concurrency and race-condition coverage for surfaces not already exercised by
 /// <see cref="FinancialConcurrencyIntegrationTests"/>: wallet debit / overdraw protection,
-/// mixed credit+debit interleaving, per-user coupon limits, concurrent cart creation, and the
+/// mixed credit+debit interleaving, per-user coupon limits, concurrent cart reads, and the
 /// concurrent identical add-to-cart merge invariant. All scenarios run against real SQL Server
 /// so the production application locks and isolation levels are the code under test.
 /// </summary>
@@ -131,7 +131,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
     }
 
     [Fact]
-    public async Task Concurrent_cart_reads_create_exactly_one_cart()
+    public async Task Concurrent_cart_reads_do_not_create_an_empty_cart()
     {
         var (user, _) = await _fixture.CreateUserAndTokenAsync("Customer");
         var encryption = _fixture.Factory.Services.GetRequiredService<IEncryptionService>();
@@ -143,7 +143,7 @@ public sealed class Phase4ConcurrencyIntegrationTests
         }));
 
         await using var verify = _fixture.CreateDbContext();
-        (await verify.Carts.CountAsync(x => x.UserId == user.Id)).Should().Be(1);
+        (await verify.Carts.CountAsync(x => x.UserId == user.Id)).Should().Be(0);
     }
 
     [Fact]

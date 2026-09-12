@@ -219,6 +219,7 @@
     private StoreLookupModel? _activeCat;
     private readonly Dictionary<Guid, List<StoreProductModel>> _catProducts = new();
     private CancellationTokenSource? _closeCts;
+    private bool _disposed;
 
     private List<StoreProductModel> ActiveCatProducts =>
         _activeCat is not null && _catProducts.TryGetValue(_activeCat.Id, out var items) ? items : new();
@@ -399,7 +400,12 @@
         catch { }
     }
 
-    private void OnCartChange() => InvokeAsync(StateHasChanged);
+    private async void OnCartChange()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); }
+        catch (InvalidOperationException) { }
+    }
 
     private string Active(string path)
     {
@@ -425,11 +431,16 @@
         if (!_focusMobileSearch) return;
 
         _focusMobileSearch = false;
-        await _mobileSearchInput.FocusAsync();
+        try { await _mobileSearchInput.FocusAsync(); }
+        catch (JSDisconnectedException) { }
+        catch (InvalidOperationException) { }
     }
 
     public void Dispose()
     {
+        _disposed = true;
+        _closeCts?.Cancel();
+        _closeCts?.Dispose();
         Cart.OnChange -= OnCartChange;
         Wishlist.OnChange -= OnCartChange;
     }

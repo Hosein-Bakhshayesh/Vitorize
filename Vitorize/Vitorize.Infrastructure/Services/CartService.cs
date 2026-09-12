@@ -32,11 +32,9 @@ public class CartService : ICartService
     public async Task<CartDto> GetAsync(CartIdentity identity)
     {
         EnsureIdentity(identity);
-        // Retain the established authenticated-cart initialization behavior, but avoid
-        // creating an empty database row for every newly provisioned guest cookie.
-        var cart = identity.IsAuthenticated
-            ? await GetOrCreateCartAsync(identity)
-            : await LoadCartOrDefaultAsync(identity);
+        // Reading a cart must remain read-only. Creating an empty cart during GET caused
+        // parallel page requests to compete with cart mutations and checkout.
+        var cart = await LoadCartOrDefaultAsync(identity);
         if (cart is null) return new CartDto { UserId = identity.UserId };
         // A guest-cart read must remain read-only. Touching LastActivityAt here turned an
         // otherwise concurrent GET into a write that could deadlock with the serializable,
@@ -244,15 +242,31 @@ public class CartService : ICartService
     public async Task<CartDto> RemoveItemAsync(CartIdentity identity, Guid cartItemId)
     {
         EnsureIdentity(identity);
-        var item = await _dbContext.CartItems.Include(x => x.Cart)
-            .FirstOrDefaultAsync(x => x.Id == cartItemId &&
-                ((identity.IsAuthenticated && x.Cart.UserId == identity.UserId) ||
-                 (identity.IsGuest && x.Cart.GuestTokenHash == identity.GuestTokenHash)))
-            ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
-        TouchGuestCart(item.Cart, identity);
-        _dbContext.CartItems.Remove(item);
-        await _dbContext.SaveChangesAsync();
-        return MapToDto(await LoadCartAsync(identity), await _vatSettingsProvider.GetAsync());
+        var isRelational = _dbContext.Database.IsRelational();
+        await using var transaction = isRelational
+            ? await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
+        try
+        {
+            if (isRelational)
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(identity));
+
+            var item = await _dbContext.CartItems.Include(x => x.Cart)
+                .FirstOrDefaultAsync(x => x.Id == cartItemId &&
+                    ((identity.IsAuthenticated && x.Cart.UserId == identity.UserId) ||
+                     (identity.IsGuest && x.Cart.GuestTokenHash == identity.GuestTokenHash)))
+                ?? throw new NotFoundException("آیتم سبد خرید یافت نشد.");
+            TouchGuestCart(item.Cart, identity);
+            _dbContext.CartItems.Remove(item);
+            await _dbContext.SaveChangesAsync();
+            if (transaction is not null) await transaction.CommitAsync();
+            return MapToDto(await LoadCartAsync(identity), await _vatSettingsProvider.GetAsync());
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public Task ClearAsync(Guid userId) => ClearAsync(CartIdentity.ForUser(userId));
@@ -260,12 +274,29 @@ public class CartService : ICartService
     public async Task ClearAsync(CartIdentity identity)
     {
         EnsureIdentity(identity);
-        var cart = await LoadCartOrDefaultAsync(identity);
-        if (cart is null) return;
-        if (cart.CartItems.Count == 0) return;
-        TouchGuestCart(cart, identity);
-        _dbContext.CartItems.RemoveRange(cart.CartItems);
-        await _dbContext.SaveChangesAsync();
+        var isRelational = _dbContext.Database.IsRelational();
+        await using var transaction = isRelational
+            ? await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
+        try
+        {
+            if (isRelational)
+                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(identity));
+
+            var cart = await LoadCartOrDefaultAsync(identity);
+            if (cart is not null && cart.CartItems.Count > 0)
+            {
+                TouchGuestCart(cart, identity);
+                _dbContext.CartItems.RemoveRange(cart.CartItems);
+                await _dbContext.SaveChangesAsync();
+            }
+            if (transaction is not null) await transaction.CommitAsync();
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     private async Task<Cart> GetOrCreateCartAsync(CartIdentity identity)
@@ -301,6 +332,7 @@ public class CartService : ICartService
         await LoadCartOrDefaultAsync(identity) ?? throw new NotFoundException("سبد خرید یافت نشد.");
 
     private Task<Cart?> LoadCartOrDefaultAsync(CartIdentity identity) => _dbContext.Carts
+        .AsSplitQuery()
         .Include(x => x.CartItems).ThenInclude(x => x.Product).ThenInclude(x => x.ProductInputFields.Where(f => f.IsActive))
         .Include(x => x.CartItems).ThenInclude(x => x.ProductVariant)
         .Include(x => x.CartItems).ThenInclude(x => x.InputValues)
@@ -320,8 +352,9 @@ public class CartService : ICartService
         {
             if (_dbContext.Database.IsRelational())
             {
-                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(guest));
-                await SqlServerTransactionLock.AcquireAsync(_dbContext, OwnerLockKey(user));
+                foreach (var lockKey in new[] { OwnerLockKey(guest), OwnerLockKey(user) }
+                             .Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal))
+                    await SqlServerTransactionLock.AcquireAsync(_dbContext, lockKey);
             }
 
             var guestCart = await LoadCartOrDefaultAsync(guest);
@@ -383,7 +416,7 @@ public class CartService : ICartService
     }
 
     private static decimal ResolveFinalPrice(decimal basePrice, decimal? discountPrice) =>
-        discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice;
+        OrderPricingCalculator.RoundMoney(discountPrice is > 0 && discountPrice < basePrice ? discountPrice.Value : basePrice);
 
     private static CartDto MapToDto(Cart cart, VatSettingsSnapshot vat)
     {
@@ -398,7 +431,8 @@ public class CartService : ICartService
                 Id = x.Id, ProductId = x.ProductId, ProductVariantId = x.ProductVariantId,
                 ProductTitle = x.Product.Title, VariantTitle = x.ProductVariant?.Title,
                 ThumbnailImagePath = x.Product.ThumbnailImagePath, Quantity = x.Quantity,
-                UnitPrice = x.UnitPrice, TotalPrice = x.UnitPrice * x.Quantity, CurrencyType = x.CurrencyType,
+                UnitPrice = OrderPricingCalculator.RoundMoney(x.UnitPrice),
+                TotalPrice = OrderPricingCalculator.RoundMoney(x.UnitPrice) * x.Quantity, CurrencyType = x.CurrencyType,
                 RequiresKyc = kyc.RequiresKyc, KycRequirementMode = (byte)kyc.Mode,
                 KycThresholdAmount = kyc.ThresholdAmount, KycEvaluatedAmount = kyc.EvaluatedAmount,
                 KycPolicyVersionId = kyc.PolicyVersionId,

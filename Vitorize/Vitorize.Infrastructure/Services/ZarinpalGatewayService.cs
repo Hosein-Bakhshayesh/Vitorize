@@ -14,6 +14,9 @@ namespace Vitorize.Infrastructure.Services
 {
     public class ZarinpalGatewayService : IZarinpalGatewayService
     {
+        private static bool IsWholeGatewayAmount(decimal amount) =>
+            amount > 0 && amount <= long.MaxValue && amount == decimal.Truncate(amount);
+
         private readonly HttpClient _httpClient;
         private readonly IZarinpalPaymentConfigurationProvider _configurationProvider;
         private readonly IHostEnvironment _environment;
@@ -62,6 +65,12 @@ namespace Vitorize.Infrastructure.Services
             string? email = null,
             string? orderId = null)
         {
+            // Never round only at the gateway: request, stored order and verification must agree.
+            if (!IsWholeGatewayAmount(amount))
+            {
+                _logger.LogWarning("Zarinpal request refused: amount must be a positive whole currency unit. EventType=ZarinpalInvalidAmount");
+                return (false, string.Empty, string.Empty);
+            }
             if (PaymentFaultEnabled("CreateFail"))
                 return (false, string.Empty, string.Empty);
 
@@ -95,7 +104,7 @@ namespace Vitorize.Infrastructure.Services
                 var request = new ZarinpalRequestDto
                 {
                     merchant_id = configuration.MerchantId,
-                    amount = amount,
+                    amount = checked((long)amount),
                     currency = currency switch
                     {
                         CurrencyType.Toman => "IRT",
@@ -170,6 +179,8 @@ namespace Vitorize.Infrastructure.Services
             string authority,
             decimal amount)
         {
+            if (!IsWholeGatewayAmount(amount))
+                return new ZarinpalVerificationResult(false, 0);
             if (PaymentFaultEnabled("VerifyFail"))
                 return new ZarinpalVerificationResult(false, 0);
 
@@ -187,7 +198,7 @@ namespace Vitorize.Infrastructure.Services
             var request = new ZarinpalVerifyRequestDto
             {
                 merchant_id = configuration.MerchantId,
-                amount = amount,
+                amount = checked((long)amount),
                 authority = authority
             };
 

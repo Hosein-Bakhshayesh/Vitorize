@@ -178,8 +178,8 @@ namespace Vitorize.Infrastructure.Services
                 Sku = string.IsNullOrWhiteSpace(request.Sku)
                     ? null
                     : request.Sku.Trim(),
-                Price = request.Price,
-                DiscountPrice = request.DiscountPrice,
+                Price = OrderPricingCalculator.RoundMoney(request.Price),
+                DiscountPrice = RoundDiscount(request.DiscountPrice),
                 Value = request.Value,
                 // The product's delivery type — not the caller — decides the inventory regime, so an
                 // Instant variant can never be given a manual quantity that claims stock the gift-code
@@ -224,8 +224,8 @@ namespace Vitorize.Infrastructure.Services
             variant.Sku = string.IsNullOrWhiteSpace(request.Sku)
                 ? null
                 : request.Sku.Trim();
-            variant.Price = request.Price;
-            variant.DiscountPrice = request.DiscountPrice;
+            variant.Price = OrderPricingCalculator.RoundMoney(request.Price);
+            variant.DiscountPrice = RoundDiscount(request.DiscountPrice);
             variant.Value = request.Value;
 
             var deliveryType = await GetDeliveryTypeAsync(variant.ProductId);
@@ -305,6 +305,13 @@ namespace Vitorize.Infrastructure.Services
             _dbContext.ProductVariants.Remove(variant);
 
             await _dbContext.SaveChangesAsync();
+        }
+
+        private static decimal? RoundDiscount(decimal? value)
+        {
+            if (value is null or <= 0) return null;
+            var rounded = OrderPricingCalculator.RoundMoney(value.Value);
+            return rounded > 0 ? rounded : null;
         }
 
         private async Task ValidateAsync(
