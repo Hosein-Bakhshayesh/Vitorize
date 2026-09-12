@@ -1,0 +1,22 @@
+@using Vitorize.Application.Common
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<a class="hp-product" href="@Href" aria-label="@Product.Title">
+    <div class="hp-product__image">
+        <StoreImage Url="@Product.ThumbnailImagePath" Alt="@(Product.ThumbnailAltText ?? Product.Title)" />
+        @if (Product.DiscountPercent > 0 && InStock) { <span class="hp-product__discount">@AUI.Number(Product.DiscountPercent)٪</span> }
+        @if (!InStock) { <span class="hp-product__stock">ناموجود</span> }
+    </div>
+    <div class="hp-product__info">
+        <div class="hp-product__title"><h3>@Product.Title</h3><span>@Product.CategoryTitle</span></div>
+        <div class="hp-product__price"><strong>@AUI.MoneyFa(Product.FinalPrice, Product.CurrencyType)</strong>@if (Product.HasDiscount) { <del>@AUI.MoneyFa(Product.BasePrice, Product.CurrencyType)</del> }</div>
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public StoreProductModel Product { get; set; } = default!;
+    private string Href => string.IsNullOrWhiteSpace(Product.RedirectUrl) ? $"/product/{Product.Slug}" : Product.RedirectUrl;
+    private bool InStock => ProductAvailabilityRules.IsAvailableForSale(Product.ForceOutOfStock, Product.DeliveryType,
+        Product.IsUnlimitedStock ? ProductVariantStockMode.Unlimited : ProductVariantStockMode.Manual,
+        Product.AvailableStock, Product.AvailableStock);
+}

@@ -1,0 +1,88 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject StoreBrandingService Branding
+@inject ApiClient Api
+@inject CartState Cart
+
+<div class="hp-mobile-cap" aria-hidden="true"></div>
+<header class="hp-header @(_open ? "is-focused" : null)" @ref="_header" @onkeydown="HandleKey">
+    <div class="hp-header__row">
+        <HomeLogo Branding="_branding" />
+        <nav class="hp-nav" aria-label="منوی اصلی">
+            <button type="button" @ref="_trigger" @onclick="Toggle" aria-expanded="@_open" aria-controls="hp-category-panel">دسته‌بندی‌ها <Icon Name="chevron-down" Size="12" /></button>
+            <a href="/about">درباره ما</a><a href="/contact">ارتباط با ما</a><a href="/blog">بلاگ‌ها</a>
+        </nav>
+        <div class="hp-header__actions">
+            <a class="hp-search" href="/search" aria-label="جستجو"><Icon Name="search" Size="20" /></a>
+            <a class="hp-cart" href="/cart" aria-label="سبد خرید"><Icon Name="cart" Size="20" />@if (Cart.Count > 0) { <span class="hp-cart__count">@AdminUiHelper.Number(Cart.Count)</span> }</a>
+            <a class="hp-account" href="@(_authenticated ? "/customer/dashboard" : "/login")" aria-label="حساب کاربری"><Icon Name="contact-round" Size="20" /></a>
+            <button class="hp-menu-toggle" type="button" @ref="_mobileTrigger" @onclick="Toggle" aria-label="دسته‌بندی‌ها و منو" aria-expanded="@_open" aria-controls="hp-category-panel"><Icon Name="menu" Size="20" /></button>
+        </div>
+    </div>
+    @if (_open)
+    {
+        <nav id="hp-category-panel" class="hp-focus-panel" aria-label="دسته‌بندی محصولات">
+            @* The supplied focus reference specifies the panel surface, not its contents.
+               Keep real category navigation available; never replace API categories with mock links. *@
+            @foreach (var category in _categories)
+            {
+                <a href="@($"/category/{category.Slug}")">@category.Title</a>
+            }
+            <a href="/categories">همه دسته‌بندی‌ها</a>
+            <a class="hp-mobile-link" href="/about">درباره ما</a>
+            <a class="hp-mobile-link" href="/contact">ارتباط با ما</a>
+            <a class="hp-mobile-link" href="/blog">بلاگ‌ها</a>
+        </nav>
+    }
+</header>
+@if (_open)
+{
+    <button class="hp-focus-backdrop" tabindex="-1" aria-label="بستن دسته‌بندی‌ها" @onclick="Close"></button>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    private List<StoreLookupModel> _categories = new();
+    private bool _open, _authenticated, _disposed;
+    private ElementReference _trigger, _mobileTrigger;
+    private ElementReference _header;
+    private IJSObjectReference? _module;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_open) return;
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
+        await _module.InvokeVoidAsync("installMenuKeyboardNavigation", _header);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.OnChange += Changed;
+        _branding = await Branding.GetAsync();
+        if (AuthState is not null) _authenticated = (await AuthState).User.CustomerIdentity() is not null;
+        var categories = await Api.GetAsync<List<StoreLookupModel>>("products/categories");
+        if (categories is { IsSuccess: true, Data: not null }) _categories = categories.Data;
+        var cart = await Api.GetAsync<CartModel>("cart");
+        if (cart is { IsSuccess: true, Data: not null }) Cart.Set(cart.Data.TotalQuantity);
+    }
+    private void Toggle() => _open = !_open;
+    private async Task Close()
+    {
+        _open = false;
+        await _trigger.FocusAsync(preventScroll: true);
+        await _mobileTrigger.FocusAsync(preventScroll: true);
+    }
+    private async Task HandleKey(KeyboardEventArgs e) { if (e.Key == "Escape" && _open) await Close(); }
+    private async void Changed()
+    {
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); } catch (InvalidOperationException) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Cart.OnChange -= Changed;
+        if (_module is null) return;
+        try { await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    }
+}

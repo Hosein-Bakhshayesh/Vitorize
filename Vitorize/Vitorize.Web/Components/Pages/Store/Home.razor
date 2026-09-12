@@ -1,294 +1,203 @@
-﻿@page "/"
+@page "/"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject ApiClient Api
 @inject MediaUrlResolver Media
-@inject Vitorize.Web.Services.UI.StoreBrandingService Branding
+@inject StoreBrandingService Branding
 @inject NavigationManager Nav
-@using Vitorize.Web.Models.Store
+@using Vitorize.Web.Models.Customer
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <SeoHead Description="@_branding.MetaDescription" CanonicalPath="/" ImagePath="@_branding.OgImagePath" JsonLd="@HomeJsonLd()" />
-
-@if (_loading)
-{
-    <section class="st-hwrap">
-        <div class="st-skel" style="height:460px;border-radius:var(--st-clip-xl)"></div>
-        <div class="st-hstats">
-            <div class="st-skel" style="height:88px;border-radius:var(--st-clip-sm)"></div>
-            <div class="st-skel" style="height:88px;border-radius:var(--st-clip-sm)"></div>
-            <div class="st-skel" style="height:120px;border-radius:var(--st-clip-sm)"></div>
+<div class="hp-home" aria-busy="@_loading">
+    @if (_loadFailed) { <div class="hp-data-notice" role="status">اطلاعات فروشگاه دریافت نشد. <button type="button" @onclick="LoadAsync">تلاش دوباره</button></div> }
+    <section class="hp-hero" aria-labelledby="hp-title">
+        <div class="hp-hero__copy">
+            <h1 id="hp-title">@_branding.Get("HeroTitle", "زندگی دیجیتالتو پیشرفت بده حمال!")</h1>
+            <p>@_branding.Get("HeroSubtitle", "لورم ایپسوم دولور سیت امت.")</p>
+            <div class="hp-hero__actions">
+                <a href="@_branding.HeroCtaUrl" aria-label="@_branding.HeroCtaText"></a>
+                <a href="@_branding.HeroSecondaryCtaUrl" aria-label="@_branding.Get("HeroSecondaryCtaText", "مشاهده دسته‌بندی‌ها")"></a>
+                <span aria-hidden="true"></span>
+            </div>
+        </div>
+        <div class="hp-hero__mosaic">
+            @for (var i = 0; i < 4; i++)
+            {
+                var banner = HeroBanners.ElementAtOrDefault(i);
+                @if (banner is not null)
+                { <a class="hp-hero__tile hp-hero__tile--@(i + 1)" href="@(banner.LinkUrl ?? "/shop")" aria-label="@banner.Title"><StoreImage Url="@banner.ImagePath" MobileUrl="@banner.MobileImagePath" Alt="@(banner.AltText ?? banner.Title)" Loading="eager" /></a> }
+                else { <div class="hp-hero__tile hp-hero__tile--@(i + 1)" aria-hidden="true"></div> }
+            }
         </div>
     </section>
-    <div class="st-grid" style="margin-top:48px">
-        @for (var i = 0; i < 8; i++)
-        {
-            <div class="st-skel" style="height:280px;border-radius:var(--st-clip)"></div>
-        }
-    </div>
-}
-else
-{
-    <div class="vz-home">
-        <section class="vz-home__hero">
-            <div class="vz-hero__copy">
-                <h1>@_branding.HeroTitle</h1>
-                <p>@_branding.HeroSubtitle</p>
-                <div class="vz-hero__actions">
-                    <a href="@_branding.HeroCtaUrl" aria-label="@_branding.HeroCtaText"></a>
-                    @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
-                    {
-                        <a class="vz-hero__action--outline" href="@_branding.HeroSecondaryCtaUrl" aria-label="@_branding.HeroSecondaryCtaText"></a>
-                    }
-                    <span class="vz-hero__action--muted"></span>
-                </div>
-            </div>
-            <div class="vz-hero__mosaic" aria-label="@_branding.HeroTitle">
-                @for (var i = 0; i < 4; i++)
-                {
-                    var banner = HeroBanners.ElementAtOrDefault(i);
-                    <a class="vz-hero__tile vz-hero__tile--@(i + 1)" href="@(banner?.LinkUrl ?? "/shop")" tabindex="-1">
-                        @if (banner is not null)
-                        {
-                            <StoreImage Url="@banner.ImagePath" MobileUrl="@banner.MobileImagePath" Alt="@(banner.AltText ?? banner.Title)" Icon="image" />
-                        }
-                    </a>
-                }
-            </div>
-        </section>
-
-        @if (_data.Categories.Count > 0)
-        {
-            <section class="vz-section vz-categories">
-                <h2>دسته‌بندی‌های محبوب ویتورایز</h2>
-                <div class="vz-category-grid">
-                    @foreach (var category in _data.Categories.Take(6))
-                    {
-                        <a href="@($"/category/{category.Slug}")" class="vz-category">
-                            <span class="vz-category__media"><CategoryMedia IconKey="@category.Icon" ImagePath="@category.ImagePath" Alt="@category.Title" IconSize="25" /></span>
-                            <span>@category.Title</span>
-                        </a>
-                    }
-                </div>
-            </section>
-        }
-
-        @{ var bestsellerProducts = _data.FeaturedProducts.Count > 0 ? _data.FeaturedProducts : _latest; }
-        @if (bestsellerProducts.Count > 0)
-        {
-            <section class="vz-section vz-products">
-                <h2>محصولات پرفروش ویتورایز</h2>
-                <div class="vz-product-grid">
-                    @foreach (var product in bestsellerProducts.Take(8))
-                    {
-                        <StoreProductCard Product="product" />
-                    }
-                </div>
-            </section>
-        }
-
-        <section class="vz-section vz-showcase">
-            @if (CampaignBanner is not null)
+    <section class="hp-section hp-categories">
+        <h2>دسته‌بندی‌های محبوب ویتورایز</h2>
+        <div class="hp-category-grid">
+            @foreach (var category in _data.Categories.Take(6))
             {
-                <a class="vz-showcase__media" href="@(CampaignBanner.LinkUrl ?? "/shop")">
-                    <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@(CampaignBanner.AltText ?? CampaignBanner.Title)" Icon="image" Width="1400" Height="700" />
+                <a class="hp-category" href="@($"/category/{category.Slug}")">
+                    <span class="hp-category__image">
+                        @if (!string.IsNullOrWhiteSpace(category.ImagePath) || !string.IsNullOrWhiteSpace(category.Icon))
+                        { <CategoryMedia IconKey="@category.Icon" ImagePath="@category.ImagePath" Alt="@category.Title" IconSize="28" /> }
+                    </span><span>@category.Title</span>
                 </a>
             }
-            else
-            {
-                <div class="vz-showcase__media" aria-hidden="true"></div>
-            }
-            <span class="vz-showcase__dots" aria-hidden="true"></span>
-        </section>
-
-        @if (_branding.HomeFeatures.Count > 0)
-        {
-            <section class="vz-section vz-benefits">
-                <div class="vz-benefit-grid">
-                    @foreach (var feature in _branding.HomeFeatures.Take(4))
-                    {
-                        <article class="vz-benefit">
-                            <span class="vz-benefit__icon"><LucideIcon IconKey="@feature.Icon" Size="28" FallbackIconKey="circle" /></span>
-                            <h2>@feature.Title</h2>
-                            <p>@feature.Text</p>
-                        </article>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (_data.Brands.Count > 0)
-        {
-            <section class="vz-brand-strip" aria-label="برندهای همکار">
-                <div class="vz-brand-strip__track">
-                    @foreach (var brand in _data.Brands.Take(12))
-                    {
-                        <a href="@($"/brand/{brand.Slug}")" title="@brand.Title">
-                            @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                            {
-                                <img src="@Media.Resolve(brand.ImagePath)" alt="@(brand.ImageAltText ?? brand.Title)" loading="lazy" />
-                            }
-                            else { <span>@brand.Title</span> }
-                        </a>
-                    }
-                </div>
-            </section>
-        }
-
-        <section class="vz-section vz-testimonials" aria-label="نظرات شما">
-            <h2>نظرات شما</h2>
-            <div class="vz-testimonial-track">
-                @foreach (var testimonial in Testimonials)
+            @if (_data.Categories.Count == 0) { <p class="hp-empty">@Empty("دسته‌بندی")</p> }
+        </div>
+    </section>
+    <section class="hp-section hp-products">
+        <h2>محصولات پرفروش ویتورایز</h2>
+        <div class="hp-product-grid">
+            @foreach (var product in _products.Take(8)) { <HomeProductCard Product="product" /> }
+            @if (_products.Count == 0) { <p class="hp-empty">@Empty("محصول")</p> }
+        </div>
+    </section>
+    <section class="hp-section hp-showcase" aria-label="پیشنهادهای فروشگاه">
+        <div class="hp-banner">
+            @if (CampaignBanners.ElementAtOrDefault(_campaignIndex) is { } campaign)
+            { <a href="@(campaign.LinkUrl ?? "/shop")" aria-label="@campaign.Title"><StoreImage Url="@campaign.ImagePath" MobileUrl="@campaign.MobileImagePath" Alt="@(campaign.AltText ?? campaign.Title)" /></a> }
+            <div class="hp-dots" aria-label="انتخاب بنر">
+                @for (var i = 0; i < Math.Max(CampaignBanners.Count, 5); i++)
                 {
-                    <article class="vz-testimonial">
-                        <div class="vz-testimonial__head">
-                            <span class="vz-testimonial__rating">@testimonial.Rating</span>
-                            <div><strong>@testimonial.Name</strong><span>@testimonial.Role</span></div>
-                            <i aria-hidden="true"></i>
-                        </div>
-                        <p>@testimonial.Text</p>
-                    </article>
+                    var index = i;
+                    @if (index < CampaignBanners.Count)
+                    { <button type="button" class="@(index == _campaignIndex ? "is-active" : null)" aria-label="بنر @(index + 1)" aria-pressed="@(index == _campaignIndex)" @onclick="() => _campaignIndex = index"></button> }
+                    else { <span aria-hidden="true" class="@(index == 1 ? "is-active" : null)"></span> }
                 }
             </div>
-        </section>
-
-        <section class="vz-section vz-promo">
-            <div class="vz-promo__card">
-                <div class="vz-promo__copy">
-                    <h2>@_branding.NewsletterTitle</h2>
-                    <p>@_branding.NewsletterSubtitle</p>
-                </div>
-                <form @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
-                    <input type="email" placeholder="@_branding.NewsletterPlaceholder" @bind="_newsletterEmail" />
-                    <button type="submit">@_branding.NewsletterCtaText</button>
-                </form>
-                <span class="vz-promo__dots" aria-hidden="true"></span>
-            </div>
-        </section>
-
-        @if (_data.LatestBlogPosts.Count > 0)
+        </div>
+    </section>
+    <section class="hp-section hp-benefits" aria-label="مزایای خرید از ویتورایز">
+        @for (var i = 0; i < 4; i++)
         {
-            <section class="vz-section vz-blog">
-                <h2>جدیدترین بلاگ‌ها</h2>
-                <div class="vz-blog-grid">
-                    @foreach (var post in _data.LatestBlogPosts.Take(3))
-                    {
-                        <a href="@($"/blog/{post.Slug}")" class="vz-blog-card">
-                            <StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" Icon="file-text" />
-                            <span>@post.Title</span>
-                        </a>
-                    }
-                </div>
-            </section>
+            var feature = HomeFeatures.ElementAtOrDefault(i);
+            <article class="hp-benefit"><span class="hp-benefit__circle" aria-hidden="true"></span>
+                @if (feature is not null) { <h2>@feature.Title</h2><p>@feature.Text</p> }
+            </article>
         }
-
-        @if (_data.Faqs.Count > 0)
-        {
-            <section class="vz-section vz-faq">
-                <h2>سوالات پرتکرار شما</h2>
-                <div class="vz-faq__list">
-                    @{ var faqs = _data.Faqs.Take(4).ToList(); }
-                    @for (var index = 0; index < faqs.Count; index++)
-                    {
-                        var faq = faqs[index];
-                        <FaqItem Question="@faq.Question" Answer="@faq.Answer" InitiallyOpen="@(index == 2)" />
-                    }
-                </div>
-            </section>
-        }
-    </div>
-}
+    </section>
+    <section class="hp-section hp-brands" aria-label="برندها">
+        <div class="hp-brands__track">
+            @foreach (var brand in _data.Brands.Take(12).Reverse())
+            {
+                <a href="@($"/brand/{brand.Slug}")" aria-label="@brand.Title">
+                    @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
+                    { <img src="@Media.Resolve(brand.ImagePath)" alt="@(brand.ImageAltText ?? brand.Title)" loading="lazy" /> }
+                    else { <span>@brand.Title</span> }
+                </a>
+            }
+        </div>
+    </section>
+    <section class="hp-section hp-reviews">
+        <h2>نظرات شما</h2>
+        <div class="hp-review-track" @ref="_reviewRail" tabindex="0" role="region" aria-label="نظرات تاییدشده خریداران">
+            @foreach (var review in _reviews)
+            {
+                <article class="hp-review">
+                    <div class="hp-review__head"><i aria-hidden="true"></i><div><strong>@review.UserDisplayName</strong><span>@(review.IsBuyer ? "خریدار محصول" : "کاربر ویتورایز")</span></div><b dir="ltr">@AUI.Number(review.Rating)/۵</b></div>
+                    <p>@review.Comment</p>
+                </article>
+            }
+            @if (_reviews.Count == 0) { <p class="hp-empty">@Empty("نظر تاییدشده")</p> }
+        </div>
+    </section>
+    <section class="hp-section hp-promo" aria-label="اینستاگرام ویتورایز">
+        <div class="hp-promo__card">
+            <div><h2>@_branding.Get("InstagramBannerTitle", "اینستا رو هم فالو کن ناموسن.")</h2><p>@_branding.Get("InstagramBannerSubtitle", "هراز چند مزه می‌ریزیم اونجا")</p></div>
+            @if (!string.IsNullOrWhiteSpace(_branding.InstagramUrl))
+            { <a href="@_branding.InstagramUrl" target="_blank" rel="noopener noreferrer">برو اینستاگرام</a> }
+            <div class="hp-dots" aria-hidden="true"><span class="is-active"></span><span></span></div>
+        </div>
+    </section>
+    <section class="hp-section hp-blog">
+        <h2>جدیدترین بلاگ‌ها</h2>
+        <div class="hp-blog-grid">
+            @foreach (var post in _data.LatestBlogPosts.Take(3))
+            { <a href="@($"/blog/{post.Slug}")" aria-label="@post.Title"><StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" /></a> }
+            @if (_data.LatestBlogPosts.Count == 0) { <p class="hp-empty">@Empty("مطلب")</p> }
+        </div>
+    </section>
+    <section class="hp-section hp-faq">
+        <h2>سوالات پرتکرار شما</h2>
+        <div class="hp-faq__list">
+            @for (var i = 0; i < Math.Min(4, _data.Faqs.Count); i++)
+            {
+                var faq = _data.Faqs[i];
+                <details open="@(i == 2)"><summary><span>@faq.Question</span><i aria-hidden="true"></i></summary><div class="hp-faq__answer">@faq.Answer</div></details>
+            }
+            @if (_data.Faqs.Count == 0) { <p class="hp-empty">@Empty("سوال")</p> }
+        </div>
+    </section>
+</div>
 
 @code {
-    [Inject] private ToastService Toasts { get; set; } = default!;
-
-    private bool _loading = true;
+    private bool _loading = true, _loadFailed;
+    private bool _reviewsPositioned;
+    private ElementReference _reviewRail;
+    private IJSObjectReference? _module;
+    private int _campaignIndex;
     private StoreHomeModel _data = new();
-    private List<StoreProductModel> _latest = new();
-    private List<StoreProductModel> _popular = new();
-    private string _newsletterEmail = string.Empty;
-
-    private static readonly TestimonialPreview[] Testimonials =
+    private List<StoreProductModel> _products = new();
+    private List<CustomerReviewModel> _reviews = new();
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    private IReadOnlyList<HomeBlockItem> HomeFeatures => string.IsNullOrWhiteSpace(_branding.Get("HomeFeaturesJson", ""))
+        ? ReferenceFeatures : _branding.HomeFeatures;
+    // Copy from the supplied design is a presentation default only; configured copy wins.
+    private static readonly HomeBlockItem[] ReferenceFeatures =
     [
-        new("نام", "مشتری ۱ ساله", "۴/۵", "خدایی خیلی سریع بود؛ من خودم سفارش‌هام رو از شما می‌گیرم، دمت گرم."),
-        new("گیمینگ ۷۸", "کاربر ویتورایز", "۱/۵", "ویتو چی؟ این چیه؟ بخش جانبی خیلی زود فعّال شد و تجربهٔ خرید خوبی داشتم."),
-        new("وایزری", "مشتری قدیمی", "۵/۵", "چون بهتراشو می‌دم."),
-        new("احمد", "مشتری قدیمی", "۵/۵", "خرید من کارت رو بدون مشکل و در کمترین زمان انجام دادم.")
+        new("", "پشتیبانی‌های", ""),
+        new("", "قیمت مناسب", ""),
+        new("", "پرایمر و تنوع", ""),
+        new("", "سرعت خرید بالا", "")
     ];
+    private string Empty(string name) => _loading ? "در حال دریافت اطلاعات…" : $"{name} برای نمایش وجود ندارد.";
+    private List<StoreBannerModel> HeroBanners => Banners("home-hero");
+    private List<StoreBannerModel> CampaignBanners => Banners("home-secondary");
+    private List<StoreBannerModel> Banners(string position) => _data.Banners
+        .Where(b => string.Equals(b.Position, position, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
+        .OrderBy(b => b.SortOrder).ToList();
 
-    private List<StoreBannerModel> HeroBanners => _data.Banners
-        .Where(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
-        .OrderBy(b => b.SortOrder)
-        .ToList();
-
-    private StoreBannerModel? CampaignBanner => _data.Banners
-        .Where(b => string.Equals(b.Position, "home-secondary", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
-        .OrderBy(b => b.SortOrder)
-        .FirstOrDefault();
-
-    private List<string> MarqueeItems
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        get
-        {
-            var items = _data.Brands.Select(b => b.Title)
-                .Concat(_data.Categories.Select(c => c.Title))
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .Distinct()
-                .Take(12)
-                .ToList();
-            return items;
-        }
+        if (_reviewsPositioned || _reviews.Count < 3) return;
+        _reviewsPositioned = true;
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
+        await _module.InvokeVoidAsync("positionReviews", _reviewRail);
     }
-
-    private Vitorize.Web.Services.UI.StoreBranding _branding =
-        new(new Dictionary<string, string>());
-
-    protected override async Task OnInitializedAsync()
+    public async ValueTask DisposeAsync()
     {
-        // Branding is awaited first because it decides whether the popular-products request is worth
-        // making at all. It is served from a short-lived process cache, so this is not an extra
-        // round trip in practice — and when the section is off, the catalogue query never runs.
-        _branding = await Branding.GetAsync();
-
-        var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
-        // No sort key on purpose: the server then applies the admin-configured storefront default,
-        // so this section and the shop page agree on the order instead of pinning "newest" here.
-        var latestTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=8");
-        var popularTask = _branding.HomePopularProductsEnabled
-            // Explicitly ranked, so this section keeps its own meaning instead of drifting with the
-            // storefront's configurable default order. Best-selling is the only real ranking signal
-            // Vitorize stores - paid-order quantity - so the heading now reflects the actual order.
-            ? Api.GetAsync<PagedResult<StoreProductModel>>("products?sort=bestselling&pageSize=20")
-            : null;
-
-        await Task.WhenAll(new Task[] { homeTask, latestTask }
-            .Concat(popularTask is null ? Array.Empty<Task>() : new Task[] { popularTask }));
-
-        if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
-        if (latestTask.Result is { IsSuccess: true, Data: not null }) _latest = latestTask.Result.Data.Items.ToList();
-
-        // "Popular" has no dedicated backend sort — rank the catalogue by real engagement
-        // (review count, then rating). No fabricated data; purely client-side ordering of the API result.
-        if (popularTask?.Result is { IsSuccess: true, Data: { } popular })
-        {
-            _popular = popular.Items
-                .OrderByDescending(p => p.ReviewCount)
-                .ThenByDescending(p => p.AverageRating)
-                .Take(8)
-                .ToList();
-        }
-
-        _loading = false;
+        if (_module is null) return;
+        try { await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
     }
-
-    private void SubscribeNewsletter()
+    private async Task LoadAsync()
     {
-        // No newsletter backend endpoint exists; acknowledge locally without inventing an API.
-        if (string.IsNullOrWhiteSpace(_newsletterEmail) || !_newsletterEmail.Contains('@'))
+        _loading = true;
+        try
         {
-            Toasts.Error("لطفاً یک ایمیل معتبر وارد کنید.");
-            return;
+            _branding = await Branding.GetAsync();
+            var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
+            var productsTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=8");
+            await Task.WhenAll(homeTask, productsTask);
+            _loadFailed = !homeTask.Result.IsSuccess || !productsTask.Result.IsSuccess;
+            if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
+            // Never mask API failures with invented products, prices or customer reviews.
+            // Preserve the existing homepage selection and the admin-configured default sort.
+            _products = _data.FeaturedProducts.Take(8).ToList();
+            if (_products.Count == 0 && productsTask.Result is { IsSuccess: true, Data: not null })
+                _products = productsTask.Result.Data.Items.ToList();
+            _campaignIndex = 0;
+            var reviewTasks = _products.Where(p => p.ReviewCount > 0).Take(4)
+                .Select(p => Api.GetAsync<CustomerReviewListModel>($"product-reviews/product/{p.Id}?page=1&pageSize=4&sort=newest")).ToArray();
+            var results = await Task.WhenAll(reviewTasks);
+            _reviews = results.Where(r => r.IsSuccess && r.Data is not null)
+                .SelectMany(r => r.Data!.Reviews.Items).Where(r => r.IsApproved && !r.IsRejected).DistinctBy(r => r.Id)
+                .OrderByDescending(r => r.CreatedAt).Take(8).ToList();
+            _reviewsPositioned = false;
         }
-        Toasts.Success("از عضویت شما سپاسگزاریم! به‌زودی با شما در تماس خواهیم بود.");
-        _newsletterEmail = string.Empty;
+        catch { _loadFailed = true; }
+        finally { _loading = false; }
     }
 
     private string HomeJsonLd()
@@ -317,5 +226,4 @@ else
         });
     }
 
-    private sealed record TestimonialPreview(string Name, string Role, string Rating, string Text);
 }

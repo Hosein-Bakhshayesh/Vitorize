@@ -17,15 +17,16 @@
 else
 {
     <a class="st-skip-link" href="#main-content">پرش به محتوای اصلی</a>
-    <div class="st-shell">
-        <StoreHeader />
+    <div class="st-shell @(IsHome ? "home-shell" : null)">
+        @if (IsHome) { <HomeHeader /> }
+        else { <StoreHeader /> }
         <main id="main-content" class="st-main" tabindex="-1">
             <div class="st-container">
                 @Body
             </div>
         </main>
-        <StoreFooter />
-        <StoreBottomNav />
+        @if (IsHome) { <HomeFooter /> }
+        else { <StoreFooter /><StoreBottomNav /> }
     </div>
 }
 
@@ -35,6 +36,7 @@ else
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private bool _maintenance;
+    private bool IsHome => new Uri(Nav.Uri).AbsolutePath.TrimEnd('/').Length == 0;
     private bool _disposed;
     private ErrorStateInfo _info =
         ErrorStates.Resolve("503", new Vitorize.Web.Services.UI.StoreBranding(new Dictionary<string, string>()));
@@ -56,9 +58,8 @@ else
         try
         {
             if (_disposed) return;
-            var was = _maintenance;
             await EvaluateAsync();
-            if (!_disposed && _maintenance != was) await InvokeAsync(StateHasChanged);
+            if (!_disposed) await InvokeAsync(StateHasChanged);
         }
         catch
         {

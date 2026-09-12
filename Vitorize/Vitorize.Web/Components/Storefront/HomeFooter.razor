@@ -1,0 +1,53 @@
+@inject StoreBrandingService Branding
+@inject MediaUrlResolver Media
+@inject NavigationManager Nav
+@inject ApiClient Api
+
+<footer class="hp-footer">
+    <div class="hp-footer__links">
+        <div><h2>محصولات</h2>
+            @foreach (var category in _categories.Take(5)) { <a href="@($"/category/{category.Slug}")">@category.Title</a> }
+            @if (_categories.Count == 0) { <a href="/categories">دسته‌بندی محصولات</a><a href="/shop">همه محصولات</a> }
+        </div>
+        <div><h2>پشتیبانی</h2><a href="/customer/tickets">پشتیبانی سفارش‌ها</a><a href="/faq">سوالات متداول</a><a href="/contact">ارتباط با ما</a><a href="/terms">قوانین و مقررات</a><a href="/privacy">حریم خصوصی</a></div>
+        <div><h2>لینک‌های مهم</h2><a href="/about">درباره ما</a><a href="/contact">ارتباط با ما</a><a href="/customer/orders">پیگیری سفارش</a><a href="/customer/dashboard">پنل کاربری</a><a href="/blog">وبلاگ‌ها</a></div>
+    </div>
+    <div class="hp-footer__logo"><HomeLogo Branding="_branding" Footer="true" /></div>
+    <div class="hp-footer__seals" aria-label="نمادهای اعتماد">
+        @for (var i = 0; i < 3; i++)
+        {
+            var seal = _branding.TrustSeals.ElementAtOrDefault(i);
+            @if (seal is not null)
+            {
+                <a href="@seal.Url" target="@(seal.NewTab ? "_blank" : null)" rel="noopener noreferrer"><img src="@Media.Resolve(seal.ImagePath)" alt="@seal.Alt" loading="lazy" /></a>
+            }
+            else { <span aria-hidden="true"></span> }
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(SealBadges))
+    {
+        <div class="hp-footer__seal-html">@((MarkupString)SealBadges)</div>
+    }
+    <div class="hp-footer__bar" aria-hidden="true"></div>
+    <div class="hp-footer__socials">
+        @if (!string.IsNullOrWhiteSpace(_branding.TelegramUrl)) { <a href="@_branding.TelegramUrl" aria-label="تلگرام" target="_blank" rel="noopener noreferrer"><Icon Name="send" Size="24" /></a> }
+        @if (!string.IsNullOrWhiteSpace(_branding.InstagramUrl)) { <a href="@_branding.InstagramUrl" aria-label="اینستاگرام" target="_blank" rel="noopener noreferrer"><Icon Name="instagram" Size="24" /></a> }
+    </div>
+    <div class="hp-footer__contact">
+        @if (!string.IsNullOrWhiteSpace(_branding.SupportPhone)) { <a href="tel:@_branding.SupportPhone" dir="ltr">@_branding.SupportPhone</a> }
+        @if (!string.IsNullOrWhiteSpace(_branding.SupportEmail)) { <a href="mailto:@_branding.SupportEmail" dir="ltr">@_branding.SupportEmail</a> }
+    </div>
+    <small class="hp-footer__copyright" dir="ltr">@_branding.Get("CopyrightText", "© 2026 vitorize - All rights reserved.")</small>
+</footer>
+
+@code {
+    private StoreBranding _branding = new(new Dictionary<string, string>());
+    private List<StoreLookupModel> _categories = new();
+    private string SealBadges => TrustSealHtml.Badges(_branding.TrustSealFooterHtml, new Uri(Nav.BaseUri).Host);
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await Branding.GetAsync();
+        var categories = await Api.GetAsync<List<StoreLookupModel>>("products/categories");
+        if (categories is { IsSuccess: true, Data: not null }) _categories = categories.Data;
+    }
+}
