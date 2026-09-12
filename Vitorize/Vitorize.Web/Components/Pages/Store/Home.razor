@@ -27,234 +27,156 @@
 }
 else
 {
-    @* ---------- Hero: dynamic banner slider + value-prop stack ---------- *@
-    <section class="st-hwrap">
-        @if (HeroBanners.Count > 0)
-        {
-            <HeroSlider Banners="HeroBanners" Branding="_branding" />
-        }
-        else
-        {
-            <div class="st-hslider">
-                <span class="st-hslider__aurora a1"></span>
-                <span class="st-hslider__aurora a2"></span>
-                <div class="st-hslider__overlay"></div>
-                <div class="st-hslide enter">
-                    <span class="st-hslide__kicker"><span class="dot"></span> @_branding.HeroKicker</span>
-                    <h1 class="st-hslide__title">@_branding.HeroTitle</h1>
-                    <p class="st-hslide__sub">@_branding.HeroSubtitle</p>
-                    <div class="st-hslide__ctas">
-                        <a class="st-hslide__cta" href="@_branding.HeroCtaUrl"><Icon Name="shopping-bag" Size="17" /> @_branding.HeroCtaText</a>
-                        @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
-                        {
-                            <a class="st-hslide__cta2" href="@_branding.HeroSecondaryCtaUrl">@_branding.HeroSecondaryCtaText</a>
-                        }
-                    </div>
+    <div class="vz-home">
+        <section class="vz-home__hero">
+            <div class="vz-hero__copy">
+                <h1>@_branding.HeroTitle</h1>
+                <p>@_branding.HeroSubtitle</p>
+                <div class="vz-hero__actions">
+                    <a href="@_branding.HeroCtaUrl" aria-label="@_branding.HeroCtaText"></a>
+                    @if (!string.IsNullOrWhiteSpace(_branding.HeroSecondaryCtaText))
+                    {
+                        <a class="vz-hero__action--outline" href="@_branding.HeroSecondaryCtaUrl" aria-label="@_branding.HeroSecondaryCtaText"></a>
+                    }
+                    <span class="vz-hero__action--muted"></span>
                 </div>
             </div>
-        }
-        <div class="st-hstats">
-            <div class="st-hstat">
-                <span class="st-hstat__ic"><Icon Name="zap" Size="22" /></span>
-                <div><div class="st-hstat__t">تحویل سریع</div><div class="st-hstat__s">کدها بلافاصله پس از پرداخت</div></div>
-            </div>
-            <div class="st-hstat">
-                <span class="st-hstat__ic"><Icon Name="headphones" Size="22" /></span>
-                <div><div class="st-hstat__t">پشتیبانی ۲۴/۷</div><div class="st-hstat__s">همیشه کنار شما</div></div>
-            </div>
-            <div class="st-hstat accent">
-                <span class="st-hstat__ic"><Icon Name="shield-check" Size="22" /></span>
-                <div><div class="st-hstat__t">ضمانت اصالت</div><div class="st-hstat__s">محصولات رسمی و اورجینال با پرداخت امن</div></div>
-            </div>
-        </div>
-    </section>
-
-    @* ---------- Marquee: brands / platforms strip ---------- *@
-    @if (MarqueeItems.Count > 0)
-    {
-        <div class="st-marquee">
-            <div class="st-marquee__track">
-                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
-                @foreach (var m in MarqueeItems) { <span class="st-marquee__item">@m</span> }
-            </div>
-        </div>
-    }
-
-    @* ---------- Featured Categories (bento) ---------- *@
-    @if (_data.Categories.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> دسته‌بندی‌ها</div>
-                <a class="st-section__more" href="/categories">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
-            </div>
-            <div class="st-bento">
-                @{ var cats = _data.Categories.Take(5).ToList(); }
-                @for (var i = 0; i < cats.Count; i++)
+            <div class="vz-hero__mosaic" aria-label="@_branding.HeroTitle">
+                @for (var i = 0; i < 4; i++)
                 {
-                    var c = cats[i];
-                    <a class="st-bento__tile @(i == 0 ? "lead" : null)" href="@($"/category/{c.Slug}")">
-                        <div class="st-bento__ic">
-                            <CategoryMedia IconKey="@c.Icon" ImagePath="@c.ImagePath" Alt="@c.Title" IconSize="18" />
-                        </div>
-                        <div>
-                            <div class="st-bento__t">@c.Title</div>
-                            @if (i == 0) { <div class="st-bento__c">پرطرفدارترین دسته فروشگاه</div> }
-                        </div>
-                    </a>
-                }
-            </div>
-        </section>
-    }
-
-    @* ---------- Featured Products ---------- *@
-    @if (_data.FeaturedProducts.Count > 0)
-    {
-        <ProductRow Title="محصولات ویژه" MoreHref="/shop" Products="_data.FeaturedProducts" />
-    }
-
-    @* ---------- Campaign banner (home-secondary) ---------- *@
-    @if (CampaignBanner is not null)
-    {
-        <section class="st-section st-reveal">
-            <a class="st-campaign" href="@(string.IsNullOrWhiteSpace(CampaignBanner.LinkUrl) ? "/shop" : CampaignBanner.LinkUrl)">
-                <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@CampaignBanner.Title" Icon="gift" Width="1400" Height="700" />
-            </a>
-        </section>
-    }
-
-    @* ---------- Products (ordered by the admin-configured storefront default) ---------- *@
-    @if (_latest.Count > 0)
-    {
-        <ProductRow Title="محصولات" MoreHref="/shop" Products="_latest" />
-    }
-
-    @* ---------- Popular Products (Settings: HomePopularProductsEnabled, default off) ---------- *@
-    @if (_popular.Count > 0)
-    {
-        <div data-testid="home-popular-products">
-            <ProductRow Title="محبوب‌ترین محصولات" MoreHref="/shop" Products="_popular" />
-        </div>
-    }
-
-    @* ---------- Why Vitorize / How it works (from Settings: HomeFeaturesJson) ---------- *@
-    @if (_branding.HomeFeatures.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-section__center">
-                <div class="st-section__kicker">@_branding.HomeFeaturesKicker</div>
-                <h2 class="st-section__h">@_branding.HomeFeaturesTitle</h2>
-            </div>
-            <div class="st-hiw">
-                @{ var stepNo = 0; }
-                @foreach (var f in _branding.HomeFeatures)
-                {
-                    stepNo++;
-                    <div class="st-hiw__step">
-                        <div class="st-hiw__num">@AUI.Number(stepNo)</div>
-                        <div class="st-hiw__ic"><LucideIcon IconKey="@f.Icon" Size="22" FallbackIconKey="shapes" /></div>
-                        <div class="st-hiw__t">@f.Title</div>
-                        <div class="st-hiw__d">@f.Text</div>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @* ---------- Trust Section (from Settings: TrustBadgesJson) ---------- *@
-    @if (_branding.TrustBadges.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-hero-mini" style="margin:0">
-                @foreach (var t in _branding.TrustBadges)
-                {
-                    <div class="st-trust">
-                        <span class="st-trust__ic"><LucideIcon IconKey="@t.Icon" Size="20" FallbackIconKey="shield-check" /></span>
-                        <div><div class="st-trust__t">@t.Title</div><div class="st-trust__s">@t.Text</div></div>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @* ---------- Brands ---------- *@
-    @if (_data.Brands.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> برندهای محبوب</div></div>
-            <div class="st-brands">
-                @foreach (var b in _data.Brands.Take(12))
-                {
-                    <a class="st-brand-tile" href="@($"/brand/{b.Slug}")" title="@b.Title">
-                        @if (!string.IsNullOrWhiteSpace(b.ImagePath))
+                    var banner = HeroBanners.ElementAtOrDefault(i);
+                    <a class="vz-hero__tile vz-hero__tile--@(i + 1)" href="@(banner?.LinkUrl ?? "/shop")" tabindex="-1">
+                        @if (banner is not null)
                         {
-                            <img src="@Media.Resolve(b.ImagePath)" alt="@(b.ImageAltText ?? b.Title)" loading="lazy"
-                                 onerror="this.style.display='none';var s=this.nextElementSibling;if(s)s.style.display='block';" />
-                            <span style="display:none">@b.Title</span>
+                            <StoreImage Url="@banner.ImagePath" MobileUrl="@banner.MobileImagePath" Alt="@(banner.AltText ?? banner.Title)" Icon="image" />
                         }
-                        else { <span>@b.Title</span> }
                     </a>
                 }
             </div>
         </section>
-    }
 
-    @* ---------- Latest Blog ---------- *@
-    @if (_data.LatestBlogPosts.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> آخرین مطالب</div>
-                <a class="st-section__more" href="/blog">مشاهده همه <Icon Name="chevron-left" Size="15" /></a>
-            </div>
-            <div class="st-grid">
-                @foreach (var post in _data.LatestBlogPosts.Take(4))
-                {
-                    <a class="st-pcard" href="@($"/blog/{post.Slug}")">
-                        <div class="st-pcard__media">
-                            <StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" Icon="file-text" />
-                        </div>
-                        <div class="st-pcard__body">
-                            <div class="st-pcard__title">@post.Title</div>
-                            <div class="st-muted" style="font-size:12px"><PersianDateDisplay Value="post.CreatedAt" /></div>
-                        </div>
-                    </a>
-                }
-            </div>
+        @if (_data.Categories.Count > 0)
+        {
+            <section class="vz-section vz-categories">
+                <h2>دسته‌بندی‌های محبوب ویتورایز</h2>
+                <div class="vz-category-grid">
+                    @foreach (var category in _data.Categories.Take(6))
+                    {
+                        <a href="@($"/category/{category.Slug}")" class="vz-category">
+                            <span class="vz-category__media"><CategoryMedia IconKey="@category.Icon" ImagePath="@category.ImagePath" Alt="@category.Title" IconSize="25" /></span>
+                            <span>@category.Title</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @{ var bestsellerProducts = _data.FeaturedProducts.Count > 0 ? _data.FeaturedProducts : _latest; }
+        @if (bestsellerProducts.Count > 0)
+        {
+            <section class="vz-section vz-products">
+                <h2>محصولات پرفروش ویتورایز</h2>
+                <div class="vz-product-grid">
+                    @foreach (var product in bestsellerProducts.Take(8))
+                    {
+                        <StoreProductCard Product="product" />
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="vz-section vz-showcase">
+            @if (CampaignBanner is not null)
+            {
+                <a class="vz-showcase__media" href="@(CampaignBanner.LinkUrl ?? "/shop")">
+                    <StoreImage Url="@CampaignBanner.ImagePath" MobileUrl="@CampaignBanner.MobileImagePath" Alt="@(CampaignBanner.AltText ?? CampaignBanner.Title)" Icon="image" Width="1400" Height="700" />
+                </a>
+            }
+            else
+            {
+                <div class="vz-showcase__media" aria-hidden="true"></div>
+            }
         </section>
-    }
 
-    @* ---------- FAQ Preview ---------- *@
-    @if (_data.Faqs.Count > 0)
-    {
-        <section class="st-section st-reveal">
-            <div class="st-section__head">
-                <div class="st-section__title"><span class="bar"></span> سوالات متداول</div>
-                <a class="st-section__more" href="/faq">همه سوالات <Icon Name="chevron-left" Size="15" /></a>
-            </div>
-            <div class="st-stack">
-                @foreach (var f in _data.Faqs.Take(5))
-                {
-                    <FaqItem Question="@f.Question" Answer="@f.Answer" />
-                }
-            </div>
-        </section>
-    }
+        @if (_branding.HomeFeatures.Count > 0)
+        {
+            <section class="vz-section vz-benefits">
+                <div class="vz-benefit-grid">
+                    @foreach (var feature in _branding.HomeFeatures.Take(4))
+                    {
+                        <article class="vz-benefit">
+                            <span class="vz-benefit__icon"><LucideIcon IconKey="@feature.Icon" Size="28" FallbackIconKey="circle" /></span>
+                            <h2>@feature.Title</h2>
+                            <p>@feature.Text</p>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
 
-    @* ---------- Newsletter ---------- *@
-    <section class="st-section st-reveal">
-        <div class="st-news">
-            <span class="st-news__aurora"></span>
-            <div class="st-news__in">
-                <h2 class="st-news__t">@_branding.NewsletterTitle</h2>
-                <p class="st-news__s">@_branding.NewsletterSubtitle</p>
-                <form class="st-news__form" @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
+        @if (_data.Brands.Count > 0)
+        {
+            <section class="vz-brand-strip" aria-label="برندهای همکار">
+                <div class="vz-brand-strip__track">
+                    @foreach (var brand in _data.Brands.Take(12))
+                    {
+                        <a href="@($"/brand/{brand.Slug}")" title="@brand.Title">
+                            @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
+                            {
+                                <img src="@Media.Resolve(brand.ImagePath)" alt="@(brand.ImageAltText ?? brand.Title)" loading="lazy" />
+                            }
+                            else { <span>@brand.Title</span> }
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="vz-section vz-promo">
+            <div class="vz-promo__card">
+                <div class="vz-promo__copy">
+                    <h2>@_branding.NewsletterTitle</h2>
+                    <p>@_branding.NewsletterSubtitle</p>
+                </div>
+                <form @onsubmit="SubscribeNewsletter" @onsubmit:preventDefault="true">
                     <input type="email" placeholder="@_branding.NewsletterPlaceholder" @bind="_newsletterEmail" />
-                    <button class="st-btn st-btn--accent st-btn--lg" type="submit"><Icon Name="send" Size="16" /> @_branding.NewsletterCtaText</button>
+                    <button type="submit">@_branding.NewsletterCtaText</button>
                 </form>
+                <span class="vz-promo__dots" aria-hidden="true"></span>
             </div>
-        </div>
-    </section>
+        </section>
+
+        @if (_data.LatestBlogPosts.Count > 0)
+        {
+            <section class="vz-section vz-blog">
+                <h2>جدیدترین بلاگ‌ها</h2>
+                <div class="vz-blog-grid">
+                    @foreach (var post in _data.LatestBlogPosts.Take(3))
+                    {
+                        <a href="@($"/blog/{post.Slug}")" class="vz-blog-card">
+                            <StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" Icon="file-text" />
+                            <span>@post.Title</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (_data.Faqs.Count > 0)
+        {
+            <section class="vz-section vz-faq">
+                <h2>سوالات پرتکرار شما</h2>
+                <div class="vz-faq__list">
+                    @{ var faqs = _data.Faqs.Take(4).ToList(); }
+                    @for (var index = 0; index < faqs.Count; index++)
+                    {
+                        var faq = faqs[index];
+                        <FaqItem Question="@faq.Question" Answer="@faq.Answer" InitiallyOpen="@(index == 2)" />
+                    }
+                </div>
+            </section>
+        }
+    </div>
 }
 
 @code {

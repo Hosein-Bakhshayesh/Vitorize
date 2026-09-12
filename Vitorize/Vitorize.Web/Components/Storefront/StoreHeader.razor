@@ -12,14 +12,12 @@
             <StoreLogo />
 
             <nav class="st-nav">
-                <a href="/" class="@Active("/")">خانه</a>
-                <a href="/shop" class="@Active("/shop")">فروشگاه</a>
                 <div class="st-nav__mega" @onkeydown="OnCatsKeyDown">
                     <button class="st-nav__trigger @(_catsOpen ? "open" : null)" type="button"
                             aria-haspopup="true" aria-expanded="@(_catsOpen ? "true" : "false")"
                             data-testid="catmenu-trigger"
                             @onclick="ToggleCats" @onmouseover="OpenCats" @onmouseout="ScheduleCloseCats">
-                        دسته‌بندی‌ها <span class="chev">▾</span>
+                        خدمات‌ها <span class="chev">▾</span>
                     </button>
                     @if (_catsOpen)
                     {
@@ -104,8 +102,9 @@
                         </div>
                     }
                 </div>
-                <a href="/blog" class="@Active("/blog")">وبلاگ</a>
-                <a href="/faq" class="@Active("/faq")">سوالات متداول</a>
+                <a href="/about" class="@Active("/about")">درباره ما</a>
+                <a href="/contact" class="@Active("/contact")">ارتباط با ما</a>
+                <a href="/blog" class="@Active("/blog")">بلاگ‌ها</a>
             </nav>
 
             <div class="st-search">

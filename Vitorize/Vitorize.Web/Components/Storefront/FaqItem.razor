@@ -16,5 +16,14 @@
 @code {
     [Parameter] public string Question { get; set; } = string.Empty;
     [Parameter] public string Answer { get; set; } = string.Empty;
+    [Parameter] public bool InitiallyOpen { get; set; }
     private bool _open;
+    private bool _initialized;
+
+    protected override void OnParametersSet()
+    {
+        if (_initialized) return;
+        _open = InitiallyOpen;
+        _initialized = true;
+    }
 }
