@@ -1,4 +1,5 @@
-﻿@implements IDisposable
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject ApiClient Api
 @inject CartState Cart
@@ -6,24 +7,23 @@
 @using Vitorize.Web.Models.Store
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<header class="st-header">
+<header class="st-header" @ref="_header" @onkeydown="OnHeaderKey">
     <div class="st-container">
         <div class="st-header__row">
-            <StoreLogo />
+            <StoreLogo DefaultWord="vitorize" />
 
-            <nav class="st-nav">
-                <div class="st-nav__mega" @onkeydown="OnCatsKeyDown">
+            <nav class="st-nav" aria-label="منوی اصلی">
+                <div class="st-nav__mega">
                     <button class="st-nav__trigger @(_catsOpen ? "open" : null)" type="button"
                             aria-haspopup="true" aria-expanded="@(_catsOpen ? "true" : "false")"
-                            data-testid="catmenu-trigger"
-                            @onclick="ToggleCats" @onmouseover="OpenCats" @onmouseout="ScheduleCloseCats">
-                        خدمات‌ها <span class="chev">▾</span>
+                            data-testid="catmenu-trigger" aria-controls="store-category-menu"
+                            @onclick="ToggleCats">
+                        دسته‌بندی‌ها <Icon Name="chevron-down" Size="12" />
                     </button>
                     @if (_catsOpen)
                     {
-                        <div class="st-scrim" @onclick="CloseCats"></div>
-                        <div class="st-catmenu" data-testid="catmenu"
-                             @onmouseover="CancelCloseCats" @onmouseout="ScheduleCloseCats">
+                        <button class="st-scrim" type="button" tabindex="-1" aria-label="بستن دسته‌بندی‌ها" @onclick="CloseCats"></button>
+                        <div class="st-catmenu" data-testid="catmenu" id="store-category-menu" aria-label="دسته‌بندی محصولات">
                             <aside class="st-catmenu__side">
                                 @foreach (var c in RootCategories)
                                 {
@@ -107,29 +107,11 @@
                 <a href="/blog" class="@Active("/blog")">بلاگ‌ها</a>
             </nav>
 
-            <div class="st-search">
-                <span class="ico"><Icon Name="search" Size="18" /></span>
-                <input type="text" placeholder="جستجو در محصولات، بازی‌ها، گیفت کارت‌ها ..."
-                       @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" @onfocus="OpenSearch" />
-                @if (_searchOpen && Suggestions.Count > 0)
-                {
-                    <div class="st-scrim" @onclick="CloseSearch"></div>
-                    <div class="st-search__drop">
-                        <div class="st-search__label">@(string.IsNullOrWhiteSpace(_search) ? "دسته‌بندی‌های محبوب" : "پیشنهادها")</div>
-                        @foreach (var s in Suggestions)
-                        {
-                            <a class="st-search__item" href="@($"/category/{s.Slug}")" @onclick="CloseSearch">
-                                <Icon Name="search" Size="13" /> <span>@s.Title</span>
-                            </a>
-                        }
-                    </div>
-                }
-            </div>
 
             <div class="st-header__actions">
                 <ThemeToggle />
 
-                <button class="st-iconbtn st-mobile-only" type="button" title="جستجو"
+                <button class="st-iconbtn sf-search-toggle" type="button" title="جستجو"
                         aria-label="باز کردن جستجو" aria-expanded="@(_mobileSearchOpen ? "true" : "false")"
                         @onclick="OpenMobileSearch">
                     <Icon Name="search" Size="19" />
@@ -151,7 +133,7 @@
                     </a>
                 }
 
-                <a class="st-iconbtn" href="/cart" title="سبد خرید">
+                <a class="st-iconbtn sf-cart" href="/cart" title="سبد خرید" aria-label="سبد خرید">
                     <Icon Name="cart" Size="19" />
                     @if (Cart.Count > 0)
                     {
@@ -162,7 +144,7 @@
                 @if (_authenticated)
                 {
                     <div class="st-pmenu">
-                        <button class="st-avatar" @onclick="ToggleMenu" type="button">@Initial</button>
+                        <button class="st-avatar" @onclick="ToggleMenu" type="button" aria-label="منوی حساب کاربری" aria-expanded="@_menuOpen">@Initial</button>
                         @if (_menuOpen)
                         {
                             <div class="st-dropdown-backdrop" @onclick="CloseMenu"></div>
@@ -185,7 +167,7 @@
                 }
                 else
                 {
-                    <a class="st-btn st-btn--primary" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="user-round" Size="17" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
+                    <a class="st-btn st-btn--primary sf-account" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="contact-round" Size="20" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
                 }
             </div>
         </div>
@@ -194,6 +176,8 @@
     @if (_mobileSearchOpen)
     {
         <div class="st-mobile-search" role="dialog" aria-modal="true" aria-label="جستجو در محصولات">
+            <button type="button" class="sf-dialog-backdrop" tabindex="-1" aria-label="بستن جستجو" @onclick="CloseMobileSearch"></button>
+            <div class="sf-search-panel">
             <form class="st-mobile-search__bar" @onsubmit="SubmitMobileSearch" @onsubmit:preventDefault="true">
                 <Icon Name="search" Size="20" />
                 <input @ref="_mobileSearchInput" type="search" autocomplete="off"
@@ -205,6 +189,15 @@
                     <Icon Name="x" Size="21" />
                 </button>
             </form>
+            @if (Suggestions.Count > 0)
+            {
+                <div class="sf-search-suggestions">
+                    <p>@(string.IsNullOrWhiteSpace(_search) ? "دسته‌بندی‌های محبوب" : "دسته‌بندی‌های مرتبط")</p>
+                    @foreach (var suggestion in Suggestions)
+                    { <a href="@($"/category/{suggestion.Slug}")" @onclick="CloseMobileSearch"><Icon Name="search" Size="16" /> @suggestion.Title</a> }
+                </div>
+            }
+            </div>
         </div>
     }
 
@@ -213,11 +206,15 @@
         <div class="st-mobile-nav" role="dialog" aria-modal="true" aria-label="منوی اصلی">
             <button class="st-mobile-nav__backdrop" aria-label="بستن منو" @onclick="CloseMobileMenu"></button>
             <nav class="st-mobile-nav__sheet">
+                <div class="sf-mobile-menu-head"><strong>منوی ویتورایز</strong><button type="button" class="st-iconbtn" aria-label="بستن منو" @onclick="CloseMobileMenu"><Icon Name="x" Size="22" /></button></div>
                 <a href="/shop" @onclick="CloseMobileMenu">فروشگاه</a>
-                <a href="/categories" @onclick="CloseMobileMenu">خدمات‌ها</a>
+                <a href="/categories" @onclick="CloseMobileMenu">همه دسته‌بندی‌ها</a>
+                @foreach (var category in RootCategories)
+                { <a href="@($"/category/{category.Slug}")" @onclick="CloseMobileMenu">@category.Title</a> }
                 <a href="/about" @onclick="CloseMobileMenu">درباره ما</a>
                 <a href="/contact" @onclick="CloseMobileMenu">ارتباط با ما</a>
                 <a href="/blog" @onclick="CloseMobileMenu">بلاگ‌ها</a>
+                <div class="sf-mobile-menu-tools"><span>ظاهر سایت</span><ThemeToggle /></div>
             </nav>
         </div>
     }
@@ -229,15 +226,17 @@
     private bool _authenticated;
     private bool _menuOpen;
     private bool _catsOpen;
-    private bool _searchOpen;
     private bool _mobileSearchOpen;
     private bool _mobileMenuOpen;
     private bool _focusMobileSearch;
     private bool _panelLoading;
+    private ElementReference _header;
+    private IJSObjectReference? _shellModule;
+    private string? _returnFocus;
+    private bool _focusSheet;
     private ElementReference _mobileSearchInput;
     private StoreLookupModel? _activeCat;
     private readonly Dictionary<Guid, List<StoreProductModel>> _catProducts = new();
-    private CancellationTokenSource? _closeCts;
     private bool _disposed;
 
     private List<StoreProductModel> ActiveCatProducts =>
@@ -259,6 +258,7 @@
 
     protected override void OnInitialized()
     {
+        Nav.LocationChanged += OnLocationChanged;
         Cart.OnChange += OnCartChange;
         Wishlist.OnChange += OnCartChange;
     }
@@ -290,9 +290,6 @@
         await RefreshCartCount();
     }
 
-    private void OpenSearch() { _searchOpen = true; CloseCats(); }
-    private void CloseSearch() => _searchOpen = false;
-
     private static string ProductHref(StoreProductModel product) => string.IsNullOrWhiteSpace(product.RedirectUrl)
         ? $"/product/{product.Slug}"
         : product.RedirectUrl;
@@ -302,13 +299,13 @@
         _mobileSearchOpen = true;
         _mobileMenuOpen = false;
         _focusMobileSearch = true;
-        _searchOpen = false;
         CloseCats();
         CloseMenu();
     }
 
     private void CloseMobileSearch()
     {
+        _returnFocus = ".sf-search-toggle";
         _mobileSearchOpen = false;
         _search = string.Empty;
     }
@@ -328,16 +325,32 @@
         if (e.Key == "Escape") CloseMobileSearch();
     }
 
+    private void OnHeaderKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape") return;
+        if (_mobileSearchOpen) CloseMobileSearch();
+        if (_mobileMenuOpen) CloseMobileMenu();
+        if (_catsOpen) { CloseCats(); _returnFocus = "[data-testid=catmenu-trigger]"; }
+        if (_menuOpen) { CloseMenu(); _returnFocus = ".st-avatar"; }
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        _mobileSearchOpen = _mobileMenuOpen = _catsOpen = _menuOpen = false;
+        _returnFocus = null;
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); } catch (InvalidOperationException) { }
+    }
+
     // ---- Category mega menu -------------------------------------------------------------------
-    // Hover-open with a grace delay on the way out, click for touch and keyboard. Products per
-    // category are fetched lazily on first hover and cached for the circuit's lifetime; the request
+    // Click/keyboard opens the focus panel. Products per
+    // category are fetched lazily on selection and cached for the circuit's lifetime; the request
     // carries no sort key so the panel follows the admin-configured storefront default order.
 
     private async Task OpenCats()
     {
-        CancelCloseCats();
         if (_catsOpen) return;
-        _catsOpen = true; _searchOpen = false; _menuOpen = false;
+        _catsOpen = true; _menuOpen = false;
         if (_activeCat is null && RootCategories.Count > 0) await SelectCat(RootCategories[0]);
     }
 
@@ -347,36 +360,13 @@
         else await OpenCats();
     }
 
-    private void CloseCats() { CancelCloseCats(); _catsOpen = false; }
-
-    private void CancelCloseCats() => _closeCts?.Cancel();
-
-    /// <summary>Leaving the trigger or the panel closes the menu after a short grace period, so the
-    /// pointer can cross the gap between them without the panel flickering shut.</summary>
-    private void ScheduleCloseCats()
-    {
-        _closeCts?.Cancel();
-        var cts = new CancellationTokenSource();
-        _closeCts = cts;
-        _ = CloseAfterGraceAsync(cts.Token);
-    }
-
-    private async Task CloseAfterGraceAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(300, token);
-            await InvokeAsync(() => { _catsOpen = false; StateHasChanged(); });
-        }
-        // Cancellation is routine; a disposed circuit mid-grace is equally uninteresting. This task
-        // is fire-and-forget, so nothing may escape it.
-        catch { }
-    }
+    private void CloseCats() => _catsOpen = false;
 
     private async Task SelectCat(StoreLookupModel category)
     {
         if (_activeCat?.Id == category.Id) return;
         _activeCat = category;
+        _panelLoading = !_catProducts.ContainsKey(category.Id);
         if (!_catProducts.ContainsKey(category.Id))
         {
             _panelLoading = true;
@@ -389,13 +379,8 @@
                     : new List<StoreProductModel>();
             }
             catch { _catProducts[category.Id] = new List<StoreProductModel>(); }
-            _panelLoading = false;
+            if (_activeCat?.Id == category.Id) _panelLoading = false;
         }
-    }
-
-    private void OnCatsKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape") CloseCats();
     }
 
     private async Task RefreshCartCount()
@@ -430,12 +415,13 @@
     private void ToggleMobileMenu()
     {
         _mobileMenuOpen = !_mobileMenuOpen;
+        _focusSheet = _mobileMenuOpen;
         _mobileSearchOpen = false;
         CloseCats();
         CloseMenu();
     }
 
-    private void CloseMobileMenu() => _mobileMenuOpen = false;
+    private void CloseMobileMenu() { _mobileMenuOpen = false; _returnFocus = ".st-mobile-menu-toggle"; }
 
     private string Active(string path)
     {
@@ -444,20 +430,31 @@
         return current.StartsWith(path, StringComparison.OrdinalIgnoreCase) ? "active" : "";
     }
 
-    private void ToggleMenu() => _menuOpen = !_menuOpen;
-    private void CloseMenu() => _menuOpen = false;
-
-    private void OnSearchKey(KeyboardEventArgs e)
+    private void ToggleMenu()
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_search))
-        {
-            Nav.NavigateTo($"/search?q={Uri.EscapeDataString(_search.Trim())}");
-            _search = string.Empty;
-        }
+        _menuOpen = !_menuOpen;
+        _catsOpen = _mobileMenuOpen = _mobileSearchOpen = false;
     }
+    private void CloseMenu() => _menuOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _shellModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/site-shell.js");
+            await _shellModule.InvokeVoidAsync("install", _header);
+        }
+        if (_shellModule is not null && _returnFocus is not null)
+        {
+            var selector = _returnFocus;
+            _returnFocus = null;
+            await _shellModule.InvokeVoidAsync("focus", _header, selector);
+        }
+        if (_shellModule is not null && _focusSheet)
+        {
+            _focusSheet = false;
+            await _shellModule.InvokeVoidAsync("focus", _header, ".st-mobile-nav__sheet button");
+        }
         if (!_focusMobileSearch) return;
 
         _focusMobileSearch = false;
@@ -466,12 +463,15 @@
         catch (InvalidOperationException) { }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        _closeCts?.Cancel();
-        _closeCts?.Dispose();
         Cart.OnChange -= OnCartChange;
         Wishlist.OnChange -= OnCartChange;
+        Nav.LocationChanged -= OnLocationChanged;
+        if (_shellModule is not null)
+        {
+            try { await _shellModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
     }
 }

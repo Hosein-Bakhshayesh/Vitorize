@@ -8,7 +8,7 @@
 
 @if (_maintenance)
 {
-    <div class="st-shell">
+    <div class="st-shell site-shell">
         <main class="st-main">
             <div class="st-container"><StoreState Info="_info" /></div>
         </main>
@@ -17,7 +17,7 @@
 else
 {
     <a class="st-skip-link" href="#main-content">پرش به محتوای اصلی</a>
-    <div class="st-shell @(IsHome ? "home-shell" : null)">
+    <div class="st-shell @(IsHome ? "home-shell" : "site-shell")">
         @if (IsHome) { <HomeHeader /> }
         else { <StoreHeader /> }
         <main id="main-content" class="st-main" tabindex="-1">

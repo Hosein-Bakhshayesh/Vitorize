@@ -1,7 +1,7 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject MediaUrlResolver Media
 
-<a class="st-logo" href="@Href" aria-label="@_alt">
+<a class="st-logo @(_custom ? "st-logo--custom" : null)" href="@Href" aria-label="@_alt">
     <img class="st-logo__img @(_hasDark ? "st-logo__img--light" : null)" src="@_src" alt="@_alt" width="42" height="42" />
     @if (_hasDark)
     {
@@ -16,6 +16,7 @@
 @code {
     [Parameter] public string Href { get; set; } = "/";
     [Parameter] public bool ShowWord { get; set; } = true;
+    [Parameter] public string? DefaultWord { get; set; }
     /// <summary>header | footer | small — کدام لوگو از تنظیمات استفاده شود.</summary>
     [Parameter] public string Variant { get; set; } = "header";
 
@@ -23,6 +24,7 @@
     private string _src = DefaultLogo;
     private string _darkSrc = DefaultLogo;
     private bool _hasDark;
+    private bool _custom;
     private string _alt = "ویتورایز";
     private string _word = "ویتورایز";
 
@@ -33,7 +35,7 @@
         if (!string.IsNullOrWhiteSpace(b.SiteName))
         {
             _alt = b.SiteName;
-            _word = b.SiteName;
+            _word = b.Get("SiteName", DefaultWord ?? b.SiteName);
         }
 
         var path = Variant switch
@@ -44,7 +46,10 @@
         };
 
         if (!string.IsNullOrWhiteSpace(path))
+        {
+            _custom = true;
             _src = Versioned(Media.Resolve(path), b.AssetVersion);
+        }
 
         if (!string.IsNullOrWhiteSpace(b.LogoDarkPath))
         {

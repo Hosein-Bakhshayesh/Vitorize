@@ -55,6 +55,7 @@ const api = createServer((req, res) => {
   else if (url.pathname === '/api/products/categories') result = categories;
   else if (url.pathname === '/api/products') result = { items: mode === 'empty' ? [] : products, page: 1, pageSize: 8, totalCount: 8 };
   else if (url.pathname === '/api/cart') result = { items: [], totalQuantity: 0 };
+  else if (url.pathname.startsWith('/api/pages/')) result = { title: 'درباره ویتورایز', slug: 'about', contentHtml: '<p>این محتوای آزمایشی فقط برای بررسی قالب مشترک است.</p>' };
   else if (url.pathname.startsWith('/api/product-reviews/product/')) {
     const id = url.pathname.split('/').at(-1);
     result = { reviews: { items: [
@@ -159,6 +160,11 @@ try {
   assert.equal(await page.locator('.hp-product').nth(1).getAttribute('href'), '/product/redirect-target');
   await page.locator('.hp-banner button').nth(1).click();
   await page.waitForFunction(() => document.querySelector('.hp-banner > a')?.getAttribute('href') === '/shop?banner=5');
+  if (process.argv.includes('--shell')) {
+    mode = 'normal';
+    const { checkSiteShell } = await import('./check-site-shell.mjs');
+    report.shell = await checkSiteShell(page, output);
+  }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ viewports: report.viewports, errors, requestCount: calls.length }, null, 2));

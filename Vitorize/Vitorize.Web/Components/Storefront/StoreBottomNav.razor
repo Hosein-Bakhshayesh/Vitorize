@@ -1,18 +1,34 @@
 @inject NavigationManager Nav
 
-<nav class="st-bottomnav">
-    <a href="/" class="@Active("/", true)"><Icon Name="home" Size="20" /> خانه</a>
-    <a href="/shop" class="@Active("/shop")"><Icon Name="grid" Size="20" /> فروشگاه</a>
-    <a href="/cart" class="@Active("/cart")"><Icon Name="cart" Size="20" /> سبد خرید</a>
-    <a href="/customer/orders" class="@Active("/customer")"><Icon Name="list" Size="20" /> سفارش‌ها</a>
-    <a href="/customer/dashboard" class="@Active("/customer/dashboard")"><Icon Name="user" Size="20" /> حساب من</a>
+@implements IDisposable
+
+<nav class="st-bottomnav" aria-label="دسترسی سریع موبایل">
+    @foreach (var item in Items)
+    {
+        <a href="@item.Path" class="@(Selected == item.Path ? "active" : null)" aria-current="@(Selected == item.Path ? "page" : null)"><Icon Name="@item.Icon" Size="20" /> @item.Title</a>
+    }
 </nav>
 
 @code {
-    private string Active(string path, bool exact = false)
+    private bool _disposed;
+    protected override void OnInitialized() => Nav.LocationChanged += OnLocationChanged;
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
-        var current = "/" + Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
-        if (exact) return current == "/" || current == "" ? "active" : "";
-        return current.StartsWith(path, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+        if (_disposed) return;
+        try { await InvokeAsync(StateHasChanged); } catch (InvalidOperationException) { }
     }
+    public void Dispose() { _disposed = true; Nav.LocationChanged -= OnLocationChanged; }
+    private static readonly (string Path, string Icon, string Title)[] Items =
+    [("/", "home", "خانه"), ("/shop", "grid", "فروشگاه"), ("/cart", "cart", "سبد خرید"),
+     ("/customer/orders", "list", "سفارش‌ها"), ("/customer/dashboard", "user", "حساب من")];
+    private string Selected => new Uri(Nav.Uri).AbsolutePath switch
+    {
+        "/" => "/",
+        var p when p.StartsWith("/customer/orders", StringComparison.OrdinalIgnoreCase) => "/customer/orders",
+        var p when p.StartsWith("/customer/", StringComparison.OrdinalIgnoreCase) => "/customer/dashboard",
+        "/cart" or "/checkout" or "/payment/result" => "/cart",
+        var p when p == "/shop" || p == "/search" || p.StartsWith("/categor", StringComparison.OrdinalIgnoreCase) ||
+                   p.StartsWith("/brand/", StringComparison.OrdinalIgnoreCase) || p.StartsWith("/product/", StringComparison.OrdinalIgnoreCase) => "/shop",
+        _ => ""
+    };
 }
