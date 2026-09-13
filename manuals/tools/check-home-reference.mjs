@@ -7,6 +7,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { serveProductFixture, productWrites } from './product-fixture.mjs';
+import { serveCartFixture, resetCart, cartWrites } from './cart-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'manuals/artifacts/home-reference');
@@ -41,6 +42,7 @@ const calls = [];
 const api = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:5188');
   calls.push(url.pathname + url.search);
+  if (serveCartFixture(req, res, url, mode)) return;
   if (serveProductFixture(req, res, url, mode, products)) return;
   if (url.pathname === '/media/test.svg') {
     res.writeHead(200, { 'content-type': 'image/svg+xml' });
@@ -190,6 +192,11 @@ try {
     mode = 'product';
     const { checkProduct } = await import('./check-product.mjs');
     report.product = await checkProduct(page, output, { writes: productWrites, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--cart')) {
+    mode = 'cart'; resetCart();
+    const { checkCart } = await import('./check-cart.mjs');
+    report.cart = await checkCart(page, output, { writes: cartWrites, reset: resetCart, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));

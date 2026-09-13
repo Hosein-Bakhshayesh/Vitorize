@@ -14,8 +14,15 @@
 
 <PageTitle>سبد خرید | ویتورایز</PageTitle>
 
+<section class="cart-page" aria-labelledby="cart-title" aria-busy="@(_loading || _busy || _couponBusy ? "true" : "false")">
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سبد خرید</span></div>
-<h1 style="font-size:22px;margin-bottom:18px">سبد خرید شما</h1>
+<div class="cart-heading">
+    <h1 id="cart-title">سبد خرید شما</h1>
+    @if (_cart is { Items.Count: > 0 })
+    {
+        <span class="cart-count" role="status">@AUI.Number(_cart.TotalQuantity) کالا</span>
+    }
+</div>
 
 @if (MergeError == "1")
 {
@@ -30,13 +37,13 @@
 {
     <div class="st-alert st-alert--danger st-errpage--inline" role="alert" data-testid="cart-load-error">
         <span>@_loadError</span>
-        <button class="st-btn st-btn--outline st-btn--sm" @onclick="Load">تلاش مجدد</button>
+        <button type="button" class="st-btn st-btn--outline st-btn--sm" @onclick="Load" disabled="@(_loading || _busy || _couponBusy)">تلاش مجدد</button>
     </div>
 }
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="cart-loading st-state" role="status"><div class="st-spinner"></div><span>در حال بارگذاری سبد خرید ...</span></div>
 }
 else if (_cart is null || _cart.Items.Count == 0)
 {
@@ -47,88 +54,85 @@ else if (_cart is null || _cart.Items.Count == 0)
 }
 else
 {
-    <div class="st-split">
-        <div class="st-stack">
+    <div class="cart-layout">
+        <div class="cart-items" aria-label="اقلام سبد خرید">
             @foreach (var item in _cart.Items)
             {
-                <div class="st-card st-card__pad st-cart-item" style="display:flex;gap:14px;align-items:center">
+                <article @key="item.Id" class="st-cart-item" data-testid="cart-item" aria-labelledby="@($"cart-item-{item.Id}")">
                     @* Square: product media is presented 1:1 everywhere it appears. *@
-                    <div class="st-cart-item__image" style="width:70px;height:70px;border-radius:10px;overflow:hidden;background:var(--st-surface-2);flex:0 0 70px">
-                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailImagePath))
-                        { <img src="@Media.Resolve(item.ThumbnailImagePath)" alt="" style="width:100%;height:100%;object-fit:cover" /> }
-                        else { <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--st-muted)"><Icon Name="box" Size="22" /></div> }
+                    <div class="st-cart-item__image">
+                        <StoreImage Url="@item.ThumbnailImagePath" Alt="@item.ProductTitle" Contain="true" Icon="box" IconSize="26" />
                     </div>
-                    <div class="st-cart-item__info" style="flex:1;min-width:0">
-                        <div style="font-weight:700;font-size:14px">@item.ProductTitle</div>
+                    <div class="st-cart-item__info">
+                        <h2 id="@($"cart-item-{item.Id}")">@item.ProductTitle</h2>
                         @{ var variantTitle = ProductAvailabilityRules.CustomerFacingVariantTitle(item.VariantTitle); }
                         @if (!string.IsNullOrWhiteSpace(variantTitle))
-                        { <div class="st-muted" style="font-size:12px">@variantTitle</div> }
+                        { <div class="cart-variant st-muted">@variantTitle</div> }
                         @* Product-required information is collected at Checkout, so the cart shows
                            no editors for it and never blocks on it. *@
-                        <div class="st-muted" style="font-size:12.5px;margin-top:4px">قیمت واحد: @AUI.MoneyFa(item.UnitPrice)</div>
+                        <div class="cart-unit-price st-muted">قیمت واحد: @AUI.MoneyFa(item.UnitPrice)</div>
                     </div>
-                    <div class="st-qty">
-                        <button @onclick="() => UpdateQty(item, item.Quantity - 1)" disabled="@_busy">−</button>
-                        <span>@AUI.Number(item.Quantity)</span>
-                        <button @onclick="() => UpdateQty(item, item.Quantity + 1)" disabled="@_busy">+</button>
+                    <div class="st-qty" role="group" aria-label="@($"تعداد {item.ProductTitle}")">
+                        <button type="button" @onclick="() => UpdateQty(item, item.Quantity - 1)" disabled="@(_busy || _couponBusy)" aria-label="@($"کاهش تعداد {item.ProductTitle}")">−</button>
+                        <span class="cart-quantity" aria-live="polite" aria-atomic="true">@AUI.Number(item.Quantity)</span>
+                        <button type="button" @onclick="() => UpdateQty(item, item.Quantity + 1)" disabled="@(_busy || _couponBusy)" aria-label="@($"افزایش تعداد {item.ProductTitle}")">+</button>
                     </div>
-                    <div class="st-cart-item__total" style="text-align:end;min-width:120px">
-                        <div style="font-weight:800">@AUI.MoneyFa(item.TotalPrice)</div>
-                        <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger);margin-top:4px" @onclick="() => Remove(item)" disabled="@_busy"><Icon Name="trash" Size="14" /> حذف</button>
+                    <div class="st-cart-item__total">
+                        <div class="cart-line-total">@AUI.MoneyFa(item.TotalPrice)</div>
+                        <button type="button" class="st-btn st-btn--ghost st-btn--sm cart-remove" aria-label="@($"حذف {item.ProductTitle} از سبد خرید")" @onclick="() => Remove(item)" disabled="@(_busy || _couponBusy)"><Icon Name="trash" Size="14" /> حذف</button>
                     </div>
-                </div>
+                </article>
             }
-            <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger);align-self:flex-start" @onclick="Clear" disabled="@_busy">
+            <button type="button" class="st-btn st-btn--ghost st-btn--sm cart-clear" @onclick="Clear" disabled="@(_busy || _couponBusy)">
                 <Icon Name="trash" Size="14" /> خالی کردن سبد خرید
             </button>
         </div>
 
-        <div class="st-card st-card__pad st-cart-sum" style="align-self:start;position:sticky;top:calc(var(--st-header-h) + 16px)">
-            <h3 style="font-size:16px;margin-bottom:16px">خلاصه سفارش</h3>
+        <aside class="st-cart-sum" aria-labelledby="cart-summary-title">
+            <h2 id="cart-summary-title">خلاصه سفارش</h2>
 
-            <div class="st-promo">
-                <input class="st-input" placeholder="کد تخفیف" @bind="_coupon" disabled="@(_discount > 0)" />
+            <label class="cart-coupon-label" for="cart-coupon">کد تخفیف</label>
+            <form class="st-promo" @onsubmit="ApplyCoupon" @onsubmit:preventDefault="true">
+                <input id="cart-coupon" class="st-input" placeholder="کد تخفیف را وارد کنید" aria-describedby="cart-coupon-message" @bind="_coupon" disabled="@(_discount > 0 || _busy || _couponBusy)" />
                 @if (_discount > 0)
                 {
-                    <button class="st-btn st-btn--ghost st-btn--sm" @onclick="ClearCoupon">حذف</button>
+                    <button type="button" class="st-btn st-btn--ghost st-btn--sm" @onclick="ClearCoupon" disabled="@(_busy || _couponBusy)" aria-label="حذف کد تخفیف">حذف</button>
                 }
                 else
                 {
-                    <button class="st-btn st-btn--outline st-btn--sm" @onclick="ApplyCoupon" disabled="@_couponBusy">
+                    <button type="submit" class="st-btn st-btn--outline st-btn--sm" disabled="@(_couponBusy || _busy)" aria-label="اعمال کد تخفیف">
                         @if (_couponBusy) { <span class="st-spinner sm"></span> } else { <span>اعمال</span> }
                     </button>
                 }
-            </div>
-            @if (!string.IsNullOrWhiteSpace(_couponMsg))
-            {
-                <div class="st-promo__msg @(_discount > 0 ? "ok" : "err")">@_couponMsg</div>
-            }
+            </form>
+            <div id="cart-coupon-message" class="st-promo__msg @(_discount > 0 ? "ok" : "err")" role="status">@_couponMsg</div>
 
             <div class="st-sumrow"><span class="st-muted">تعداد اقلام</span><span>@AUI.Number(_cart.TotalQuantity)</span></div>
             <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_cart.SubtotalAmount)</span></div>
             @if (_discount > 0)
             {
-                <div class="st-sumrow" style="color:var(--st-success)"><span>تخفیف کد @_appliedCode</span><span>−@AUI.MoneyFa(_discount)</span></div>
+                <div class="st-sumrow cart-discount"><span>تخفیف کد @_appliedCode</span><span>−@AUI.MoneyFa(_discount)</span></div>
             }
             @if (VatEnabled)
             {
                 <div class="st-sumrow" data-testid="cart-vat-row"><span class="st-muted">مالیات بر ارزش افزوده (@AUI.Percent(VatRatePercent)٪)</span><span>@AUI.MoneyFa(VatAmount)</span></div>
             }
-            <div class="st-sumrow total" data-testid="cart-payable"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
+            <div class="st-sumrow total" data-testid="cart-payable" aria-live="polite" aria-atomic="true"><span>مبلغ قابل پرداخت</span><span>@AUI.MoneyFa(Payable)</span></div>
 
-            <button type="button" class="st-btn st-btn--accent st-btn--block st-btn--lg" style="margin-top:14px" @onclick="ContinueToCheckoutAsync">
+            <button type="button" class="st-btn st-btn--accent st-btn--block st-btn--lg cart-checkout" disabled="@(_busy || _couponBusy || _loading)" @onclick="ContinueToCheckoutAsync">
                 <Icon Name="lock" Size="17" /> ادامه و پرداخت امن
             </button>
-            <a class="st-btn st-btn--ghost st-btn--block" style="margin-top:8px" href="/shop">ادامه خرید</a>
+            <a class="st-btn st-btn--ghost st-btn--block cart-continue" href="/shop">ادامه خرید</a>
 
             <div class="st-cart-trust">
                 <span><Icon Name="lock" Size="14" /> پرداخت امن</span>
                 <span><Icon Name="zap" Size="14" /> تحویل آنی</span>
                 <span><Icon Name="shield-check" Size="14" /> اصالت تضمینی</span>
             </div>
-        </div>
+        </aside>
     </div>
 }
+</section>
 
 @code {
     private bool _loading = true, _busy, _couponBusy;
