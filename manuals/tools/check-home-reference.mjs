@@ -52,8 +52,20 @@ const api = createServer((req, res) => {
     ...data, featuredProducts: mediaProducts,
     banners: Array.from({ length: 6 }, (_, i) => ({ id: guid(100 + i), title: 'بنر آزمایشی ' + i, imagePath: '/media/test.svg?desktop=' + i, mobileImagePath: '/media/test.svg?mobile=' + i, position: i < 4 ? 'home-hero' : 'home-secondary', sortOrder: i, linkUrl: '/shop?banner=' + i }))
   } : data;
-  else if (url.pathname === '/api/products/categories') result = categories;
-  else if (url.pathname === '/api/products') result = { items: mode === 'empty' ? [] : products, page: 1, pageSize: 8, totalCount: 8 };
+  else if (url.pathname === '/api/products/categories') result = mode.startsWith('catalog') ? [...categories, { id: guid(200), parentId: categories[0].id, slug: 'child-category', title: 'اشتراک‌های دیجیتال' }] : categories;
+  else if (url.pathname === '/api/products/brands') result = data.brands;
+  else if (url.pathname.startsWith('/api/products/categories/')) result = categories.find(c => c.slug === url.pathname.split('/').at(-1)) ?? null;
+  else if (url.pathname.startsWith('/api/products/brands/')) result = data.brands.find(b => b.slug === url.pathname.split('/').at(-1)) ?? null;
+  else if (url.pathname === '/api/products') {
+    if (mode.startsWith('catalog') && url.searchParams.get('pageSize') === '24') {
+      const page = Number(url.searchParams.get('page') || 1);
+      let items = Array.from({ length: 51 }, (_, i) => ({ ...products[i % 8], id: guid(300 + i), slug: 'catalog-' + i, title: 'اشتراک دیجیتال ' + (i + 1), forceOutOfStock: i === 0, redirectUrl: i === 1 ? '/product/redirect-target' : null }));
+      if (mode === 'catalog-empty') items = [];
+      if (url.searchParams.get('inStock') === 'true') items = items.filter(p => !p.forceOutOfStock);
+      if (url.searchParams.get('sort') === 'oldest') items.reverse();
+      result = { items: items.slice((page - 1) * 24, page * 24), page, pageSize: 24, totalCount: items.length };
+    } else result = { items: mode === 'empty' ? [] : products, page: 1, pageSize: 8, totalCount: 8 };
+  }
   else if (url.pathname === '/api/cart') result = { items: [], totalQuantity: 0 };
   else if (url.pathname.startsWith('/api/pages/')) result = { title: 'درباره ویتورایز', slug: 'about', contentHtml: '<p>این محتوای آزمایشی فقط برای بررسی قالب مشترک است.</p>' };
   else if (url.pathname.startsWith('/api/product-reviews/product/')) {
@@ -63,7 +75,9 @@ const api = createServer((req, res) => {
       { id: guid(999), comment: 'MUST_NOT_RENDER_PENDING_REVIEW', isApproved: false, rating: 1 }
     ], totalCount: 2 } };
   }
-  const failed = mode === 'failure' && ['/api/storefront/home', '/api/products'].includes(url.pathname);
+  const failed = (mode === 'failure' && ['/api/storefront/home', '/api/products'].includes(url.pathname))
+    || (mode === 'catalog-failure' && url.pathname === '/api/products')
+    || (mode === 'catalog-categories-failure' && url.pathname === '/api/products/categories');
   res.writeHead(failed ? 503 : 200, { 'content-type': 'application/json' });
   res.end(JSON.stringify({ isSuccess: !failed, data: result, message: failed ? 'Fixture unavailable' : '' }));
 });
@@ -164,6 +178,11 @@ try {
     mode = 'normal';
     const { checkSiteShell } = await import('./check-site-shell.mjs');
     report.shell = await checkSiteShell(page, output);
+  }
+  if (process.argv.includes('--catalog')) {
+    mode = 'catalog';
+    const { checkCatalog } = await import('./check-catalog.mjs');
+    report.catalog = await checkCatalog(page, output, { calls, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));

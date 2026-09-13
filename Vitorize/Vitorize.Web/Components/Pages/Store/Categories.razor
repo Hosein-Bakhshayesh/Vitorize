@@ -4,12 +4,20 @@
 
 <SeoHead Title="دسته‌بندی محصولات" Description="دسته‌بندی محصولات و خدمات دیجیتال ویتورایز" CanonicalPath="/categories" />
 
+<section class="catalog-page catalog-categories" aria-labelledby="categories-title">
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>دسته‌بندی‌ها</span></div>
-<h1 style="font-size:22px;margin-bottom:18px">همه دسته‌بندی‌ها</h1>
+<h1 id="categories-title">همه دسته‌بندی‌ها</h1>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال بارگذاری دسته‌بندی‌ها ...</span></div>
+}
+else if (_failed)
+{
+    <div class="st-empty catalog-feedback" role="alert">
+        <h2>دسته‌بندی‌ها بارگذاری نشدند</h2>
+        <button type="button" class="st-btn st-btn--accent" @onclick="Load">تلاش دوباره</button>
+    </div>
 }
 else if (_categories.Count == 0)
 {
@@ -51,17 +59,23 @@ else
         }
     </div>
 }
+</section>
 
 @code {
     private bool _loading = true;
+    private bool _failed;
     private List<StoreLookupModel> _categories = new();
     private List<StoreLookupModel> RootCategories => _categories.Where(x => x.ParentId is null).ToList();
     private List<StoreLookupModel> ChildrenOf(StoreLookupModel category) =>
         _categories.Where(x => x.ParentId == category.Id).ToList();
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
     {
+        _loading = true;
         var result = await Api.GetAsync<List<StoreLookupModel>>("products/categories");
+        _failed = !result.IsSuccess || result.Data is null;
         _categories = result.Data ?? new();
         _loading = false;
     }
