@@ -27,9 +27,10 @@ else if (!_loading)
     <SeoHead Title="محصول یافت نشد" Description="این محصول در دسترس نیست." Index="false" Follow="false" />
 }
 
+<article class="product-page" aria-busy="@(_loading ? "true" : "false")">
 @if (_loading)
 {
-    <div class="st-pd2">
+    <div class="st-pd2" role="status" aria-label="در حال بارگذاری محصول">
         <div>
             <div class="st-skel" style="height:400px;border-radius:var(--st-clip);margin-bottom:22px"></div>
             <div class="st-skel" style="height:220px;border-radius:var(--st-clip)"></div>
@@ -64,14 +65,14 @@ else
                     <div class="st-gal__rail">
                         @foreach (var img in _gallery)
                         {
-                            <div class="st-gal__thumb @(img == _activeImage ? "active" : null)" @onclick="() => _activeImage = img">
+                            <button type="button" class="st-gal__thumb @(img == _activeImage ? "active" : null)" aria-label="@($"نمایش تصویر {AUI.Number(_gallery.IndexOf(img) + 1)} محصول")" aria-pressed="@(img == _activeImage ? "true" : "false")" @onclick="() => _activeImage = img">
                                 <StoreImage Url="@img.ImagePath" Alt="@(img.AltText ?? _p.ThumbnailAltText ?? _p.Title)" Icon="gamepad" IconSize="18" />
-                            </div>
+                            </button>
                         }
                     </div>
                 }
                 <div class="st-gal__main @(OutOfStock ? "st-oos-media" : null)" @key="_activeImage">
-                    @if (_p.HasDiscount && !OutOfStock)
+                    @if (CurrentDiscounted && !OutOfStock)
                     {
                         <span class="st-gal__badge">@AUI.Number(DiscountPercent)٪ تخفیف</span>
                     }
@@ -99,17 +100,17 @@ else
                 </section>
             }
 
-            <div class="st-ptabs st-tabs">
-                <button class="st-tab @(_tab == "desc" ? "active" : "")" @onclick='() => _tab = "desc"'>توضیحات</button>
-                <button class="st-tab @(_tab == "reviews" ? "active" : "")" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
+            <div class="st-ptabs st-tabs" role="group" aria-label="اطلاعات محصول">
+                <button type="button" class="st-tab @(_tab == "desc" ? "active" : "")" aria-pressed="@(_tab == "desc" ? "true" : "false")" aria-controls="product-content" @onclick='() => _tab = "desc"'>توضیحات</button>
+                <button type="button" class="st-tab @(_tab == "reviews" ? "active" : "")" aria-pressed="@(_tab == "reviews" ? "true" : "false")" aria-controls="product-content" @onclick='() => _tab = "reviews"'>نظرات (@AUI.Number(_summary.TotalApprovedReviews))</button>
                 @if (ProductFaqs.Count > 0)
                 {
-                    <button class="st-tab @(_tab == "faq" ? "active" : "")" @onclick='() => _tab = "faq"'
+                    <button type="button" class="st-tab @(_tab == "faq" ? "active" : "")" aria-pressed="@(_tab == "faq" ? "true" : "false")" aria-controls="product-content" @onclick='() => _tab = "faq"'
                             data-testid="product-faq-tab">سوالات متداول</button>
                 }
             </div>
 
-            <div class="st-product-tab-content" style="margin-top:20px">
+            <div id="product-content" class="st-product-tab-content" role="region" aria-label="@(_tab == "desc" ? "توضیحات محصول" : _tab == "reviews" ? "نظرات محصول" : "سوالات متداول محصول")">
                 @if (_tab == "desc")
                 {
                     <div class="st-rich-content">
@@ -190,7 +191,7 @@ else
             }
 
             <div class="st-buy__card">
-                <div class="st-buy__price">
+                <div class="st-buy__price" aria-live="polite" aria-atomic="true">
                     <span class="st-buy__now">@AUI.Number((long)CurrentPrice)</span>
                     <span class="st-buy__unit">@Unit</span>
                     @if (CurrentDiscounted)
@@ -265,7 +266,7 @@ else
                 </button>
                 <div style="display:flex;gap:10px;margin-top:10px">
                     <button class="st-btn st-btn--outline st-btn--block" @onclick="() => BeginAddToCart(true)" disabled="@(_busy || OutOfStock)">خرید فوری</button>
-                    <button class="st-btn st-btn--ghost" style="flex:0 0 auto" @onclick="ToggleWishlist" disabled="@_wishBusy" title="علاقه‌مندی">
+                    <button class="st-btn st-btn--ghost" style="flex:0 0 auto" @onclick="ToggleWishlist" disabled="@_wishBusy" title="علاقه‌مندی" aria-label="@(InWishlist ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها")" aria-pressed="@(InWishlist ? "true" : "false")">
                         <Icon Name="heart" Size="18" Class="@(InWishlist ? "st-heart-on" : null)" />
                     </button>
                 </div>
@@ -296,14 +297,15 @@ else
 
     @if (_related.Count > 0)
     {
-        <section class="st-section st-reveal">
-            <div class="st-section__head"><div class="st-section__title"><span class="bar"></span> محصولات مرتبط</div></div>
-            <div class="st-grid">
+        <section class="st-section product-related catalog-page" aria-labelledby="product-related-title">
+            <div class="st-section__head"><h2 id="product-related-title">محصولات مرتبط</h2></div>
+            <div class="st-lgrid">
                 @foreach (var r in _related) { <StoreProductCard Product="r" /> }
             </div>
         </section>
     }
 }
+</article>
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
@@ -666,8 +668,19 @@ else
 
     private async Task CopyLink()
     {
-        var ok = await JS.InvokeAsync<bool>("vzAdmin.copy", ShareUrl);
-        if (ok) Toasts.Success("لینک محصول کپی شد.");
+        // Public product pages do not load admin.js.
+        try
+        {
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/product-page.js?v=20260913-1");
+            try
+            {
+                var ok = await module.InvokeAsync<bool>("copyLink", ShareUrl);
+                if (ok) Toasts.Success("لینک محصول کپی شد.");
+                else Toasts.Error("کپی لینک انجام نشد؛ می‌توانید آدرس صفحه را کپی کنید.");
+            }
+            finally { await module.DisposeAsync(); }
+        }
+        catch (JSException) { Toasts.Error("کپی لینک انجام نشد؛ می‌توانید آدرس صفحه را کپی کنید."); }
     }
 
     public void Dispose()

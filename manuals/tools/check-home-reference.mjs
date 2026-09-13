@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
+import { serveProductFixture, productWrites } from './product-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'manuals/artifacts/home-reference');
@@ -40,6 +41,7 @@ const calls = [];
 const api = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:5188');
   calls.push(url.pathname + url.search);
+  if (serveProductFixture(req, res, url, mode, products)) return;
   if (url.pathname === '/media/test.svg') {
     res.writeHead(200, { 'content-type': 'image/svg+xml' });
     res.end('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#2cc3b3"/><text x="30" y="150" font-size="32">API MEDIA FIXTURE</text></svg>');
@@ -183,6 +185,11 @@ try {
     mode = 'catalog';
     const { checkCatalog } = await import('./check-catalog.mjs');
     report.catalog = await checkCatalog(page, output, { calls, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--product')) {
+    mode = 'product';
+    const { checkProduct } = await import('./check-product.mjs');
+    report.product = await checkProduct(page, output, { writes: productWrites, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));

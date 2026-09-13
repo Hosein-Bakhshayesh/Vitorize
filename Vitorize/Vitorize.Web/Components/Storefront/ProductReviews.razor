@@ -4,7 +4,7 @@
 @using Vitorize.Web.Models.Customer
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
-<div class="st-split" style="grid-template-columns:280px 1fr;gap:24px">
+<div class="st-split product-reviews-layout">
     <div>
         <div class="st-card st-card__pad" style="text-align:center">
             <div style="font-size:40px;font-weight:800">@PersianDateHelper.ToPersianDigits(Summary.AverageRating.ToString("0.0"))</div>
@@ -53,11 +53,11 @@
                     @for (byte i = 1; i <= 5; i++)
                     {
                         var star = i;
-                        <span @onclick="() => _newRating = star">@(_newRating >= star ? "★" : "☆")</span>
+                        <button type="button" class="product-rating-choice" aria-label="@($"{AUI.Number(star)} ستاره")" aria-pressed="@(_newRating == star ? "true" : "false")" @onclick="() => _newRating = star">@(_newRating >= star ? "★" : "☆")</button>
                     }
                 </div>
-                <div class="st-field"><input class="st-input" placeholder="عنوان (اختیاری)" @bind="_newTitle" /></div>
-                <div class="st-field"><textarea class="st-textarea" placeholder="نظر خود را بنویسید ..." @bind="_newComment"></textarea></div>
+                <div class="st-field"><input class="st-input" aria-label="عنوان نظر (اختیاری)" placeholder="عنوان (اختیاری)" @bind="_newTitle" /></div>
+                <div class="st-field"><textarea class="st-textarea" aria-label="متن نظر" placeholder="نظر خود را بنویسید ..." @bind="_newComment"></textarea></div>
                 <div style="display:flex;gap:10px">
                     <button class="st-btn st-btn--primary" @onclick="Submit" disabled="@_submitting">
                         @if (_submitting) { <span class="st-spinner sm"></span> } else { <span>ثبت نظر</span> }
