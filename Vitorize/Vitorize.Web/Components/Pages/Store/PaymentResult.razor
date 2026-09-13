@@ -6,15 +6,16 @@
 
 <PageTitle>نتیجه پرداخت | ویتورایز</PageTitle>
 
-<div class="st-state" style="padding:70px 24px">
+<section class="payment-page @(Paid == "1" ? "payment-success" : "payment-failure")" aria-labelledby="payment-title" aria-busy="@(_retrying ? "true" : "false")">
+<div class="st-state payment-result-card">
     @if (Paid == "1")
     {
-        <div class="st-state__ic" style="background:var(--st-success-soft);color:var(--st-success)"><Icon Name="check-circle" Size="40" /></div>
-        <h1 style="font-size:24px">پرداخت با موفقیت انجام شد</h1>
-        <p class="st-muted" style="max-width:440px">سفارش شما ثبت و در صورت تحویل آنی، کدها در جزئیات سفارش قابل مشاهده هستند.</p>
+        <div class="st-state__ic payment-result-icon"><Icon Name="check-circle" Size="40" /></div>
+        <h1 id="payment-title">پرداخت با موفقیت انجام شد</h1>
+        <p class="st-muted payment-result-message">سفارش شما ثبت و در صورت تحویل آنی، کدها در جزئیات سفارش قابل مشاهده هستند.</p>
         @if (_kycActionRequired && OrderId is not null)
         {
-            <div class="st-alert st-alert--warning" style="max-width:560px;margin:0 auto 18px;text-align:right">
+            <div class="st-alert st-alert--warning payment-kyc-notice" role="status">
                 <Icon Name="shield" Size="20" />
                 <div>
                     <div style="font-weight:700">پرداخت موفق بوده است، اما احراز هویت این سفارش هنوز نیاز به اقدام دارد.</div>
@@ -22,7 +23,7 @@
                 </div>
             </div>
         }
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <div class="payment-result-actions">
             @if (_kycActionRequired && OrderId is not null)
             {
                 <a class="st-btn st-btn--primary" href="@($"/customer/orders/{OrderId}")"><Icon Name="shield" Size="17" /> تکمیل احراز هویت</a>
@@ -37,13 +38,13 @@
     }
     else
     {
-        <div class="st-state__ic" style="background:var(--st-danger-soft);color:var(--st-danger)"><Icon Name="x-circle" Size="40" /></div>
-        <h1 style="font-size:24px">پرداخت ناموفق بود</h1>
-        <p class="st-muted" style="max-width:440px">متأسفانه پرداخت شما تکمیل نشد. در صورت کسر وجه، مبلغ طی ۷۲ ساعت بازگردانده می‌شود.</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <div class="st-state__ic payment-result-icon"><Icon Name="x-circle" Size="40" /></div>
+        <h1 id="payment-title">پرداخت ناموفق بود</h1>
+        <p class="st-muted payment-result-message">متأسفانه پرداخت شما تکمیل نشد. در صورت کسر وجه، مبلغ طی ۷۲ ساعت بازگردانده می‌شود.</p>
+        <div class="payment-result-actions">
             @if (_canRetry && OrderId is not null)
             {
-                <button class="st-btn st-btn--primary" disabled="@_retrying" @onclick="RetryPayment"><Icon Name="refresh" Size="17" /> @(_retrying ? "در حال آماده‌سازی..." : "تلاش مجدد پرداخت")</button>
+                <button type="button" class="st-btn st-btn--primary" disabled="@_retrying" @onclick="RetryPayment"><Icon Name="refresh" Size="17" /> @(_retrying ? "در حال آماده‌سازی..." : "تلاش مجدد پرداخت")</button>
             }
             <a class="st-btn st-btn--primary" href="/cart">بازگشت به سبد خرید</a>
             @if (OrderId is not null)
@@ -53,6 +54,7 @@
         </div>
     }
 </div>
+</section>
 
 @code {
     [SupplyParameterFromQuery] public string? OrderId { get; set; }

@@ -77,7 +77,8 @@ export async function checkSiteShell(page, output) {
     assert.equal(await page.locator('form[action="/auth/customer/login"]').count(), 1);
     const input = page.locator('#pw-mobile');
     await input.focus();
-    assert.equal(await input.evaluate(el => getComputedStyle(el).borderRadius), '6px');
+    // Stage 6 auth controls intentionally use the scoped 5px card/form language.
+    assert.equal(await input.evaluate(el => getComputedStyle(el).borderRadius), '5px');
     await page.locator('.st-header__actions > .st-theme-toggle').click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     await page.waitForFunction(() => getComputedStyle(document.querySelector('.site-shell')).backgroundColor === 'rgb(23, 28, 30)');

@@ -7,19 +7,19 @@
 
 <PageTitle>ورود | ویتورایز</PageTitle>
 
-<div style="max-width:440px;margin:30px auto">
-    <div class="st-card st-card__pad">
-        <div style="text-align:center;margin-bottom:20px">
-            <div style="display:flex;justify-content:center;margin-bottom:10px"><StoreLogo /></div>
-            <h1 style="font-size:20px">ورود به حساب کاربری</h1>
-            <p class="st-muted" style="font-size:13px;margin-top:6px">برای ادامه، وارد حساب خود شوید.</p>
-        </div>
+<section class="auth-page" aria-labelledby="auth-title" aria-busy="@(_busy ? "true" : "false")">
+    <div class="st-card auth-card">
+        <header class="auth-heading">
+            <div class="auth-logo"><StoreLogo /></div>
+            <h1 id="auth-title">ورود به حساب کاربری</h1>
+            <p class="st-muted">برای ادامه، وارد حساب خود شوید.</p>
+        </header>
 
         @* An unregistered mobile is a distinct outcome, not a credential error: say so, and give the
            visitor the one action that can succeed. *@
         @if (ShowRegisterFirst)
         {
-            <div class="st-alert st-alert--warning" data-testid="login-requires-registration" style="margin-bottom:16px">
+            <div class="st-alert st-alert--warning auth-registration-notice" role="status" data-testid="login-requires-registration">
                 <Icon Name="user-plus" Size="18" />
                 <div style="flex:1">
                     <div style="font-weight:700">حسابی با این شماره یافت نشد. ابتدا ثبت‌نام کنید.</div>
@@ -32,22 +32,19 @@
         }
         else if (!string.IsNullOrWhiteSpace(Error))
         {
-            <div class="st-alert st-alert--danger" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@Error</span></div>
+            <div class="st-alert st-alert--danger" role="alert"><Icon Name="x-circle" Size="18" /> <span>@Error</span></div>
         }
 
         @* ── انتخاب روش ورود ── *@
-        <div role="tablist" aria-label="روش ورود"
-             style="display:flex;gap:6px;background:var(--st-chip);padding:5px;border-radius:12px;margin-bottom:18px">
-            <button type="button" role="tab" aria-selected="@(_tab == LoginTab.Password)"
+        <div class="auth-methods" role="group" aria-label="روش ورود">
+            <button type="button" aria-pressed="@(_tab == LoginTab.Password ? "true" : "false")" disabled="@_busy"
                     @onclick="() => _tab = LoginTab.Password"
-                    class="st-btn @(_tab == LoginTab.Password ? "st-btn--primary" : "st-btn--ghost")"
-                    style="flex:1;font-size:13px">
+                    class="st-btn @(_tab == LoginTab.Password ? "is-selected" : null)">
                 <Icon Name="lock" Size="16" /> رمز عبور
             </button>
-            <button type="button" role="tab" aria-selected="@(_tab == LoginTab.Otp)"
+            <button type="button" aria-pressed="@(_tab == LoginTab.Otp ? "true" : "false")" disabled="@_busy"
                     @onclick="() => _tab = LoginTab.Otp"
-                    class="st-btn @(_tab == LoginTab.Otp ? "st-btn--primary" : "st-btn--ghost")"
-                    style="flex:1;font-size:13px">
+                    class="st-btn @(_tab == LoginTab.Otp ? "is-selected" : null)">
                 <Icon Name="message" Size="16" /> کد یکبار مصرف
             </button>
         </div>
@@ -59,7 +56,7 @@
                 <input type="hidden" name="returnUrl" value="@ReturnUrl" />
                 <div class="st-field">
                     <label class="st-label" for="pw-mobile">شماره موبایل</label>
-                    <input id="pw-mobile" class="st-input" name="mobile" inputmode="tel" autocomplete="tel"
+                    <input id="pw-mobile" class="st-input auth-phone" name="mobile" inputmode="tel" autocomplete="tel" dir="ltr"
                            placeholder="۰۹۱۲۳۴۵۶۷۸۹" required />
                 </div>
                 <div class="st-field">
@@ -67,8 +64,8 @@
                     <input id="pw-pass" class="st-input" name="password" type="password" autocomplete="current-password"
                            placeholder="رمز عبور" required />
                 </div>
-                <div style="text-align:start;margin-bottom:16px">
-                    <a href="/forgot-password" style="font-size:12.5px;color:var(--st-brand-2)">رمز عبور را فراموش کرده‌اید؟</a>
+                <div class="auth-help">
+                    <a href="/forgot-password">رمز عبور را فراموش کرده‌اید؟</a>
                 </div>
                 <button type="submit" class="st-btn st-btn--primary st-btn--block st-btn--lg">
                     <Icon Name="log-in" Size="18" /> ورود
@@ -80,24 +77,26 @@
             @* ── روش ۲: ورود با کد یکبار مصرف ── *@
             @if (!string.IsNullOrWhiteSpace(_otpError) && !_needsRegistration)
             {
-                <div id="otp-error" class="st-alert st-alert--danger" role="alert" style="margin-bottom:16px"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
+                <div id="otp-error" class="st-alert st-alert--danger" role="alert"><Icon Name="x-circle" Size="18" /> <span>@_otpError</span></div>
             }
 
             @if (_step == OtpStep.Mobile)
             {
+                <form @onsubmit="RequestOtp" @onsubmit:preventDefault>
                 <div class="st-field">
                     <label class="st-label" for="otp-mobile">شماره موبایل</label>
-                    <input id="otp-mobile" class="st-input" @bind="_mobile" @bind:event="oninput"
+                    <input id="otp-mobile" class="st-input auth-phone" @bind="_mobile" @bind:event="oninput" dir="ltr" disabled="@_busy"
                            inputmode="tel" autocomplete="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                           @onkeydown="@(e => { if (e.Key == "Enter") return; })" />
+                           aria-describedby="@(!string.IsNullOrWhiteSpace(_otpError) && !_needsRegistration ? "otp-error" : null)" />
                 </div>
-                <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="RequestOtp" disabled="@_busy">
+                <button type="submit" class="st-btn st-btn--primary st-btn--block st-btn--lg" disabled="@_busy" aria-label="دریافت کد ورود">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <span><Icon Name="send" Size="17" /> دریافت کد ورود</span> }
                 </button>
+                </form>
             }
             else
             {
-                <div style="text-align:center;margin-bottom:14px">
+                <div class="auth-code-notice" role="status">
                     <p class="st-muted" style="font-size:13px">
                         کد ورود به شماره <bdi style="font-weight:700;color:var(--st-text)">@_masked</bdi> پیامک شد.
                     </p>
@@ -105,15 +104,14 @@
 
                 <div class="st-field">
                     <label class="st-label" for="otp-code">کد تایید</label>
-                    <input id="otp-code" class="st-input @(!string.IsNullOrWhiteSpace(_otpError) ? "is-invalid" : null)" @bind="_code" @bind:event="oninput"
+                    <input id="otp-code" class="st-input auth-code @(!string.IsNullOrWhiteSpace(_otpError) ? "is-invalid" : null)" @bind="_code" @bind:event="oninput" disabled="@_busy"
                            inputmode="numeric" autocomplete="one-time-code" maxlength="6"
                            placeholder="------"
                            dir="ltr" aria-invalid="@(!string.IsNullOrWhiteSpace(_otpError) ? "true" : "false")" aria-describedby="@(!string.IsNullOrWhiteSpace(_otpError) ? "otp-error" : null)"
-                           style="text-align:center;letter-spacing:8px;font-size:20px;font-weight:700"
                            @onkeydown="OnCodeKeyDown" />
                 </div>
 
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:12.5px">
+                <div class="auth-code-meta">
                     @if (_expiryRemaining > 0)
                     {
                         <span class="st-muted">اعتبار کد: <bdi>@FormatTime(_expiryRemaining)</bdi></span>
@@ -136,13 +134,13 @@
                     }
                 </div>
 
-                <button class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="VerifyOtp"
+                <button type="button" class="st-btn st-btn--primary st-btn--block st-btn--lg" @onclick="VerifyOtp" aria-label="تایید و ورود"
                         disabled="@(_busy || string.IsNullOrWhiteSpace(_code))">
                     @if (_busy) { <span class="st-spinner sm"></span> } else { <span><Icon Name="log-in" Size="18" /> تایید و ورود</span> }
                 </button>
 
-                <div style="text-align:center;margin-top:12px">
-                    <button type="button" class="st-btn st-btn--ghost" style="font-size:12.5px" @onclick="ChangeMobile">
+                <div class="auth-secondary">
+                    <button type="button" class="st-btn st-btn--ghost" @onclick="ChangeMobile" disabled="@_busy">
                         <Icon Name="edit" Size="14" /> تغییر شماره موبایل
                     </button>
                 </div>
@@ -150,11 +148,11 @@
         }
 
         <div class="st-divider"></div>
-        <div style="text-align:center;font-size:13px">
-            حساب کاربری ندارید؟ <a href="@RegisterLink" style="color:var(--st-brand-2);font-weight:700">ثبت‌نام کنید</a>
+        <div class="auth-footer">
+            حساب کاربری ندارید؟ <a href="@RegisterLink">ثبت‌نام کنید</a>
         </div>
     </div>
-</div>
+</section>
 
 @* فرم پنهان نهایی: پس از تایید موفق کد، توکن‌ها را به سرور می‌فرستد تا کوکی مشتری ست شود. *@
 <form id="otp-complete" method="post" action="/auth/customer/login/otp/complete" style="display:none" data-enhance="false">

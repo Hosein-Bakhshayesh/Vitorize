@@ -8,6 +8,8 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { serveProductFixture, productWrites } from './product-fixture.mjs';
 import { serveCartFixture, resetCart, cartWrites } from './cart-fixture.mjs';
+import { serveCheckoutFixture, checkoutWrites } from './checkout-fixture.mjs';
+import { serveAuthFixture, authWrites } from './auth-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'manuals/artifacts/home-reference');
@@ -42,6 +44,8 @@ const calls = [];
 const api = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:5188');
   calls.push(url.pathname + url.search);
+  if (serveAuthFixture(req, res, url, mode)) return;
+  if (serveCheckoutFixture(req, res, url, mode)) return;
   if (serveCartFixture(req, res, url, mode)) return;
   if (serveProductFixture(req, res, url, mode, products)) return;
   if (url.pathname === '/media/test.svg') {
@@ -197,6 +201,16 @@ try {
     mode = 'cart'; resetCart();
     const { checkCart } = await import('./check-cart.mjs');
     report.cart = await checkCart(page, output, { writes: cartWrites, reset: resetCart, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--checkout')) {
+    mode = 'checkout'; checkoutWrites.length = 0;
+    const { checkCheckout } = await import('./check-checkout.mjs');
+    report.checkout = await checkCheckout(page, output, { writes: checkoutWrites, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--auth')) {
+    mode = 'auth'; authWrites.length = 0;
+    const { checkAuth } = await import('./check-auth.mjs');
+    report.auth = await checkAuth(page, output, { writes: authWrites, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));
