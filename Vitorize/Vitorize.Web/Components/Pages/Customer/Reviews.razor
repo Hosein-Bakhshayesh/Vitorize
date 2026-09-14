@@ -5,41 +5,47 @@
 
 <PageTitle>نظرات من | ویتورایز</PageTitle>
 
-<h1 style="font-size:22px;margin-bottom:18px">نظرات من</h1>
+<section class="customer-reviews-page" aria-labelledby="reviews-title" aria-busy="@(_loading ? "true" : "false")">
+<header class="reviews-heading"><p>حساب کاربری / نظرات من</p><h1 id="reviews-title">نظرات من</h1></header>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت نظرات…</span></div>
+}
+else if (_loadError)
+{
+    <div class="st-state reviews-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت نظرات انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else if (_items.Count == 0)
 {
-    <div class="st-state" style="padding:60px"><div class="st-state__ic"><Icon Name="star" Size="32" /></div><div class="st-muted">هنوز نظری ثبت نکرده‌اید.</div></div>
+    <div class="st-state reviews-empty"><div class="st-state__ic"><Icon Name="star" Size="32" /></div><div class="st-muted">هنوز نظری ثبت نکرده‌اید.</div></div>
 }
 else
 {
     <div class="st-stack">
         @foreach (var r in _items)
         {
-            <div class="st-card st-card__pad">
+            <article class="st-card st-card__pad review-item">
                 <div class="st-spread">
                     <div>
-                        <div class="st-stars" style="font-size:14px">@Stars(r.Rating)</div>
-                        @if (!string.IsNullOrWhiteSpace(r.Title)) { <div style="font-weight:700;margin-top:6px">@r.Title</div> }
+                        <div class="review-stars" aria-label="امتیاز @r.Rating از ۵">@Stars(r.Rating)</div>
+                        @if (!string.IsNullOrWhiteSpace(r.Title)) { <div class="review-title">@r.Title</div> }
                     </div>
                     <StoreBadge Text="@AUI.ReviewStatusText(r.IsApproved, r.IsRejected)" Intent="@AUI.ReviewStatusIntent(r.IsApproved, r.IsRejected)" />
                 </div>
-                <p style="margin-top:8px;line-height:2;font-size:13.5px;color:var(--st-text-2)">@r.Comment</p>
-                <div class="st-spread" style="margin-top:8px">
-                    <span class="st-muted" style="font-size:12px"><PersianDateDisplay Value="r.CreatedAt" /></span>
-                    <button class="st-btn st-btn--ghost st-btn--sm" style="color:var(--st-danger)" @onclick="() => Delete(r)"><Icon Name="trash" Size="14" /> حذف</button>
+                <p class="review-comment">@r.Comment</p>
+                <div class="st-spread review-footer">
+                    <span class="st-muted"><PersianDateDisplay Value="r.CreatedAt" /></span>
+                    <button type="button" class="st-btn st-btn--ghost st-btn--sm review-delete" @onclick="() => Delete(r)"><Icon Name="trash" Size="14" /> حذف</button>
                 </div>
-            </div>
+            </article>
         }
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private List<CustomerReviewModel> _items = new();
 
     protected override Task OnInitializedAsync() => Load();
@@ -48,6 +54,7 @@ else
     {
         _loading = true;
         var result = await Api.GetAsync<List<CustomerReviewModel>>("product-reviews/mine");
+        _loadError = !result.IsSuccess;
         _items = (result.Data ?? new()).OrderByDescending(r => r.CreatedAt).ToList();
         _loading = false;
     }

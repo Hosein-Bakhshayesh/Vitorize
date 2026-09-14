@@ -1,0 +1,16 @@
+/* Customer gift codes only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-gift-codes-page .gift-codes-heading { margin-bottom: 20px; }
+.site-shell .customer-gift-codes-page .gift-codes-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-gift-codes-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-gift-codes-page .gift-codes-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+.site-shell .customer-gift-codes-page .gift-codes-empty__title { font-weight: 700; }
+.site-shell .customer-gift-codes-page .gift-codes-search { padding-top: 0; border-bottom: none; margin-bottom: 8px; }
+.site-shell .customer-gift-codes-page .gift-code-variant { margin-inline-start: 6px; }
+.site-shell .customer-gift-codes-page .gift-code-icon-btn { width: 38px; height: 38px; }
+.site-shell .customer-gift-codes-page .gift-code-skeleton { flex-direction: row; align-items: center; gap: 16px; }
+.site-shell .customer-gift-codes-page .gift-code-skeleton__ic { width: 46px; height: 46px; flex: 0 0 46px; }
+.site-shell .customer-gift-codes-page .gift-code-skeleton__lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.site-shell .customer-gift-codes-page .gift-code-skeleton__btn { width: 110px; }
+@media (max-width: 767px) {
+    .site-shell .customer-gift-codes-page h1 { font-size: 22px; }
+}

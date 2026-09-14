@@ -4,27 +4,35 @@
 
 <PageTitle>پشتیبانی | ویتورایز</PageTitle>
 
-<div class="st-spread" style="margin-bottom:18px">
-    <h1 style="font-size:22px">پشتیبانی و تیکت‌ها</h1>
-    <a class="st-btn st-btn--primary" href="/customer/tickets/new"><Icon Name="plus" Size="17" /> تیکت جدید</a>
-</div>
+<section class="customer-tickets-page" aria-labelledby="tickets-title" aria-busy="@(_loading ? "true" : "false")">
+<header class="tickets-heading">
+    <p>حساب کاربری / پشتیبانی و تیکت‌ها</p>
+    <div class="st-spread">
+        <h1 id="tickets-title">پشتیبانی و تیکت‌ها</h1>
+        <a class="st-btn st-btn--primary" href="/customer/tickets/new"><Icon Name="plus" Size="17" /> تیکت جدید</a>
+    </div>
+</header>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت تیکت‌ها…</span></div>
+}
+else if (_loadError)
+{
+    <div class="st-state tickets-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت تیکت‌ها انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else if (_tickets.Count == 0)
 {
-    <div class="st-state" style="padding:60px">
+    <div class="st-state tickets-empty">
         <div class="st-state__ic"><Icon Name="message" Size="32" /></div>
-        <div style="font-weight:700">تیکتی ثبت نکرده‌اید</div>
+        <div class="tickets-empty__title">تیکتی ثبت نکرده‌اید</div>
         <a class="st-btn st-btn--primary st-btn--sm" href="/customer/tickets/new">ثبت اولین تیکت</a>
     </div>
 }
 else
 {
-    <div class="st-card">
-        <div class="st-mobile-records customer-ticket-records">
+    <div class="st-card tickets-list">
+        <div class="st-mobile-records">
             @foreach (var t in _tickets)
             {
                 <article class="st-mobile-record">
@@ -32,23 +40,24 @@ else
                         <strong>@t.Subject</strong>
                         <StoreBadge Text="@AUI.TicketStatus(t.Status)" Intent="@TicketIntent(t.Status)" />
                     </div>
-                    <dl class="customer-ticket-record__details">
+                    <dl class="tickets-record-details">
                         <div><dt>بخش</dt><dd>@AUI.TicketDepartment(t.Department)</dd></div>
                         <div><dt>اولویت</dt><dd>@AUI.TicketPriority(t.Priority)</dd></div>
                         <div><dt>آخرین بروزرسانی</dt><dd><PersianDateDisplay Value="@(t.UpdatedAt ?? t.CreatedAt)" WithTime="true" /></dd></div>
                     </dl>
-                    <a class="st-btn st-btn--outline st-btn--sm customer-ticket-record__action" href="@($"/customer/tickets/{t.Id}")">مشاهدهٔ تیکت</a>
+                    <a class="st-btn st-btn--outline st-btn--sm tickets-record-action" href="@($"/customer/tickets/{t.Id}")">مشاهدهٔ تیکت</a>
                 </article>
             }
         </div>
         <div class="st-table-wrap st-mobile-records-desktop">
             <table class="st-table">
-                <thead><tr><th>موضوع</th><th>بخش</th><th>اولویت</th><th>وضعیت</th><th>آخرین بروزرسانی</th><th></th></tr></thead>
+                <caption class="tickets-table-caption">فهرست تیکت‌های پشتیبانی</caption>
+                <thead><tr><th scope="col">موضوع</th><th scope="col">بخش</th><th scope="col">اولویت</th><th scope="col">وضعیت</th><th scope="col">آخرین بروزرسانی</th><th scope="col"></th></tr></thead>
                 <tbody>
                     @foreach (var t in _tickets)
                     {
                         <tr>
-                            <td style="font-weight:700">@t.Subject</td>
+                            <th scope="row">@t.Subject</th>
                             <td>@AUI.TicketDepartment(t.Department)</td>
                             <td>@AUI.TicketPriority(t.Priority)</td>
                             <td><StoreBadge Text="@AUI.TicketStatus(t.Status)" Intent="@TicketIntent(t.Status)" /></td>
@@ -61,30 +70,19 @@ else
         </div>
     </div>
 }
-
-<style>
-    .customer-ticket-record__details {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px 14px;
-        margin: 14px 0;
-        padding-block: 12px;
-        border-block: 1px solid var(--st-border, #e5e7eb);
-    }
-    .customer-ticket-record__details > div { min-width: 0; }
-    .customer-ticket-record__details dt { margin-bottom: 3px; color: var(--st-text-3, #64748b); font-size: 11px; font-weight: 700; }
-    .customer-ticket-record__details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; }
-    .customer-ticket-record__action { width: 100%; justify-content: center; }
-    @@media (max-width: 360px) { .customer-ticket-record__details { grid-template-columns: 1fr; } }
-</style>
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private List<CustomerTicketModel> _tickets = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
     {
+        _loading = true;
         var result = await Api.GetAsync<List<CustomerTicketModel>>("tickets");
+        _loadError = !result.IsSuccess;
         _tickets = (result.Data ?? new()).OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt).ToList();
         _loading = false;
     }

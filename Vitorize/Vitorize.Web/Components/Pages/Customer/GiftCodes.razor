@@ -6,43 +6,51 @@
 
 <PageTitle>کدهای من | ویتورایز</PageTitle>
 
-<div class="st-spread" style="margin-bottom:18px">
-    <h1 style="font-size:22px">کتابخانه کدهای من</h1>
-    @if (!_loading && _codes.Count > 0)
-    {
-        <span class="st-badge st-badge--brand plain">@AUI.Number(_codes.Count) کد</span>
-    }
-</div>
+<section class="customer-gift-codes-page" aria-labelledby="gift-codes-title" aria-busy="@(_loading ? "true" : "false")">
+<header class="gift-codes-heading">
+    <p>حساب کاربری / کدهای من</p>
+    <div class="st-spread">
+        <h1 id="gift-codes-title">کتابخانه کدهای من</h1>
+        @if (!_loading && _codes.Count > 0)
+        {
+            <span class="st-badge st-badge--brand plain">@AUI.Number(_codes.Count) کد</span>
+        }
+    </div>
+</header>
 
 @if (_loading)
 {
-    <div class="st-stack">
+    <div class="st-stack" role="status" aria-label="در حال دریافت کدها">
         @for (var i = 0; i < 3; i++)
         {
-            <div class="st-skel-card" style="flex-direction:row;align-items:center;gap:16px">
-                <div class="st-skeleton st-skeleton--circle" style="width:46px;height:46px;flex:0 0 46px"></div>
-                <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div class="st-skel-card gift-code-skeleton">
+                <div class="st-skeleton st-skeleton--circle gift-code-skeleton__ic"></div>
+                <div class="gift-code-skeleton__lines">
                     <div class="st-skeleton st-skeleton--title"></div>
                     <div class="st-skeleton st-skeleton--text short"></div>
                 </div>
-                <div class="st-skeleton st-skeleton--btn" style="width:110px"></div>
+                <div class="st-skeleton st-skeleton--btn gift-code-skeleton__btn"></div>
             </div>
         }
     </div>
 }
+else if (_loadError)
+{
+    <div class="st-state gift-codes-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت کدها انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="LoadAsync">تلاش مجدد</button></div>
+}
 else if (_codes.Count == 0)
 {
-    <div class="st-state">
+    <div class="st-state gift-codes-empty">
         <div class="st-state__ic"><Icon Name="gift" Size="32" /></div>
-        <div style="font-weight:700">هنوز کدی دریافت نکرده‌اید</div>
+        <div class="gift-codes-empty__title">هنوز کدی دریافت نکرده‌اید</div>
         <div class="st-muted">پس از خرید و پرداخت موفق، کدهای شما اینجا نمایش داده می‌شوند.</div>
         <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="16" /> رفتن به فروشگاه</a>
     </div>
 }
 else
 {
-    <div class="st-fgroup" style="padding-top:0;border-bottom:none">
-        <input class="st-input" placeholder="جستجو در محصول یا شماره سفارش ..." @bind="_search" @bind:event="oninput" />
+    <div class="st-fgroup gift-codes-search">
+        <input class="st-input" placeholder="جستجو در محصول یا شماره سفارش ..." @bind="_search" @bind:event="oninput" aria-label="جستجو در کدها" />
     </div>
 
     <div class="st-stack">
@@ -56,7 +64,7 @@ else
                         @item.ProductTitle
                         @if (!string.IsNullOrWhiteSpace(item.VariantTitle))
                         {
-                            <span class="st-tag" style="margin-inline-start:6px">@item.VariantTitle</span>
+                            <span class="st-tag gift-code-variant">@item.VariantTitle</span>
                         }
                     </div>
                     <div class="st-codecard__meta">
@@ -71,11 +79,11 @@ else
                     @(revealed ? item.DeliveredContent : MaskCode(item.DeliveredContent))
                 </div>
                 <div class="st-codecard__actions">
-                    <button class="st-iconbtn" style="width:38px;height:38px" title="@(revealed ? "پنهان کردن" : "نمایش کد")"
+                    <button type="button" class="st-iconbtn gift-code-icon-btn" title="@(revealed ? "پنهان کردن" : "نمایش کد")"
                             @onclick="() => ToggleReveal(item.Id)">
                         <Icon Name="eye" Size="16" />
                     </button>
-                    <button class="st-iconbtn" style="width:38px;height:38px" title="کپی کد"
+                    <button type="button" class="st-iconbtn gift-code-icon-btn" title="کپی کد"
                             @onclick="() => Copy(item)">
                         <Icon Name="copy" Size="16" />
                     </button>
@@ -84,9 +92,10 @@ else
         }
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private string _search = string.Empty;
     private List<CustomerDeliveredCodeModel> _codes = new();
     private readonly HashSet<Guid> _revealed = new();
@@ -98,9 +107,13 @@ else
                 c.ProductTitle.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
                 c.OrderNumber.Contains(_search, StringComparison.OrdinalIgnoreCase));
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _loading = true;
         var result = await Api.GetAsync<List<CustomerDeliveredCodeModel>>("orders/deliveries");
+        _loadError = !result.IsSuccess;
         _codes = result.Data ?? new();
         _loading = false;
     }

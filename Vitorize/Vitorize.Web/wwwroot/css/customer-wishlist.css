@@ -1,0 +1,8 @@
+/* Customer wishlist only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-wishlist-page .wishlist-heading { margin-bottom: 20px; }
+.site-shell .customer-wishlist-page .wishlist-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-wishlist-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-wishlist-page .wishlist-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+@media (max-width: 767px) {
+    .site-shell .customer-wishlist-page h1 { font-size: 22px; }
+}

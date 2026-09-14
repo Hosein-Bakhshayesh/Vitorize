@@ -1,0 +1,15 @@
+/* Customer reviews only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-reviews-page .reviews-heading { margin-bottom: 20px; }
+.site-shell .customer-reviews-page .reviews-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-reviews-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-reviews-page .reviews-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+.site-shell .customer-reviews-page .st-card { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; }
+.site-shell .customer-reviews-page .review-stars { font-size: 14px; color: var(--st-warning); }
+.site-shell .customer-reviews-page .review-title { font-weight: 700; margin-top: 6px; }
+.site-shell .customer-reviews-page .review-comment { margin-top: 8px; line-height: 2; font-size: 13.5px; color: var(--st-text-2); overflow-wrap: anywhere; }
+.site-shell .customer-reviews-page .review-footer { margin-top: 8px; }
+.site-shell .customer-reviews-page .review-delete { color: var(--st-danger); }
+@media (max-width: 767px) {
+    .site-shell .customer-reviews-page h1 { font-size: 22px; }
+    .site-shell .customer-reviews-page .st-card__pad { padding: 18px 16px; }
+}

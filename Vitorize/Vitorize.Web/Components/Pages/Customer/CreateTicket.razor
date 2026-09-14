@@ -5,18 +5,19 @@
 
 <PageTitle>تیکت جدید | ویتورایز</PageTitle>
 
+<section class="customer-tickets-page" aria-labelledby="ticket-new-title">
 <div class="st-bc"><a href="/customer/tickets">تیکت‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>تیکت جدید</span></div>
-<h1 style="font-size:22px;margin-bottom:18px">ثبت تیکت جدید</h1>
+<header class="tickets-heading"><h1 id="ticket-new-title">ثبت تیکت جدید</h1></header>
 
-<div class="st-card st-card__pad" style="max-width:720px">
+<form class="st-card st-card__pad ticket-new-form" @onsubmit="Submit" @onsubmit:preventDefault novalidate>
     <div class="st-field">
-        <label class="st-label">موضوع</label>
-        <input class="st-input" @bind="_subject" placeholder="موضوع تیکت" />
+        <label class="st-label" for="ticket-subject">موضوع</label>
+        <input id="ticket-subject" class="st-input" @bind="_subject" placeholder="موضوع تیکت" disabled="@_busy" />
     </div>
-    <div class="st-stats" style="grid-template-columns:1fr 1fr;gap:16px">
+    <div class="ticket-new-form__row">
         <div class="st-field">
-            <label class="st-label">بخش</label>
-            <select class="st-select" @bind="_department">
+            <label class="st-label" for="ticket-department">بخش</label>
+            <select id="ticket-department" class="st-select" @bind="_department" disabled="@_busy">
                 <option value="1">عمومی</option>
                 <option value="2">سفارش‌ها</option>
                 <option value="3">پرداخت</option>
@@ -25,8 +26,8 @@
             </select>
         </div>
         <div class="st-field">
-            <label class="st-label">اولویت</label>
-            <select class="st-select" @bind="_priority">
+            <label class="st-label" for="ticket-priority">اولویت</label>
+            <select id="ticket-priority" class="st-select" @bind="_priority" disabled="@_busy">
                 <option value="1">کم</option>
                 <option value="2">معمولی</option>
                 <option value="3">زیاد</option>
@@ -35,13 +36,14 @@
         </div>
     </div>
     <div class="st-field">
-        <label class="st-label">متن پیام</label>
-        <textarea class="st-textarea" @bind="_message" placeholder="مشکل یا سوال خود را توضیح دهید ..."></textarea>
+        <label class="st-label" for="ticket-message">متن پیام</label>
+        <textarea id="ticket-message" class="st-textarea" @bind="_message" placeholder="مشکل یا سوال خود را توضیح دهید ..." disabled="@_busy"></textarea>
     </div>
-    <button class="st-btn st-btn--primary st-btn--lg" @onclick="Submit" disabled="@_busy">
-        @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="send" Size="18" /> <span>ثبت تیکت</span> }
+    <button type="submit" class="st-btn st-btn--primary st-btn--lg" disabled="@_busy">
+        @if (_busy) { <span class="st-spinner sm"></span> <span>در حال ثبت…</span> } else { <Icon Name="send" Size="18" /> <span>ثبت تیکت</span> }
     </button>
-</div>
+</form>
+</section>
 
 @code {
     [SupplyParameterFromQuery] public string? OrderId { get; set; }

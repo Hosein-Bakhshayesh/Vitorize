@@ -6,30 +6,33 @@
 
 <PageTitle>تیکت | ویتورایز</PageTitle>
 
+<section class="customer-tickets-page" aria-labelledby="ticket-details-title" aria-busy="@(_loading ? "true" : "false")">
 <div class="st-bc"><a href="/customer/tickets">تیکت‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>جزئیات</span></div>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت تیکت…</span></div>
 }
 else if (_ticket is null)
 {
-    <div class="st-state"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div style="font-weight:700">تیکت یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/customer/tickets">بازگشت</a></div>
+    <div class="st-state tickets-empty"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div class="ticket-not-found__title">تیکت یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/customer/tickets">بازگشت</a></div>
 }
 else
 {
-    <div class="st-spread" style="margin-bottom:14px">
-        <div>
-            <h1 style="font-size:20px">@_ticket.Subject</h1>
-            <div class="st-muted" style="font-size:12.5px;margin-top:4px">@AUI.TicketDepartment(_ticket.Department) · اولویت @AUI.TicketPriority(_ticket.Priority)</div>
+    <header class="tickets-heading ticket-details-heading">
+        <div class="st-spread">
+            <div>
+                <h1 id="ticket-details-title">@_ticket.Subject</h1>
+                <div class="st-muted ticket-details-meta">@AUI.TicketDepartment(_ticket.Department) · اولویت @AUI.TicketPriority(_ticket.Priority)</div>
+            </div>
+            <StoreBadge Text="@AUI.TicketStatus(_ticket.Status)" Intent="@TicketIntent(_ticket.Status)" />
         </div>
-        <StoreBadge Text="@AUI.TicketStatus(_ticket.Status)" Intent="@TicketIntent(_ticket.Status)" />
-    </div>
+    </header>
 
-    <div class="st-card">
+    <div class="st-card ticket-thread">
         @if (_ticket.IsFulfillmentTicket)
         {
-            <div class="st-fulfillment" data-testid="fulfillment-items">
+            <div class="ticket-fulfillment" data-testid="fulfillment-items">
                 <strong>آیتم‌های در حال تحویل پشتیبانی</strong>
                 @foreach (var item in _ticket.FulfillmentItems)
                 {
@@ -51,25 +54,23 @@ else
 
         @if (_ticket.Status != (byte)TicketStatus.Closed)
         {
-            <div style="padding:16px;border-top:1px solid var(--st-border)">
-                <textarea class="st-textarea" style="min-height:70px" @bind="_reply" placeholder="پاسخ خود را بنویسید ..."></textarea>
-                <div style="display:flex;justify-content:flex-end;margin-top:10px">
-                    <button class="st-btn st-btn--primary" @onclick="Send" disabled="@_sending">
-                        @if (_sending) { <span class="st-spinner sm"></span> } else { <Icon Name="send" Size="16" /> <span>ارسال پاسخ</span> }
+            <form class="ticket-reply" @onsubmit="Send" @onsubmit:preventDefault novalidate>
+                <label class="st-label ticket-reply__label" for="ticket-reply">پاسخ شما</label>
+                <textarea id="ticket-reply" class="st-textarea ticket-reply__input" @bind="_reply" placeholder="پاسخ خود را بنویسید ..." disabled="@_sending"></textarea>
+                <div class="ticket-reply__actions">
+                    <button type="submit" class="st-btn st-btn--primary" disabled="@_sending">
+                        @if (_sending) { <span class="st-spinner sm"></span> <span>در حال ارسال…</span> } else { <Icon Name="send" Size="16" /> <span>ارسال پاسخ</span> }
                     </button>
                 </div>
-            </div>
+            </form>
         }
         else
         {
-            <div style="padding:16px;border-top:1px solid var(--st-border)" class="st-muted">این تیکت بسته شده است.</div>
+            <div class="ticket-closed-note st-muted">این تیکت بسته شده است.</div>
         }
     </div>
 }
-
-<style>
-    .st-fulfillment { margin:16px 16px 0; padding:12px 14px; border:1px solid var(--st-border); border-radius:12px; background:var(--st-surface-2); font-size:13px; line-height:1.9; }
-</style>
+</section>
 
 @code {
     [Parameter] public Guid Id { get; set; }

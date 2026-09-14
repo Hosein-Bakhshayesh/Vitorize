@@ -11,17 +11,21 @@
 
 <PageTitle>علاقه‌مندی‌ها | ویتورایز</PageTitle>
 
-<div class="st-spread" style="margin-bottom:18px">
-    <h1 style="font-size:22px">علاقه‌مندی‌های من</h1>
-    @if (!_loading && _items.Count > 0)
-    {
-        <span class="st-badge st-badge--brand plain">@AUI.Number(_items.Count) محصول</span>
-    }
-</div>
+<section class="customer-wishlist-page" aria-labelledby="wishlist-title" aria-busy="@(_loading ? "true" : "false")">
+<header class="wishlist-heading">
+    <p>حساب کاربری / علاقه‌مندی‌ها</p>
+    <div class="st-spread">
+        <h1 id="wishlist-title">علاقه‌مندی‌های من</h1>
+        @if (!_loading && _items.Count > 0)
+        {
+            <span class="st-badge st-badge--brand plain">@AUI.Number(_items.Count) محصول</span>
+        }
+    </div>
+</header>
 
 @if (_loading)
 {
-    <div class="st-grid">
+    <div class="st-grid" role="status" aria-label="در حال دریافت علاقه‌مندی‌ها">
         @for (var i = 0; i < 4; i++)
         {
             <div class="st-skel-card">
@@ -32,6 +36,10 @@
             </div>
         }
     </div>
+}
+else if (_loadError)
+{
+    <div class="st-state wishlist-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت علاقه‌مندی‌ها انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else if (_items.Count == 0)
 {
@@ -83,9 +91,10 @@ else
         }
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private Guid? _busyId;
     private List<CustomerWishlistItemModel> _items = new();
 
@@ -101,7 +110,9 @@ else
 
     private async Task Load()
     {
+        _loading = true;
         var result = await Api.GetAsync<List<CustomerWishlistItemModel>>("wishlist");
+        _loadError = !result.IsSuccess;
         _items = result.Data ?? new();
         _loading = false;
     }

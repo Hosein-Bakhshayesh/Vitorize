@@ -1,0 +1,40 @@
+/* Customer support tickets (list, create, details) only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-tickets-page .tickets-heading { margin-bottom: 20px; }
+.site-shell .customer-tickets-page .tickets-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-tickets-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-tickets-page .tickets-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+.site-shell .customer-tickets-page .tickets-empty__title,
+.site-shell .customer-tickets-page .ticket-not-found__title { font-weight: 700; margin-bottom: 10px; }
+.site-shell .customer-tickets-page .tickets-list,
+.site-shell .customer-tickets-page .ticket-thread { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; overflow: hidden; }
+.site-shell .customer-tickets-page .tickets-table-caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.site-shell .customer-tickets-page .st-table { width: 100%; table-layout: fixed; }
+.site-shell .customer-tickets-page .st-table :is(th, td) { padding: 16px 10px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; text-align: start; }
+.site-shell .customer-tickets-page .st-table thead th { background: var(--st-surface-2); color: var(--st-muted); }
+.site-shell .customer-tickets-page .st-table tbody th { border-bottom: 1px solid var(--st-border); font-weight: 700; }
+.site-shell .customer-tickets-page .st-table :is(th, td):last-child { width: 90px; text-align: center; }
+.site-shell .customer-tickets-page .st-mobile-record { padding: 22px; background: var(--st-surface); }
+.site-shell .customer-tickets-page .tickets-record-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 14px 0; padding-block: 12px; border-block: 1px solid var(--st-border); }
+.site-shell .customer-tickets-page .tickets-record-details > div { min-width: 0; }
+.site-shell .customer-tickets-page .tickets-record-details dt { margin-bottom: 3px; color: var(--st-muted); font-size: 11px; font-weight: 700; }
+.site-shell .customer-tickets-page .tickets-record-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; }
+.site-shell .customer-tickets-page .tickets-record-action { width: 100%; justify-content: center; }
+.site-shell .customer-tickets-page .ticket-new-form { max-width: 720px; }
+.site-shell .customer-tickets-page .ticket-new-form__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.site-shell .customer-tickets-page .ticket-details-heading { margin-bottom: 14px; }
+.site-shell .customer-tickets-page .ticket-details-meta { font-size: 12.5px; margin-top: 4px; }
+.site-shell .customer-tickets-page .ticket-fulfillment { margin: 16px 16px 0; padding: 12px 14px; border: 1px solid var(--st-border); border-radius: 6px; background: var(--st-surface-2); font-size: 13px; line-height: 1.9; }
+.site-shell .customer-tickets-page .ticket-reply { padding: 16px; border-top: 1px solid var(--st-border); }
+.site-shell .customer-tickets-page .ticket-reply__label { display: block; margin-bottom: 8px; }
+.site-shell .customer-tickets-page .ticket-reply__input { min-height: 70px; width: 100%; }
+.site-shell .customer-tickets-page .ticket-reply__actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+.site-shell .customer-tickets-page .ticket-closed-note { padding: 16px; border-top: 1px solid var(--st-border); }
+@media (max-width: 900px) {
+    .site-shell .customer-tickets-page .st-mobile-records { display: block; }
+    .site-shell .customer-tickets-page .st-mobile-records-desktop { display: none; }
+}
+@media (max-width: 767px) {
+    .site-shell .customer-tickets-page h1 { font-size: 22px; }
+    .site-shell .customer-tickets-page :is(.st-card__pad, .st-mobile-record) { padding: 18px 16px; }
+    .site-shell .customer-tickets-page .ticket-new-form__row { grid-template-columns: minmax(0, 1fr); }
+}

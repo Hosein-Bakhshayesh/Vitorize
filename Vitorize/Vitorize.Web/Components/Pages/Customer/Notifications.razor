@@ -5,40 +5,48 @@
 
 <PageTitle>اعلان‌ها | ویتورایز</PageTitle>
 
-<div class="st-spread" style="margin-bottom:18px">
-    <h1 style="font-size:22px">اعلان‌ها</h1>
-    @if (_items.Any(n => !n.IsRead))
-    {
-        <button class="st-btn st-btn--outline st-btn--sm" @onclick="MarkAll"><Icon Name="check" Size="15" /> خواندن همه</button>
-    }
-</div>
+<section class="customer-notifications-page" aria-labelledby="notifications-title" aria-busy="@(_loading ? "true" : "false")">
+<header class="notifications-heading">
+    <p>حساب کاربری / اعلان‌ها</p>
+    <div class="st-spread">
+        <h1 id="notifications-title">اعلان‌ها</h1>
+        @if (_items.Any(n => !n.IsRead))
+        {
+            <button type="button" class="st-btn st-btn--outline st-btn--sm" @onclick="MarkAll"><Icon Name="check" Size="15" /> خواندن همه</button>
+        }
+    </div>
+</header>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت اعلان‌ها…</span></div>
+}
+else if (_loadError)
+{
+    <div class="st-state notifications-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت اعلان‌ها انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else if (_items.Count == 0)
 {
-    <div class="st-state" style="padding:60px"><div class="st-state__ic"><Icon Name="bell" Size="32" /></div><div class="st-muted">اعلانی ندارید.</div></div>
+    <div class="st-state notifications-empty"><div class="st-state__ic"><Icon Name="bell" Size="32" /></div><div class="st-muted">اعلانی ندارید.</div></div>
 }
 else
 {
     <div class="st-stack">
         @foreach (var n in _items)
         {
-            <div class="st-card st-card__pad" data-testid="@(IsAnnouncement(n) ? "customer-announcement" : "customer-notification")" style="@(n.IsRead ? "" : "border-inline-start:3px solid var(--st-brand-2)")">
+            <article class="st-card st-card__pad notification-item @(n.IsRead ? null : "is-unread")" data-testid="@(IsAnnouncement(n) ? "customer-announcement" : "customer-notification")">
                 <div class="st-spread">
-                    <div style="display:flex;gap:12px;align-items:flex-start">
+                    <div class="notification-body">
                         @* Announcements get a neutral informational icon; transactional types keep the bell. *@
-                        <span style="width:38px;height:38px;border-radius:11px;background:var(--st-chip);color:var(--st-brand-2);display:flex;align-items:center;justify-content:center;flex:0 0 38px"><Icon Name="@(IsAnnouncement(n) ? "megaphone" : "bell")" Size="18" /></span>
-                        <div>
-                            <div style="font-weight:700;font-size:14px">@n.Title</div>
+                        <span class="notification-icon"><Icon Name="@(IsAnnouncement(n) ? "megaphone" : "bell")" Size="18" /></span>
+                        <div class="notification-content">
+                            <div class="notification-title">@n.Title</div>
                             @* Plain text by design: never rendered as markup. *@
-                            <div class="st-muted" style="font-size:13px;line-height:1.9;margin-top:2px">@n.Message</div>
-                            <div class="st-muted" style="font-size:11.5px;margin-top:6px"><PersianDateDisplay Value="n.CreatedAt" WithTime="true" /></div>
+                            <div class="st-muted notification-message">@n.Message</div>
+                            <div class="st-muted notification-date"><PersianDateDisplay Value="n.CreatedAt" WithTime="true" /></div>
                             @if (!string.IsNullOrWhiteSpace(n.ActionUrl))
                             {
-                                <a class="st-btn st-btn--outline st-btn--sm" style="margin-top:10px" href="@n.ActionUrl" data-testid="notification-action">
+                                <a class="st-btn st-btn--outline st-btn--sm notification-action" href="@n.ActionUrl" data-testid="notification-action">
                                     <Icon Name="arrow-left" Size="14" /> مشاهده
                                 </a>
                             }
@@ -46,16 +54,17 @@ else
                     </div>
                     @if (!n.IsRead)
                     {
-                        <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => MarkRead(n)"><Icon Name="check" Size="15" /></button>
+                        <button type="button" class="st-btn st-btn--ghost st-btn--sm" title="خوانده شد" @onclick="() => MarkRead(n)"><Icon Name="check" Size="15" /></button>
                     }
                 </div>
-            </div>
+            </article>
         }
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private List<CustomerNotificationModel> _items = new();
 
     private static bool IsAnnouncement(CustomerNotificationModel n) =>
@@ -67,6 +76,7 @@ else
     {
         _loading = true;
         var result = await Api.GetAsync<List<CustomerNotificationModel>>("notifications");
+        _loadError = !result.IsSuccess;
         _items = (result.Data ?? new()).OrderByDescending(n => n.CreatedAt).ToList();
         _loading = false;
     }
@@ -81,5 +91,6 @@ else
     {
         var result = await Api.PostAsync("notifications/read-all");
         if (result.IsSuccess) { Toasts.Success("همه اعلان‌ها خوانده شد."); await Load(); }
+        else Toasts.Error(result.Message);
     }
 }
