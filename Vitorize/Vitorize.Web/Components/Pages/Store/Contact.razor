@@ -16,44 +16,45 @@ else if (!_loading)
     <SeoHead Title="صفحه یافت نشد" Description="این صفحه در دسترس نیست." Index="false" Follow="false" />
 }
 
+<section class="content-page" aria-busy="@(_loading ? "true" : "false")">
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت اطلاعات تماس…</span></div>
 }
 else if (_page is null)
 {
-    <div class="st-state"><div class="st-state__ic"><Icon Name="headphones" Size="30" /></div><div style="font-weight:700">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
+    <div class="st-state content-page__empty"><div class="st-state__ic"><Icon Name="headphones" Size="30" /></div><div class="contact-not-found__title">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
 }
 else
 {
     <CmsPageContent Title="@_page.Title" ContentHtml="@_page.ContentHtml">
         <Extra>
-            <div class="st-card st-card__pad" style="margin-top:22px" data-testid="contact-details">
-                <h2 style="font-size:16px;margin-bottom:14px">راه‌های ارتباطی</h2>
-                <div class="st-stack" style="gap:10px;font-size:13.5px">
+            <div class="st-card st-card__pad contact-details" data-testid="contact-details">
+                <h2 class="contact-details__title">راه‌های ارتباطی</h2>
+                <div class="st-stack contact-details__list">
                     @if (!string.IsNullOrWhiteSpace(_b.SupportPhone))
                     {
-                        <div data-testid="contact-phone" style="display:flex;align-items:center;gap:8px">
+                        <div data-testid="contact-phone" class="contact-details__row">
                             <Icon Name="phone" Size="16" /> <span class="st-muted">تلفن پشتیبانی:</span>
                             <a class="st-mono" href="tel:@_b.SupportPhone">@_b.SupportPhone</a>
                         </div>
                     }
                     @if (!string.IsNullOrWhiteSpace(_b.SupportEmail))
                     {
-                        <div data-testid="contact-email" style="display:flex;align-items:center;gap:8px">
+                        <div data-testid="contact-email" class="contact-details__row">
                             <Icon Name="mail" Size="16" /> <span class="st-muted">ایمیل:</span>
                             <a href="mailto:@_b.SupportEmail">@_b.SupportEmail</a>
                         </div>
                     }
                     @if (!string.IsNullOrWhiteSpace(_b.ContactAddress))
                     {
-                        <div data-testid="contact-address" style="display:flex;align-items:flex-start;gap:8px">
+                        <div data-testid="contact-address" class="contact-details__row contact-details__row--start">
                             <Icon Name="map-pin" Size="16" /> <span class="st-muted">نشانی:</span> <span>@_b.ContactAddress</span>
                         </div>
                     }
                     @if (!string.IsNullOrWhiteSpace(_b.WorkingHours))
                     {
-                        <div data-testid="contact-hours" style="display:flex;align-items:center;gap:8px">
+                        <div data-testid="contact-hours" class="contact-details__row">
                             <Icon Name="clock" Size="16" /> <span class="st-muted">ساعات پاسخگویی:</span> <span>@_b.WorkingHours</span>
                         </div>
                     }
@@ -63,11 +64,11 @@ else
                 {
                     <div class="st-divider"></div>
                     <div class="st-label">شبکه‌های اجتماعی</div>
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px" data-testid="contact-socials">
+                    <div class="contact-details__socials" data-testid="contact-socials">
                         @foreach (var social in Socials)
                         {
                             <a href="@social.Url" target="_blank" rel="noopener noreferrer" title="@social.Title"
-                               aria-label="@social.Title" style="display:flex;align-items:center;gap:6px">
+                               aria-label="@social.Title" class="contact-details__social">
                                 <Icon Name="@social.Icon" Size="17" /> <span>@social.Title</span>
                             </a>
                         }
@@ -77,6 +78,7 @@ else
         </Extra>
     </CmsPageContent>
 }
+</section>
 
 @code {
     private bool _loading = true;

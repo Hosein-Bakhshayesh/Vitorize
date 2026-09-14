@@ -3,34 +3,44 @@
 
 <SeoHead Title="سوالات متداول" Description="پاسخ پرسش‌های متداول خرید و خدمات ویتورایز" CanonicalPath="/faq" JsonLd="@FaqJsonLd()" />
 
+<section class="content-page" aria-labelledby="faq-title" aria-busy="@(_loading ? "true" : "false")">
 <div class="st-bc"><a href="/">خانه</a> <Icon Name="chevron-left" Size="13" /> <span>سوالات متداول</span></div>
-<h1 style="font-size:22px;margin-bottom:18px">سوالات متداول</h1>
+<h1 id="faq-title" class="content-page__title">سوالات متداول</h1>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت سوالات…</span></div>
+}
+else if (_loadError)
+{
+    <div class="st-state content-page__empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت سوالات انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else if (_faqs.Count == 0)
 {
-    <div class="st-state"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div class="st-muted">سوالی ثبت نشده است.</div></div>
+    <div class="st-state content-page__empty"><div class="st-state__ic"><Icon Name="message" Size="30" /></div><div class="st-muted">سوالی ثبت نشده است.</div></div>
 }
 else
 {
-    <div class="st-stack" style="max-width:820px">
+    <div class="st-stack faq-list">
         @foreach (var f in _faqs)
         {
             <FaqItem Question="@f.Question" Answer="@f.Answer" />
         }
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true;
+    private bool _loading = true, _loadError;
     private List<StoreFaqModel> _faqs = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
     {
+        _loading = true;
         var result = await Api.GetAsync<List<StoreFaqModel>>("faqs");
+        _loadError = !result.IsSuccess;
         _faqs = result.Data ?? new();
         _loading = false;
     }

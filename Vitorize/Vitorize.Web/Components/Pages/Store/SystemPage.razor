@@ -18,18 +18,20 @@ else if (!_loading)
     <SeoHead Title="صفحه یافت نشد" Description="این صفحه در دسترس نیست." Index="false" Follow="false" />
 }
 
+<section class="content-page" aria-busy="@(_loading ? "true" : "false")">
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت صفحه…</span></div>
 }
 else if (_page is null)
 {
-    <div class="st-state"><div class="st-state__ic"><Icon Name="file-text" Size="30" /></div><div style="font-weight:700">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
+    <div class="st-state content-page__empty"><div class="st-state__ic"><Icon Name="file-text" Size="30" /></div><div class="cms-not-found__title">صفحه یافت نشد</div><a class="st-btn st-btn--primary st-btn--sm" href="/">بازگشت به خانه</a></div>
 }
 else
 {
     <CmsPageContent Title="@_page.Title" ContentHtml="@_page.ContentHtml" />
 }
+</section>
 
 @code {
     private bool _loading = true;
