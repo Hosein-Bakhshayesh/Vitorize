@@ -9,11 +9,12 @@
 
 <PageTitle>جزئیات سفارش | ویتورایز</PageTitle>
 
-<div class="st-bc"><a href="/customer/dashboard">داشبورد</a> <Icon Name="chevron-left" Size="13" /> <a href="/customer/orders">سفارش‌ها</a> <Icon Name="chevron-left" Size="13" /> <span>جزئیات</span></div>
+<section class="customer-orders-page order-detail-page" aria-label="جزئیات سفارش">
+<nav class="st-bc" aria-label="مسیر صفحه"><a href="/customer/dashboard">داشبورد</a> <Icon Name="chevron-left" Size="13" /> <a href="/customer/orders">سفارش‌ها</a> <Icon Name="chevron-left" Size="13" /> <span aria-current="page">جزئیات</span></nav>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت جزئیات سفارش…</span></div>
 }
 else if (_order is null)
 {
@@ -24,31 +25,31 @@ else
     @* One canonical status for the order, from the same mapper the list page uses. The payment and
        order enums are no longer shown side by side: that pairing is what produced a
        «در انتظار پرداخت» badge next to delivery-in-progress wording. *@
-    <div class="st-spread" style="margin-bottom:18px">
-        <h1 style="font-size:20px">سفارش <span class="st-mono">@_order.OrderNumber</span></h1>
+    <header class="orders-heading">
+        <h1>سفارش <bdi class="st-mono">@_order.OrderNumber</bdi></h1>
         <div style="display:flex;gap:8px" data-testid="order-state" data-order-state="@_view.State">
             <StoreBadge Text="@_view.StatusLabel" Intent="@_view.BadgeIntent" />
         </div>
-    </div>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(_view.FulfillmentNotice))
     {
         <div class="st-alert st-alert--@(_view.ShowFulfillmentProgress ? "info" : "warning")"
-             data-testid="order-fulfillment-notice" style="margin-bottom:16px">
+             data-testid="order-fulfillment-notice" role="status">
             <Icon Name="@(_view.ShowFulfillmentProgress ? "clock" : "credit-card")" Size="17" />
             <span>@_view.FulfillmentNotice</span>
         </div>
     }
 
-    <div class="st-split">
-        <div class="st-stack">
+    <div class="order-detail-layout">
+        <div class="st-stack order-items">
             @foreach (var item in _order.Items)
             {
-                <div class="st-card st-card__pad">
-                    <div class="st-spread">
+                <article class="st-card st-card__pad order-item">
+                    <div class="order-item-heading">
                         <div>
                             @{ var variantTitle = ProductAvailabilityRules.CustomerFacingVariantTitle(item.VariantTitle); }
-                            <div style="font-weight:700">@item.ProductTitle @(string.IsNullOrWhiteSpace(variantTitle) ? "" : $"— {variantTitle}")</div>
+                            <h2>@item.ProductTitle @(string.IsNullOrWhiteSpace(variantTitle) ? "" : $"— {variantTitle}")</h2>
                             <div class="st-muted" style="font-size:12.5px;margin-top:4px">تعداد @AUI.Number(item.Quantity) · @AUI.MoneyFa(item.UnitPrice) · @AUI.DeliveryType(item.DeliveryType)</div>
                         </div>
                         <StoreBadge Text="@CustomerOrderPresenter.ItemDeliveryLabel(_view, item)"
@@ -68,7 +69,7 @@ else
                     @if (item.Kyc is not null)
                     {
                         <div class="st-divider"></div>
-                        <div class="st-alert st-alert--@(item.Kyc.BlocksFulfillment ? "warning" : item.Kyc.IsFulfilled ? "success" : "info")">
+                        <div class="st-alert order-kyc st-alert--@(item.Kyc.BlocksFulfillment ? "warning" : item.Kyc.IsFulfilled ? "success" : "info")">
                             <Icon Name="shield" Size="17" />
                             <div style="flex:1">
                                 <div style="font-weight:700">احراز هویت: @item.Kyc.LifecycleLabel</div>
@@ -101,9 +102,9 @@ else
                         <div class="st-stack" style="gap:8px">
                             @foreach (var d in codes)
                             {
-                                <div style="display:flex;align-items:center;gap:10px;background:var(--st-surface-2);border:1px dashed var(--st-border-2);border-radius:10px;padding:10px 12px">
-                                    <span class="st-mono" style="flex:1;font-size:14px;font-weight:700;letter-spacing:1px">@d.DeliveredContent</span>
-                                    <button class="st-btn st-btn--ghost st-btn--sm" @onclick="() => Copy(d.DeliveredContent!)"><Icon Name="copy" Size="15" /> کپی</button>
+                                <div class="order-delivery-code">
+                                    <bdi class="st-mono">@d.DeliveredContent</bdi>
+                                    <button type="button" class="st-btn st-btn--ghost st-btn--sm" aria-label="کپی محتوای تحویل‌شده" @onclick="() => Copy(d.DeliveredContent!)"><Icon Name="copy" Size="15" /> کپی</button>
                                 </div>
                             }
                         </div>
@@ -140,7 +141,7 @@ else
                             </button>
                         }
                     }
-                </div>
+                </article>
             }
 
             @if (_order.Status != (byte)OrderStatus.Completed && _order.Status != (byte)OrderStatus.Cancelled)
@@ -149,8 +150,8 @@ else
             }
         </div>
 
-        <div class="st-card st-card__pad" style="align-self:start">
-            <h3 style="font-size:15px;margin-bottom:12px">خلاصه پرداخت</h3>
+        <aside class="st-card st-card__pad order-summary" aria-labelledby="order-summary-title">
+            <h2 id="order-summary-title">خلاصه پرداخت</h2>
             <div class="st-sumrow"><span class="st-muted">جمع کل</span><span>@AUI.MoneyFa(_order.SubtotalAmount)</span></div>
             <div class="st-sumrow"><span class="st-muted">تخفیف</span><span>@AUI.MoneyFa(_order.DiscountAmount)</span></div>
             @* Purchase-time snapshot only. Orders placed before VAT existed show no VAT row. *@
@@ -192,11 +193,11 @@ else
                     <Icon Name="trash" Size="16" /> حذف از لیست سفارش‌های من
                 </button>
             }
-        </div>
+        </aside>
     </div>
 }
 
-<Modal Visible="_reviewOpen" Title="ثبت نظر برای خرید" Icon="star" Size="sm" OnClose="CloseReview">
+<Modal Visible="_reviewOpen" Title="ثبت نظر برای خرید" Icon="star" Size="sm" CloseOnBackdrop="@(!_reviewSending)" OnClose="() => { if (!_reviewSending) CloseReview(); }">
     <ChildContent>
         @if (_reviewTarget is not null)
         {
@@ -204,17 +205,17 @@ else
                 نظر شما پس از ثبت، در سایت نمایش داده می‌شود. مدیر در صورت وجود مشکل می‌تواند آن را رد کند.
             </div>
             <div class="st-field">
-                <label class="st-label">امتیاز شما</label>
-                <div class="st-stars" style="font-size:27px;cursor:pointer;direction:ltr;text-align:right">
+                <div id="order-review-rating-label" class="st-label">امتیاز شما</div>
+                <div class="order-review-stars" role="group" aria-labelledby="order-review-rating-label">
                     @for (byte i = 1; i <= 5; i++)
                     {
                         var star = i;
-                        <span @onclick="() => _reviewRating = star">@(_reviewRating >= star ? "★" : "☆")</span>
+                        <button type="button" aria-label="@($"{star} ستاره")" aria-pressed="@(_reviewRating == star ? "true" : "false")" disabled="@_reviewSending" @onclick="() => _reviewRating = star">@(_reviewRating >= star ? "★" : "☆")</button>
                     }
                 </div>
             </div>
-            <div class="st-field"><label class="st-label">عنوان (اختیاری)</label><input class="st-input" maxlength="200" @bind="_reviewTitle" /></div>
-            <div class="st-field"><label class="st-label">نظر شما</label><textarea class="st-textarea" rows="6" maxlength="2000" @bind="_reviewComment" placeholder="تجربه خرید خود را بنویسید..."></textarea></div>
+            <div class="st-field"><label class="st-label" for="order-review-title">عنوان (اختیاری)</label><input id="order-review-title" class="st-input" maxlength="200" @bind="_reviewTitle" disabled="@_reviewSending" /></div>
+            <div class="st-field"><label class="st-label" for="order-review-comment">نظر شما</label><textarea id="order-review-comment" class="st-textarea" rows="6" maxlength="2000" @bind="_reviewComment" disabled="@_reviewSending" placeholder="تجربه خرید خود را بنویسید..."></textarea></div>
         }
     </ChildContent>
     <Footer>
@@ -233,6 +234,7 @@ else
                Icon="@(_confirmKind == ConfirmKind.Cancel ? "x-circle" : "trash")"
                Busy="_busy"
                OnConfirm="RunConfirmed" OnCancel="() => _confirmKind = null" />
+</section>
 
 @code {
     [Parameter] public Guid Id { get; set; }

@@ -4,51 +4,68 @@
 
 <PageTitle>داشبورد | ویتورایز</PageTitle>
 
+<section class="customer-dashboard" aria-labelledby="dashboard-title" aria-busy="@(_loading ? "true" : "false")">
+    <header class="dashboard-heading">
+        <div>
+            <p class="dashboard-eyebrow">حساب کاربری / داشبورد</p>
+            <h1 id="dashboard-title">سلام @(_user?.FullName ?? "کاربر")</h1>
+            <p class="st-muted">به پنل کاربری ویتورایز خوش آمدید.</p>
+        </div>
+        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="17" /> خرید جدید</a>
+    </header>
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت اطلاعات حساب…</span></div>
 }
 else
 {
-    <div class="st-spread" style="margin-bottom:18px">
-        <div>
-            <h1 style="font-size:22px">سلام @(_user?.FullName ?? "کاربر") 👋</h1>
-            <p class="st-muted" style="font-size:13px">به پنل کاربری ویتورایز خوش آمدید.</p>
+    @if (_profileError || _walletError || _ordersError || _ticketsError)
+    {
+        <div class="st-alert st-alert--warning dashboard-error" role="status">
+            <Icon Name="alert" Size="20" />
+            <span>بخشی از اطلاعات حساب دریافت نشد. لطفاً دوباره تلاش کنید.</span>
+            <button type="button" class="st-btn st-btn--outline st-btn--sm" @onclick="LoadAsync">تلاش مجدد</button>
         </div>
-        <a class="st-btn st-btn--primary" href="/shop"><Icon Name="shopping-bag" Size="17" /> خرید جدید</a>
-    </div>
+    }
 
-    <div class="st-stats" style="margin-bottom:22px">
-        <div class="st-stat">
-            <div class="st-stat__ic" style="background:var(--st-success-soft);color:var(--st-brand-2)"><Icon Name="wallet" Size="22" /></div>
-            <div class="st-stat__v">@AUI.MoneyFa(_walletBalance)</div>
+    <div class="dashboard-stats">
+        <a class="st-stat" href="/customer/wallet" data-testid="dashboard-wallet">
+            <div class="st-stat__ic"><Icon Name="wallet" Size="22" /></div>
+            <div class="st-stat__v @(_walletError ? "is-unavailable" : null)">@(_walletError ? "در دسترس نیست" : AUI.MoneyFa(_walletBalance))</div>
             <div class="st-stat__l">موجودی کیف پول</div>
-        </div>
-        <div class="st-stat">
-            <div class="st-stat__ic" style="background:var(--st-info-soft);color:var(--st-info)"><Icon Name="cart" Size="22" /></div>
-            <div class="st-stat__v">@AUI.Number(_orders.Count)</div>
+        </a>
+        <a class="st-stat" href="/customer/orders" data-testid="dashboard-orders">
+            <div class="st-stat__ic"><Icon Name="cart" Size="22" /></div>
+            <div class="st-stat__v @(_ordersError ? "is-unavailable" : null)">@(_ordersError ? "در دسترس نیست" : AUI.Number(_orders.Count))</div>
             <div class="st-stat__l">سفارش‌های من</div>
-        </div>
-        <div class="st-stat">
-            <div class="st-stat__ic" style="background:var(--st-warning-soft);color:var(--st-warning)"><Icon Name="message" Size="22" /></div>
-            <div class="st-stat__v">@AUI.Number(_openTickets)</div>
+        </a>
+        <a class="st-stat" href="/customer/tickets" data-testid="dashboard-tickets">
+            <div class="st-stat__ic"><Icon Name="message" Size="22" /></div>
+            <div class="st-stat__v @(_ticketsError ? "is-unavailable" : null)">@(_ticketsError ? "در دسترس نیست" : AUI.Number(_openTickets))</div>
             <div class="st-stat__l">تیکت‌های باز</div>
-        </div>
-        <div class="st-stat">
-            <div class="st-stat__ic" style="background:var(--st-chip);color:var(--st-brand-2)"><Icon Name="user-check" Size="22" /></div>
-            <div class="st-stat__v" style="font-size:15px;padding-top:6px">
+        </a>
+        <a class="st-stat" href="/customer/verification" data-testid="dashboard-verification">
+            <div class="st-stat__ic"><Icon Name="user-check" Size="22" /></div>
+            <div class="st-stat__v dashboard-verification">
+                @if (_profileError) { <span class="is-unavailable">در دسترس نیست</span> }
+                else {
                 <StoreBadge Text="@AUI.VerificationStatus(_user?.VerificationStatus ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.VerificationStatus ?? 0, "verify")" />
+                }
             </div>
             <div class="st-stat__l">احراز هویت</div>
-        </div>
+        </a>
     </div>
 
-    <div class="st-card">
-        <div class="st-card__head"><Icon Name="cart" Size="18" /> آخرین سفارش‌ها <a href="/customer/orders" style="margin-inline-start:auto;font-size:12.5px;color:var(--st-brand-2)">مشاهده همه</a></div>
+    <section class="st-card dashboard-recent" aria-labelledby="recent-orders-title">
+        <div class="st-card__head"><h2 id="recent-orders-title"><Icon Name="cart" Size="18" /> آخرین سفارش‌ها</h2><a href="/customer/orders">مشاهده همه</a></div>
         <div style="padding:0">
-            @if (_orders.Count == 0)
+            @if (_ordersError)
             {
-                <div class="st-state" style="padding:40px"><div class="st-muted">هنوز سفارشی ثبت نکرده‌اید.</div></div>
+                <div class="st-state dashboard-empty" role="status"><Icon Name="alert" Size="28" /><span>دریافت سفارش‌ها انجام نشد.</span></div>
+            }
+            else if (_orders.Count == 0)
+            {
+                <div class="st-state dashboard-empty"><Icon Name="shopping-bag" Size="28" /><p class="st-muted">هنوز سفارشی ثبت نکرده‌اید.</p><a class="st-btn st-btn--outline" href="/shop">مشاهده محصولات</a></div>
             }
             else
             {
@@ -57,7 +74,7 @@ else
                     {
                         <article class="st-mobile-record">
                             <div class="st-mobile-record__head">
-                                <span class="st-mobile-record__number st-mono">@o.OrderNumber</span>
+                                <bdi class="st-mobile-record__number st-mono">@o.OrderNumber</bdi>
                                 <StoreBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" />
                             </div>
                             <div class="st-mobile-record__rows">
@@ -66,24 +83,25 @@ else
                                 <div class="st-mobile-record__row"><span>تاریخ</span><span><PersianDateDisplay Value="o.CreatedAt" /></span></div>
                             </div>
                             <div class="st-mobile-record__actions">
-                                <a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /> جزئیات سفارش</a>
+                                <a class="st-btn st-btn--outline st-btn--sm" href="@($"/customer/orders/{o.Id}")" aria-label="@($"جزئیات سفارش {o.OrderNumber}")"><Icon Name="eye" Size="15" /> جزئیات سفارش</a>
                             </div>
                         </article>
                     }
                 </div>
                 <div class="st-table-wrap st-mobile-records-desktop">
                     <table class="st-table">
-                        <thead><tr><th>شماره سفارش</th><th>مبلغ</th><th>پرداخت</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
+                        <caption class="dashboard-table-caption">شش سفارش اخیر حساب کاربری</caption>
+                        <thead><tr><th scope="col">شماره سفارش</th><th scope="col">مبلغ</th><th scope="col">پرداخت</th><th scope="col">وضعیت</th><th scope="col">تاریخ</th><th scope="col">جزئیات</th></tr></thead>
                         <tbody>
                             @foreach (var o in _orders.Take(6))
                             {
                                 <tr>
-                                    <td class="st-mono">@o.OrderNumber</td>
+                                    <th scope="row" class="st-mono"><bdi>@o.OrderNumber</bdi></th>
                                     <td>@AUI.MoneyFa(o.FinalAmount)</td>
                                     <td><StoreBadge Text="@AUI.PaymentStatus(o.PaymentStatus)" Intent="@AUI.StatusBadgeIntent(o.PaymentStatus, "payment")" /></td>
                                     <td><StoreBadge Text="@AUI.OrderStatus(o.Status)" Intent="@AUI.StatusBadgeIntent(o.Status, "order")" /></td>
                                     <td><PersianDateDisplay Value="o.CreatedAt" /></td>
-                                    <td><a class="st-btn st-btn--ghost st-btn--sm" href="@($"/customer/orders/{o.Id}")"><Icon Name="eye" Size="15" /></a></td>
+                                    <td><a class="st-btn st-btn--ghost st-btn--sm" href="@($"/customer/orders/{o.Id}")" aria-label="@($"جزئیات سفارش {o.OrderNumber}")"><Icon Name="eye" Size="15" /></a></td>
                                 </tr>
                             }
                         </tbody>
@@ -91,8 +109,9 @@ else
                 </div>
             }
         </div>
-    </div>
+    </section>
 }
+</section>
 
 @code {
     private bool _loading = true;
@@ -100,15 +119,23 @@ else
     private decimal _walletBalance;
     private List<StoreOrderModel> _orders = new();
     private int _openTickets;
+    private bool _profileError, _walletError, _ordersError, _ticketsError;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _loading = true;
         var meTask = Api.GetAsync<CustomerProfileModel>("auth/me");
         var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
         var ordersTask = Api.GetAsync<List<StoreOrderModel>>("orders");
         var ticketsTask = Api.GetAsync<List<CustomerTicketModel>>("tickets");
         await Task.WhenAll(meTask, walletTask, ordersTask, ticketsTask);
 
+        _profileError = !meTask.Result.IsSuccess || meTask.Result.Data is null;
+        _walletError = !walletTask.Result.IsSuccess || walletTask.Result.Data is null;
+        _ordersError = !ordersTask.Result.IsSuccess || ordersTask.Result.Data is null;
+        _ticketsError = !ticketsTask.Result.IsSuccess || ticketsTask.Result.Data is null;
         _user = meTask.Result.Data;
         _walletBalance = walletTask.Result.Data?.Balance ?? 0;
         _orders = (ordersTask.Result.Data ?? new()).OrderByDescending(o => o.CreatedAt).ToList();

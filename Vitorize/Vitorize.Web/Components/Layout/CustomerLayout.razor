@@ -2,13 +2,13 @@
 @using Vitorize.Web.Components.Storefront
 
 <a class="st-skip-link" href="#customer-content">پرش به محتوای اصلی</a>
-<div class="st-shell site-shell">
+<div class="st-shell site-shell customer-shell">
     <StoreHeader />
     <main id="customer-content" class="st-main" tabindex="-1">
         <div class="st-container">
-            <div class="st-acc">
+            <div class="customer-layout">
                 <CustomerSidebar />
-                <div style="min-width:0">
+                <div class="customer-content">
                     @Body
                 </div>
             </div>

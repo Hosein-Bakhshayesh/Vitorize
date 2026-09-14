@@ -10,6 +10,7 @@ import { serveProductFixture, productWrites } from './product-fixture.mjs';
 import { serveCartFixture, resetCart, cartWrites } from './cart-fixture.mjs';
 import { serveCheckoutFixture, checkoutWrites } from './checkout-fixture.mjs';
 import { serveAuthFixture, authWrites } from './auth-fixture.mjs';
+import { serveCustomerFixture } from './customer-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'manuals/artifacts/home-reference');
@@ -44,7 +45,8 @@ const calls = [];
 const api = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:5188');
   calls.push(url.pathname + url.search);
-  if (serveAuthFixture(req, res, url, mode)) return;
+  if (serveCustomerFixture(req, res, url, mode)) return;
+  if (serveAuthFixture(req, res, url, mode.startsWith('customer') ? 'auth' : mode)) return;
   if (serveCheckoutFixture(req, res, url, mode)) return;
   if (serveCartFixture(req, res, url, mode)) return;
   if (serveProductFixture(req, res, url, mode, products)) return;
@@ -211,6 +213,11 @@ try {
     mode = 'auth'; authWrites.length = 0;
     const { checkAuth } = await import('./check-auth.mjs');
     report.auth = await checkAuth(page, output, { writes: authWrites, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--customer')) {
+    mode = 'customer';
+    const { checkCustomer } = await import('./check-customer.mjs');
+    report.customer = await checkCustomer(page, output, { calls, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));
