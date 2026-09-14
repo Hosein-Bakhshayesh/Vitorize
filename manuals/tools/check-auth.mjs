@@ -153,6 +153,7 @@ export async function checkAuth(page, output, fixture) {
     assert.equal(await root.locator('.auth-card').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(32, 39, 41)');
     await page.screenshot({ path: resolve(output, 'auth-dark.png'), fullPage: true });
     await toast.locator('.vz-toast__close').last().click();
+    await toast.getByText('رمز عبور با موفقیت تغییر کرد. اکنون وارد شوید.', { exact: true }).waitFor({ state: 'detached' });
     assert.equal(await toast.getByText('رمز عبور با موفقیت تغییر کرد. اکنون وارد شوید.', { exact: true }).count(), 0);
     await page.evaluate(() => document.documentElement.dataset.theme = 'light');
     console.log(JSON.stringify({ auth: report }, null, 2));

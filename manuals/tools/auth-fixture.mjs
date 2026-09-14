@@ -12,7 +12,11 @@ export function serveAuthFixture(req, res, url, mode) {
             res.writeHead(status, { 'content-type': 'application/json' });
             res.end(JSON.stringify({ isSuccess: status === 200, data, message, errorCode }));
         };
-        const session = { userId: '00000000-0000-0000-0000-000000009001', fullName: 'مشتری آزمایشی', mobile: '09000000000', accessToken: 'fixture-only-not-a-real-token', refreshToken: 'fixture-only-not-a-real-refresh' };
+        // JWT-shaped but deliberately not cryptographically valid. The local UI's
+        // expiry preflight can read exp; no real API accepts this fixture token.
+        const tokenPart = data => Buffer.from(JSON.stringify(data)).toString('base64url');
+        const accessToken = `${tokenPart({ alg: 'HS256', typ: 'JWT' })}.${tokenPart({ sub: '00000000-0000-0000-0000-000000009001', exp: Math.floor(Date.now() / 1000) + 3600 })}.Zml4dHVyZS1vbmx5LW5vdC1hLXJlYWwtc2lnbmF0dXJl`;
+        const session = { userId: '00000000-0000-0000-0000-000000009001', fullName: 'مشتری آزمایشی', mobile: '09000000000', accessToken, refreshToken: 'fixture-only-not-a-real-refresh' };
         if (url.pathname === '/api/auth/login/otp/request') {
             if (mode === 'auth-otp-failure') send(null, 400, 'ارسال آزمایشی ناموفق بود.');
             else send({ maskedMobile: '0900***0000', expirySeconds: 180, resendCooldownSeconds: 1,

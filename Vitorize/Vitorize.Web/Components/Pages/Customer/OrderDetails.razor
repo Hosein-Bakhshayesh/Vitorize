@@ -215,7 +215,11 @@ else
                 </div>
             </div>
             <div class="st-field"><label class="st-label" for="order-review-title">عنوان (اختیاری)</label><input id="order-review-title" class="st-input" maxlength="200" @bind="_reviewTitle" disabled="@_reviewSending" /></div>
-            <div class="st-field"><label class="st-label" for="order-review-comment">نظر شما</label><textarea id="order-review-comment" class="st-textarea" rows="6" maxlength="2000" @bind="_reviewComment" disabled="@_reviewSending" placeholder="تجربه خرید خود را بنویسید..."></textarea></div>
+            <div class="st-field"><label class="st-label" for="order-review-comment">نظر شما</label><textarea id="order-review-comment" class="st-textarea" rows="6" maxlength="2000" @bind="_reviewComment" @bind:after="() => _reviewError = null" disabled="@_reviewSending" aria-describedby="@(_reviewError is null ? null : "order-review-error")" placeholder="تجربه خرید خود را بنویسید..."></textarea></div>
+            @if (_reviewError is not null)
+            {
+                <div id="order-review-error" class="st-field__error" role="alert">@_reviewError</div>
+            }
         }
     </ChildContent>
     <Footer>
@@ -255,6 +259,7 @@ else
     private StoreOrderItemModel? _reviewTarget;
     private byte _reviewRating = 5;
     private string _reviewTitle = string.Empty, _reviewComment = string.Empty;
+    private string? _reviewError;
 
     private enum ConfirmKind { Cancel, Hide }
     private ConfirmKind? _confirmKind;
@@ -305,6 +310,7 @@ else
         _reviewRating = 5;
         _reviewTitle = string.Empty;
         _reviewComment = string.Empty;
+        _reviewError = null;
         _reviewOpen = true;
     }
 
@@ -317,9 +323,10 @@ else
 
     private async Task SubmitReview()
     {
+        _reviewError = null;
         if (_reviewTarget is null || string.IsNullOrWhiteSpace(_reviewComment))
         {
-            Toasts.Error("متن نظر الزامی است.");
+            _reviewError = "متن نظر الزامی است.";
             return;
         }
 
@@ -334,7 +341,7 @@ else
         _reviewSending = false;
         if (!result.IsSuccess || result.Data is null)
         {
-            Toasts.Error(result.Message);
+            _reviewError = string.IsNullOrWhiteSpace(result.Message) ? "ثبت نظر انجام نشد. دوباره تلاش کنید." : result.Message;
             return;
         }
 

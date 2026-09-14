@@ -131,6 +131,7 @@ export async function checkCatalog(page, output, fixture) {
     fixture.setMode('catalog');
     await catalog.getByRole('button', { name: 'تلاش دوباره', exact: true }).click();
     await ready();
+    await catalog.locator('.st-pcard').nth(23).waitFor();
     assert.equal(await catalog.locator('.st-pcard').count(), 24);
     fixture.setMode('catalog-empty');
     await go('/shop'); await ready();
