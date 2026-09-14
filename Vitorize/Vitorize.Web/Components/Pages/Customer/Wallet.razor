@@ -1,64 +1,81 @@
 @page "/customer/wallet"
 @inject ApiClient Api
-@inject ToastService Toasts
 @inject NavigationManager Nav
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
 
 <PageTitle>کیف پول | ویتورایز</PageTitle>
 
-<h1 style="font-size:22px;margin-bottom:18px">کیف پول من</h1>
+<section class="customer-wallet-page" aria-labelledby="wallet-title" aria-busy="@(_loading || _busy ? "true" : "false")">
+<header class="wallet-heading"><p>حساب کاربری / کیف پول</p><h1 id="wallet-title">کیف پول من</h1></header>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت اطلاعات کیف پول…</span></div>
 }
 else
 {
-    <div class="st-split" style="grid-template-columns:1.2fr 1fr;margin-bottom:22px">
-        <div class="st-card st-card__pad st-anim" style="background:var(--st-hero-bg);color:#fff;border:none">
-            <div class="st-spread">
+    <div class="wallet-overview">
+        <section class="st-card st-card__pad wallet-balance" aria-labelledby="wallet-balance-title">
+            <div class="wallet-balance-heading">
                 <div>
-                    <div style="opacity:.85;font-size:13px">موجودی فعلی</div>
-                    <div style="font-size:30px;font-weight:800;margin-top:6px">@AUI.MoneyFa(_balance)</div>
+                    <h2 id="wallet-balance-title">موجودی فعلی</h2>
+                    @if (_walletError)
+                    {
+                        <div class="wallet-read-error" role="status">دریافت موجودی انجام نشد.</div>
+                        <button type="button" class="st-btn st-btn--outline st-btn--sm" @onclick="Load" disabled="@_busy">تلاش مجدد</button>
+                    }
+                    else
+                    {
+                        <div class="wallet-balance-value" data-testid="wallet-balance">@AUI.MoneyFa(_balance)</div>
+                    }
                 </div>
-                <div style="width:60px;height:60px;border-radius:16px;background:rgba(45,212,191,.18);display:flex;align-items:center;justify-content:center;color:#5eead4"><Icon Name="wallet" Size="30" /></div>
+                <div class="wallet-icon"><Icon Name="wallet" Size="30" /></div>
             </div>
-            <div style="margin-top:18px;font-size:12px;opacity:.75;display:flex;align-items:center;gap:6px">
+            <div class="wallet-balance-caption">
                 <Icon Name="shield-check" Size="14" /> موجودی کیف پول برای پرداخت سریع سفارش‌ها استفاده می‌شود.
             </div>
-        </div>
+        </section>
 
-        <div class="st-card st-anim d1">
-            <div class="st-card__head"><Icon Name="plus" Size="18" /> شارژ کیف پول</div>
-            <div class="st-card__pad">
-                <div class="st-chips" style="margin-bottom:14px">
+        <section class="st-card wallet-topup" aria-labelledby="wallet-topup-title">
+            <h2 id="wallet-topup-title" class="st-card__head"><Icon Name="plus" Size="18" /> شارژ کیف پول</h2>
+            <form class="st-card__pad" @onsubmit="TopUp" @onsubmit:preventDefault novalidate>
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <div id="wallet-feedback" class="st-alert st-alert--@(_messageIsError ? "danger" : "success")" role="@(_messageIsError ? "alert" : "status")">@_message</div>
+                }
+                <div class="wallet-presets" role="group" aria-label="مبالغ پیشنهادی شارژ">
                     @foreach (var amount in QuickAmounts)
                     {
                         var a = amount;
                         <button type="button"
                                 class="st-pill @(_amount == a ? "active" : null)"
+                                aria-pressed="@(_amount == a ? "true" : "false")" disabled="@_busy"
                                 @onclick="() => _amount = a">
                             @AUI.MoneyFa(a)
                         </button>
                     }
                 </div>
-                <div class="st-field" style="margin-bottom:12px">
-                    <label class="st-label">مبلغ دلخواه (تومان)</label>
-                    <input class="st-input st-mono" type="number" min="10000" step="10000" @bind="_amount" />
+                <div class="st-field">
+                    <label class="st-label" for="wallet-amount">مبلغ دلخواه (تومان)</label>
+                    <input id="wallet-amount" class="st-input st-mono" type="number" inputmode="numeric" dir="ltr" min="10000" step="10000" @bind="_amount" disabled="@_busy" aria-describedby="@(_messageIsError ? "wallet-feedback" : null)" />
                 </div>
-                <button class="st-btn st-btn--primary st-btn--block" @onclick="TopUp" disabled="@_busy">
+                <button type="submit" class="st-btn st-btn--primary st-btn--block" disabled="@_busy" aria-label="پرداخت و شارژ">
                     @if (_busy) { <span class="st-spinner sm"></span> <span>در حال اتصال ...</span> }
                     else { <Icon Name="credit-card" Size="16" /> <span>پرداخت و شارژ</span> }
                 </button>
-            </div>
-        </div>
+            </form>
+        </section>
     </div>
 
-    <div class="st-card st-anim d2">
-        <div class="st-card__head"><Icon Name="activity" Size="18" /> تراکنش‌ها</div>
-        @if (_transactions.Count == 0)
+    <section class="st-card wallet-transactions" aria-labelledby="wallet-transactions-title">
+        <h2 id="wallet-transactions-title" class="st-card__head"><Icon Name="activity" Size="18" /> تراکنش‌ها</h2>
+        @if (_transactionsError)
         {
-            <div class="st-state" style="padding:40px"><div class="st-muted">تراکنشی ثبت نشده است.</div></div>
+            <div class="st-state wallet-empty" role="status"><Icon Name="alert" Size="28" /><p>دریافت تراکنش‌ها انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load" disabled="@_busy">تلاش مجدد</button></div>
+        }
+        else if (_transactions.Count == 0)
+        {
+            <div class="st-state wallet-empty"><Icon Name="activity" Size="28" /><p class="st-muted">تراکنشی ثبت نشده است.</p></div>
         }
         else
         {
@@ -66,10 +83,10 @@ else
                 @foreach (var t in _transactions)
                 {
                     var credit = t.Type == (byte)WalletTransactionType.Credit;
-                    <article class="st-mobile-record">
+                    <article class="st-mobile-record" data-testid="wallet-transaction">
                         <div class="st-mobile-record__head">
                             <StoreBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" />
-                            <span style="color:@(credit ? "var(--st-success)" : "var(--st-danger)");font-weight:800">@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</span>
+                            <span class="wallet-amount @(credit ? "is-credit" : "is-debit")"><bdi>@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</bdi></span>
                         </div>
                         <div class="st-mobile-record__rows">
                             <div class="st-mobile-record__row"><span>موجودی پس از تراکنش</span><span>@AUI.MoneyFa(t.BalanceAfter)</span></div>
@@ -81,14 +98,15 @@ else
             </div>
             <div class="st-table-wrap st-mobile-records-desktop">
                 <table class="st-table">
-                    <thead><tr><th>نوع</th><th>مبلغ</th><th>موجودی پس از تراکنش</th><th>توضیحات</th><th>تاریخ</th></tr></thead>
+                    <caption class="wallet-table-caption">تاریخچه تراکنش‌های کیف پول</caption>
+                    <thead><tr><th scope="col">نوع</th><th scope="col">مبلغ</th><th scope="col">موجودی پس از تراکنش</th><th scope="col">توضیحات</th><th scope="col">تاریخ</th></tr></thead>
                     <tbody>
                         @foreach (var t in _transactions)
                         {
                             var credit = t.Type == (byte)WalletTransactionType.Credit;
-                            <tr>
+                            <tr data-testid="wallet-transaction">
                                 <td><StoreBadge Text="@AUI.WalletTransactionType(t.Type)" Intent="@(credit ? "success" : "danger")" /></td>
-                                <td style="color:@(credit ? "var(--st-success)" : "var(--st-danger)");font-weight:700">@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</td>
+                                <td class="wallet-amount @(credit ? "is-credit" : "is-debit")"><bdi>@(credit ? "+" : "−")@AUI.MoneyFa(t.Amount)</bdi></td>
                                 <td>@AUI.MoneyFa(t.BalanceAfter)</td>
                                 <td class="st-muted">@(string.IsNullOrWhiteSpace(t.Description) ? AUI.WalletReferenceType(t.ReferenceType) : t.Description)</td>
                                 <td><PersianDateDisplay Value="t.CreatedAt" WithTime="true" /></td>
@@ -98,13 +116,16 @@ else
                 </table>
             </div>
         }
-    </div>
+    </section>
 }
+</section>
 
 @code {
     private static readonly decimal[] QuickAmounts = { 200_000, 500_000, 1_000_000, 2_000_000 };
 
     private bool _loading = true, _busy;
+    private bool _walletError, _transactionsError, _messageIsError;
+    private string? _message;
     private decimal _balance;
     private decimal _amount = 500_000;
     private List<CustomerWalletTransactionModel> _transactions = new();
@@ -114,16 +135,19 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (TopupOutcome == "1") Toasts.Success("شارژ کیف پول با موفقیت انجام شد.");
-        else if (TopupOutcome == "0") Toasts.Error("شارژ کیف پول تایید نشد. در صورت کسر مبلغ، حداکثر تا ۷۲ ساعت بازگشت داده می‌شود.");
+        if (TopupOutcome == "1") Feedback("شارژ کیف پول با موفقیت انجام شد.");
+        else if (TopupOutcome == "0") Feedback("شارژ کیف پول تایید نشد. در صورت کسر مبلغ، حداکثر تا ۷۲ ساعت بازگشت داده می‌شود.", true);
         await Load();
     }
 
     private async Task Load()
     {
+        _loading = true;
         var walletTask = Api.GetAsync<CustomerWalletModel>("wallet");
         var txTask = Api.GetAsync<List<CustomerWalletTransactionModel>>("wallet/transactions");
         await Task.WhenAll(walletTask, txTask);
+        _walletError = !walletTask.Result.IsSuccess || walletTask.Result.Data is null;
+        _transactionsError = !txTask.Result.IsSuccess || txTask.Result.Data is null;
         _balance = walletTask.Result.Data?.Balance ?? 0;
         _transactions = (txTask.Result.Data ?? new()).OrderByDescending(t => t.CreatedAt).ToList();
         _loading = false;
@@ -131,9 +155,11 @@ else
 
     private async Task TopUp()
     {
+        _message = null;
+        _messageIsError = false;
         if (_amount <= 0)
         {
-            Toasts.Error("مبلغ شارژ را وارد کنید.");
+            Feedback("مبلغ شارژ را وارد کنید.", true);
             return;
         }
 
@@ -144,7 +170,7 @@ else
         if (!start.IsSuccess || start.Data is null)
         {
             _busy = false;
-            Toasts.Error(start.Message);
+            Feedback(start.Message, true);
             return;
         }
 
@@ -163,13 +189,19 @@ else
 
         if (verify.IsSuccess && verify.Data is { IsPaid: true })
         {
-            Toasts.Success($"کیف پول با موفقیت {AUI.MoneyFa(verify.Data.Amount)} شارژ شد.");
+            Feedback($"کیف پول با موفقیت {AUI.MoneyFa(verify.Data.Amount)} شارژ شد.");
             _loading = true;
             await Load();
         }
         else
         {
-            Toasts.Error(verify.Message);
+            Feedback(verify.Message, true);
         }
+    }
+
+    private void Feedback(string? message, bool error = false)
+    {
+        _message = string.IsNullOrWhiteSpace(message) ? "پاسخی دریافت نشد. دوباره تلاش کنید." : message;
+        _messageIsError = error;
     }
 }

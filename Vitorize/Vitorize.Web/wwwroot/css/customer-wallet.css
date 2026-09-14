@@ -1,0 +1,53 @@
+/* Customer wallet only. Data, payment and admin presentation stay separate. */
+.site-shell .customer-wallet-page .wallet-heading { margin-bottom: 26px; }
+.site-shell .customer-wallet-page .wallet-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-wallet-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-wallet-page .wallet-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; margin-bottom: 26px; }
+.site-shell .customer-wallet-page .st-card { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; min-width: 0; }
+.site-shell .customer-wallet-page .st-card__pad { padding: 24px; }
+.site-shell .customer-wallet-page .st-card__head { font-size: 16px; font-weight: 700; padding: 20px 24px; margin: 0; }
+.site-shell .customer-wallet-page .wallet-balance { background: var(--st-surface-2); display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
+.site-shell .customer-wallet-page .wallet-balance-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.site-shell .customer-wallet-page .wallet-balance-heading > div:first-child { min-width: 0; }
+.site-shell .customer-wallet-page #wallet-balance-title { font-size: 13px; color: var(--st-muted); font-weight: 600; margin: 0; }
+.site-shell .customer-wallet-page .wallet-balance-value { font-size: 26px; font-weight: 800; margin-top: 12px; overflow-wrap: anywhere; }
+.site-shell .customer-wallet-page .wallet-icon { flex: 0 0 56px; height: 56px; display: grid; place-items: center; border-radius: 6px; background: var(--sf-mint); color: var(--sf-mint-ink); }
+.site-shell .customer-wallet-page .wallet-balance-caption { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--st-muted); line-height: 2; }
+.site-shell .customer-wallet-page .wallet-balance-caption svg { flex-shrink: 0; margin-top: 5px; }
+.site-shell .customer-wallet-page .wallet-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+.site-shell .customer-wallet-page .st-pill { min-width: 0; min-height: 44px; border-radius: 5px; background: var(--st-surface-2); border: 1px solid var(--st-border); padding: 10px 8px; color: var(--st-text); white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+.site-shell .customer-wallet-page .st-pill.active { background: var(--sf-mint); border-color: var(--st-primary-border); color: var(--sf-mint-ink); }
+.site-shell .customer-wallet-page .st-field { margin-bottom: 18px; }
+.site-shell .customer-wallet-page .st-label { font-size: 13px; }
+.site-shell .customer-wallet-page .st-input { border-radius: 5px; min-height: 48px; width: 100%; }
+.site-shell .customer-wallet-page .st-btn { min-height: 44px; border-radius: 5px; white-space: normal; }
+.site-shell .customer-wallet-page .wallet-topup button[type=submit] { min-height: 48px; }
+.site-shell .customer-wallet-page .st-alert { border-radius: 5px; padding: 14px; font-size: 13px; margin-bottom: 20px; overflow-wrap: anywhere; }
+.site-shell .customer-wallet-page .wallet-read-error { margin: 12px 0; font-size: 13px; }
+.site-shell .customer-wallet-page .wallet-transactions { overflow: hidden; }
+.site-shell .customer-wallet-page .wallet-table-caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.site-shell .customer-wallet-page .st-table { width: 100%; table-layout: fixed; }
+.site-shell .customer-wallet-page .st-table :is(th, td) { padding: 16px 12px; font-size: 12px; white-space: normal; overflow-wrap: anywhere; text-align: start; }
+.site-shell .customer-wallet-page .st-table thead th { background: var(--st-surface-2); color: var(--st-muted); }
+.site-shell .customer-wallet-page .st-table :is(th, td):first-child { width: 90px; }
+.site-shell .customer-wallet-page .wallet-amount { font-weight: 700; overflow-wrap: anywhere; }
+.site-shell .customer-wallet-page .is-credit { color: var(--st-success); }
+.site-shell .customer-wallet-page .is-debit { color: var(--st-danger); }
+.site-shell .customer-wallet-page .st-mobile-record { padding: 22px; background: var(--st-surface); }
+.site-shell .customer-wallet-page .st-mobile-record__head { flex-wrap: wrap; gap: 12px; }
+.site-shell .customer-wallet-page .st-mobile-record__row { align-items: start; gap: 16px; }
+.site-shell .customer-wallet-page .st-mobile-record__row > :last-child { min-width: 0; }
+.site-shell .customer-wallet-page .wallet-empty { padding: 40px 20px; }
+@media (max-width: 900px) {
+    .site-shell .customer-wallet-page .wallet-overview { grid-template-columns: minmax(0, 1fr); }
+    .site-shell .customer-wallet-page .st-mobile-records { display: block; }
+    .site-shell .customer-wallet-page .st-mobile-records-desktop { display: none; }
+}
+@media (max-width: 767px) {
+    .site-shell .customer-wallet-page h1 { font-size: 22px; }
+    .site-shell .customer-wallet-page :is(.st-card__pad, .st-mobile-record) { padding: 20px 16px; }
+    .site-shell .customer-wallet-page .st-card__head { padding: 18px 16px; }
+    .site-shell .customer-wallet-page .wallet-balance-value { font-size: 24px; }
+    .site-shell .customer-wallet-page .wallet-icon { flex-basis: 48px; height: 48px; }
+    .site-shell .customer-wallet-page .st-input { font-size: 16px; }
+}

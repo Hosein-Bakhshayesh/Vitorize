@@ -5,74 +5,84 @@
 
 <PageTitle>پروفایل | ویتورایز</PageTitle>
 
-<h1 style="font-size:22px;margin-bottom:18px">پروفایل و امنیت</h1>
+<section class="customer-profile-page" aria-labelledby="profile-title" aria-busy="@(_loading ? "true" : "false")">
+    <header class="profile-heading"><p>حساب کاربری / پروفایل و امنیت</p><h1 id="profile-title">پروفایل و امنیت</h1></header>
 
 @if (_loading)
 {
-    <div class="st-state"><div class="st-spinner"></div></div>
+    <div class="st-state" role="status"><div class="st-spinner"></div><span>در حال دریافت اطلاعات حساب…</span></div>
+}
+else if (_loadError)
+{
+    <div class="st-state profile-empty" role="status"><Icon Name="alert" Size="30" /><p>دریافت اطلاعات حساب انجام نشد.</p><button type="button" class="st-btn st-btn--outline" @onclick="Load">تلاش مجدد</button></div>
 }
 else
 {
-    <div class="st-split" style="grid-template-columns:1fr 1fr">
-        <div class="st-card st-anim">
-            <div class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات حساب</div>
+    <div class="st-split profile-layout">
+        <section class="st-card" aria-labelledby="profile-account-title">
+            <h2 id="profile-account-title" class="st-card__head"><Icon Name="user" Size="18" /> اطلاعات حساب</h2>
             <div class="st-card__pad">
                 <div class="st-field">
                     <label class="st-label" for="profile-full-name">نام و نام خانوادگی</label>
-                    <input id="profile-full-name" class="st-input" @bind="_fullName" />
+                    <input id="profile-full-name" class="st-input" @bind="_fullName" disabled="@_savingProfile" />
                 </div>
                 <div class="st-field">
                     <label class="st-label" for="profile-email">ایمیل</label>
-                    <input id="profile-email" class="st-input" type="email" dir="ltr" placeholder="you@example.com" @bind="_email" />
+                    <input id="profile-email" class="st-input" type="email" dir="ltr" placeholder="you@example.com" @bind="_email" disabled="@_savingProfile" />
                     @if (!string.IsNullOrWhiteSpace(_user?.Email) && _user!.IsEmailConfirmed == false)
                     {
-                        <div class="st-hint" style="color:var(--st-warning)">ایمیل شما هنوز تایید نشده است.</div>
+                        <div class="st-hint profile-email-hint">ایمیل شما هنوز تایید نشده است.</div>
                     }
                 </div>
                 <div class="st-field">
                     <label class="st-label" for="profile-mobile">شماره موبایل</label>
-                    <input id="profile-mobile" class="st-input st-mono" value="@(_user?.Mobile)" disabled />
+                    <input id="profile-mobile" class="st-input st-mono" dir="ltr" value="@(_user?.Mobile)" disabled />
                     <div class="st-hint">شماره موبایل قابل تغییر نیست.</div>
                 </div>
-                <button class="st-btn st-btn--primary" @onclick="SaveProfile" disabled="@_savingProfile">
-                    @if (_savingProfile) { <span class="st-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره تغییرات</span> }
+                <button type="button" class="st-btn st-btn--primary" @onclick="SaveProfile" disabled="@_savingProfile">
+                    @if (_savingProfile) { <span class="st-spinner sm"></span> <span>در حال ذخیره…</span> } else { <Icon Name="save" Size="16" /> <span>ذخیره تغییرات</span> }
                 </button>
 
                 <div class="st-divider"></div>
-                <div class="st-stack" style="gap:14px">
+                <div class="profile-status-rows">
                     <div class="st-spread"><span class="st-muted">وضعیت حساب</span><StoreBadge Text="@AUI.UserStatus(_user?.Status ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.Status ?? 0, "user")" /></div>
                     <div class="st-spread"><span class="st-muted">احراز هویت</span><StoreBadge Text="@AUI.VerificationStatus(_user?.VerificationStatus ?? 0)" Intent="@AUI.StatusBadgeIntent(_user?.VerificationStatus ?? 0, "verify")" /></div>
                 </div>
                 @if ((_user?.VerificationStatus ?? 0) != (byte)VerificationStatus.Verified)
                 {
-                    <a class="st-btn st-btn--outline st-btn--block" style="margin-top:16px" href="/customer/verification"><Icon Name="user-check" Size="16" /> تکمیل احراز هویت</a>
+                    <a class="st-btn st-btn--outline st-btn--block profile-verify-cta" href="/customer/verification"><Icon Name="user-check" Size="16" /> تکمیل احراز هویت</a>
                 }
             </div>
-        </div>
+        </section>
 
-        <div class="st-card st-anim d1">
-            <div class="st-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</div>
-            <div class="st-card__pad">
-                <div class="st-field"><label class="st-label" for="current-password">رمز عبور فعلی</label><input id="current-password" class="st-input" type="password" @bind="_current" /></div>
-                <div class="st-field"><label class="st-label" for="new-password">رمز عبور جدید</label><input id="new-password" class="st-input" type="password" @bind="_new" /></div>
-                <div class="st-field"><label class="st-label" for="confirm-password">تکرار رمز عبور جدید</label><input id="confirm-password" class="st-input" type="password" @bind="_confirm" /></div>
-                <button class="st-btn st-btn--primary" @onclick="ChangePassword" disabled="@_busy">
-                    @if (_busy) { <span class="st-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>تغییر رمز عبور</span> }
+        <section class="st-card" aria-labelledby="profile-security-title">
+            <h2 id="profile-security-title" class="st-card__head"><Icon Name="lock" Size="18" /> تغییر رمز عبور</h2>
+            <form class="st-card__pad" @onsubmit="ChangePassword" @onsubmit:preventDefault novalidate>
+                <div class="st-field"><label class="st-label" for="current-password">رمز عبور فعلی</label><input id="current-password" class="st-input" type="password" @bind="_current" disabled="@_busy" /></div>
+                <div class="st-field"><label class="st-label" for="new-password">رمز عبور جدید</label><input id="new-password" class="st-input" type="password" @bind="_new" disabled="@_busy" /></div>
+                <div class="st-field"><label class="st-label" for="confirm-password">تکرار رمز عبور جدید</label><input id="confirm-password" class="st-input" type="password" @bind="_confirm" disabled="@_busy" /></div>
+                <button type="submit" class="st-btn st-btn--primary" disabled="@_busy">
+                    @if (_busy) { <span class="st-spinner sm"></span> <span>در حال ذخیره…</span> } else { <Icon Name="save" Size="16" /> <span>تغییر رمز عبور</span> }
                 </button>
-            </div>
-        </div>
+            </form>
+        </section>
     </div>
 }
+</section>
 
 @code {
-    private bool _loading = true, _busy, _savingProfile;
+    private bool _loading = true, _busy, _savingProfile, _loadError;
     private CustomerProfileModel? _user;
     private string _current = "", _new = "", _confirm = "";
     private string _fullName = "", _email = "";
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
     {
+        _loading = true;
         var result = await Api.GetAsync<CustomerProfileModel>("auth/me");
+        _loadError = !result.IsSuccess || result.Data is null;
         _user = result.Data;
         _fullName = _user?.FullName ?? "";
         _email = _user?.Email ?? "";

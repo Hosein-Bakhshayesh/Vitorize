@@ -1,0 +1,73 @@
+/* Customer identity verification only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-verification-page .verification-heading { margin-bottom: 18px; }
+.site-shell .customer-verification-page .verification-heading p:first-child { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-verification-page h1 { font-size: 24px; margin: 0 0 6px; }
+.site-shell .customer-verification-page .verification-heading .st-muted { font-size: 13px; margin: 0; }
+.site-shell .customer-verification-page .verification-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+.site-shell .customer-verification-page .st-card { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; min-width: 0; }
+.site-shell .customer-verification-page .st-card__head { font-size: 16px; font-weight: 700; padding: 20px 24px; margin: 0; display: flex; align-items: center; gap: 8px; }
+.site-shell .customer-verification-page .st-card__pad { padding: 24px; }
+.site-shell .customer-verification-page .verification-alert { margin-bottom: 18px; border-radius: 5px; }
+.site-shell .customer-verification-page .verification-alert__title { font-weight: 700; }
+.site-shell .customer-verification-page .verification-alert__line { font-size: 12.5px; margin-top: 3px; }
+.site-shell .customer-verification-page .verification-alert__list { font-size: 12px; margin: 6px 0 0; padding-inline-start: 18px; }
+.site-shell .customer-verification-page .verification-layout { grid-template-columns: minmax(0, 1fr) 320px; }
+.site-shell .customer-verification-page .verification-form-grid,
+.site-shell .customer-verification-page .verification-documents-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.site-shell .customer-verification-page .verification-form-grid__wide { grid-column: 1 / -1; }
+.site-shell .customer-verification-page .verification-mobile-owner-choice { display: flex; gap: 18px; margin-top: 8px; }
+.site-shell .customer-verification-page .verification-cardholder-mobile { margin-top: 12px; }
+.site-shell .customer-verification-page .verification-documents-section { margin-top: 6px; padding-top: 20px; border-top: 1px solid var(--st-border); }
+.site-shell .customer-verification-page .verification-documents-section__title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 15px; font-weight: 800; }
+.site-shell .customer-verification-page .verification-document-slot { min-width: 0; }
+.site-shell .customer-verification-page .verification-document-slot__instructions { font-size: 12px; line-height: 1.8; white-space: pre-line; margin: 4px 0 8px; }
+.site-shell .customer-verification-page .verification-documents-section__hint { margin-top: 14px; font-size: 12px; }
+.site-shell .customer-verification-page .verification-document-preview { position: relative; border: 1px solid var(--st-border); border-radius: 6px; overflow: hidden; }
+.site-shell .customer-verification-page .verification-document-preview img { width: 100%; height: 130px; object-fit: cover; display: block; }
+.site-shell .customer-verification-page .verification-document-preview__remove { position: absolute; top: 8px; inset-inline-start: 8px; }
+.site-shell .customer-verification-page .verification-document-staged { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px dashed var(--st-primary); border-radius: 6px; padding: 12px 14px; background: var(--st-primary-soft); }
+.site-shell .customer-verification-page .verification-document-staged__label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; }
+.site-shell .customer-verification-page .verification-submit { margin-top: 4px; align-self: start; min-height: 44px; border-radius: 5px; }
+.site-shell .customer-verification-page .verification-submitted-dialog { line-height: 2.1; font-size: 13.5px; }
+.site-shell .customer-verification-page .verification-help { align-self: start; }
+.site-shell .customer-verification-page .verification-help h3 { font-size: 15px; margin: 0 0 12px; }
+.site-shell .customer-verification-page .verification-help ul { font-size: 12.5px; line-height: 2.2; color: var(--st-text-2); padding-inline-start: 18px; margin: 0; }
+.site-shell .customer-verification-page .verification-why { padding: 14px 16px; margin-bottom: 18px; }
+.site-shell .customer-verification-page .verification-why__title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
+.site-shell .customer-verification-page .verification-why__notice-wrap { position: relative; }
+.site-shell .customer-verification-page .verification-why__notice { white-space: pre-line; line-height: 2; color: var(--st-text-2); }
+.site-shell .customer-verification-page .verification-why__notice-wrap:not(.is-expanded) .verification-why__notice { display: -webkit-box; overflow: hidden; padding-inline-end: 96px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.site-shell .customer-verification-page .verification-why__toggle { position: absolute; inset-inline-end: 0; bottom: 0; border: 0; padding: 0 0 0 4px; background: var(--st-surface); color: var(--st-text-3); font: inherit; font-size: 12px; cursor: pointer; }
+.site-shell .customer-verification-page .verification-why__toggle:hover, .site-shell .customer-verification-page .verification-why__toggle:focus-visible { color: var(--st-primary); text-decoration: underline; }
+.site-shell .customer-verification-page .verification-why__toggle:focus-visible { outline: 2px solid var(--st-primary); outline-offset: 3px; border-radius: 3px; }
+.site-shell .customer-verification-page .verification-why__notice-wrap.is-expanded .verification-why__toggle { position: static; display: block; margin-top: 7px; margin-inline-start: auto; }
+@media (max-width: 1024px) {
+    .site-shell .customer-verification-page .verification-layout { grid-template-columns: minmax(0, 1fr); }
+    .site-shell .customer-verification-page .verification-help { position: static; }
+}
+@media (max-width: 640px) {
+    .site-shell .customer-verification-page .verification-form-grid,
+    .site-shell .customer-verification-page .verification-documents-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .site-shell .customer-verification-page .verification-form-grid__wide { grid-column: auto; }
+    .site-shell .customer-verification-page .verification-mobile-owner-choice { gap: 24px; }
+    /* Keep the date picker in normal document flow on phones so it pushes the
+       following field down instead of covering it.  Reset `top`, which belongs to
+       the desktop absolute popup: leaving its `calc(100% + 8px)` value on a relative
+       calendar offsets it by the (stretched) form-field height on narrow layouts. */
+    .site-shell .customer-verification-page .verification-layout .st-datepicker .vz-cal {
+        position: relative;
+        top: auto;
+        inset-inline-start: auto;
+        z-index: 120;
+        width: 100%;
+        margin-top: 8px;
+    }
+    .site-shell .customer-verification-page .verification-why { padding: 14px; }
+    .site-shell .customer-verification-page .verification-why__title { font-size: 15px; }
+    .site-shell .customer-verification-page .verification-why__toggle { font-size: 11.5px; }
+}
+@media (max-width: 767px) {
+    .site-shell .customer-verification-page h1 { font-size: 22px; }
+    .site-shell .customer-verification-page :is(.st-card__pad) { padding: 20px 16px; }
+    .site-shell .customer-verification-page .st-card__head { padding: 18px 16px; }
+}

@@ -12,6 +12,7 @@ import { serveCheckoutFixture, checkoutWrites } from './checkout-fixture.mjs';
 import { serveAuthFixture, authWrites } from './auth-fixture.mjs';
 import { serveCustomerFixture } from './customer-fixture.mjs';
 import { serveOrderPagesFixture, resetOrderPages, orderPageWrites } from './order-pages-fixture.mjs';
+import { serveWalletPageFixture, resetWalletPage, walletPageWrites } from './wallet-page-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'manuals/artifacts/home-reference');
@@ -48,7 +49,8 @@ const api = createServer((req, res) => {
   calls.push(url.pathname + url.search);
   if (serveCustomerFixture(req, res, url, mode)) return;
   if (serveOrderPagesFixture(req, res, url, mode)) return;
-  if (serveAuthFixture(req, res, url, mode.startsWith('customer') || mode.startsWith('order-pages') ? 'auth' : mode)) return;
+  if (serveWalletPageFixture(req, res, url, mode)) return;
+  if (serveAuthFixture(req, res, url, mode.startsWith('customer') || mode.startsWith('order-pages') || mode.startsWith('wallet-page') ? 'auth' : mode)) return;
   if (serveCheckoutFixture(req, res, url, mode)) return;
   if (serveCartFixture(req, res, url, mode)) return;
   if (serveProductFixture(req, res, url, mode, products)) return;
@@ -225,6 +227,11 @@ try {
     mode = 'order-pages'; resetOrderPages();
     const { checkOrderPages } = await import('./check-order-pages.mjs');
     report.orderPages = await checkOrderPages(page, output, { writes: orderPageWrites, reset: resetOrderPages, setMode: value => { mode = value; } });
+  }
+  if (process.argv.includes('--customer-wallet')) {
+    mode = 'wallet-page'; resetWalletPage();
+    const { checkWalletPage } = await import('./check-wallet-page.mjs');
+    report.walletPage = await checkWalletPage(page, output, { writes: walletPageWrites, reset: resetWalletPage, setMode: value => { mode = value; } });
   }
   assert.equal(errors.length, 0, errors.join('\n'));
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));

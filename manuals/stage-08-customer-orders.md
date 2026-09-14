@@ -50,6 +50,12 @@ it. Clipboard is stubbed inside the disposable test browser. No actual order,
 payment, review publication, SMS, document upload, database or system clipboard
 is modified. This is UI/request-contract verification, not a backend security audit.
 
+Result: final build passed with zero warnings/errors. The complete home, shell,
+catalog, product, cart, checkout, auth, customer dashboard and order-page browser
+suite passed with zero page JavaScript errors (1249 fixture requests). The final
+review dialog was visually rechecked after moving errors inside it. Existing
+auth/catalog test waits were synchronized with rendered results to avoid races.
+
 Screenshots/report: git-ignored `manuals/artifacts/home-reference/`, including
 `orders-list-1728.png`, `orders-list-402.png`, `order-detail-1728.png`,
 `order-detail-402.png`, `order-kyc-402.png`, `order-confirm-402.png`,

@@ -1,0 +1,26 @@
+/* Customer profile and security only. Data, admin and other customer pages stay separate. */
+.site-shell .customer-profile-page .profile-heading { margin-bottom: 26px; }
+.site-shell .customer-profile-page .profile-heading p { font-size: 12px; color: var(--st-primary); margin: 0 0 4px; }
+.site-shell .customer-profile-page h1 { font-size: 24px; margin: 0; }
+.site-shell .customer-profile-page .profile-empty { padding: 44px 20px; border: 1px solid var(--st-border); border-radius: 6px; }
+.site-shell .customer-profile-page .profile-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.site-shell .customer-profile-page .st-card { background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; min-width: 0; }
+.site-shell .customer-profile-page .st-card__head { font-size: 16px; font-weight: 700; padding: 20px 24px; margin: 0; }
+.site-shell .customer-profile-page .st-card__pad { padding: 24px; }
+.site-shell .customer-profile-page .st-field { margin-bottom: 18px; }
+.site-shell .customer-profile-page .st-label { font-size: 13px; }
+.site-shell .customer-profile-page .st-input { border-radius: 5px; min-height: 48px; width: 100%; }
+.site-shell .customer-profile-page .profile-email-hint { color: var(--st-warning); }
+.site-shell .customer-profile-page .st-btn { min-height: 44px; border-radius: 5px; white-space: normal; }
+.site-shell .customer-profile-page .st-divider { margin: 22px 0; border-top: 1px solid var(--st-border); }
+.site-shell .customer-profile-page .profile-status-rows { display: grid; gap: 14px; }
+.site-shell .customer-profile-page .profile-verify-cta { margin-top: 16px; }
+@media (max-width: 900px) {
+    .site-shell .customer-profile-page .profile-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+    .site-shell .customer-profile-page h1 { font-size: 22px; }
+    .site-shell .customer-profile-page .st-card__pad { padding: 20px 16px; }
+    .site-shell .customer-profile-page .st-card__head { padding: 18px 16px; }
+    .site-shell .customer-profile-page .st-input { font-size: 16px; }
+}
