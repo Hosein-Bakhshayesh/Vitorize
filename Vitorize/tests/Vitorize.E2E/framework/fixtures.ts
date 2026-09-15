@@ -69,8 +69,11 @@ export const test = base.extend<Fixtures>({
 /** Remove every item from the signed-in customer's cart through the real storefront UI. */
 export async function clearCustomerCart(page: Page): Promise<void> {
   await page.goto('/cart');
-  const clearCart = page.locator('.st-stack > button.st-btn--ghost');
+  const clearCart = page.locator('button.cart-clear');
   const emptyCart = page.locator('.st-errpage--inline');
+  // The cart renders its contents only after the interactive circuit loads them, so wait for the
+  // page's own loading state to clear before deciding which of the two outcomes is on screen.
+  await expect(page.locator('.cart-loading')).toHaveCount(0, { timeout: 30_000 });
   await expect(clearCart.or(emptyCart)).toBeVisible();
   if (await clearCart.isVisible()) {
     await clearCart.click();

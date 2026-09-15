@@ -17,7 +17,7 @@ async function addGuestItem(page: Page, context: BrowserContext): Promise<void> 
     return (await apiCart.json()).data.totalQuantity;
   }).toBe(1);
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
+  await expect(page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
 }
 
 async function expectGuestCookie(context: BrowserContext): Promise<void> {
@@ -268,27 +268,27 @@ test('FIX-03 tampered guest cookie creates isolated identity without data disclo
 test('FIX-03 guest cart survives refresh, navigation, second tab, and persisted-browser reopen', async ({ page, context, browser }) => {
   await addGuestItem(page, context);
   await expectGuestCookie(context);
-  const item = page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' });
+  const item = page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' });
   await expect(item.locator('.st-qty')).toContainText('۱');
 
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
+  await expect(page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
   await expectGuestCookie(context);
 
   await page.goto('/shop', { waitUntil: 'networkidle' });
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
+  await expect(page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
 
   const secondTab = await context.newPage();
   await secondTab.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(secondTab.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
+  await expect(secondTab.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
 
   const storage = await context.storageState();
   await context.close();
   const reopened = await browser.newContext({ baseURL: 'http://localhost:5077', storageState: storage });
   const reopenedPage = await reopened.newPage();
   await reopenedPage.goto('/cart', { waitUntil: 'networkidle' });
-  await expect(reopenedPage.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
+  await expect(reopenedPage.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toBeVisible();
   await expectGuestCookie(reopened);
   await reopened.close();
 });

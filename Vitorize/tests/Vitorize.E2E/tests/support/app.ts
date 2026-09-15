@@ -177,6 +177,26 @@ export async function logoutAdmin(page: Page): Promise<void> {
   ]);
 }
 
+/**
+ * Opens an admin order's details dialog from /admin/orders by order number. The list renders a
+ * desktop table and a mobile card list side by side and lets CSS pick one, so the caller must not
+ * assume the table's action menu is reachable at every viewport.
+ */
+export async function openAdminOrderDetails(page: Page, orderNumber: string): Promise<void> {
+  const mobileCard = page.locator('.orders-mobile-card').filter({ hasText: orderNumber });
+  const row = page.locator('tbody tr').filter({ hasText: orderNumber });
+  await expect(mobileCard.or(row).first()).toBeAttached();
+
+  if (await mobileCard.first().isVisible()) {
+    await mobileCard.first().click();
+    return;
+  }
+
+  await expect(row).toHaveCount(1);
+  await row.locator('.vz-ctx__trigger').click();
+  await page.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+}
+
 export async function latestOtp(request: APIRequestContext, mobile: string, previousCode?: string): Promise<string> {
   let code: string | null = null;
   await expect.poll(async () => {
@@ -220,7 +240,9 @@ export async function expectRtlAndNoOverflow(page: Page): Promise<void> {
     const offenders = Array.from(document.querySelectorAll<HTMLElement>('body *'))
       .filter(element => {
         const rect = element.getBoundingClientRect();
-        return !element.closest('.vz-splash, .st-marquee, .st-hslider, .st-catrail, .st-news, .st-trustchips, .vz-sidebar, .vz-table-wrap, .vz-tabs, .vz-settabs')
+        // .hp-brands is the home brand ticker: a deliberately over-wide animated track clipped by
+        // its own overflow:hidden parent, like the other carousels listed here.
+        return !element.closest('.vz-splash, .st-marquee, .st-hslider, .st-catrail, .st-news, .st-trustchips, .hp-brands, .vz-sidebar, .vz-table-wrap, .vz-tabs, .vz-settabs')
           && !Array.from(element.classList).some(className => className.includes('aurora'))
           && rect.width > 0
           && (rect.left < -1 || rect.right > window.innerWidth + 1);

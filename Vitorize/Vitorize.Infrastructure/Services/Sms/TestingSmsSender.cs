@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Vitorize.Application.Common;
@@ -18,6 +19,12 @@ public sealed class TestingSmsSender : ISmsSender
 {
     private readonly ConcurrentDictionary<string, CapturedTemplate> _latest =
         new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, CapturedText> _latestText =
+        new(StringComparer.Ordinal);
+    private static readonly Regex OtpCodePattern =
+        new(@"(?<![0-9])(?<code>[0-9]{6})(?![0-9])", RegexOptions.Compiled);
+    private static readonly Regex ExpiryPattern =
+        new(@"(?<minutes>[0-9]{1,3})\s*دقیقه", RegexOptions.Compiled);
     private readonly IOptionsMonitor<TestingFaultInjectionOptions> _faults;
     private readonly bool _faultInjectionAllowed;
 
@@ -54,6 +61,18 @@ public sealed class TestingSmsSender : ISmsSender
     {
         if (await TryInjectSmsFaultAsync(cancellationToken) is { } fault)
             return fault;
+
+        // OTPs travel as plain text since template sending was removed, so the code has to be
+        // recovered from the message body. Only messages that actually carry a six-digit group are
+        // captured, so an unrelated notification cannot overwrite a code the caller is waiting for.
+        if (IranMobile.TryNormalize(mobile, out var normalized) &&
+            OtpCodePattern.Match(text ?? string.Empty) is { Success: true } match)
+        {
+            _latestText[normalized] = new CapturedText(
+                match.Groups["code"].Value,
+                ExpiryPattern.Match(text!) is { Success: true } expiry ? expiry.Groups["minutes"].Value : string.Empty,
+                DateTime.UtcNow);
+        }
 
         return SmsSendResult.Success($"testing-{Guid.NewGuid():N}");
     }
@@ -98,14 +117,24 @@ public sealed class TestingSmsSender : ISmsSender
     {
         code = string.Empty;
         expire = string.Empty;
-        if (!IranMobile.TryNormalize(mobile, out var normalized) ||
-            !_latest.TryGetValue(normalized, out var captured))
+        if (!IranMobile.TryNormalize(mobile, out var normalized))
             return false;
 
-        code = captured.Parameters.FirstOrDefault(x =>
-            x.Name.Equals(SmsTemplateParams.Code, StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
-        expire = captured.Parameters.FirstOrDefault(x =>
-            x.Name.Equals(SmsTemplateParams.Expire, StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+        if (_latest.TryGetValue(normalized, out var captured))
+        {
+            code = captured.Parameters.FirstOrDefault(x =>
+                x.Name.Equals(SmsTemplateParams.Code, StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+            expire = captured.Parameters.FirstOrDefault(x =>
+                x.Name.Equals(SmsTemplateParams.Expire, StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+        }
+
+        if (_latestText.TryGetValue(normalized, out var capturedText) &&
+            (captured is null || capturedText.CapturedAtUtc >= captured.CapturedAtUtc))
+        {
+            code = capturedText.Code;
+            expire = capturedText.Expire;
+        }
+
         return code.Length > 0;
     }
 
@@ -113,4 +142,6 @@ public sealed class TestingSmsSender : ISmsSender
         int TemplateId,
         IReadOnlyList<SmsTemplateParameter> Parameters,
         DateTime CapturedAtUtc);
+
+    private sealed record CapturedText(string Code, string Expire, DateTime CapturedAtUtc);
 }

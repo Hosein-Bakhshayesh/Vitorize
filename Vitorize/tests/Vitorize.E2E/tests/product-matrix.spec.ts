@@ -86,7 +86,7 @@ test.describe('Product Type / Delivery Type matrix', () => {
         );
         await storefront.addToCart(dynamicValues, scenario.product.dynamicFields.length > 0);
         await customerPage.goto('/cart');
-        const cartRow = customerPage.locator('.st-stack > .st-card').filter({ hasText: scenario.product.title });
+        const cartRow = customerPage.locator('[data-testid=cart-item]').filter({ hasText: scenario.product.title });
         await expect(cartRow).toHaveCount(1);
         if (scenario.multipleVariants) await expect(cartRow).toContainText('Matrix Deluxe');
         await clearCustomerCart(customerPage);

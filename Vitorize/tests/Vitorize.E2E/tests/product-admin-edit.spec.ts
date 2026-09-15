@@ -22,7 +22,9 @@ test.describe('Admin product edit and rich storefront projection', () => {
     // used to move the caret to the end and lose this edit.
     await price.press('ArrowLeft');
     await price.press('ArrowLeft');
-    await price.press('۶');
+    // Typed through the keyboard rather than press(): a Persian digit is not a named key, and
+    // typing into the already-focused input is what actually exercises the caret behaviour.
+    await page.keyboard.type('۶');
     await expect(price).toHaveValue('۱۲۳۶۴۵');
 
     await price.press('Tab');

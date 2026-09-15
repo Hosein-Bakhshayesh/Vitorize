@@ -2,7 +2,7 @@ import {
   test, expect, TAG, USERS,
   AdminLoginPage, AdminTicketsPage, StoreLoginPage, loginSeededCustomerWithEmptyCart
 } from '../framework/fixtures';
-import { apiBaseUrl } from './support/app';
+import { apiBaseUrl, openAdminOrderDetails } from './support/app';
 
 // End-to-end SupportRequired / ticket-delivery lifecycle. The product is seeded deterministically
 // (seed-e2e.sql, DeliveryType=SupportRequired, no gift-code inventory); the PURCHASE, ticket and
@@ -42,10 +42,7 @@ test.describe('support/ticket delivery', () => {
       await new AdminLoginPage(adminPage).signIn(USERS.SuperAdmin);
       await adminPage.goto('/admin/orders', { waitUntil: 'networkidle' });
       await adminPage.locator('#order-search').fill(orderNumber);
-      const row = adminPage.locator('tbody tr').filter({ hasText: orderNumber });
-      await expect(row).toHaveCount(1);
-      await row.locator('.vz-ctx__trigger').click();
-      await adminPage.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+      await openAdminOrderDetails(adminPage, orderNumber);
 
       const details = adminPage.getByRole('dialog').filter({ hasText: orderNumber });
       await expect(details).toBeVisible();

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { apiBaseUrl, expectRtlAndNoOverflow, fillCheckoutProductInformation, loginAdmin, monitorBrowser, registerCustomer, uniqueCustomer } from './support/app';
+import { apiBaseUrl, expectRtlAndNoOverflow, fillCheckoutProductInformation, loginAdmin, monitorBrowser, openAdminOrderDetails, registerCustomer, uniqueCustomer } from './support/app';
 
 const productUrl = '/product/e2e-seo-product';
 const instantProductId = '31000000-0000-0000-0000-000000000011';
@@ -39,10 +39,13 @@ test('storefront navigation, search, filters and sorting render seeded catalog d
   await expect(page.locator('.st-lgrid')).toContainText('E2E Dynamic Product');
   await page.locator('.st-catpill').filter({ hasText: 'E2E Category' }).click();
   await expect(page.locator('.st-lgrid')).toContainText('E2E Dynamic Product');
-  await page.locator('.st-sort__btn').click();
-  await expect(page.locator('.st-sort__menu')).toBeVisible();
-  await page.locator('.st-sort__opt').last().click();
-  await expect(page.locator('.st-sort__menu')).toBeHidden();
+  // Sorting is a native select since the catalog redesign; selecting the last option must apply
+  // and keep the filtered grid rendered.
+  const sort = page.locator('.catalog-sort select');
+  const lastSort = await sort.locator('option').last().getAttribute('value');
+  await sort.selectOption(lastSort!);
+  await expect(sort).toHaveValue(lastSort!);
+  await expect(page.locator('.st-lgrid')).toContainText('E2E Dynamic Product');
   await expectRtlAndNoOverflow(page);
   browser.assertClean();
 });
@@ -71,7 +74,7 @@ test('cart merges repeated adds, updates quantity, carries no input editors and 
   await addConfiguredProduct(page, 'same@example.test');
 
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  const itemCards = page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' });
+  const itemCards = page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' });
   await expect(itemCards).toHaveCount(1);
   await expect(itemCards.locator('.st-qty')).toContainText('۲');
 
@@ -104,7 +107,7 @@ test('cart merges repeated adds, updates quantity, carries no input editors and 
   await expect(page.locator('.st-cart-sum')).toContainText('E2E10');
 
   await itemCards.getByRole('button', { name: /حذف/ }).click();
-  await expect(page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(0);
+  await expect(page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Dynamic Product' })).toHaveCount(0);
 });
 
 test('gateway checkout completes through fake payment and creates an order visible to the customer', async ({ page }) => {
@@ -128,7 +131,9 @@ test('wallet top-up funds a wallet checkout and records the resulting debit', as
   await page.goto('/customer/wallet', { waitUntil: 'networkidle' });
   await page.locator('input[type="number"]').fill('500000');
   await page.locator('.st-card').filter({ has: page.locator('input[type="number"]') }).locator('button.st-btn--primary').click();
-  await expect(page.locator('.vz-toast.success')).toBeVisible();
+  // The wallet redesign confirms a top-up with persistent inline feedback beside the controls
+  // instead of a transient toast.
+  await expect(page.locator('#wallet-feedback.st-alert--success')).toBeVisible();
   await expect(page.locator('.st-table tbody tr')).toHaveCount(1);
 
   await addConfiguredProduct(page, 'wallet-checkout@example.test');
@@ -208,10 +213,7 @@ test('admin manually delivers a paid item and the customer sees the audited cont
   await loginAdmin(adminPage);
   await adminPage.goto('/admin/orders', { waitUntil: 'networkidle' });
   await adminPage.locator('#order-search').fill(orderNumber);
-  const row = adminPage.locator('tbody tr').filter({ hasText: orderNumber });
-  await expect(row).toHaveCount(1);
-  await row.locator('.vz-ctx__trigger').click();
-  await adminPage.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+  await openAdminOrderDetails(adminPage, orderNumber);
   const details = adminPage.getByRole('dialog').filter({ hasText: orderNumber });
   await expect(details).toBeVisible();
   await details.locator('.vz-manual-delivery').click();
@@ -219,6 +221,9 @@ test('admin manually delivers a paid item and the customer sees the audited cont
   const content = `E2E delivery ${Date.now()}`;
   const deliveryDialog = adminPage.getByRole('dialog').filter({ has: adminPage.locator('#manual-delivery-content') });
   await deliveryDialog.locator('#manual-delivery-content').fill(content);
+  // Manual delivery notes are private by default, so the customer-visible path only exists once
+  // the admin opts in explicitly.
+  await deliveryDialog.locator('#manual-delivery-visible').check();
   await deliveryDialog.locator('button.vz-btn--primary').click();
   await expect(deliveryDialog).toBeHidden();
   await expect(adminPage.locator('.vz-toast.success')).toBeVisible();
@@ -286,7 +291,7 @@ test('@multiqty a two-unit instant purchase delivers two distinct codes and show
   await page.locator('.st-buy__card button.st-btn--accent').click();
   await expect(page.locator('.vz-toast.success')).toBeVisible();
   await page.goto('/cart', { waitUntil: 'networkidle' });
-  const item = page.locator('.st-stack > .st-card').filter({ hasText: 'E2E Related Product' });
+  const item = page.locator('[data-testid=cart-item]').filter({ hasText: 'E2E Related Product' });
   await item.locator('.st-qty button').last().click();
   await expect(item.locator('.st-qty')).toContainText('۲');
 
@@ -312,11 +317,18 @@ test('@multiqty a two-unit instant purchase delivers two distinct codes and show
   const revealed: string[] = [];
   for (let i = 0; i < 2; i++) {
     const c = cards.nth(i);
+    const code = c.locator('.st-codecard__code');
     await c.locator('.st-codecard__actions button').first().click();
-    revealed.push((await c.locator('.st-codecard__code').innerText()).trim());
+    // Revealing is a server round-trip; read the value only once the card reports the revealed
+    // state, otherwise the masked text can still be in the DOM.
+    await expect(code).toHaveClass(/revealed/);
+    revealed.push((await code.innerText()).trim());
   }
   expect(new Set(revealed).size, 'each unit receives a distinct code').toBe(2);
-  revealed.forEach(value => expect(codes).toContain(value));
+  // Codes are consumed oldest-first from the product's pool, so a repeated run (-Repeat reuses the
+  // database) legitimately delivers leftovers from an earlier batch. Assert the shape of an
+  // imported code rather than this run's stamp; distinctness above is the actual regression guard.
+  revealed.forEach(value => expect(value).toMatch(/^E2E-MQ-\d+-\d+$/));
 
   // Reloading the library must not duplicate the delivered codes.
   await page.reload({ waitUntil: 'networkidle' });
@@ -327,11 +339,11 @@ test('@multiqty a two-unit instant purchase delivers two distinct codes and show
   const admin2Page = await admin2.newPage();
   await loginAdmin(admin2Page);
   await admin2Page.goto('/admin/orders', { waitUntil: 'networkidle' });
+  // The list opens on the Processing working queue; a fully delivered order is Completed, so the
+  // status filter has to be widened before searching for it.
+  await admin2Page.locator('.vz-pill').filter({ hasText: 'همه' }).first().click();
   await admin2Page.locator('#order-search').fill(orderNumber);
-  const row = admin2Page.locator('tbody tr').filter({ hasText: orderNumber });
-  await expect(row).toHaveCount(1);
-  await row.locator('.vz-ctx__trigger').click();
-  await admin2Page.locator('.vz-ctx__menu:popover-open .vz-ctx__item').first().click();
+  await openAdminOrderDetails(admin2Page, orderNumber);
   const details = admin2Page.getByRole('dialog').filter({ hasText: orderNumber });
   await expect(details).toBeVisible();
   await expect(details).toContainText('E2E Related Product');

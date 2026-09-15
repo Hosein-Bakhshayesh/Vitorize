@@ -63,7 +63,7 @@ test.describe('Product variant matrix', () => {
       await storefront.selectVariant('Variant Alpha');
       await storefront.addToCart();
       await customerPage.goto('/cart');
-      const productLines = customerPage.locator('.st-stack > .st-card').filter({ hasText: product.title });
+      const productLines = customerPage.locator('[data-testid=cart-item]').filter({ hasText: product.title });
       await expect(productLines).toHaveCount(2);
       await expect(productLines.filter({ hasText: 'Variant Beta Edited' })).toHaveCount(1);
       await expect(productLines.filter({ hasText: 'Variant Alpha' })).toHaveCount(1);
