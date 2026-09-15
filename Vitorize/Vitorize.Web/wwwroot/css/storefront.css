@@ -1492,7 +1492,7 @@ button {
     font-weight: 700; font-size: 13px; transition: background var(--st-t-fast) var(--st-ease), color var(--st-t-fast) var(--st-ease);
 }
 .st-catmenu__cat:hover, .st-catmenu__cat.active { background: var(--st-primary-soft); color: var(--st-primary); }
-.st-catmenu__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-catmenu__t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .st-catmenu__chev { opacity: 0; display: inline-flex; transition: opacity var(--st-t-fast) var(--st-ease); }
 .st-catmenu__cat:hover .st-catmenu__chev, .st-catmenu__cat.active .st-catmenu__chev { opacity: 1; }
 .st-catmenu__all {
@@ -1512,10 +1512,14 @@ button {
 .st-catmenu__section-title { margin: 14px 0 9px; color: var(--st-muted); font-size: 11px; font-weight: 800; }
 .st-catmenu__children { padding: 1px 0 3px; }
 .st-catmenu__children .st-catmenu__section-title { margin-top: 0; }
-.st-catmenu__child-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.st-catmenu__child-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 10px; align-items: start; }
 .st-catmenu__child { min-width: 0; display: flex; align-items: center; gap: 7px; padding: 8px; color: var(--st-text); background: var(--st-surface); border: 1px solid var(--st-border); border-radius: 10px; text-decoration: none; font-size: 12px; font-weight: 700; transition: border-color var(--st-t-fast) var(--st-ease), color var(--st-t-fast) var(--st-ease); }
 .st-catmenu__child:hover { color: var(--st-primary); border-color: var(--st-primary); }
-.st-catmenu__child > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-catmenu__childcol { min-width: 0; }
+.st-catmenu__child > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-catmenu__leaves { list-style: none; margin: 6px 8px 2px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.st-catmenu__leaves a { display: block; color: var(--st-muted); font-size: 11.5px; line-height: 1.8; text-decoration: none; overflow-wrap: anywhere; }
+.st-catmenu__leaves a:hover { color: var(--st-primary); }
 .st-catmenu__child-ic { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; color: var(--st-primary); background: var(--st-primary-soft); }
 .st-catmenu__child-ic .st-img, .st-catmenu__child-ic img { width: 100%; height: 100%; object-fit: cover; }
 .st-catmenu__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

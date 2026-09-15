@@ -1,4 +1,4 @@
-@implements IAsyncDisposable
+﻿@implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject ApiClient Api
@@ -55,11 +55,23 @@
                                             <div class="st-catmenu__child-grid">
                                                 @foreach (var child in ActiveCatChildren)
                                                 {
-                                                    <a class="st-catmenu__child" href="@($"/category/{child.Slug}")" @onclick="CloseCats">
-                                                        <span class="st-catmenu__child-ic"><CategoryMedia IconKey="@child.Icon" ImagePath="@child.ImagePath" Alt="@child.Title" IconSize="16" /></span>
-                                                        <span>@child.Title</span>
-                                                        <Icon Name="chevron-left" Size="14" />
-                                                    </a>
+                                                    @* Anything nested deeper is flattened under its branch rather than dropped,
+                                                       so the menu reaches the whole tree, not just its first two levels. *@
+                                                    var leaves = CategoryTree.DescendantsOf(_categories, child.Id);
+                                                    <div class="st-catmenu__childcol">
+                                                        <a class="st-catmenu__child" href="@($"/category/{child.Slug}")" @onclick="CloseCats">
+                                                            <span class="st-catmenu__child-ic"><CategoryMedia IconKey="@child.Icon" ImagePath="@child.ImagePath" Alt="@child.Title" IconSize="16" /></span>
+                                                            <span>@child.Title</span>
+                                                            <Icon Name="chevron-left" Size="14" />
+                                                        </a>
+                                                        @if (leaves.Count > 0)
+                                                        {
+                                                            <ul class="st-catmenu__leaves">
+                                                                @foreach (var leaf in leaves)
+                                                                { <li><a href="@($"/category/{leaf.Slug}")" @onclick="CloseCats">@leaf.Title</a></li> }
+                                                            </ul>
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
                                         </section>
@@ -241,7 +253,7 @@
 
     private List<StoreProductModel> ActiveCatProducts =>
         _activeCat is not null && _catProducts.TryGetValue(_activeCat.Id, out var items) ? items : new();
-    private List<StoreLookupModel> RootCategories => _categories.Where(x => x.ParentId is null).ToList();
+    private List<StoreLookupModel> RootCategories => CategoryTree.Roots(_categories);
     private List<StoreLookupModel> ActiveCatChildren => _activeCat is null
         ? new()
         : _categories.Where(x => x.ParentId == _activeCat.Id).ToList();

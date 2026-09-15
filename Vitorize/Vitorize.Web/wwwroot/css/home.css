@@ -40,8 +40,39 @@
 .hp-cart__count { position: absolute; inset: -8px -8px auto auto; font-size: 10px; border-radius: 50%; min-width: 14px; background: var(--hp-mint); color: #164e56; }
 .hp-focus-backdrop { position: absolute; inset: 0; width: 100%; background: #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 0; z-index: 200; }
 .hp-header.is-focused { position: relative; background: transparent; }
-.hp-header.is-focused::before { content: ""; position: absolute; top: calc(48 * var(--hp-u)); left: calc(32 * var(--hp-u)); right: calc(32 * var(--hp-u)); height: calc(596 * var(--hp-u)); border-radius: calc(10 * var(--hp-u)); background: #fff; z-index: -1; }
-.hp-focus-panel { position: absolute; top: 100%; right: calc(80 * var(--hp-u)); left: calc(80 * var(--hp-u)); min-height: calc(440 * var(--hp-u)); display: flex; flex-wrap: wrap; align-content: flex-start; gap: 24px 40px; padding: calc(72 * var(--hp-u)) calc(40 * var(--hp-u)); font-size: max(12px, calc(18 * var(--hp-u))); }
+/* Sheet height follows the panel: the handoff geometry leaves 112u above the panel and 44u below it.
+   The panel itself has a pixel floor, so a real category tree is never clipped to match the mock. */
+.hp-header.is-focused::before { content: ""; position: absolute; top: calc(48 * var(--hp-u)); left: calc(32 * var(--hp-u)); right: calc(32 * var(--hp-u)); height: calc(calc(156 * var(--hp-u)) + 440px); border-radius: calc(10 * var(--hp-u)); background: #fff; z-index: -1; }
+.hp-focus-panel { position: absolute; top: 100%; right: calc(80 * var(--hp-u)); left: calc(80 * var(--hp-u)); height: 440px; padding: calc(28 * var(--hp-u)) calc(40 * var(--hp-u)) calc(32 * var(--hp-u)); font-size: max(12px, calc(16 * var(--hp-u))); }
+/* Category mega menu. Roots sit in the right rail; the hovered root's branches fill the panel.
+   Every root's group is in the DOM so the narrow layout, which has no hover, can stack them all. */
+.hp-mega { display: grid; grid-template-columns: max(220px, calc(300 * var(--hp-u))) minmax(0, 1fr); gap: calc(32 * var(--hp-u)); height: 100%; }
+.hp-mega__roots { display: flex; flex-direction: column; overflow: hidden; padding-left: calc(20 * var(--hp-u)); border-left: 1px solid #ebeeee; }
+.hp-mega__rootlist { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: calc(2 * var(--hp-u)); }
+.hp-mega__root { display: flex; align-items: center; gap: calc(10 * var(--hp-u)); padding: calc(9 * var(--hp-u)) calc(12 * var(--hp-u)); border-radius: calc(8 * var(--hp-u)); font-weight: 600; line-height: 1.6; transition: background .15s, color .15s; }
+.hp-mega__root:hover, .hp-mega__root.is-active { background: #e9f8f5; color: #14867c; }
+.hp-mega__root-t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.hp-mega__root > svg:last-child { flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
+.hp-mega__root:hover > svg:last-child, .hp-mega__root.is-active > svg:last-child { opacity: 1; }
+.hp-mega__ic { flex: 0 0 auto; display: grid; place-items: center; width: calc(34 * var(--hp-u)); height: calc(34 * var(--hp-u)); min-width: 26px; min-height: 26px; border-radius: calc(8 * var(--hp-u)); background: #e9f8f5; color: #14867c; overflow: hidden; }
+.hp-mega__ic img { max-width: 70%; max-height: 70%; object-fit: contain; }
+.hp-mega__all { flex: 0 0 auto; display: flex; align-items: center; gap: calc(8 * var(--hp-u)); padding: calc(11 * var(--hp-u)) calc(12 * var(--hp-u)); font-weight: 700; color: #14867c; border-top: 1px solid #ebeeee; }
+.hp-mega__all:hover { background: #e9f8f5; border-radius: calc(8 * var(--hp-u)); }
+.hp-mega__panel { min-width: 0; overflow: auto; }
+.hp-mega__group { display: none; }
+.hp-mega__group.is-active { display: block; }
+.hp-mega__head { display: flex; align-items: center; gap: calc(10 * var(--hp-u)); padding-bottom: calc(14 * var(--hp-u)); border-bottom: 1px solid #ebeeee; font-size: max(13px, calc(18 * var(--hp-u))); }
+.hp-mega__head strong { font-weight: 700; }
+.hp-mega__head > a { margin-right: auto; display: flex; align-items: center; gap: calc(5 * var(--hp-u)); font-size: max(11px, calc(13 * var(--hp-u))); font-weight: 600; color: #14867c; }
+.hp-mega__head > a:hover { text-decoration: underline; }
+.hp-mega__cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: calc(18 * var(--hp-u)) calc(28 * var(--hp-u)); padding-top: calc(18 * var(--hp-u)); align-content: start; }
+.hp-mega__col { min-width: 0; }
+.hp-mega__branch { display: block; font-size: max(12px, calc(15 * var(--hp-u))); font-weight: 700; line-height: 1.6; color: #2f3838; overflow-wrap: anywhere; }
+.hp-mega__branch:hover { color: #14867c; }
+.hp-mega__leaves { list-style: none; margin: calc(7 * var(--hp-u)) 0 0; padding: 0; display: flex; flex-direction: column; gap: calc(5 * var(--hp-u)); }
+.hp-mega__leaves a { display: block; font-size: max(11px, calc(13 * var(--hp-u))); line-height: 1.8; color: #6b7575; overflow-wrap: anywhere; }
+.hp-mega__leaves a:hover { color: #14867c; }
+.hp-mega__links { display: none; }
 body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-hero { min-height: calc(840 * var(--hp-u)); padding: calc(91 * var(--hp-u)) calc(80 * var(--hp-u)) calc(185 * var(--hp-u)); display: grid; grid-template-columns: minmax(0, 770fr) minmax(0, 718fr); gap: calc(80 * var(--hp-u)); align-items: center; }
 .hp-hero__copy { text-align: right; transform: translateY(calc(-25 * var(--hp-u))); }
@@ -61,11 +92,35 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-hero__tile--4 { grid-column: 76 / 101; margin-left: calc(8 * var(--hp-u)); }
 .hp-section { border-top: calc(8 * var(--hp-u)) solid var(--hp-line); }
 .hp-section > h2 { text-align: center; font-weight: 700; font-size: calc(28 * var(--hp-u)); line-height: 1.5; }
-.hp-categories { min-height: calc(486 * var(--hp-u)); padding: calc(82 * var(--hp-u)) calc(100 * var(--hp-u)) calc(92 * var(--hp-u)); }
-.hp-category-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: calc(94 * var(--hp-u)); gap: calc(40 * var(--hp-u)); }
-.hp-category { display: flex; flex-direction: column; align-items: center; text-align: center; gap: calc(28 * var(--hp-u)); font-size: calc(18 * var(--hp-u)); font-weight: 600; }
-.hp-category__image { display: grid; place-items: center; width: calc(80 * var(--hp-u)); height: calc(80 * var(--hp-u)); border-radius: calc(10 * var(--hp-u)); background: var(--hp-media); overflow: hidden; }
-.hp-category__image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Category board. The homepage used to show six flat icon tiles, which hid both the
+   hierarchy and every root past the sixth. One card per root category, its branches
+   listed inside it, keeps the tree readable and shows all of them. */
+.hp-categories { padding: calc(82 * var(--hp-u)) calc(100 * var(--hp-u)) calc(92 * var(--hp-u)); }
+/* The track floor is real pixels, not --hp-u: a track that shrinks with the viewport would keep
+   the same column count at every width and squeeze four cards into a 900px tablet. */
+.hp-cat-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, max(300px, calc(360 * var(--hp-u)))), 1fr)); gap: max(16px, calc(28 * var(--hp-u))); margin-top: calc(56 * var(--hp-u)); align-items: stretch; }
+.hp-cat-card { display: flex; flex-direction: column; min-width: 0; background: #fff; border: 1px solid #e6e8e8; border-radius: calc(14 * var(--hp-u)); padding: calc(24 * var(--hp-u)) calc(24 * var(--hp-u)) calc(18 * var(--hp-u)); transition: border-color .18s, box-shadow .18s; }
+.hp-cat-card:hover { border-color: var(--hp-mint); box-shadow: 0 calc(10 * var(--hp-u)) calc(28 * var(--hp-u)) #2cc3b31f; }
+.hp-cat-card__head { display: flex; align-items: center; gap: calc(14 * var(--hp-u)); min-height: calc(78 * var(--hp-u)); font-size: max(15px, calc(20 * var(--hp-u))); font-weight: 700; line-height: 1.5; padding-bottom: calc(18 * var(--hp-u)); border-bottom: 1px solid #edefef; }
+.hp-cat-card__ic { flex: 0 0 auto; display: grid; place-items: center; width: calc(52 * var(--hp-u)); height: calc(52 * var(--hp-u)); border-radius: calc(12 * var(--hp-u)); background: #e9f8f5; color: #14867c; transition: background .18s, color .18s; }
+.hp-cat-card:hover .hp-cat-card__ic { background: var(--hp-teal); color: #fff; }
+.hp-cat-card__ic img { max-width: 70%; max-height: 70%; object-fit: contain; }
+.hp-cat-card__t { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.hp-cat-card__head > svg { flex: 0 0 auto; color: #9aa3a3; }
+.hp-cat-card:hover .hp-cat-card__head > svg { color: var(--hp-teal); }
+.hp-cat-branch { flex: 1 1 auto; list-style: none; margin: 0; padding: calc(16 * var(--hp-u)) 0 0; display: flex; flex-direction: column; gap: calc(12 * var(--hp-u)); }
+.hp-cat-branch > li { min-width: 0; }
+.hp-cat-branch__link { display: flex; align-items: center; gap: calc(9 * var(--hp-u)); font-size: max(13px, calc(16 * var(--hp-u))); font-weight: 600; line-height: 1.6; color: #2f3838; }
+.hp-cat-branch__link > i { flex: 0 0 auto; width: calc(6 * var(--hp-u)); height: calc(6 * var(--hp-u)); min-width: 4px; min-height: 4px; border-radius: 50%; background: var(--hp-teal); }
+.hp-cat-branch__link > span { min-width: 0; overflow-wrap: anywhere; }
+.hp-cat-branch__link:hover { color: #14867c; }
+.hp-cat-leaf { list-style: none; margin: calc(8 * var(--hp-u)) 0 0; padding: 0 calc(15 * var(--hp-u)) 0 0; display: flex; flex-wrap: wrap; gap: calc(8 * var(--hp-u)); }
+.hp-cat-leaf a { display: block; max-width: 100%; font-size: max(11px, calc(13 * var(--hp-u))); line-height: 1.7; color: #5d6767; background: #f4f6f6; border: 1px solid #ebeeee; border-radius: calc(999 * var(--hp-u)); padding: calc(3 * var(--hp-u)) calc(12 * var(--hp-u)); overflow-wrap: anywhere; transition: background .18s, color .18s, border-color .18s; }
+.hp-cat-leaf a:hover { background: #e9f8f5; border-color: var(--hp-mint); color: #14867c; }
+.hp-cat-card__all { margin-top: auto; padding-top: calc(18 * var(--hp-u)); display: flex; align-items: center; gap: calc(6 * var(--hp-u)); font-size: max(12px, calc(14 * var(--hp-u))); font-weight: 600; color: #14867c; }
+.hp-cat-card__all:hover { color: var(--hp-teal); }
+.hp-cat-more { display: flex; width: fit-content; margin: calc(36 * var(--hp-u)) auto 0; align-items: center; gap: calc(8 * var(--hp-u)); font-size: max(13px, calc(16 * var(--hp-u))); font-weight: 600; color: #14867c; border: 1px solid var(--hp-mint); border-radius: calc(8 * var(--hp-u)); padding: calc(10 * var(--hp-u)) calc(26 * var(--hp-u)); transition: background .18s, color .18s; }
+.hp-cat-more:hover { background: var(--hp-teal); border-color: var(--hp-teal); color: #fff; }
 .hp-products { min-height: calc(1247 * var(--hp-u)); padding: calc(95 * var(--hp-u)) calc(100 * var(--hp-u)) calc(100 * var(--hp-u)); }
 .hp-product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(60 * var(--hp-u)); margin-top: calc(98 * var(--hp-u)); }
 .hp-product { display: block; min-width: 0; border: 1px solid #e9e9e9; padding: calc(15 * var(--hp-u)); border-radius: calc(12 * var(--hp-u)); background: white; }
@@ -157,9 +212,24 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-header__actions .hp-cart { left: 47px; }
     .hp-header__actions .hp-search { right: 47px; }
     .hp-header__actions .hp-menu-toggle { right: 2px; display: grid; }
-    .hp-header.is-focused::before { top: 8px; left: 12px; right: 12px; height: 410px; border-radius: 8px; }
-    .hp-focus-panel { top: 88px; left: 24px; right: 24px; min-height: 0; max-height: 320px; overflow: auto; padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px; }
-    .hp-mobile-link { display: block; }
+    /* The white sheet covers only the header row here; the panel carries its own so the menu is as
+       tall as the categories actually are, instead of a fixed box with dead space under a short list. */
+    .hp-header.is-focused::before { top: 8px; left: 12px; right: 12px; height: 80px; border-radius: 8px 8px 0 0; }
+    .hp-focus-panel { top: 88px; left: 12px; right: 12px; height: auto; max-height: min(72vh, 560px); overflow: auto; padding: 12px; font-size: 12px; background: #fff; border-radius: 0 0 8px 8px; }
+    /* Phones show the top-level categories only: no hover to drive a branch panel, and a stacked
+       tree buries the roots the menu exists to reach. Branches stay one tap away on the category page. */
+    .hp-mega { display: block; height: auto; }
+    .hp-mega__panel { display: none; }
+    .hp-mega__roots { overflow: visible; padding-left: 0; border-left: 0; }
+    .hp-mega__rootlist { overflow: visible; gap: 2px; }
+    .hp-mega__root { padding: 9px 8px; font-size: 13px; }
+    /* Nothing is being previewed here, so the rail carries no selected state. */
+    .hp-mega__root.is-active { background: none; color: inherit; }
+    .hp-mega__root > svg:last-child { opacity: 1; margin-right: auto; color: #9aa3a3; }
+    .hp-mega__ic { width: 30px; height: 30px; border-radius: 7px; }
+    .hp-mega__all { margin-top: 6px; padding: 10px 8px; font-size: 12px; }
+    .hp-mega__links { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #ebeeee; }
+    .hp-mobile-link { display: block; font-size: 12px; font-weight: 600; padding: 5px 0; }
     .hp-hero { min-height: 530px; display: flex; flex-direction: column; gap: 48px; padding: 36px 24px 50px; }
     .hp-hero__copy { text-align: center; width: 100%; transform: none; }
     .hp-hero__copy h1 { font-size: 20px; line-height: 1.5; white-space: normal; }
@@ -175,10 +245,17 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-hero__tile--2, .hp-hero__tile--4 { margin-left: 4px; }
     .hp-section { border-top-width: 4px; }
     .hp-section > h2 { font-size: 16px; line-height: 1.5; }
-    .hp-categories { min-height: 370px; padding: 40px 40px 54px; }
-    .hp-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px 26px; margin-top: 38px; }
-    .hp-category { font-size: 10px; gap: 14px; }
-    .hp-category__image { width: 50px; height: 50px; border-radius: 5px; }
+    .hp-categories { min-height: 0; padding: 40px 20px 46px; }
+    .hp-cat-board { grid-template-columns: 1fr; gap: 14px; margin-top: 26px; }
+    .hp-cat-card { border-radius: 10px; padding: 14px 14px 12px; }
+    .hp-cat-card__head { min-height: 56px; font-size: 14px; gap: 10px; padding-bottom: 12px; }
+    .hp-cat-card__ic { width: 38px; height: 38px; border-radius: 9px; }
+    .hp-cat-branch { padding-top: 12px; gap: 10px; }
+    .hp-cat-branch__link { font-size: 12px; gap: 7px; }
+    .hp-cat-leaf { margin-top: 6px; padding-right: 11px; gap: 6px; }
+    .hp-cat-leaf a { font-size: 10px; padding: 2px 9px; border-radius: 999px; }
+    .hp-cat-card__all { font-size: 11px; padding-top: 12px; }
+    .hp-cat-more { margin-top: 22px; font-size: 12px; padding: 9px 20px; border-radius: 7px; }
     .hp-products { min-height: 632px; padding: 40px 16px; }
     .hp-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; margin-top: 28px; }
     .hp-product:nth-child(n+5) { display: none; }

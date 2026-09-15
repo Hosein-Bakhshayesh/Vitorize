@@ -1,4 +1,4 @@
-﻿@inject IConfiguration Configuration
+@inject IConfiguration Configuration
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject Vitorize.Web.Services.UI.StorefrontMaintenanceService Maintenance
 @inject MediaUrlResolver Media
@@ -78,7 +78,7 @@
         <link rel="preload" href="fonts/storefront/funnel-display-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     }
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
-    <link rel="stylesheet" href="css/home.css?v=20260912-1" />
+    <link rel="stylesheet" href="css/home.css?v=20260915-10" />
     <link rel="stylesheet" href="css/site-shell.css?v=20260912-1" />
     <link rel="stylesheet" href="css/catalog.css?v=20260913-1" />
     <link rel="stylesheet" href="css/product-page.css?v=20260913-1" />
@@ -243,7 +243,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260907-production-release";
+    private const string AssetVersion = "20260915-category-tree";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

@@ -22,16 +22,66 @@
     @if (_open)
     {
         <nav id="hp-category-panel" class="hp-focus-panel" aria-label="دسته‌بندی محصولات">
-            @* The supplied focus reference specifies the panel surface, not its contents.
-               Keep real category navigation available; never replace API categories with mock links. *@
-            @foreach (var category in _categories)
-            {
-                <a href="@($"/category/{category.Slug}")">@category.Title</a>
-            }
-            <a href="/categories">همه دسته‌بندی‌ها</a>
-            <a class="hp-mobile-link" href="/about">درباره ما</a>
-            <a class="hp-mobile-link" href="/contact">ارتباط با ما</a>
-            <a class="hp-mobile-link" href="/blog">بلاگ‌ها</a>
+            @* Real category navigation, shaped like the tree the administrator configured: roots on the
+               right, the hovered root's branches on the left. Every root's group is rendered so that
+               narrow screens, where there is no hover, can stack the whole tree instead of one branch. *@
+            <div class="hp-mega">
+                <aside class="hp-mega__roots">
+                    @* The rail scrolls, the "all categories" link does not: it must stay reachable
+                       however many roots the administrator configures. *@
+                    <div class="hp-mega__rootlist">
+                    @foreach (var root in RootCategories)
+                    {
+                        var current = root;
+                        <a class="hp-mega__root @(root.Id == ActiveRoot?.Id ? "is-active" : null)"
+                           href="@CategoryUrl(root)"
+                           @onmouseover="() => _activeRootId = current.Id" @onfocus="() => _activeRootId = current.Id">
+                            <span class="hp-mega__ic" aria-hidden="true"><CategoryMedia IconKey="@root.Icon" ImagePath="@root.ImagePath" Alt="@root.Title" IconSize="18" /></span>
+                            <span class="hp-mega__root-t">@root.Title</span>
+                            <Icon Name="chevron-left" Size="14" />
+                        </a>
+                    }
+                    </div>
+                    <a class="hp-mega__all" href="/categories"><Icon Name="grid" Size="15" /> <span>مشاهده همه دسته‌بندی‌ها</span></a>
+                </aside>
+                <div class="hp-mega__panel">
+                    @foreach (var root in RootCategories)
+                    {
+                        var branches = ChildrenOf(root.Id);
+                        <section class="hp-mega__group @(root.Id == ActiveRoot?.Id ? "is-active" : null)" aria-label="@root.Title">
+                            <div class="hp-mega__head">
+                                <span class="hp-mega__ic" aria-hidden="true"><CategoryMedia IconKey="@root.Icon" ImagePath="@root.ImagePath" Alt="@root.Title" IconSize="18" /></span>
+                                <strong>@root.Title</strong>
+                                <a href="@CategoryUrl(root)">مشاهده همه محصولات <Icon Name="chevron-left" Size="13" /></a>
+                            </div>
+                            @if (branches.Count > 0)
+                            {
+                                <div class="hp-mega__cols">
+                                    @foreach (var branch in branches)
+                                    {
+                                        var leaves = DescendantsOf(branch.Id);
+                                        <div class="hp-mega__col">
+                                            <a class="hp-mega__branch" href="@CategoryUrl(branch)">@branch.Title</a>
+                                            @if (leaves.Count > 0)
+                                            {
+                                                <ul class="hp-mega__leaves">
+                                                    @foreach (var leaf in leaves)
+                                                    { <li><a href="@CategoryUrl(leaf)">@leaf.Title</a></li> }
+                                                </ul>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </section>
+                    }
+                </div>
+            </div>
+            <div class="hp-mega__links">
+                <a class="hp-mobile-link" href="/about">درباره ما</a>
+                <a class="hp-mobile-link" href="/contact">ارتباط با ما</a>
+                <a class="hp-mobile-link" href="/blog">بلاگ‌ها</a>
+            </div>
         </nav>
     }
 </header>
@@ -44,6 +94,13 @@
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
     private StoreBranding _branding = new(new Dictionary<string, string>());
     private List<StoreLookupModel> _categories = new();
+    private Guid? _activeRootId;
+    private List<StoreLookupModel> RootCategories => CategoryTree.Roots(_categories);
+    /// <summary>The root whose branches the panel shows; the first one until a pointer picks another.</summary>
+    private StoreLookupModel? ActiveRoot => RootCategories.FirstOrDefault(c => c.Id == _activeRootId) ?? RootCategories.FirstOrDefault();
+    private List<StoreLookupModel> ChildrenOf(Guid parentId) => CategoryTree.ChildrenOf(_categories, parentId);
+    private List<StoreLookupModel> DescendantsOf(Guid parentId) => CategoryTree.DescendantsOf(_categories, parentId);
+    private static string CategoryUrl(StoreLookupModel category) => $"/category/{category.Slug}";
     private bool _open, _authenticated, _disposed;
     private ElementReference _trigger, _mobileTrigger;
     private ElementReference _header;
