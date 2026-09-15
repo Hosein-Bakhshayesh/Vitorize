@@ -167,7 +167,20 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-promo__card > a { background: #fff; padding: calc(12 * var(--hp-u)) calc(25 * var(--hp-u)); font-size: calc(14 * var(--hp-u)); border-radius: 2px; flex-shrink: 0; }
 .hp-blog { min-height: calc(679 * var(--hp-u)); padding: calc(95 * var(--hp-u)) calc(100 * var(--hp-u)) calc(100 * var(--hp-u)); }
 .hp-blog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(50 * var(--hp-u)); margin-top: calc(98 * var(--hp-u)); }
-.hp-blog-grid > a { display: block; height: calc(336 * var(--hp-u)); background: var(--hp-soft); border-radius: calc(10 * var(--hp-u)); overflow: hidden; }
+.hp-blog-card { display: flex; flex-direction: column; gap: calc(18 * var(--hp-u)); min-width: 0; }
+.hp-blog-card__media { display: block; height: calc(336 * var(--hp-u)); background: var(--hp-soft); border-radius: calc(10 * var(--hp-u)); overflow: hidden; transition: box-shadow .35s cubic-bezier(.22,.61,.36,1), transform .35s cubic-bezier(.22,.61,.36,1); }
+.hp-blog-card__media .st-img img { transition: transform .55s cubic-bezier(.22,.61,.36,1); }
+.hp-blog-card:hover .hp-blog-card__media { transform: translateY(calc(-4 * var(--hp-u))); box-shadow: 0 calc(14 * var(--hp-u)) calc(30 * var(--hp-u)) #1f37451f; }
+.hp-blog-card:hover .hp-blog-card__media .st-img img { transform: scale(1.055); }
+/* Muted by default so the picture leads; the title resolves to full contrast on hover, with the
+   rule drawn from the right so it reads in the same direction as the text. */
+.hp-blog-card__title { font-size: max(12px, calc(17 * var(--hp-u))); font-weight: 600; line-height: 1.8; color: #8d9696; transition: color .3s cubic-bezier(.22,.61,.36,1); }
+.hp-blog-card__title > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* A bar rather than a text underline: the clamped title is a block, so an underline would run the
+   full card width under a short last line. The bar grows from the inline start, which is the right. */
+.hp-blog-card__title::after { content: ""; display: block; width: 0; height: 2px; margin-top: calc(10 * var(--hp-u)); border-radius: 2px; background: var(--hp-teal); transition: width .45s cubic-bezier(.22,.61,.36,1); }
+.hp-blog-card:hover .hp-blog-card__title::after { width: max(34px, calc(48 * var(--hp-u))); }
+.hp-blog-card:hover .hp-blog-card__title { color: #2f3838; }
 .hp-faq { min-height: calc(1066 * var(--hp-u)); padding: calc(98 * var(--hp-u)) calc(100 * var(--hp-u)) calc(100 * var(--hp-u)); }
 .hp-faq__list { display: grid; gap: calc(32 * var(--hp-u)); margin-top: calc(95 * var(--hp-u)); }
 .hp-faq details { background: var(--hp-soft); border-radius: calc(10 * var(--hp-u)); padding: 0 calc(14 * var(--hp-u)); }
@@ -297,7 +310,9 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-promo__card .hp-dots { bottom: 10px; }
     .hp-blog { min-height: 236px; padding: 22px 27px 40px; }
     .hp-blog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 30px; gap: 16px; }
-    .hp-blog-grid > a { height: 116px; border-radius: 4px; }
+    .hp-blog-card { gap: 9px; }
+    .hp-blog-card__media { height: 116px; border-radius: 4px; }
+    .hp-blog-card__title { font-size: 11px; line-height: 1.7; }
     .hp-blog-grid > :nth-child(n+3) { display: none; }
     .hp-faq { min-height: 478px; padding: 22px 27px 40px; }
     .hp-faq__list { gap: 16px; margin-top: 30px; }
@@ -335,4 +350,16 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-footer .hp-logo > span { font-size: 27px; }
     .hp-footer__socials a { width: 42px; height: 46px; }
     .hp-footer__contact { font-size: 10px; }
+}
+
+/* The homepage has its own shell class, so the reduced-motion block in storefront.css never reaches
+   it. Motion added here has to opt out on its own; the hover transforms are dropped, not sped up. */
+@media (prefers-reduced-motion: reduce) {
+    .home-shell *, .home-shell *::before, .home-shell *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+    .hp-blog-card:hover .hp-blog-card__media,
+    .hp-blog-card:hover .hp-blog-card__media .st-img img { transform: none; }
 }

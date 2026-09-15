@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ApiClient Api
@@ -140,7 +140,13 @@
         <h2>جدیدترین بلاگ‌ها</h2>
         <div class="hp-blog-grid">
             @foreach (var post in _data.LatestBlogPosts.Take(3))
-            { <a href="@($"/blog/{post.Slug}")" aria-label="@post.Title"><StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" /></a> }
+            {
+                @* The title is the link text now, so the card needs no aria-label to stand in for it. *@
+                <a class="hp-blog-card" href="@($"/blog/{post.Slug}")">
+                    <span class="hp-blog-card__media"><StoreImage Url="@post.CoverImagePath" Alt="@(post.CoverImageAltText ?? post.Title)" /></span>
+                    <h3 class="hp-blog-card__title"><span>@post.Title</span></h3>
+                </a>
+            }
             @if (_data.LatestBlogPosts.Count == 0) { <p class="hp-empty">@Empty("مطلب")</p> }
         </div>
     </section>
