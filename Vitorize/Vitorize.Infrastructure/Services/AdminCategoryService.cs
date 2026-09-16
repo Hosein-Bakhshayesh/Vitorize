@@ -84,42 +84,22 @@ namespace Vitorize.Infrastructure.Services
                 set.Add(link.ProductId);
             }
 
-            var children = categories
-                .Where(c => c.ParentId.HasValue)
-                .GroupBy(c => c.ParentId!.Value)
-                .ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
-
-            var subtreeCache = new Dictionary<Guid, HashSet<Guid>>();
-
-            HashSet<Guid> Subtree(Guid id, HashSet<Guid> visiting)
-            {
-                if (subtreeCache.TryGetValue(id, out var cached))
-                    return cached;
-
-                var products = directProducts.TryGetValue(id, out var own)
-                    ? new HashSet<Guid>(own)
-                    : new HashSet<Guid>();
-
-                // A mis-configured parent cycle must not recurse forever; the service rejects cycles
-                // on write, so this only guards against rows that predate that validation.
-                if (visiting.Add(id))
-                {
-                    if (children.TryGetValue(id, out var kids))
-                        foreach (var kid in kids)
-                            products.UnionWith(Subtree(kid, visiting));
-
-                    visiting.Remove(id);
-                }
-
-                subtreeCache[id] = products;
-                return products;
-            }
+            var children = CategoryHierarchy.ChildrenByParent(
+                categories.Select(c => new CategoryNode(c.Id, c.ParentId)));
 
             foreach (var category in categories)
             {
                 category.ProductCount = directProducts.TryGetValue(category.Id, out var own) ? own.Count : 0;
                 category.ChildrenCount = children.TryGetValue(category.Id, out var kids) ? kids.Count : 0;
-                category.SubtreeProductCount = Subtree(category.Id, new HashSet<Guid>()).Count;
+
+                // Union rather than sum: a product filed under two categories of one branch is
+                // still one product on the page that branch leads to.
+                var reachable = new HashSet<Guid>();
+                foreach (var id in CategoryHierarchy.Branch(children, category.Id))
+                    if (directProducts.TryGetValue(id, out var set))
+                        reachable.UnionWith(set);
+
+                category.SubtreeProductCount = reachable.Count;
             }
         }
 

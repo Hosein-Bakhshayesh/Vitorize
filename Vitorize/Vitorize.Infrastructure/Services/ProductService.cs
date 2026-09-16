@@ -28,6 +28,22 @@ namespace Vitorize.Infrastructure.Services
             _htmlSanitizer = htmlSanitizer;
         }
 
+        /// <summary>
+        /// The category and everything beneath it. Only the id and parent of each row are read, so
+        /// this is a small scan over a table that a catalogue keeps short, next to a product query
+        /// that joins several tables and pages its results.
+        /// </summary>
+        private async Task<HashSet<Guid>> CategoryBranchIdsAsync(Guid categoryId)
+        {
+            var nodes = await _dbContext.Categories
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .Select(x => new CategoryNode(x.Id, x.ParentId))
+                .ToListAsync();
+
+            return CategoryHierarchy.Branch(CategoryHierarchy.ChildrenByParent(nodes), categoryId);
+        }
+
         public async Task<PagedResult<ProductListItemDto>> GetProductsAsync(ProductFilterDto filter)
         {
             filter ??= new ProductFilterDto();
@@ -83,10 +99,15 @@ namespace Vitorize.Infrastructure.Services
                 // means a product created outside the admin service (a SQL seed, a data import,
                 // legacy tooling) can never silently disappear from its own category listing
                 // because no join row was written for it.
-                var categoryId = filter.CategoryId.Value;
+                //
+                // The whole branch counts, not just the category itself. A customer clicking a
+                // parent in the mega menu expects what is under it; matching the id exactly left
+                // every category that only groups its children showing an empty page. The admin
+                // product list keeps the exact match - filtering there means that one category.
+                var branchIds = await CategoryBranchIdsAsync(filter.CategoryId.Value);
                 query = query.Where(x =>
-                    x.CategoryId == categoryId ||
-                    x.ProductCategories.Any(pc => pc.CategoryId == categoryId));
+                    branchIds.Contains(x.CategoryId) ||
+                    x.ProductCategories.Any(pc => branchIds.Contains(pc.CategoryId)));
             }
 
             if (filter.BrandId.HasValue)
