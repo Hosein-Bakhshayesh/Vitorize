@@ -19,7 +19,7 @@ namespace Vitorize.Infrastructure.Services
 
         public async Task<List<AdminCategoryDto>> GetAllAsync()
         {
-            return await _dbContext.Categories
+            var categories = await _dbContext.Categories
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .OrderBy(x => x.SortOrder)
@@ -41,6 +41,86 @@ namespace Vitorize.Infrastructure.Services
                     FocusKeyword = x.FocusKeyword
                 })
                 .ToListAsync();
+
+            await ApplyCountsAsync(categories);
+
+            return categories;
+        }
+
+        /// <summary>
+        /// Fills the three count columns of the category list.
+        /// <para>
+        /// The subtree figure is a DISTINCT over a whole branch, which no grouped query can express
+        /// without a recursive CTE, and a per-category sum would over-count any product filed under
+        /// two categories of the same branch. Since a catalogue has few categories and this screen
+        /// already loads all of them, the product links are read once and folded here instead of
+        /// pushing provider-specific SQL into an admin list.
+        /// </para>
+        /// </summary>
+        private async Task ApplyCountsAsync(List<AdminCategoryDto> categories)
+        {
+            if (categories.Count == 0)
+                return;
+
+            // Only products a customer could actually reach count: an inactive or deleted product
+            // does not stop a category page from looking empty.
+            var primaryLinks = await _dbContext.Products
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted && p.IsActive)
+                .Select(p => new { p.CategoryId, ProductId = p.Id })
+                .ToListAsync();
+
+            var secondaryLinks = await _dbContext.ProductCategories
+                .AsNoTracking()
+                .Where(pc => !pc.Product.IsDeleted && pc.Product.IsActive)
+                .Select(pc => new { pc.CategoryId, pc.ProductId })
+                .ToListAsync();
+
+            var directProducts = new Dictionary<Guid, HashSet<Guid>>();
+            foreach (var link in primaryLinks.Concat(secondaryLinks))
+            {
+                if (!directProducts.TryGetValue(link.CategoryId, out var set))
+                    directProducts[link.CategoryId] = set = new HashSet<Guid>();
+                set.Add(link.ProductId);
+            }
+
+            var children = categories
+                .Where(c => c.ParentId.HasValue)
+                .GroupBy(c => c.ParentId!.Value)
+                .ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
+
+            var subtreeCache = new Dictionary<Guid, HashSet<Guid>>();
+
+            HashSet<Guid> Subtree(Guid id, HashSet<Guid> visiting)
+            {
+                if (subtreeCache.TryGetValue(id, out var cached))
+                    return cached;
+
+                var products = directProducts.TryGetValue(id, out var own)
+                    ? new HashSet<Guid>(own)
+                    : new HashSet<Guid>();
+
+                // A mis-configured parent cycle must not recurse forever; the service rejects cycles
+                // on write, so this only guards against rows that predate that validation.
+                if (visiting.Add(id))
+                {
+                    if (children.TryGetValue(id, out var kids))
+                        foreach (var kid in kids)
+                            products.UnionWith(Subtree(kid, visiting));
+
+                    visiting.Remove(id);
+                }
+
+                subtreeCache[id] = products;
+                return products;
+            }
+
+            foreach (var category in categories)
+            {
+                category.ProductCount = directProducts.TryGetValue(category.Id, out var own) ? own.Count : 0;
+                category.ChildrenCount = children.TryGetValue(category.Id, out var kids) ? kids.Count : 0;
+                category.SubtreeProductCount = Subtree(category.Id, new HashSet<Guid>()).Count;
+            }
         }
 
         public async Task<AdminCategoryDto> GetByIdAsync(Guid id)

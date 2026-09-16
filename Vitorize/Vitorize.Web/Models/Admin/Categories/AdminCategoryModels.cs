@@ -22,6 +22,9 @@ namespace Vitorize.Web.Models.Admin.Categories
         public DateTime? UpdatedAt { get; set; }
         public int ProductCount { get; set; }
         public int ChildrenCount { get; set; }
+
+        /// <summary>Active products anywhere under this category, including its own.</summary>
+        public int SubtreeProductCount { get; set; }
     }
 
     public class AdminCategoryInputModel

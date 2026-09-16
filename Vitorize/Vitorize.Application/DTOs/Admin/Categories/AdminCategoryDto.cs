@@ -15,5 +15,17 @@
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
         public string? FocusKeyword { get; set; }
+
+        /// <summary>Active products attached to this category itself, counted once even when a
+        /// product reaches it through both its primary category and the many-to-many link.</summary>
+        public int ProductCount { get; set; }
+
+        /// <summary>Direct sub-categories that have not been deleted.</summary>
+        public int ChildrenCount { get; set; }
+
+        /// <summary>Active products anywhere under this category, including its own. This is the
+        /// number that answers "will a customer landing here see anything?", so a category whose
+        /// own count is zero but whose branches carry products is visibly different from an empty one.</summary>
+        public int SubtreeProductCount { get; set; }
     }
 }

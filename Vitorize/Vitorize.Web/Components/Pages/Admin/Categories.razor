@@ -66,7 +66,7 @@
                 <table class="vz-table">
                     <thead>
                         <tr>
-                            <th>دسته‌بندی</th><th>والد</th><th>تعداد محصول</th><th>زیرمجموعه</th>
+                            <th>دسته‌بندی</th><th>والد</th><th>محصول مستقیم</th><th>محصول زیردرخت</th><th>زیرمجموعه</th>
                             <th>ترتیب</th><th>وضعیت</th><th class="col-actions">عملیات</th>
                         </tr>
                     </thead>
@@ -99,6 +99,17 @@
                                 </td>
                                 <td>@ParentTitle(c)</td>
                                 <td class="num">@AUI.Number(c.ProductCount)</td>
+                                @* Zero here on a category that has branches means every page under it is empty. *@
+                                <td class="num">
+                                    @if (c.SubtreeProductCount == 0)
+                                    {
+                                        <StatusBadge Text="بدون محصول" Intent="warning" />
+                                    }
+                                    else
+                                    {
+                                        @AUI.Number(c.SubtreeProductCount)
+                                    }
+                                </td>
                                 <td class="num">@AUI.Number(c.ChildrenCount)</td>
                                 <td class="num">@AUI.Number(c.SortOrder)</td>
                                 <td><StatusBadge Text="@(c.IsActive ? "فعال" : "غیرفعال")" Intent="@(c.IsActive ? "success" : "muted")" /></td>
