@@ -79,11 +79,13 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-hero__copy h1, .hp-promo__card h2 { font-size: calc(56 * var(--hp-u)); font-weight: 800; line-height: 1.5; background: linear-gradient(100deg, #2bcdc0, #24878b); color: transparent; background-clip: text; -webkit-background-clip: text; }
 .hp-hero__copy h1 { font-size: calc(54 * var(--hp-u)); white-space: nowrap; }
 .hp-hero__copy p { font-size: calc(28 * var(--hp-u)); line-height: 1.8; margin-top: calc(8 * var(--hp-u)); }
-.hp-hero__actions { display: flex; direction: ltr; justify-content: flex-end; align-items: stretch; gap: calc(8 * var(--hp-u)); margin-top: calc(24 * var(--hp-u)); height: calc(48 * var(--hp-u)); }
-.hp-hero__actions > * { display: block; border-radius: calc(4 * var(--hp-u)); }
-.hp-hero__actions > :first-child { width: calc(215 * var(--hp-u)); background: var(--hp-teal); }
-.hp-hero__actions > :nth-child(2) { width: calc(69 * var(--hp-u)); border: 1px solid var(--hp-mint); }
-.hp-hero__actions > :last-child { width: calc(105 * var(--hp-u)); background: var(--hp-mint); }
+/* Real buttons, sized by their label. The frames were fixed-width boxes because the handoff drew
+   them empty; a width chosen for a shape cannot hold copy an administrator can change. */
+.hp-hero__actions { display: flex; justify-content: flex-start; align-items: stretch; flex-wrap: wrap; gap: calc(12 * var(--hp-u)); margin-top: calc(26 * var(--hp-u)); }
+.hp-hero__cta { display: inline-flex; align-items: center; justify-content: center; min-height: calc(48 * var(--hp-u)); min-width: calc(180 * var(--hp-u)); padding: 0 calc(30 * var(--hp-u)); border-radius: calc(6 * var(--hp-u)); background: var(--hp-teal); color: #fff !important; font-size: max(13px, calc(17 * var(--hp-u))); font-weight: 700; line-height: 1; transition: background .2s cubic-bezier(.22,.61,.36,1), box-shadow .2s cubic-bezier(.22,.61,.36,1), transform .2s cubic-bezier(.22,.61,.36,1); }
+.hp-hero__cta:hover { background: #22a89b; box-shadow: 0 calc(8 * var(--hp-u)) calc(20 * var(--hp-u)) #2cc3b340; transform: translateY(calc(-2 * var(--hp-u))); }
+.hp-hero__cta--ghost { background: #fff; color: #14867c !important; border: 1.5px solid var(--hp-mint); min-width: calc(150 * var(--hp-u)); }
+.hp-hero__cta--ghost:hover { background: #e9f8f5; border-color: var(--hp-teal); box-shadow: none; }
 .hp-hero__mosaic { direction: ltr; display: grid; grid-template-columns: repeat(100, 1fr); grid-template-rows: 1fr 1fr; height: calc(564 * var(--hp-u)); gap: calc(16 * var(--hp-u)) 0; }
 .hp-hero__tile { display: block; min-width: 0; background: var(--hp-media); border-radius: calc(10 * var(--hp-u)); overflow: hidden; }
 .hp-hero__tile--1 { grid-column: 1 / 63; margin-right: calc(8 * var(--hp-u)); }
@@ -140,9 +142,9 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-dots { display: flex; direction: ltr; gap: calc(10 * var(--hp-u)); position: absolute; left: calc(48 * var(--hp-u)); bottom: calc(48 * var(--hp-u)); }
 .hp-dots > * { display: block; height: calc(20 * var(--hp-u)); width: calc(20 * var(--hp-u)); padding: 0; border: none; border-radius: 2px; background: #ffffff55; }
 .hp-dots .is-active { background: #fff; }
-.hp-benefits { min-height: calc(544 * var(--hp-u)); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(60 * var(--hp-u)); padding: calc(100 * var(--hp-u)); }
+.hp-benefits { min-height: calc(544 * var(--hp-u)); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: calc(60 * var(--hp-u)); padding: calc(100 * var(--hp-u)); }
 .hp-benefit { min-height: calc(336 * var(--hp-u)); border-radius: calc(10 * var(--hp-u)); background: var(--hp-media); text-align: center; padding: calc(56 * var(--hp-u)) calc(22 * var(--hp-u)) calc(30 * var(--hp-u)); }
-.hp-benefit__circle { display: block; width: calc(140 * var(--hp-u)); height: calc(140 * var(--hp-u)); background: #fff; border-radius: 50%; margin: 0 auto calc(20 * var(--hp-u)); }
+.hp-benefit__circle { display: grid; place-items: center; color: #14867c; width: calc(140 * var(--hp-u)); height: calc(140 * var(--hp-u)); background: #fff; border-radius: 50%; margin: 0 auto calc(20 * var(--hp-u)); }
 .hp-benefit h2 { font-size: calc(24 * var(--hp-u)); font-weight: 800; line-height: 1.5; }
 .hp-benefit p { font-size: calc(14 * var(--hp-u)); line-height: 1.65; margin-top: calc(7 * var(--hp-u)); }
 .hp-brands { height: calc(217 * var(--hp-u)); display: flex; align-items: center; overflow: hidden; }
@@ -247,11 +249,9 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-hero__copy { text-align: center; width: 100%; transform: none; }
     .hp-hero__copy h1 { font-size: 20px; line-height: 1.5; white-space: normal; }
     .hp-hero__copy p { font-size: 12px; margin-top: 10px; line-height: 1.5; }
-    .hp-hero__actions { justify-content: center; height: 28px; gap: 4px; margin-top: 22px; }
-    .hp-hero__actions > :first-child { width: 92px; }
-    .hp-hero__actions > :nth-child(2) { width: 32px; }
-    .hp-hero__actions > :last-child { width: 44px; }
-    .hp-hero__actions > * { border-radius: 3px; }
+    .hp-hero__actions { justify-content: center; gap: 8px; margin-top: 20px; }
+    .hp-hero__cta { min-height: 38px; min-width: 0; padding: 0 18px; border-radius: 6px; font-size: 13px; }
+    .hp-hero__cta--ghost { min-width: 0; }
     .hp-hero__mosaic { width: 100%; height: 278px; flex: 0 0 auto; gap: 8px 0; }
     .hp-hero__tile { border-radius: 10px; }
     .hp-hero__tile--1, .hp-hero__tile--3 { margin-right: 4px; }

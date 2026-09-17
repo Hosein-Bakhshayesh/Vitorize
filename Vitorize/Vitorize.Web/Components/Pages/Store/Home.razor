@@ -15,10 +15,11 @@
         <div class="hp-hero__copy">
             <h1 id="hp-title">@_branding.Get("HeroTitle", "زندگی دیجیتالتو پیشرفت بده حمال!")</h1>
             <p>@_branding.Get("HeroSubtitle", "لورم ایپسوم دولور سیت امت.")</p>
+            @* The handoff drew these as plain shapes and they shipped that way: two links with an
+               aria-label and no text, plus a block that was never anything but decoration. *@
             <div class="hp-hero__actions">
-                <a href="@_branding.HeroCtaUrl" aria-label="@_branding.HeroCtaText"></a>
-                <a href="@_branding.HeroSecondaryCtaUrl" aria-label="@_branding.Get("HeroSecondaryCtaText", "مشاهده دسته‌بندی‌ها")"></a>
-                <span aria-hidden="true"></span>
+                <a class="hp-hero__cta" href="@_branding.HeroCtaUrl">@_branding.HeroCtaText</a>
+                <a class="hp-hero__cta hp-hero__cta--ghost" href="@_branding.HeroSecondaryCtaUrl">@_branding.Get("HeroSecondaryCtaText", "دسته‌بندی‌ها")</a>
             </div>
         </div>
         <div class="hp-hero__mosaic">
@@ -72,6 +73,8 @@
             <a class="hp-cat-more" href="/categories">مشاهده همه دسته‌بندی‌ها <Icon Name="chevron-left" Size="15" /></a>
         }
     </section>
+    @if (_branding.HomePopularProductsEnabled)
+    {
     <section class="hp-section hp-products">
         <h2>محصولات پرفروش ویتورایز</h2>
         <div class="hp-product-grid">
@@ -79,30 +82,43 @@
             @if (_products.Count == 0) { <p class="hp-empty">@Empty("محصول")</p> }
         </div>
     </section>
+    }
     <section class="hp-section hp-showcase" aria-label="پیشنهادهای فروشگاه">
         <div class="hp-banner @(CampaignBanners.Count == 0 ? "hp-ph hp-ph--wide" : null)">
             @if (CampaignBanners.ElementAtOrDefault(_campaignIndex) is { } campaign)
             { <a href="@(campaign.LinkUrl ?? "/shop")" aria-label="@campaign.Title"><StoreImage Url="@campaign.ImagePath" MobileUrl="@campaign.MobileImagePath" Alt="@(campaign.AltText ?? campaign.Title)" /></a> }
-            <div class="hp-dots" aria-label="انتخاب بنر">
-                @for (var i = 0; i < Math.Max(CampaignBanners.Count, 5); i++)
-                {
-                    var index = i;
-                    @if (index < CampaignBanners.Count)
-                    { <button type="button" class="@(index == _campaignIndex ? "is-active" : null)" aria-label="بنر @(index + 1)" aria-pressed="@(index == _campaignIndex)" @onclick="() => _campaignIndex = index"></button> }
-                    else { <span aria-hidden="true" class="@(index == 1 ? "is-active" : null)"></span> }
-                }
-            </div>
+            @* Padding the rail out to five made a lone banner look like a broken carousel, and the
+               filler dots did nothing when clicked. One dot per slide, none below two. *@
+            @if (CampaignBanners.Count > 1)
+            {
+                <div class="hp-dots" aria-label="انتخاب بنر">
+                    @for (var i = 0; i < CampaignBanners.Count; i++)
+                    {
+                        var index = i;
+                        <button type="button" class="@(index == _campaignIndex ? "is-active" : null)" aria-label="بنر @(index + 1)" aria-pressed="@(index == _campaignIndex)" @onclick="() => _campaignIndex = index"></button>
+                    }
+                </div>
+            }
         </div>
     </section>
-    <section class="hp-section hp-benefits" aria-label="مزایای خرید از ویتورایز">
-        @for (var i = 0; i < 4; i++)
-        {
-            var feature = HomeFeatures.ElementAtOrDefault(i);
-            <article class="hp-benefit"><span class="hp-benefit__circle" aria-hidden="true"></span>
-                @if (feature is not null) { <h2>@feature.Title</h2><p>@feature.Text</p> }
-            </article>
-        }
-    </section>
+    @* One card per configured feature, not a fixed four. The loop used to run to four whatever the
+       settings held, so a shorter list left blank white circles standing on the page - and with the
+       list empty, as it is on production, the whole section was four circles and nothing else. *@
+    @if (HomeFeatures.Count > 0)
+    {
+        <section class="hp-section hp-benefits" aria-label="مزایای خرید از ویتورایز">
+            @foreach (var feature in HomeFeatures.Take(4))
+            {
+                <article class="hp-benefit">
+                    <span class="hp-benefit__circle" aria-hidden="true">
+                        @if (!string.IsNullOrWhiteSpace(feature.Icon)) { <Icon Name="@feature.Icon" Size="56" /> }
+                    </span>
+                    <h2>@feature.Title</h2>
+                    @if (!string.IsNullOrWhiteSpace(feature.Text)) { <p>@feature.Text</p> }
+                </article>
+            }
+        </section>
+    }
     <section class="hp-section hp-brands" aria-label="برندها">
         <div class="hp-brands__track">
             @foreach (var brand in _data.Brands.Take(12).Reverse())
@@ -156,7 +172,7 @@
             @for (var i = 0; i < Math.Min(4, _data.Faqs.Count); i++)
             {
                 var faq = _data.Faqs[i];
-                <details open="@(i == 2)"><summary><span>@faq.Question</span><i aria-hidden="true"></i></summary><div class="hp-faq__answer">@faq.Answer</div></details>
+                <details open="@(i == 0)"><summary><span>@faq.Question</span><i aria-hidden="true"></i></summary><div class="hp-faq__answer">@faq.Answer</div></details>
             }
             @if (_data.Faqs.Count == 0) { <p class="hp-empty">@Empty("سوال")</p> }
         </div>
@@ -173,16 +189,9 @@
     private List<StoreProductModel> _products = new();
     private List<CustomerReviewModel> _reviews = new();
     private StoreBranding _branding = new(new Dictionary<string, string>());
-    private IReadOnlyList<HomeBlockItem> HomeFeatures => string.IsNullOrWhiteSpace(_branding.Get("HomeFeaturesJson", ""))
-        ? ReferenceFeatures : _branding.HomeFeatures;
-    // Copy from the supplied design is a presentation default only; configured copy wins.
-    private static readonly HomeBlockItem[] ReferenceFeatures =
-    [
-        new("", "پشتیبانی‌های", ""),
-        new("", "قیمت مناسب", ""),
-        new("", "پرایمر و تنوع", ""),
-        new("", "سرعت خرید بالا", "")
-    ];
+    // Placeholder copy from the design used to stand in for an unset list, but it carried no icon and
+    // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
+    private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
     private List<StoreLookupModel> _categoryTree = new();
     /// <summary>Root categories shown on the homepage board, in the administrator's configured order.</summary>
     private List<StoreLookupModel> CategoryRoots => CategoryTree.Roots(_categoryTree).Take(8).ToList();
