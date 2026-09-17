@@ -363,3 +363,27 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-blog-card:hover .hp-blog-card__media,
     .hp-blog-card:hover .hp-blog-card__media .st-img img { transform: none; }
 }
+/* ---- empty banner slots ---------------------------------------------------
+   A slot with no banner configured used to paint flat #d9d9d9, which reads as a
+   broken image rather than a deliberate gap. These carry the brand's own teal and
+   mint at low saturation, with a soft light source and a faint diagonal weave, so
+   an unfilled frame looks like part of the design until artwork arrives. Purely
+   decorative: the markup stays aria-hidden and gains no text a customer could
+   mistake for content. */
+.hp-ph { position: relative; overflow: hidden; background: linear-gradient(135deg, #e4f5f2 0%, #cfe8ec 50%, #ddf1e8 100%); box-shadow: inset 0 0 0 1px #14867c26; }
+.hp-ph::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+        radial-gradient(58% 68% at 78% 16%, #9fe3d6 0%, transparent 62%),
+        radial-gradient(52% 60% at 12% 88%, #2cc3b352 0%, transparent 60%);
+}
+.hp-ph::after {
+    content: ""; position: absolute; inset: 0; opacity: .5;
+    background-image: repeating-linear-gradient(135deg, transparent 0 13px, #ffffff8c 13px 14px);
+}
+/* Each tile shifts the light so four empty frames do not read as one flat block. */
+.hp-ph--2::before { background: radial-gradient(66% 72% at 22% 20%, #b2e7dc 0%, transparent 64%), radial-gradient(56% 64% at 88% 86%, #2cc3b352 0%, transparent 62%); }
+.hp-ph--3::before { background: radial-gradient(48% 78% at 50% 8%, #a7e5d9 0%, transparent 66%), radial-gradient(60% 66% at 6% 92%, #24878b45 0%, transparent 60%); }
+.hp-ph--4::before { background: radial-gradient(84% 46% at 50% 88%, #b2e7dc 0%, transparent 62%), radial-gradient(70% 44% at 50% 6%, #2cc3b34d 0%, transparent 58%); }
+.hp-ph--wide::before { background: radial-gradient(38% 84% at 84% 12%, #a7e5d9d9 0%, transparent 64%), radial-gradient(44% 88% at 10% 92%, #24878b40 0%, transparent 62%); }
+.hp-ph--wide::after { opacity: .38; background-image: repeating-linear-gradient(135deg, transparent 0 22px, #ffffff8c 22px 23px); }

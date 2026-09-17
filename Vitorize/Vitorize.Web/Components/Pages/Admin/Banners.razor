@@ -17,7 +17,7 @@
     <div class="vz-stats">
         <StatCard Label="همه بنرها" Value="@AUI.Number(_items.Count)" Icon="image" Accent="purple" />
         <StatCard Label="فعال" Value="@AUI.Number(_items.Count(b => b.IsActive))" Icon="check-circle" Accent="green" />
-        <StatCard Label="اسلایدر اصلی" Value="@AUI.Number(_items.Count(b => b.Position == "home-hero"))" Icon="trending-up" Accent="teal" />
+        <StatCard Label="کاشی‌های بالای صفحه" Value="@($"{AUI.Number(FilledHeroTiles)} از {AUI.Number(AdminBannerSlot.HeroTileCount)}")" Icon="layout-grid" Accent="teal" />
         <StatCard Label="زمان‌بندی‌شده" Value="@AUI.Number(_items.Count(b => b.StartsAt is not null || b.EndsAt is not null))" Icon="calendar" Accent="orange" />
     </div>
 }
@@ -37,10 +37,10 @@
             <div class="vz-table-wrap">
                 <table class="vz-table">
                     <thead>
-                        <tr><th>بنر</th><th>جایگاه</th><th>لینک</th><th>ترتیب</th><th>بازه نمایش</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                        <tr><th>بنر</th><th>جایگاه</th><th>لینک</th><th>ترتیب اسلاید</th><th>بازه نمایش</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
                     </thead>
                     <tbody>
-                        @foreach (var b in _items.OrderBy(x => x.SortOrder))
+                        @foreach (var b in _items.OrderBy(x => x.Position).ThenBy(x => x.SortOrder))
                         {
                             <tr>
                                 <td>
@@ -49,9 +49,15 @@
                                         <span class="vz-cell-title">@b.Title</span>
                                     </div>
                                 </td>
-                                <td><span class="vz-chip">@PositionTitle(b.Position)</span></td>
+                                <td>
+                                    <span class="vz-chip">@(SlotOf(b)?.Title ?? "خارج از کاشی‌ها")</span>
+                                    @if (IsUnreachable(b))
+                                    {
+                                        <div style="margin-top:4px"><StatusBadge Text="نمایش داده نمی‌شود" Intent="warning" /></div>
+                                    }
+                                </td>
                                 <td class="vz-muted vz-mono" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">@(string.IsNullOrWhiteSpace(b.LinkUrl) ? "—" : b.LinkUrl)</td>
-                                <td class="num">@AUI.Number(b.SortOrder)</td>
+                                <td class="num">@(SlotOf(b) is { IsHeroTile: false } ? AUI.Number(b.SortOrder) : "—")</td>
                                 <td class="vz-mono" style="font-size:12px"><PersianDateDisplay Value="b.StartsAt" /> － <PersianDateDisplay Value="b.EndsAt" /></td>
                                 <td><StatusBadge Text="@(b.IsActive ? "فعال" : "غیرفعال")" Intent="@(b.IsActive ? "success" : "muted")" /></td>
                                 <td class="col-actions">
@@ -78,30 +84,50 @@
                     <InputText class="vz-input" @bind-Value="_model.Title" />
                     <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
                 </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>
+                    <select class="vz-select" @bind="SlotKey" @bind:event="onchange">
+                        <option value="" disabled>یک جایگاه انتخاب کنید…</option>
+                        @foreach (var s in AdminBannerSlot.All)
+                        {
+                            <option value="@s.Key">@s.Title — @s.Shape</option>
+                        }
+                    </select>
+                    @if (SelectedSlot is null)
+                    {
+                        <small class="vz-hint danger">این بنر روی هیچ‌کدام از چهار کاشی بالای صفحه ننشسته و نمایش داده نمی‌شود. یک جایگاه انتخاب کنید.</small>
+                    }
+                    <BannerSlotMap SelectedKey="@_slotKey" />
+                </div>
+                @if (SelectedSlot is { IsHeroTile: false })
+                {
+                    <div class="vz-field">
+                        <label class="vz-label">ترتیب اسلاید</label>
+                        <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                        <small class="vz-hint">اسلایدهای بنر میانی به همین ترتیب نمایش داده می‌شوند.</small>
+                    </div>
+                }
                 <div class="vz-field">
                     <label class="vz-label">تصویر اصلی (دسکتاپ) <span class="req">*</span></label>
                     <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر بنر" Endpoint="admin/uploads/banner-image" />
-                    <ImageGuideline Spec="ImageSpecs.BannerDesktop" />
+                    <ImageGuideline Spec="ImageSpecs.ForBannerSlot(_slotKey)" />
                     <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
                 </div>
                 <div class="vz-field">
                     <label class="vz-label">تصویر موبایل <span class="vz-muted">(اختیاری)</span></label>
                     <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" Endpoint="admin/uploads/banner-image" />
-                    <ImageGuideline Spec="ImageSpecs.BannerMobile" />
-                    <small class="vz-hint">اگر خالی بماند، تصویر دسکتاپ در موبایل نمایش داده می‌شود.</small>
+                    <small class="vz-hint">اگر خالی بماند، تصویر دسکتاپ در موبایل نمایش داده می‌شود. نسبت قاب روی موبایل تقریباً همان دسکتاپ است، پس معمولاً یک تصویر کافی است.</small>
                 </div>
                 <div class="vz-field">
-                    <label class="vz-label">جایگاه نمایش <span class="req">*</span></label>
-                    <select class="vz-select" @bind="_model.Position">
-                        @foreach (var p in Positions)
-                        {
-                            <option value="@p.Value">@p.Title</option>
-                        }
-                    </select>
+                    <label class="vz-label">متن جایگزین تصویر</label>
+                    <InputText class="vz-input" @bind-Value="_model.AltText" placeholder="مثلاً: جشنواره گیفت کارت پلی استیشن" />
+                    <ValidationMessage For="() => _model.AltText" class="vz-val-msg" />
+                    <small class="vz-hint">برای موتورهای جستجو و کاربران کم‌بینا. خالی بماند، عنوان بنر جایش می‌نشیند.</small>
                 </div>
                 <div class="vz-field">
-                    <label class="vz-label">ترتیب نمایش</label>
-                    <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                    <label class="vz-label">متن جایگزین تصویر موبایل <span class="vz-muted">(اختیاری)</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.MobileAltText" />
+                    <ValidationMessage For="() => _model.MobileAltText" class="vz-val-msg" />
                 </div>
                 <div class="vz-field span-2">
                     <label class="vz-label">لینک مقصد</label>
@@ -149,14 +175,48 @@
     private bool _confirmDelete, _deleting;
     private AdminBannerModel? _target;
 
-    private static readonly AdminBannerPositionOption[] Positions =
-    {
-        new("home-hero", "اسلایدر اصلی صفحه نخست"),
-        new("home-secondary", "بنر فرعی صفحه نخست"),
-    };
+    /// <summary>The slot chosen in the form. Writing it back sets the position and, for a hero tile,
+    /// the sort order that decides which frame the banner lands in.</summary>
+    private string _slotKey = string.Empty;
 
-    private static string PositionTitle(string value) =>
-        Positions.FirstOrDefault(p => p.Value == value)?.Title ?? value;
+    private string SlotKey
+    {
+        get => _slotKey;
+        set
+        {
+            _slotKey = value;
+            if (AdminBannerSlot.Find(value) is not { } slot) return;
+
+            _model.Position = slot.Position;
+            if (slot.FixedSortOrder is { } order) _model.SortOrder = order;
+        }
+    }
+
+    private AdminBannerSlot? SelectedSlot => AdminBannerSlot.Find(_slotKey);
+
+    private static AdminBannerSlot? SlotOf(AdminBannerModel banner) =>
+        AdminBannerSlot.Resolve(banner.Position, banner.SortOrder);
+
+    /// <summary>Hero banners sharing a tile, or sitting past the fourth one. Either way the homepage
+    /// draws only one of them, so the list has to say so rather than let them look interchangeable.</summary>
+    private bool IsUnreachable(AdminBannerModel banner)
+    {
+        if (banner.Position != "home-hero") return false;
+        if (SlotOf(banner) is null) return true;
+
+        return _items.Any(other =>
+            other.Id != banner.Id &&
+            other.Position == banner.Position &&
+            other.SortOrder == banner.SortOrder &&
+            other.CreatedAt < banner.CreatedAt);
+    }
+
+    private int FilledHeroTiles => _items
+        .Where(x => x.Position == "home-hero")
+        .Select(x => x.SortOrder)
+        .Where(x => x >= 0 && x < AdminBannerSlot.HeroTileCount)
+        .Distinct()
+        .Count();
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -172,6 +232,12 @@
     private void OpenCreate()
     {
         _model = new AdminBannerInputModel { IsActive = true, Position = "home-hero" };
+
+        // Offer the first tile still free, so the common case needs no thought.
+        var firstFree = AdminBannerSlot.All.FirstOrDefault(s =>
+            s.IsHeroTile && _items.All(b => b.Position != s.Position || b.SortOrder != s.FixedSortOrder));
+        SlotKey = (firstFree ?? AdminBannerSlot.All[0]).Key;
+
         _formOpen = true;
     }
 
@@ -180,9 +246,15 @@
         _model = new AdminBannerInputModel
         {
             Id = b.Id, Title = b.Title, ImagePath = b.ImagePath, MobileImagePath = b.MobileImagePath,
+            AltText = b.AltText, MobileAltText = b.MobileAltText,
             LinkUrl = b.LinkUrl, Position = b.Position, SortOrder = b.SortOrder,
             IsActive = b.IsActive, StartsAt = b.StartsAt, EndsAt = b.EndsAt
         };
+
+        // A hero banner past the fourth tile resolves to nothing; leaving the picker empty forces a
+        // choice instead of silently moving it somewhere the administrator did not ask for.
+        _slotKey = SlotOf(b)?.Key ?? string.Empty;
+
         _formOpen = true;
     }
 
@@ -193,7 +265,8 @@
         _saving = true;
         var payload = new
         {
-            _model.Title, _model.ImagePath, _model.MobileImagePath, _model.LinkUrl,
+            _model.Title, _model.ImagePath, _model.MobileImagePath,
+            _model.AltText, _model.MobileAltText, _model.LinkUrl,
             _model.Position, _model.SortOrder, _model.IsActive, _model.StartsAt, _model.EndsAt
         };
 

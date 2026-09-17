@@ -1,0 +1,34 @@
+@* Scale drawing of the homepage banner frames, with the chosen one lit up.
+
+   The four tiles at the top of the page have four different proportions, so which one a banner
+   lands in changes how much of the artwork survives the crop. Naming the slot in a dropdown says
+   where it goes; showing it says what shape to bring. *@
+
+<div class="vz-slotmap" aria-hidden="true">
+    <div class="vz-slotmap__hero">
+        @foreach (var tile in Tiles)
+        {
+            <div class="vz-slotmap__tile @(tile.Key == SelectedKey ? "is-on" : null)" style="@tile.Style">
+                <span>@tile.Label</span>
+            </div>
+        }
+    </div>
+    <div class="vz-slotmap__wide @(SelectedKey == "slider" ? "is-on" : null)">
+        <span>بنر میانی</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? SelectedKey { get; set; }
+
+    private sealed record Tile(string Key, string Label, string Style);
+
+    // Percentages of the real mosaic, so the drawing keeps each frame's proportions.
+    private static readonly Tile[] Tiles =
+    {
+        new("hero-1", "۱", "grid-area:1/1/2/63"),
+        new("hero-2", "۲", "grid-area:1/63/2/101"),
+        new("hero-3", "۳", "grid-area:2/1/3/76"),
+        new("hero-4", "۴", "grid-area:2/76/3/101")
+    };
+}

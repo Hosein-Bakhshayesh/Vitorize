@@ -1565,3 +1565,12 @@ input:disabled, select:disabled, textarea:disabled { color: var(--muted); opacit
 @media (max-width: 640px) {
     .vz-catpick__list { max-height: 148px; }
 }
+
+/* ---- banner slot map (admin > banners form) -------------------------------
+   Draws the homepage frames at their real proportions so the selected slot's
+   shape is visible while choosing the artwork. */
+.vz-slotmap { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.vz-slotmap__hero { display: grid; grid-template-columns: repeat(100, 1fr); grid-template-rows: 1fr 1fr; gap: 6px 0; height: 104px; direction: ltr; }
+.vz-slotmap__tile { display: grid; place-items: center; margin: 0 3px; border: 1px dashed var(--border-2, #d9dede); border-radius: 6px; background: var(--surface-2, #f6f8f8); color: var(--text-3, #97a1a1); font-weight: 700; font-size: 13px; transition: background .15s, border-color .15s, color .15s; }
+.vz-slotmap__wide { display: grid; place-items: center; height: 40px; border: 1px dashed var(--border-2, #d9dede); border-radius: 6px; background: var(--surface-2, #f6f8f8); color: var(--text-3, #97a1a1); font-weight: 700; font-size: 11px; transition: background .15s, border-color .15s, color .15s; }
+.vz-slotmap .is-on { background: #e9f8f5; border-style: solid; border-color: #2cc3b3; color: #14867c; }

@@ -1,10 +1,12 @@
-﻿namespace Vitorize.Application.DTOs.Admin.Banners
+namespace Vitorize.Application.DTOs.Admin.Banners
 {
     public class CreateBannerRequestDto
     {
         public string Title { get; set; } = string.Empty;
         public string ImagePath { get; set; } = string.Empty;
         public string? MobileImagePath { get; set; }
+        public string? AltText { get; set; }
+        public string? MobileAltText { get; set; }
         public string? LinkUrl { get; set; }
         public string Position { get; set; } = string.Empty;
         public int SortOrder { get; set; }

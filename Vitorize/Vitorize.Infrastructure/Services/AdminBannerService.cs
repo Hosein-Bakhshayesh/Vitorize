@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Banners;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -29,6 +29,8 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     ImagePath = x.ImagePath,
                     MobileImagePath = x.MobileImagePath,
+                    AltText = x.AltText,
+                    MobileAltText = x.MobileAltText,
                     LinkUrl = x.LinkUrl,
                     Position = x.Position,
                     SortOrder = x.SortOrder,
@@ -51,6 +53,8 @@ namespace Vitorize.Infrastructure.Services
                     Title = x.Title,
                     ImagePath = x.ImagePath,
                     MobileImagePath = x.MobileImagePath,
+                    AltText = x.AltText,
+                    MobileAltText = x.MobileAltText,
                     LinkUrl = x.LinkUrl,
                     Position = x.Position,
                     SortOrder = x.SortOrder,
@@ -78,6 +82,8 @@ namespace Vitorize.Infrastructure.Services
                 Title = request.Title,
                 ImagePath = request.ImagePath,
                 MobileImagePath = request.MobileImagePath,
+                AltText = request.AltText,
+                MobileAltText = request.MobileAltText,
                 LinkUrl = request.LinkUrl,
                 Position = request.Position,
                 SortOrder = request.SortOrder,
@@ -107,6 +113,8 @@ namespace Vitorize.Infrastructure.Services
             banner.Title = request.Title;
             banner.ImagePath = request.ImagePath;
             banner.MobileImagePath = request.MobileImagePath;
+            banner.AltText = request.AltText;
+            banner.MobileAltText = request.MobileAltText;
             banner.LinkUrl = request.LinkUrl;
             banner.Position = request.Position;
             banner.SortOrder = request.SortOrder;
@@ -136,6 +144,8 @@ namespace Vitorize.Infrastructure.Services
             request.Title = request.Title?.Trim() ?? string.Empty;
             request.ImagePath = request.ImagePath?.Trim() ?? string.Empty;
             request.MobileImagePath = NormalizeNullable(request.MobileImagePath);
+            request.AltText = NormalizeNullable(request.AltText);
+            request.MobileAltText = NormalizeNullable(request.MobileAltText);
             request.LinkUrl = NormalizeNullable(request.LinkUrl);
             request.Position = request.Position?.Trim() ?? string.Empty;
 

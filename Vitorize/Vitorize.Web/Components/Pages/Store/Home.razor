@@ -27,7 +27,7 @@
                 var banner = HeroBanners.ElementAtOrDefault(i);
                 @if (banner is not null)
                 { <a class="hp-hero__tile hp-hero__tile--@(i + 1)" href="@(banner.LinkUrl ?? "/shop")" aria-label="@banner.Title"><StoreImage Url="@banner.ImagePath" MobileUrl="@banner.MobileImagePath" Alt="@(banner.AltText ?? banner.Title)" Loading="eager" /></a> }
-                else { <div class="hp-hero__tile hp-hero__tile--@(i + 1)" aria-hidden="true"></div> }
+                else { <div class="hp-hero__tile hp-hero__tile--@(i + 1) hp-ph hp-ph--@(i + 1)" aria-hidden="true"></div> }
             }
         </div>
     </section>
@@ -80,7 +80,7 @@
         </div>
     </section>
     <section class="hp-section hp-showcase" aria-label="پیشنهادهای فروشگاه">
-        <div class="hp-banner">
+        <div class="hp-banner @(CampaignBanners.Count == 0 ? "hp-ph hp-ph--wide" : null)">
             @if (CampaignBanners.ElementAtOrDefault(_campaignIndex) is { } campaign)
             { <a href="@(campaign.LinkUrl ?? "/shop")" aria-label="@campaign.Title"><StoreImage Url="@campaign.ImagePath" MobileUrl="@campaign.MobileImagePath" Alt="@(campaign.AltText ?? campaign.Title)" /></a> }
             <div class="hp-dots" aria-label="انتخاب بنر">
