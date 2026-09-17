@@ -32,42 +32,22 @@
             }
         </div>
     </section>
+    @* A row of category icons, as the design specifies. The tree lives in the two header menus and
+       on /categories; repeating it here buried the categories themselves under their branches. *@
     <section class="hp-section hp-categories" aria-labelledby="hp-cats-title">
         <h2 id="hp-cats-title">دسته‌بندی‌های محبوب ویتورایز</h2>
-        @if (CategoryRoots.Count == 0) { <p class="hp-empty">@Empty("دسته‌بندی")</p> }
+        @if (_data.Categories.Count == 0) { <p class="hp-empty">@Empty("دسته‌بندی")</p> }
         else
         {
-            <div class="hp-cat-board">
-                @foreach (var root in CategoryRoots)
+            <div class="hp-category-grid">
+                @foreach (var category in _data.Categories)
                 {
-                    var branches = ChildrenOf(root.Id);
-                    <article class="hp-cat-card">
-                        <a class="hp-cat-card__head" href="@CategoryUrl(root)">
-                            <span class="hp-cat-card__ic" aria-hidden="true"><CategoryMedia IconKey="@root.Icon" ImagePath="@root.ImagePath" Alt="@root.Title" IconSize="24" /></span>
-                            <span class="hp-cat-card__t">@root.Title</span>
-                            <Icon Name="chevron-left" Size="16" />
-                        </a>
-                        @if (branches.Count > 0)
-                        {
-                            <ul class="hp-cat-branch">
-                                @foreach (var branch in branches)
-                                {
-                                    var leaves = DescendantsOf(branch.Id);
-                                    <li>
-                                        <a class="hp-cat-branch__link" href="@CategoryUrl(branch)"><i aria-hidden="true"></i><span>@branch.Title</span></a>
-                                        @if (leaves.Count > 0)
-                                        {
-                                            <ul class="hp-cat-leaf">
-                                                @foreach (var leaf in leaves)
-                                                { <li><a href="@CategoryUrl(leaf)">@leaf.Title</a></li> }
-                                            </ul>
-                                        }
-                                    </li>
-                                }
-                            </ul>
-                        }
-                        <a class="hp-cat-card__all" href="@CategoryUrl(root)">مشاهده همه محصولات <Icon Name="chevron-left" Size="14" /></a>
-                    </article>
+                    <a class="hp-category" href="@($"/category/{category.Slug}")">
+                        <span class="hp-category__image">
+                            <CategoryMedia IconKey="@category.Icon" ImagePath="@category.ImagePath" Alt="@(category.ImageAltText ?? category.Title)" IconSize="44" />
+                        </span>
+                        <span class="hp-category__title">@category.Title</span>
+                    </a>
                 }
             </div>
             <a class="hp-cat-more" href="/categories">مشاهده همه دسته‌بندی‌ها <Icon Name="chevron-left" Size="15" /></a>
@@ -192,12 +172,7 @@
     // Placeholder copy from the design used to stand in for an unset list, but it carried no icon and
     // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
     private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
-    private List<StoreLookupModel> _categoryTree = new();
-    /// <summary>Root categories shown on the homepage board, in the administrator's configured order.</summary>
-    private List<StoreLookupModel> CategoryRoots => CategoryTree.Roots(_categoryTree).Take(8).ToList();
-    private List<StoreLookupModel> ChildrenOf(Guid parentId) => CategoryTree.ChildrenOf(_categoryTree, parentId);
-    private List<StoreLookupModel> DescendantsOf(Guid parentId) => CategoryTree.DescendantsOf(_categoryTree, parentId);
-    private static string CategoryUrl(StoreLookupModel category) => $"/category/{category.Slug}";
+
     private string Empty(string name) => _loading ? "در حال دریافت اطلاعات…" : $"{name} برای نمایش وجود ندارد.";
     private List<StoreBannerModel> HeroBanners => Banners("home-hero");
     private List<StoreBannerModel> CampaignBanners => Banners("home-secondary");
@@ -226,19 +201,9 @@
             _branding = await Branding.GetAsync();
             var homeTask = Api.GetAsync<StoreHomeModel>("storefront/home");
             var productsTask = Api.GetAsync<PagedResult<StoreProductModel>>("products?pageSize=8");
-            // storefront/home only carries root categories; the lookup carries ParentId, which the board needs.
-            var categoriesTask = Api.GetAsync<List<StoreLookupModel>>("products/categories");
-            await Task.WhenAll(homeTask, productsTask, categoriesTask);
+            await Task.WhenAll(homeTask, productsTask);
             _loadFailed = !homeTask.Result.IsSuccess || !productsTask.Result.IsSuccess;
             if (homeTask.Result is { IsSuccess: true, Data: not null }) _data = homeTask.Result.Data;
-            _categoryTree = categoriesTask.Result is { IsSuccess: true, Data: not null }
-                ? categoriesTask.Result.Data
-                // Without the lookup the hierarchy is unknown; show the roots flat rather than nothing.
-                : _data.Categories.Select(c => new StoreLookupModel
-                {
-                    Id = c.Id, Title = c.Title, Slug = c.Slug,
-                    Icon = c.Icon, ImagePath = c.ImagePath, ImageAltText = c.ImageAltText
-                }).ToList();
             // Never mask API failures with invented products, prices or customer reviews.
             // Preserve the existing homepage selection and the admin-configured default sort.
             _products = _data.FeaturedProducts.Take(8).ToList();
