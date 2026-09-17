@@ -185,6 +185,25 @@
                     <label class="vz-label" dir="ltr" style="text-align:start">Focus Keyword</label>
                     <InputText class="vz-input" @bind-Value="_model.FocusKeyword" />
                 </div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب در صفحه اصلی و منو</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.MenuSortOrder" />
+                    <small class="vz-hint">مستقل از ترتیب کاتالوگ؛ فقط ردیف صفحه اصلی و منوها را می‌چیند.</small>
+                    <ValidationMessage For="() => _model.MenuSortOrder" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.ShowOnHome" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">نمایش در ردیف دسته‌بندی صفحه اصلی</span>
+                    </label>
+                    <label class="vz-switch" style="margin-top:8px">
+                        <input type="checkbox" @bind="_model.ShowInMenu" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">نمایش در منوی دسته‌بندی هدر</span>
+                    </label>
+                    <small class="vz-hint">این دو مستقل از «فعال» هستند: غیرفعال کردن دسته آن را از کل سایت حذف می‌کند، این‌ها فقط از همان بخش.</small>
+                </div>
                 <div class="vz-field span-2">
                     <label class="vz-switch">
                         <input type="checkbox" @bind="_model.IsActive" />
@@ -342,7 +361,7 @@
         {
             Id = c.Id, ParentId = c.ParentId, Title = c.Title, Slug = c.Slug,
             Description = c.Description, ImagePath = c.ImagePath, ImageAltText = c.ImageAltText, Icon = c.Icon,
-            SortOrder = c.SortOrder, IsActive = c.IsActive,
+            SortOrder = c.SortOrder, ShowOnHome = c.ShowOnHome, ShowInMenu = c.ShowInMenu, MenuSortOrder = c.MenuSortOrder, IsActive = c.IsActive,
             SeoTitle = c.SeoTitle, SeoDescription = c.SeoDescription, FocusKeyword = c.FocusKeyword
         };
         _formOpen = true;
@@ -356,7 +375,7 @@
         var payload = new
         {
             _model.ParentId, _model.Title, _model.Slug, _model.Description,
-            _model.ImagePath, _model.ImageAltText, _model.Icon, _model.SortOrder, _model.IsActive,
+            _model.ImagePath, _model.ImageAltText, _model.Icon, _model.SortOrder, _model.ShowOnHome, _model.ShowInMenu, _model.MenuSortOrder, _model.IsActive,
             _model.SeoTitle, _model.SeoDescription, _model.FocusKeyword
         };
 

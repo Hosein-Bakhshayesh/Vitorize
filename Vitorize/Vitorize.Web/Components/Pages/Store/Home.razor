@@ -35,12 +35,12 @@
     @* A row of category icons, as the design specifies. The tree lives in the two header menus and
        on /categories; repeating it here buried the categories themselves under their branches. *@
     <section class="hp-section hp-categories" aria-labelledby="hp-cats-title">
-        <h2 id="hp-cats-title">دسته‌بندی‌های محبوب ویتورایز</h2>
+        <h2 id="hp-cats-title">@_branding.HomeCategoriesTitle</h2>
         @if (_data.Categories.Count == 0) { <p class="hp-empty">@Empty("دسته‌بندی")</p> }
         else
         {
             <div class="hp-category-grid">
-                @foreach (var category in _data.Categories)
+                @foreach (var category in _data.Categories.Take(_branding.HomeCategoryCount))
                 {
                     <a class="hp-category" href="@($"/category/{category.Slug}")">
                         <span class="hp-category__image">
@@ -56,15 +56,19 @@
     @if (_branding.HomePopularProductsEnabled)
     {
     <section class="hp-section hp-products">
-        <h2>محصولات پرفروش ویتورایز</h2>
+        <h2>@_branding.HomeProductsTitle</h2>
         <div class="hp-product-grid">
             @foreach (var product in _products.Take(8)) { <HomeProductCard Product="product" /> }
             @if (_products.Count == 0) { <p class="hp-empty">@Empty("محصول")</p> }
         </div>
     </section>
     }
+    @* Unlike the four tiles at the top, which hold the composition together whether or not they are
+       filled, this one spans the page on its own: an empty frame here is just a gap. *@
+    @if (CampaignBanners.Count > 0)
+    {
     <section class="hp-section hp-showcase" aria-label="پیشنهادهای فروشگاه">
-        <div class="hp-banner @(CampaignBanners.Count == 0 ? "hp-ph hp-ph--wide" : null)">
+        <div class="hp-banner">
             @if (CampaignBanners.ElementAtOrDefault(_campaignIndex) is { } campaign)
             { <a href="@(campaign.LinkUrl ?? "/shop")" aria-label="@campaign.Title"><StoreImage Url="@campaign.ImagePath" MobileUrl="@campaign.MobileImagePath" Alt="@(campaign.AltText ?? campaign.Title)" /></a> }
             @* Padding the rail out to five made a lone banner look like a broken carousel, and the
@@ -81,6 +85,7 @@
             }
         </div>
     </section>
+    }
     @* One card per configured feature, not a fixed four. The loop used to run to four whatever the
        settings held, so a shorter list left blank white circles standing on the page - and with the
        list empty, as it is on production, the whole section was four circles and nothing else. *@
@@ -112,7 +117,7 @@
         </div>
     </section>
     <section class="hp-section hp-reviews">
-        <h2>نظرات شما</h2>
+        <h2>@_branding.HomeReviewsTitle</h2>
         <div class="hp-review-track" @ref="_reviewRail" tabindex="0" role="region" aria-label="نظرات تاییدشده خریداران">
             @foreach (var review in _reviews)
             {
@@ -165,9 +170,9 @@
         </section>
     }
     <section class="hp-section hp-blog">
-        <h2>جدیدترین بلاگ‌ها</h2>
+        <h2>@_branding.HomeBlogTitle</h2>
         <div class="hp-blog-grid">
-            @foreach (var post in _data.LatestBlogPosts.Take(3))
+            @foreach (var post in _data.LatestBlogPosts.Take(_branding.HomeBlogCount))
             {
                 @* The title is the link text now, so the card needs no aria-label to stand in for it. *@
                 <a class="hp-blog-card" href="@($"/blog/{post.Slug}")">
@@ -179,7 +184,7 @@
         </div>
     </section>
     <section class="hp-section hp-faq">
-        <h2>سوالات پرتکرار شما</h2>
+        <h2>@_branding.HomeFaqTitle</h2>
         <div class="hp-faq__list">
             @for (var i = 0; i < Math.Min(4, _data.Faqs.Count); i++)
             {

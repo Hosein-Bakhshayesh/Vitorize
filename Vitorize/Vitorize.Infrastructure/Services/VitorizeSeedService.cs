@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -327,6 +327,15 @@ namespace Vitorize.Infrastructure.Services
                 // hidden until an administrator turns it on, and because the seeder only inserts
                 // missing keys, a later admin choice is never overwritten by a redeploy.
                 S("HomePopularProductsEnabled", "false", "Homepage", "bool", "نمایش محبوب‌ترین کالاها در صفحه اصلی"),
+                // Section headings and counts. These were literals in Home.razor, so an administrator
+                // could change the hero copy but not the words directly beneath it.
+                S("HomeCategoriesTitle", "دسته‌بندی‌های محبوب ویتورایز", "Homepage", "string", "عنوان بخش دسته‌بندی‌ها"),
+                S("HomeProductsTitle", "محصولات پرفروش ویتورایز", "Homepage", "string", "عنوان بخش محصولات"),
+                S("HomeBlogTitle", "جدیدترین بلاگ‌ها", "Homepage", "string", "عنوان بخش بلاگ"),
+                S("HomeReviewsTitle", "نظرات شما", "Homepage", "string", "عنوان بخش نظرات"),
+                S("HomeFaqTitle", "سوالات پرتکرار شما", "Homepage", "string", "عنوان بخش سوالات پرتکرار"),
+                S("HomeCategoryCount", "8", "Homepage", "int", "حداکثر تعداد دسته‌بندی روی صفحه اصلی"),
+                S("HomeBlogCount", "3", "Homepage", "int", "تعداد مطالب بلاگ روی صفحه اصلی"),
 
                 // The storefront's default product ordering. Public so the customer's sort menu can
                 // show which order it is currently in. Seeded like every other key - inserted only

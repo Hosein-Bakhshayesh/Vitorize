@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Vitorize.Web.Models.Admin.Brands
 {
@@ -13,6 +13,8 @@ namespace Vitorize.Web.Models.Admin.Brands
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
         public string? FocusKeyword { get; set; }
+        public int SortOrder { get; set; }
+
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public int ProductCount { get; set; }
@@ -36,6 +38,12 @@ namespace Vitorize.Web.Models.Admin.Brands
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }
         [MaxLength(200)] public string? FocusKeyword { get; set; }
+
+        [Range(0, 999999, ErrorMessage = "ترتیب نمایش معتبر نیست.")]
+
+        public int SortOrder { get; set; }
+
+
         public bool IsActive { get; set; } = true;
     }
 }

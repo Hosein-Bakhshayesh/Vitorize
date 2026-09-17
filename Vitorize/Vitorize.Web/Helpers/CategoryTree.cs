@@ -13,6 +13,13 @@ namespace Vitorize.Web.Helpers
         public static List<StoreLookupModel> Roots(IReadOnlyList<StoreLookupModel> all) =>
             all.Where(c => c.ParentId is null).ToList();
 
+        /// <summary>
+        /// Roots the header menus should list. The lookup itself stays complete, because the shop
+        /// filters and the full category page must keep showing everything; only the menus narrow.
+        /// </summary>
+        public static List<StoreLookupModel> MenuRoots(IReadOnlyList<StoreLookupModel> all) =>
+            all.Where(c => c.ParentId is null && c.ShowInMenu).ToList();
+
         public static List<StoreLookupModel> ChildrenOf(IReadOnlyList<StoreLookupModel> all, Guid parentId) =>
             all.Where(c => c.ParentId == parentId).ToList();
 

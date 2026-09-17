@@ -870,6 +870,41 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 134,
+      "version": "V0041",
+      "name": "V0041__brand_and_category_display_order.sql",
+      "path": "Versioned/V0041__brand_and_category_display_order.sql",
+      "sha256": "ee89fe52038db35f98fd45437b1ab89cabc1179a98db837955a705d47667f5f3",
+      "classification": "required",
+      "dependencies": [
+        "V0040",
+        "dbo.Brands",
+        "dbo.Categories"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
+    },
+    {
+      "order": 144,
+      "version": "V0042",
+      "name": "V0042__remove_inert_homepage_settings.sql",
+      "path": "Versioned/V0042__remove_inert_homepage_settings.sql",
+      "sha256": "5681a095aee0bd3ca46fc2962a9f1e116bbdd7d0ed727bfd92edccfd298ddaf7",
+      "classification": "required",
+      "dependencies": [
+        "V0041",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

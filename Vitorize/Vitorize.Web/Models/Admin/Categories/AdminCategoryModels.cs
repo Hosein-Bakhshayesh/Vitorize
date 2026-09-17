@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Vitorize.Web.Models.Admin.Categories
 {
@@ -14,6 +14,9 @@ namespace Vitorize.Web.Models.Admin.Categories
         public string? ImageAltText { get; set; }
         public string? Icon { get; set; }
         public int SortOrder { get; set; }
+        public bool ShowOnHome { get; set; } = true;
+        public bool ShowInMenu { get; set; } = true;
+        public int MenuSortOrder { get; set; }
         public bool IsActive { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
@@ -46,6 +49,12 @@ namespace Vitorize.Web.Models.Admin.Categories
         [MaxLength(100)] public string? Icon { get; set; }
         [Range(0, 100000, ErrorMessage = "ترتیب نمایش معتبر نیست.")]
         public int SortOrder { get; set; }
+        public bool ShowOnHome { get; set; } = true;
+        public bool ShowInMenu { get; set; } = true;
+
+        [Range(0, 999999, ErrorMessage = "ترتیب منو معتبر نیست.")]
+        public int MenuSortOrder { get; set; }
+
         public bool IsActive { get; set; } = true;
         [MaxLength(250)] public string? SeoTitle { get; set; }
         [MaxLength(500)] public string? SeoDescription { get; set; }

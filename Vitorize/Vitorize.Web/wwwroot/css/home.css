@@ -382,5 +382,3 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-ph--2::before { background: radial-gradient(66% 72% at 22% 20%, #b2e7dc 0%, transparent 64%), radial-gradient(56% 64% at 88% 86%, #2cc3b352 0%, transparent 62%); }
 .hp-ph--3::before { background: radial-gradient(48% 78% at 50% 8%, #a7e5d9 0%, transparent 66%), radial-gradient(60% 66% at 6% 92%, #24878b45 0%, transparent 60%); }
 .hp-ph--4::before { background: radial-gradient(84% 46% at 50% 88%, #b2e7dc 0%, transparent 62%), radial-gradient(70% 44% at 50% 6%, #2cc3b34d 0%, transparent 58%); }
-.hp-ph--wide::before { background: radial-gradient(38% 84% at 84% 12%, #a7e5d9d9 0%, transparent 64%), radial-gradient(44% 88% at 10% 92%, #24878b40 0%, transparent 62%); }
-.hp-ph--wide::after { opacity: .38; background-image: repeating-linear-gradient(135deg, transparent 0 22px, #ffffff8c 22px 23px); }

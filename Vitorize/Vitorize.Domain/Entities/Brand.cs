@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Vitorize.Domain.Entities;
@@ -22,6 +22,9 @@ public partial class Brand
     public string? SeoDescription { get; set; }
 
     public string? FocusKeyword { get; set; }
+
+    /// <summary>Display order of the homepage brand strip; equal values fall back to title.</summary>
+    public int SortOrder { get; set; }
 
     public bool IsActive { get; set; }
 

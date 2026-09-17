@@ -148,6 +148,9 @@ namespace Vitorize.Web.Models.Store
         public string? Icon { get; set; }
         public string? ImagePath { get; set; }
         public string? ImageAltText { get; set; }
+        /// <summary>Whether the header menus list this category; other surfaces ignore it.</summary>
+        public bool ShowInMenu { get; set; } = true;
+        public int MenuSortOrder { get; set; }
         public string? Description { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

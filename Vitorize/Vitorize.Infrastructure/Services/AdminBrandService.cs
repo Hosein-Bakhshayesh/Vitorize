@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Admin.Brands;
 using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
@@ -32,6 +32,7 @@ namespace Vitorize.Infrastructure.Services
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
                     FocusKeyword = x.FocusKeyword,
+                    SortOrder = x.SortOrder,
                     IsActive = x.IsActive
                 })
                 .ToListAsync();
@@ -53,6 +54,7 @@ namespace Vitorize.Infrastructure.Services
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
                     FocusKeyword = x.FocusKeyword,
+                    SortOrder = x.SortOrder,
                     IsActive = x.IsActive
                 })
                 .FirstOrDefaultAsync();
@@ -78,6 +80,7 @@ namespace Vitorize.Infrastructure.Services
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
                 FocusKeyword = request.FocusKeyword,
+                SortOrder = request.SortOrder,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
@@ -107,6 +110,7 @@ namespace Vitorize.Infrastructure.Services
             brand.SeoDescription = request.SeoDescription;
             brand.FocusKeyword = request.FocusKeyword;
             brand.UpdatedAt = DateTime.UtcNow;
+            brand.SortOrder = request.SortOrder;
             brand.IsActive = request.IsActive;
 
             await _dbContext.SaveChangesAsync();

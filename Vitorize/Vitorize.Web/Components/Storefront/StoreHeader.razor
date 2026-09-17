@@ -1,4 +1,4 @@
-﻿@implements IAsyncDisposable
+@implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject ApiClient Api
@@ -253,7 +253,7 @@
 
     private List<StoreProductModel> ActiveCatProducts =>
         _activeCat is not null && _catProducts.TryGetValue(_activeCat.Id, out var items) ? items : new();
-    private List<StoreLookupModel> RootCategories => CategoryTree.Roots(_categories);
+    private List<StoreLookupModel> RootCategories => CategoryTree.MenuRoots(_categories);
     private List<StoreLookupModel> ActiveCatChildren => _activeCat is null
         ? new()
         : _categories.Where(x => x.ParentId == _activeCat.Id).ToList();

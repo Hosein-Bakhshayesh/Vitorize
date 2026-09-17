@@ -53,10 +53,10 @@ public sealed class HomePopularProductsSettingTests
     [Fact]
     public void The_toggle_does_not_disturb_other_home_settings()
     {
-        var branding = Branding((Key, "false"), ("HeroTitle", "عنوان"), ("NewsletterTitle", "خبرنامه"));
+        var branding = Branding((Key, "false"), ("HeroTitle", "عنوان"), ("HomeBlogTitle", "بلاگ"));
 
         branding.HomePopularProductsEnabled.Should().BeFalse();
         branding.HeroTitle.Should().Be("عنوان");
-        branding.NewsletterTitle.Should().Be("خبرنامه");
+        branding.HomeBlogTitle.Should().Be("بلاگ");
     }
 }

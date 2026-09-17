@@ -1,4 +1,4 @@
-﻿namespace Vitorize.Application.DTOs.Products
+namespace Vitorize.Application.DTOs.Products
 {
     public class ProductLookupDto
     {
@@ -23,6 +23,11 @@
         public string? ImagePath { get; set; }
 
         public string? ImageAltText { get; set; }
+        /// <summary>Whether the header menus should list this category. The lookup stays complete so
+        /// the filters and the full category page are unaffected; only the menus read this.</summary>
+        public bool ShowInMenu { get; set; } = true;
+        public int MenuSortOrder { get; set; }
+
         public string? Description { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

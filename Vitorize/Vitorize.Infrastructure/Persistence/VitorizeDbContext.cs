@@ -228,6 +228,8 @@ public partial class VitorizeDbContext : DbContext
         {
             entity.HasIndex(e => e.Slug, "UX_Brands_Slug").IsUnique();
 
+                entity.Property(e => e.SortOrder).HasDefaultValue(0);
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.ImagePath).HasMaxLength(500);
@@ -324,6 +326,10 @@ public partial class VitorizeDbContext : DbContext
             entity.HasIndex(e => e.ParentId, "IX_Categories_ParentId");
 
             entity.HasIndex(e => e.Slug, "UX_Categories_Slug").IsUnique();
+
+                entity.Property(e => e.ShowOnHome).HasDefaultValue(true);
+                entity.Property(e => e.ShowInMenu).HasDefaultValue(true);
+                entity.Property(e => e.MenuSortOrder).HasDefaultValue(0);
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");

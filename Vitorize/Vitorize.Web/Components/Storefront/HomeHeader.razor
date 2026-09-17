@@ -95,7 +95,7 @@
     private StoreBranding _branding = new(new Dictionary<string, string>());
     private List<StoreLookupModel> _categories = new();
     private Guid? _activeRootId;
-    private List<StoreLookupModel> RootCategories => CategoryTree.Roots(_categories);
+    private List<StoreLookupModel> RootCategories => CategoryTree.MenuRoots(_categories);
     /// <summary>The root whose branches the panel shows; the first one until a pointer picks another.</summary>
     private StoreLookupModel? ActiveRoot => RootCategories.FirstOrDefault(c => c.Id == _activeRootId) ?? RootCategories.FirstOrDefault();
     private List<StoreLookupModel> ChildrenOf(Guid parentId) => CategoryTree.ChildrenOf(_categories, parentId);

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Vitorize.Application.DTOs.Products;
 using Vitorize.Application.Interfaces;
@@ -437,12 +437,15 @@ namespace Vitorize.Infrastructure.Services
             return await _dbContext.Categories
                 .AsNoTracking()
                 .Where(x => x.IsActive && !x.IsDeleted)
-                .OrderBy(x => x.SortOrder)
+                .OrderBy(x => x.MenuSortOrder)
+                .ThenBy(x => x.SortOrder)
                 .ThenBy(x => x.Title)
                 .Select(x => new ProductLookupDto
                 {
                     Id = x.Id,
                     ParentId = x.ParentId,
+                    ShowInMenu = x.ShowInMenu,
+                    MenuSortOrder = x.MenuSortOrder,
                     Title = x.Title,
                     Slug = x.Slug,
                     Icon = x.Icon,

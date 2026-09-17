@@ -45,12 +45,18 @@ namespace Vitorize.Infrastructure.Services
 
             var categories = await _dbContext.Categories
                 .AsNoTracking()
+                // ShowOnHome is separate from IsActive: hiding a category from this row should not
+                // take it off the rest of the site, and MenuSortOrder leaves the catalogue order alone.
+                // The page applies its own configured cap on top of this ceiling.
                 .Where(x =>
                     x.IsActive &&
                     !x.IsDeleted &&
+                    x.ShowOnHome &&
                     x.ParentId == null)
-                .OrderBy(x => x.SortOrder)
-                .Take(12)
+                .OrderBy(x => x.MenuSortOrder)
+                .ThenBy(x => x.SortOrder)
+                .ThenBy(x => x.Title)
+                .Take(24)
                 .Select(x => new StorefrontCategoryDto
                 {
                     Id = x.Id,
@@ -89,7 +95,8 @@ namespace Vitorize.Infrastructure.Services
             var brands = await _dbContext.Brands
                 .AsNoTracking()
                 .Where(x => x.IsActive)
-                .OrderBy(x => x.Title)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Title)
                 .Take(12)
                 .Select(x => new StorefrontBrandDto
                 {

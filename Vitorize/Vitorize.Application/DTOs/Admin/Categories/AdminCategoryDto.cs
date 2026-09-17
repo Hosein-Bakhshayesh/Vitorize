@@ -1,4 +1,4 @@
-﻿namespace Vitorize.Application.DTOs.Admin.Categories
+namespace Vitorize.Application.DTOs.Admin.Categories
 {
     public class AdminCategoryDto
     {
@@ -11,6 +11,10 @@
         public string? ImageAltText { get; set; }
         public string? Icon { get; set; }
         public int SortOrder { get; set; }
+        public bool ShowOnHome { get; set; } = true;
+        public bool ShowInMenu { get; set; } = true;
+        public int MenuSortOrder { get; set; }
+
         public bool IsActive { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

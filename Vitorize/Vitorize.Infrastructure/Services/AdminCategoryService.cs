@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.Common;
 using Vitorize.Application.DTOs.Admin.Categories;
 using Vitorize.Application.Interfaces;
@@ -35,6 +35,9 @@ namespace Vitorize.Infrastructure.Services
                     ImageAltText = x.ImageAltText,
                     Icon = x.Icon,
                     SortOrder = x.SortOrder,
+                    ShowOnHome = x.ShowOnHome,
+                    ShowInMenu = x.ShowInMenu,
+                    MenuSortOrder = x.MenuSortOrder,
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
@@ -119,6 +122,9 @@ namespace Vitorize.Infrastructure.Services
                     ImageAltText = x.ImageAltText,
                     Icon = x.Icon,
                     SortOrder = x.SortOrder,
+                    ShowOnHome = x.ShowOnHome,
+                    ShowInMenu = x.ShowInMenu,
+                    MenuSortOrder = x.MenuSortOrder,
                     IsActive = x.IsActive,
                     SeoTitle = x.SeoTitle,
                     SeoDescription = x.SeoDescription,
@@ -148,6 +154,9 @@ namespace Vitorize.Infrastructure.Services
                 ImageAltText = request.ImageAltText,
                 Icon = request.Icon,
                 SortOrder = request.SortOrder,
+                ShowOnHome = request.ShowOnHome,
+                ShowInMenu = request.ShowInMenu,
+                MenuSortOrder = request.MenuSortOrder,
                 IsActive = request.IsActive,
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
@@ -181,6 +190,9 @@ namespace Vitorize.Infrastructure.Services
             category.ImageAltText = request.ImageAltText;
             category.Icon = request.Icon;
             category.SortOrder = request.SortOrder;
+            category.ShowOnHome = request.ShowOnHome;
+            category.ShowInMenu = request.ShowInMenu;
+            category.MenuSortOrder = request.MenuSortOrder;
             category.IsActive = request.IsActive;
             category.SeoTitle = request.SeoTitle;
             category.SeoDescription = request.SeoDescription;

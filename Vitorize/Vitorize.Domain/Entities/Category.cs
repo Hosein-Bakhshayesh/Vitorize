@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Vitorize.Domain.Entities;
@@ -20,6 +20,16 @@ public partial class Category
     public string? Icon { get; set; }
 
     public int SortOrder { get; set; }
+
+    /// <summary>Whether this category appears in the homepage row. Independent of IsActive, which
+    /// removes it from the whole site rather than from one section.</summary>
+    public bool ShowOnHome { get; set; }
+
+    /// <summary>Whether this category appears in the header menus.</summary>
+    public bool ShowInMenu { get; set; }
+
+    /// <summary>Order within those two surfaces; SortOrder still drives the catalogue.</summary>
+    public int MenuSortOrder { get; set; }
 
     public bool IsActive { get; set; }
 

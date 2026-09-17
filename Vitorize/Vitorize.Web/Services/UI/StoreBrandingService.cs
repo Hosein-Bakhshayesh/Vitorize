@@ -103,6 +103,22 @@ namespace Vitorize.Web.Services.UI
         /// environment that has not yet been seeded keeps the section hidden rather than showing it.
         /// </summary>
         public bool HomePopularProductsEnabled => GetBool("HomePopularProductsEnabled");
+        // Headings and counts for the homepage sections. Clamped rather than trusted: a stray value
+        // in the settings table should not be able to empty a section or flood it.
+        public string HomeCategoriesTitle => Get("HomeCategoriesTitle", "دسته‌بندی‌های محبوب ویتورایز");
+        public string HomeProductsTitle => Get("HomeProductsTitle", "محصولات پرفروش ویتورایز");
+        public string HomeBlogTitle => Get("HomeBlogTitle", "جدیدترین بلاگ‌ها");
+        public string HomeReviewsTitle => Get("HomeReviewsTitle", "نظرات شما");
+        public string HomeFaqTitle => Get("HomeFaqTitle", "سوالات پرتکرار شما");
+        public int HomeCategoryCount => GetCount("HomeCategoryCount", 8, 24);
+        public int HomeBlogCount => GetCount("HomeBlogCount", 3, 12);
+
+        private int GetCount(string key, int fallback, int max)
+        {
+            var raw = Get(key, "");
+            if (!int.TryParse(raw, out var value) || value <= 0) return fallback;
+            return value > max ? max : value;
+        }
         /// <summary>
         /// The administrator's default storefront ordering. Exposed so the customer's sort menu can
         /// name the order the listing is actually in; the ordering itself is applied server-side.
@@ -122,7 +138,6 @@ namespace Vitorize.Web.Services.UI
         public string AppleTouchIconPath => Get("AppleTouchIconPath", "");
         public string OgImagePath => FirstNonEmpty("OgImagePath", "SocialPreviewImagePath");
         public string TwitterImagePath => FirstNonEmpty("TwitterImagePath", "OgImagePath", "SocialPreviewImagePath");
-        public string HeroBackgroundPath => Get("HeroBackgroundPath", "");
         public string Error404IllustrationPath => FirstNonEmpty("Error404IllustrationPath", "EmptyStateIllustrationPath");
         public string Error500IllustrationPath => FirstNonEmpty("Error500IllustrationPath", "EmptyStateIllustrationPath");
         public string MaintenanceIllustrationPath => FirstNonEmpty("MaintenanceIllustrationPath", "EmptyStateIllustrationPath");
@@ -145,7 +160,6 @@ namespace Vitorize.Web.Services.UI
         // ── SEO ──
         public string MetaTitle => Get("MetaTitle", "");
         public string MetaDescription => FirstNonEmpty("MetaDescription", "SiteDescription");
-        public string MetaKeywords => Get("MetaKeywords", "");
         public string CanonicalBaseUrl => Get("Seo.CanonicalBaseUrl", "");
         public string GoogleAnalyticsId => Get("GoogleAnalyticsId", "");
 
@@ -157,27 +171,17 @@ namespace Vitorize.Web.Services.UI
         public string HeroCtaUrl => Get("HeroCtaUrl", "/shop");
         public string HeroSecondaryCtaText => Get("HeroSecondaryCtaText", "دسته‌بندی‌ها");
         public string HeroSecondaryCtaUrl => Get("HeroSecondaryCtaUrl", "/categories");
-        public string NewsletterTitle => Get("NewsletterTitle", "از جدیدترین‌ها باخبر شو");
-        public string NewsletterSubtitle => Get("NewsletterSubtitle", "با عضویت در خبرنامه، از تخفیف‌ها و محصولات تازه زودتر از همه مطلع شو.");
-        public string NewsletterCtaText => Get("NewsletterCtaText", "عضویت");
-        public string NewsletterPlaceholder => Get("NewsletterPlaceholder", "ایمیل خود را وارد کنید");
 
         // ── About / trust ──
-        public string AboutTitle => Get("AboutTitle", "درباره ویتورایز");
-        public string AboutText => Get("AboutText", "");
 
-        public string HomeFeaturesKicker => Get("HomeFeaturesKicker", "چرا ویتورایز؟");
-        public string HomeFeaturesTitle => Get("HomeFeaturesTitle", "خرید دیجیتال، ساده و مطمئن");
 
         private const string DefaultTrustJson =
             "[{\"icon\":\"shield-check\",\"title\":\"تضمین اصالت\",\"text\":\"محصولات رسمی و اورجینال\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"سریع و بدون انتظار\"},{\"icon\":\"headphones\",\"title\":\"پشتیبانی ۲۴/۷\",\"text\":\"همیشه کنار شما\"},{\"icon\":\"lock\",\"title\":\"پرداخت امن\",\"text\":\"درگاه‌های معتبر\"}]";
         private const string DefaultFeaturesJson =
             "[{\"icon\":\"layout-grid\",\"title\":\"انتخاب محصول\",\"text\":\"از میان هزاران گیفت کارت، اشتراک و خدمت دیجیتال، محصول مورد نظرت را پیدا کن.\"},{\"icon\":\"credit-card\",\"title\":\"پرداخت امن\",\"text\":\"با درگاه‌های معتبر بانکی یا کیف پول ویتورایز، پرداخت سریع و امن انجام بده.\"},{\"icon\":\"zap\",\"title\":\"تحویل آنی\",\"text\":\"کد یا خدمت دیجیتال بلافاصله پس از پرداخت در حساب کاربری‌ات فعال می‌شود.\"}]";
 
-        public string TrustBadgesJson => Get("TrustBadgesJson", DefaultTrustJson);
         public string HomeFeaturesJson => Get("HomeFeaturesJson", DefaultFeaturesJson);
 
-        public IReadOnlyList<HomeBlockItem> TrustBadges => ParseBlocks(TrustBadgesJson);
         public IReadOnlyList<HomeBlockItem> HomeFeatures => ParseBlocks(HomeFeaturesJson);
         public IReadOnlyList<TrustSealItem> TrustSeals
         {

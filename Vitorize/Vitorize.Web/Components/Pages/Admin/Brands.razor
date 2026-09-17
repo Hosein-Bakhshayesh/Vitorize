@@ -133,6 +133,12 @@
                 <div class="vz-field"><label class="vz-label" dir="ltr" style="text-align:start">SEO Title</label><InputText class="vz-input" @bind-Value="_model.SeoTitle" /></div>
                 <div class="vz-field"><label class="vz-label" dir="ltr" style="text-align:start">SEO Description</label><InputTextArea class="vz-textarea" @bind-Value="_model.SeoDescription" /></div>
                 <div class="vz-field span-2"><label class="vz-label" dir="ltr" style="text-align:start">Focus Keyword</label><InputText class="vz-input" @bind-Value="_model.FocusKeyword" /></div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب نمایش</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                    <small class="vz-hint">نوار برندهای صفحه اصلی از کوچک به بزرگ چیده می‌شود؛ مقدار برابر یعنی ترتیب الفبایی.</small>
+                    <ValidationMessage For="() => _model.SortOrder" class="vz-val-msg" />
+                </div>
                 <div class="vz-field span-2">
                     <label class="vz-switch">
                         <input type="checkbox" @bind="_model.IsActive" />
@@ -202,7 +208,7 @@
         _model = new AdminBrandInputModel
         {
             Id = b.Id, Title = b.Title, Slug = b.Slug, ImagePath = b.ImagePath, ImageAltText = b.ImageAltText,
-            Description = b.Description, SeoTitle = b.SeoTitle, SeoDescription = b.SeoDescription, FocusKeyword = b.FocusKeyword, IsActive = b.IsActive
+            Description = b.Description, SeoTitle = b.SeoTitle, SeoDescription = b.SeoDescription, FocusKeyword = b.FocusKeyword, SortOrder = b.SortOrder, IsActive = b.IsActive
         };
         _formOpen = true;
     }
@@ -212,7 +218,7 @@
     private async Task Save()
     {
         _saving = true;
-        var payload = new { _model.Title, _model.Slug, _model.ImagePath, _model.ImageAltText, _model.Description, _model.SeoTitle, _model.SeoDescription, _model.FocusKeyword, _model.IsActive };
+        var payload = new { _model.Title, _model.Slug, _model.ImagePath, _model.ImageAltText, _model.Description, _model.SeoTitle, _model.SeoDescription, _model.FocusKeyword, _model.SortOrder, _model.IsActive };
 
         var result = _model.Id is null
             ? await Api.PostAsync<AdminBrandModel>("admin/brands", payload)
