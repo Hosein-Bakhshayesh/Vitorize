@@ -1,4 +1,4 @@
-﻿namespace Vitorize.Application.DTOs.Storefront
+namespace Vitorize.Application.DTOs.Storefront
 {
     public class HomeDto
     {
@@ -13,5 +13,7 @@
         public List<StorefrontBlogPostDto> LatestBlogPosts { get; set; } = new();
 
         public List<FaqDto> Faqs { get; set; } = new();
+
+        public List<HomeSlideDto> Slides { get; set; } = new();
     }
 }

@@ -853,6 +853,23 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 124,
+      "version": "V0040",
+      "name": "V0040__home_slides.sql",
+      "path": "Versioned/V0040__home_slides.sql",
+      "sha256": "cb3c483ea781b5b0b93cefe0be6b590ed0c2c06ead94fa59fbe10cb5541f6292",
+      "classification": "required",
+      "dependencies": [
+        "V0039",
+        "dbo.Settings"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

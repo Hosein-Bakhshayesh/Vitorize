@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -114,6 +114,7 @@ namespace Vitorize.Infrastructure
             services.AddScoped<IStorefrontService, StorefrontService>();
             services.AddScoped<ISeoService, SeoService>();
             services.AddScoped<IAdminBannerService, AdminBannerService>();
+            services.AddScoped<IAdminHomeSlideService, AdminHomeSlideService>();
             services.AddScoped<IAdminPageService, AdminPageService>();
             services.AddScoped<IAdminBlogService, AdminBlogService>();
             services.AddScoped<IAdminFaqService, AdminFaqService>();

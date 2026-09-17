@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Vitorize.Application.DTOs.Storefront;
 using Vitorize.Application.Interfaces;
 using Vitorize.Infrastructure.Persistence;
@@ -59,6 +59,30 @@ namespace Vitorize.Infrastructure.Services
                     Icon = x.Icon,
                     ImagePath = x.ImagePath
                     ,ImageAltText = x.ImageAltText
+                })
+                .ToListAsync();
+
+            // Scheduling matches the banners above: a slide outside its window is simply not sent.
+            var slides = await _dbContext.HomeSlides
+                .AsNoTracking()
+                .Where(x =>
+                    x.IsActive &&
+                    (x.StartsAt == null || x.StartsAt <= now) &&
+                    (x.EndsAt == null || x.EndsAt >= now))
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.CreatedAt)
+                .Select(x => new HomeSlideDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Subtitle = x.Subtitle,
+                    ImagePath = x.ImagePath,
+                    MobileImagePath = x.MobileImagePath,
+                    AltText = x.AltText,
+                    MobileAltText = x.MobileAltText,
+                    LinkUrl = x.LinkUrl,
+                    LinkText = x.LinkText,
+                    SortOrder = x.SortOrder
                 })
                 .ToListAsync();
 
@@ -148,7 +172,8 @@ namespace Vitorize.Infrastructure.Services
                 Brands = brands,
                 FeaturedProducts = featuredProducts,
                 LatestBlogPosts = latestBlogPosts,
-                Faqs = faqs
+                Faqs = faqs,
+                Slides = slides
             };
         }
 

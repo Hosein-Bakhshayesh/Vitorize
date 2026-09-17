@@ -1,4 +1,4 @@
-﻿namespace Vitorize.Web.Models.Store
+namespace Vitorize.Web.Models.Store
 {
     public class StoreProductModel
     {
@@ -71,6 +71,7 @@
         public bool ForceOutOfStock { get; set; }
         public bool IsUnlimitedStock { get; set; }
         public List<StoreFaqModel> Faqs { get; set; } = new();
+        public List<StoreHomeSlideModel> Slides { get; set; } = new();
 
         public Guid Id { get; set; }
         public Guid CategoryId { get; set; }
@@ -162,8 +163,23 @@
         public List<StoreProductModel> FeaturedProducts { get; set; } = new();
         public List<StoreBlogPostModel> LatestBlogPosts { get; set; } = new();
         public List<StoreFaqModel> Faqs { get; set; } = new();
+        public List<StoreHomeSlideModel> Slides { get; set; } = new();
     }
 
+    /// <summary>One slide of the promotional block at the foot of the homepage.</summary>
+    public class StoreHomeSlideModel
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Subtitle { get; set; }
+        public string? ImagePath { get; set; }
+        public string? MobileImagePath { get; set; }
+        public string? AltText { get; set; }
+        public string? MobileAltText { get; set; }
+        public string? LinkUrl { get; set; }
+        public string? LinkText { get; set; }
+        public int SortOrder { get; set; }
+    }
     public class StoreBannerModel
     {
         public Guid Id { get; set; }

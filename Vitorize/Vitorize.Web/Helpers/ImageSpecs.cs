@@ -33,6 +33,7 @@ namespace Vitorize.Web.Helpers
         public static readonly ImageSpec BannerHeroTile2 = new("۸۰۰×۸۳۰", "۱:۱", "WebP", "۵۰۰ کیلوبایت", "کاشی تقریباً مربع ردیف بالا");
         public static readonly ImageSpec BannerHeroTile3 = new("۱۶۰۰×۸۳۰", "۱.۹:۱", "WebP", "۵۰۰ کیلوبایت", "کاشی پهن ردیف پایین");
         public static readonly ImageSpec BannerHeroTile4 = new("۵۲۰×۸۳۰", "۰.۶:۱", "WebP", "۵۰۰ کیلوبایت", "قاب عمودی است؛ تصویر افقی در آن به‌شدت برش می‌خورد");
+        public static readonly ImageSpec HomeSlide = new("۲۴۰۰×۶۷۵", "۳.۵:۱", "WebP", "۱ مگابایت", "قاب بسیار پهن؛ متن روی تصویر می‌نشیند، سمت راست را ساده نگه دارید");
         public static readonly ImageSpec BannerSlider = new("۱۹۲۰×۱۰۸۰", "۱۶:۹", "WebP", "۱ مگابایت", "بنر پهن میانی صفحه");
 
         /// <summary>Guidance for a banner slot, keyed by <c>AdminBannerSlot.Key</c>.</summary>

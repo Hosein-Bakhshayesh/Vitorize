@@ -1,0 +1,267 @@
+@page "/admin/home-slides"
+@inject ApiClient Api
+@inject MediaUrlResolver Media
+@inject ToastService Toasts
+@using Vitorize.Web.Models.Admin.HomeSlides
+@using AUI = Vitorize.Web.Helpers.AdminUiHelper
+
+<PageHeader Title="اسلایدشوی صفحه اصلی" Subtitle="اسلایدهای بخش پایین صفحه نخست — تصویر به‌همراه عنوان و متن"
+            Icon="layers" Breadcrumbs="@(new(){ ("اسلایدشوی صفحه اصلی", null) })">
+    <Actions>
+        <button class="vz-btn vz-btn--outline" @onclick="Load"><Icon Name="refresh" Size="17" /> بروزرسانی</button>
+        <button class="vz-btn vz-btn--primary" @onclick="OpenCreate"><Icon Name="plus" Size="17" /> اسلاید جدید</button>
+    </Actions>
+</PageHeader>
+
+@if (!_loading && _error is null && _items.Count > 0)
+{
+    <div class="vz-stats">
+        <StatCard Label="همه اسلایدها" Value="@AUI.Number(_items.Count)" Icon="layers" Accent="purple" />
+        <StatCard Label="فعال" Value="@AUI.Number(_items.Count(x => x.IsActive))" Icon="check-circle" Accent="green" />
+        <StatCard Label="بدون تصویر" Value="@AUI.Number(_items.Count(x => string.IsNullOrWhiteSpace(x.ImagePath)))" Icon="image" Accent="orange" />
+    </div>
+}
+
+<div class="vz-card">
+    <div class="vz-card__body flush">
+        @if (_loading) { <LoadingState /> }
+        else if (_error is not null) { <ErrorState Message="@_error" OnRetry="Load" /> }
+        else if (_items.Count == 0)
+        {
+            <EmptyState Title="اسلایدی ثبت نشده است" Icon="layers">
+                <Actions><button class="vz-btn vz-btn--primary vz-btn--sm" @onclick="OpenCreate"><Icon Name="plus" Size="15" /> افزودن اسلاید</button></Actions>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="vz-table-wrap">
+                <table class="vz-table">
+                    <thead>
+                        <tr><th>اسلاید</th><th>دکمه</th><th>ترتیب</th><th>بازه نمایش</th><th>وضعیت</th><th class="col-actions">عملیات</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in _items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="vz-cell-main">
+                                        @if (!string.IsNullOrWhiteSpace(s.ImagePath))
+                                        {
+                                            <img class="vz-thumb lg" src="@Media.Resolve(s.ImagePath)" alt="@(s.AltText ?? s.Title)" style="width:96px" />
+                                        }
+                                        else
+                                        {
+                                            <div class="vz-entity-tile"><Icon Name="image" Size="18" /></div>
+                                        }
+                                        <div>
+                                            <div class="vz-cell-title">@s.Title</div>
+                                            @if (!string.IsNullOrWhiteSpace(s.Subtitle))
+                                            {
+                                                <div class="vz-cell-sub">@s.Subtitle</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (string.IsNullOrWhiteSpace(s.LinkUrl)) { <span class="vz-muted">—</span> }
+                                    else { <span class="vz-chip">@(string.IsNullOrWhiteSpace(s.LinkText) ? "بدون متن" : s.LinkText)</span> }
+                                </td>
+                                <td class="num">@AUI.Number(s.SortOrder)</td>
+                                <td class="vz-mono" style="font-size:12px"><PersianDateDisplay Value="s.StartsAt" /> － <PersianDateDisplay Value="s.EndsAt" /></td>
+                                <td>
+                                    <StatusBadge Text="@(s.IsActive ? "فعال" : "غیرفعال")" Intent="@(s.IsActive ? "success" : "muted")" />
+                                    @* A slide with no artwork is skipped by the storefront, so the list has to say so. *@
+                                    @if (s.IsActive && string.IsNullOrWhiteSpace(s.ImagePath))
+                                    {
+                                        <div style="margin-top:4px"><StatusBadge Text="بدون تصویر — نمایش داده نمی‌شود" Intent="warning" /></div>
+                                    }
+                                </td>
+                                <td class="col-actions">
+                                    <button class="vz-iconaction" title="ویرایش" @onclick="() => OpenEdit(s)"><Icon Name="edit" Size="16" /></button>
+                                    <button class="vz-iconaction danger" title="حذف" @onclick="() => AskDelete(s)"><Icon Name="trash" Size="16" /></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<Modal Visible="_formOpen" Title="@(_model.Id is null ? "افزودن اسلاید" : "ویرایش اسلاید")"
+       Icon="layers" Size="lg" OnClose="CloseForm">
+    <ChildContent>
+        <EditForm Model="_model" OnValidSubmit="Save" id="slide-form">
+            <DataAnnotationsValidator />
+            <div class="vz-form-grid">
+                <div class="vz-field span-2">
+                    <label class="vz-label">عنوان اسلاید <span class="req">*</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.Title" />
+                    <ValidationMessage For="() => _model.Title" class="vz-val-msg" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-label">متن زیر عنوان</label>
+                    <InputTextArea class="vz-textarea" rows="2" @bind-Value="_model.Subtitle" />
+                    <ValidationMessage For="() => _model.Subtitle" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تصویر اسلاید</label>
+                    <UploadBox @bind-Value="_model.ImagePath" Label="آپلود تصویر اسلاید" Endpoint="admin/uploads/banner-image" />
+                    <ImageGuideline Spec="ImageSpecs.HomeSlide" />
+                    <ValidationMessage For="() => _model.ImagePath" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تصویر موبایل <span class="vz-muted">(اختیاری)</span></label>
+                    <UploadBox @bind-Value="_model.MobileImagePath" Label="آپلود تصویر موبایل" Endpoint="admin/uploads/banner-image" />
+                    <small class="vz-hint">اگر خالی بماند، تصویر اصلی در موبایل نمایش داده می‌شود.</small>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">متن جایگزین تصویر</label>
+                    <InputText class="vz-input" @bind-Value="_model.AltText" />
+                    <ValidationMessage For="() => _model.AltText" class="vz-val-msg" />
+                    <small class="vz-hint">خالی بماند، عنوان اسلاید جایش می‌نشیند.</small>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">متن جایگزین موبایل <span class="vz-muted">(اختیاری)</span></label>
+                    <InputText class="vz-input" @bind-Value="_model.MobileAltText" />
+                    <ValidationMessage For="() => _model.MobileAltText" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">متن دکمه</label>
+                    <InputText class="vz-input" @bind-Value="_model.LinkText" placeholder="مثلاً: برو اینستاگرام" />
+                    <ValidationMessage For="() => _model.LinkText" class="vz-val-msg" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">لینک دکمه</label>
+                    <InputText class="vz-input vz-mono" @bind-Value="_model.LinkUrl" placeholder="https://..." />
+                    <ValidationMessage For="() => _model.LinkUrl" class="vz-val-msg" />
+                    <small class="vz-hint">برای نمایش دکمه، متن و لینک هر دو لازم‌اند.</small>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">ترتیب نمایش</label>
+                    <InputNumber class="vz-input" @bind-Value="_model.SortOrder" />
+                    <small class="vz-hint">اسلایدها از کوچک به بزرگ نمایش داده می‌شوند.</small>
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ شروع نمایش</label>
+                    <PersianDatePicker @bind-Value="_model.StartsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field">
+                    <label class="vz-label">تاریخ پایان نمایش</label>
+                    <PersianDatePicker @bind-Value="_model.EndsAt" Placeholder="بدون محدودیت" />
+                </div>
+                <div class="vz-field span-2">
+                    <label class="vz-switch">
+                        <input type="checkbox" @bind="_model.IsActive" />
+                        <span class="vz-switch__track"></span>
+                        <span class="vz-switch__label">اسلاید فعال باشد</span>
+                    </label>
+                </div>
+            </div>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        <button class="vz-btn vz-btn--outline" @onclick="CloseForm" disabled="@_saving">انصراف</button>
+        <button class="vz-btn vz-btn--primary" type="submit" form="slide-form" disabled="@_saving">
+            @if (_saving) { <span class="vz-spinner sm"></span> } else { <Icon Name="save" Size="16" /> <span>ذخیره</span> }
+        </button>
+    </Footer>
+</Modal>
+
+<ConfirmDialog Visible="_confirmDelete" Title="حذف اسلاید"
+               Message="@($"آیا از حذف اسلاید «{_target?.Title}» مطمئن هستید؟")"
+               ConfirmText="حذف" Busy="_deleting"
+               OnConfirm="ConfirmDelete" OnCancel="() => _confirmDelete = false" />
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<AdminHomeSlideModel> _items = new();
+
+    private bool _formOpen, _saving;
+    private AdminHomeSlideInputModel _model = new();
+
+    private bool _confirmDelete, _deleting;
+    private AdminHomeSlideModel? _target;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        var result = await Api.GetAsync<List<AdminHomeSlideModel>>("admin/home-slides");
+        if (result.IsSuccess && result.Data is not null) _items = result.Data;
+        else _error = result.Message;
+        _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        // Land after the current last slide rather than colliding with it.
+        var next = _items.Count == 0 ? 0 : _items.Max(x => x.SortOrder) + 1;
+        _model = new AdminHomeSlideInputModel { IsActive = true, SortOrder = next };
+        _formOpen = true;
+    }
+
+    private void OpenEdit(AdminHomeSlideModel s)
+    {
+        _model = new AdminHomeSlideInputModel
+        {
+            Id = s.Id, Title = s.Title, Subtitle = s.Subtitle,
+            ImagePath = s.ImagePath, MobileImagePath = s.MobileImagePath,
+            AltText = s.AltText, MobileAltText = s.MobileAltText,
+            LinkUrl = s.LinkUrl, LinkText = s.LinkText,
+            SortOrder = s.SortOrder, IsActive = s.IsActive,
+            StartsAt = s.StartsAt, EndsAt = s.EndsAt
+        };
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private async Task Save()
+    {
+        _saving = true;
+        var payload = new
+        {
+            _model.Title, _model.Subtitle, _model.ImagePath, _model.MobileImagePath,
+            _model.AltText, _model.MobileAltText, _model.LinkUrl, _model.LinkText,
+            _model.SortOrder, _model.IsActive, _model.StartsAt, _model.EndsAt
+        };
+
+        var result = _model.Id is null
+            ? await Api.PostAsync<AdminHomeSlideModel>("admin/home-slides", payload)
+            : await Api.PutAsync<AdminHomeSlideModel>($"admin/home-slides/{_model.Id}", payload);
+
+        _saving = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success(_model.Id is null ? "اسلاید ایجاد شد." : "اسلاید ویرایش شد.");
+            _formOpen = false;
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+
+    private void AskDelete(AdminHomeSlideModel s)
+    {
+        _target = s;
+        _confirmDelete = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_target is null) return;
+        _deleting = true;
+        var result = await Api.DeleteAsync($"admin/home-slides/{_target.Id}");
+        _deleting = false;
+        _confirmDelete = false;
+        if (result.IsSuccess)
+        {
+            Toasts.Success("اسلاید حذف شد.");
+            await Load();
+        }
+        else Toasts.Error(result.Message);
+    }
+}

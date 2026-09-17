@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Vitorize.Domain.Entities;
@@ -39,6 +39,8 @@ public partial class VitorizeDbContext : DbContext
     public virtual DbSet<ErrorLog> ErrorLogs { get; set; }
 
     public virtual DbSet<Faq> Faqs { get; set; }
+
+    public virtual DbSet<HomeSlide> HomeSlides { get; set; }
 
     public virtual DbSet<ProductCategory> ProductCategories { get; set; }
 
@@ -171,6 +173,23 @@ public partial class VitorizeDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.AuditLogs)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("FK_AuditLogs_Users");
+        });
+
+        modelBuilder.Entity<HomeSlide>(entity =>
+        {
+            entity.HasIndex(e => new { e.IsActive, e.SortOrder }, "IX_HomeSlides_IsActive_SortOrder");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Subtitle).HasMaxLength(500);
+            entity.Property(e => e.ImagePath).HasMaxLength(500);
+            entity.Property(e => e.MobileImagePath).HasMaxLength(500);
+            entity.Property(e => e.AltText).HasMaxLength(250);
+            entity.Property(e => e.MobileAltText).HasMaxLength(250);
+            entity.Property(e => e.LinkUrl).HasMaxLength(500);
+            entity.Property(e => e.LinkText).HasMaxLength(100);
         });
 
         modelBuilder.Entity<Banner>(entity =>

@@ -124,14 +124,46 @@
             @if (_reviews.Count == 0) { <p class="hp-empty">@Empty("نظر تاییدشده")</p> }
         </div>
     </section>
-    <section class="hp-section hp-promo" aria-label="اینستاگرام ویتورایز">
-        <div class="hp-promo__card">
-            <div><h2>@_branding.Get("InstagramBannerTitle", "اینستا رو هم فالو کن ناموسن.")</h2><p>@_branding.Get("InstagramBannerSubtitle", "هراز چند مزه می‌ریزیم اونجا")</p></div>
-            @if (!string.IsNullOrWhiteSpace(_branding.InstagramUrl))
-            { <a href="@_branding.InstagramUrl" target="_blank" rel="noopener noreferrer">برو اینستاگرام</a> }
-            <div class="hp-dots" aria-hidden="true"><span class="is-active"></span><span></span></div>
-        </div>
-    </section>
+    @* Was a fixed card whose only editable parts were two settings, with dot controls that were
+       decoration: aria-hidden, never changing, nothing behind them. Each slide is a row now, with
+       its own artwork and copy, and the dots drive it. *@
+    @if (Slides.Count > 0)
+    {
+        <section class="hp-section hp-promo" aria-label="پیشنهادهای ویتورایز"
+                 aria-roledescription="carousel" @ref="_slideshow">
+            <div class="hp-promo__deck">
+                @for (var i = 0; i < Slides.Count; i++)
+                {
+                    var slide = Slides[i];
+                    var first = i == 0;
+                    <article class="hp-promo__card @(first ? "is-active" : null)"
+                             aria-roledescription="slide" aria-label="@($"{i + 1} از {Slides.Count}")"
+                             aria-hidden="@(first ? "false" : "true")">
+                        <StoreImage Url="@slide.ImagePath" MobileUrl="@slide.MobileImagePath"
+                                    Alt="@(slide.AltText ?? slide.Title)" />
+                        <div class="hp-promo__copy">
+                            <h2>@slide.Title</h2>
+                            @if (!string.IsNullOrWhiteSpace(slide.Subtitle)) { <p>@slide.Subtitle</p> }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(slide.LinkUrl) && !string.IsNullOrWhiteSpace(slide.LinkText))
+                        {
+                            <a href="@slide.LinkUrl" target="_blank" rel="noopener noreferrer">@slide.LinkText</a>
+                        }
+                    </article>
+                }
+                @if (Slides.Count > 1)
+                {
+                    <div class="hp-dots" role="tablist" aria-label="انتخاب اسلاید">
+                        @for (var i = 0; i < Slides.Count; i++)
+                        {
+                            <button type="button" role="tab" class="@(i == 0 ? "is-active" : null)"
+                                    aria-label="اسلاید @(i + 1)" aria-selected="@(i == 0 ? "true" : "false")"></button>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+    }
     <section class="hp-section hp-blog">
         <h2>جدیدترین بلاگ‌ها</h2>
         <div class="hp-blog-grid">
@@ -173,6 +205,11 @@
     // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
     private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
 
+    private ElementReference _slideshow;
+    private bool _slideshowStarted;
+    /// <summary>Active slides that actually have artwork; a slide without one would render as a gap.</summary>
+    private List<StoreHomeSlideModel> Slides =>
+        _data.Slides.Where(x => !string.IsNullOrWhiteSpace(x.ImagePath)).ToList();
     private string Empty(string name) => _loading ? "در حال دریافت اطلاعات…" : $"{name} برای نمایش وجود ندارد.";
     private List<StoreBannerModel> HeroBanners => Banners("home-hero");
     private List<StoreBannerModel> CampaignBanners => Banners("home-secondary");
@@ -183,6 +220,15 @@
     protected override async Task OnInitializedAsync() => await LoadAsync();
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Rotation runs in the browser: a server-side timer would push a re-render down every
+        // circuit every few seconds, for a purely visual change.
+        if (!_slideshowStarted && Slides.Count > 1)
+        {
+            _slideshowStarted = true;
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
+            await _module.InvokeVoidAsync("startSlideshow", _slideshow, 6000);
+        }
+
         if (_reviewsPositioned || _reviews.Count < 3) return;
         _reviewsPositioned = true;
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
@@ -217,6 +263,7 @@
                 .SelectMany(r => r.Data!.Reviews.Items).Where(r => r.IsApproved && !r.IsRejected).DistinctBy(r => r.Id)
                 .OrderByDescending(r => r.CreatedAt).Take(8).ToList();
             _reviewsPositioned = false;
+            _slideshowStarted = false;
         }
         catch { _loadFailed = true; }
         finally { _loading = false; }
