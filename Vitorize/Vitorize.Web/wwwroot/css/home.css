@@ -153,6 +153,11 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-review__head b { margin-inline-start: auto; background: #fff; border-radius: 2px; padding: 1px 6px; font: 600 calc(20 * var(--hp-u))/1.4 Arial, sans-serif; }
 .hp-review p { min-height: calc(180 * var(--hp-u)); padding: calc(24 * var(--hp-u)); background: #fff; font-size: calc(15 * var(--hp-u)); line-height: 1.8; overflow-wrap: anywhere; }
 .hp-promo { min-height: calc(658 * var(--hp-u)); padding: calc(100 * var(--hp-u)) calc(64 * var(--hp-u)); }
+/* Same carousel, the frame the middle of the page had as a plain banner: a taller 16:9 band whose
+   slides are edge-to-edge artwork unless copy was written for them. */
+.hp-promo--middle { min-height: calc(1111 * var(--hp-u)); padding: calc(103 * var(--hp-u)) calc(64 * var(--hp-u)) calc(100 * var(--hp-u)); }
+.hp-promo--middle .hp-promo__deck { min-height: calc(900 * var(--hp-u)); background: var(--hp-media); }
+.hp-promo--middle .hp-promo__card { padding: calc(70 * var(--hp-u)) calc(80 * var(--hp-u)); }
 /* Slides stack in one frame and cross-fade; only the active one takes pointer events, so a hidden
    slide's button can never be clicked or tabbed into. */
 .hp-promo__deck { position: relative; min-height: calc(450 * var(--hp-u)); border-radius: calc(10 * var(--hp-u)); overflow: hidden; background: var(--hp-soft); }
@@ -164,7 +169,11 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 /* Copy sits on artwork now, so it cannot rely on the frame's own colour. A scrim from the text side
    keeps it legible whatever the administrator uploads, and the heading drops the gradient fill that
    the hero shares - gradient text over a photograph is unreadable at any size. */
-.hp-promo__card::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(to left, #0a2e2de0 0%, #0a2e2d94 44%, transparent 74%); }
+/* The scrim exists to keep copy legible over artwork. A slide with no copy — the usual case for
+   the middle band, whose wording is part of the image — must not be dimmed for nothing. */
+.hp-promo__card.has-copy::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(to left, #0a2e2de0 0%, #0a2e2d94 44%, transparent 74%); }
+/* A destination with no button label turns the whole frame into the link. */
+.hp-promo__cover { position: absolute; inset: 0; z-index: 2; }
 .hp-promo__card h2 { background: none; background-clip: border-box; -webkit-background-clip: border-box; color: #fff; -webkit-text-fill-color: #fff; text-shadow: 0 calc(2 * var(--hp-u)) calc(12 * var(--hp-u)) #04201f5c; }
 .hp-promo__card p { color: #e6f5f2; }
 .hp-promo__card { padding: calc(100 * var(--hp-u)) calc(110 * var(--hp-u)) calc(100 * var(--hp-u)) calc(48 * var(--hp-u)); background: var(--hp-media); border-radius: calc(10 * var(--hp-u)); display: flex; align-items: center; justify-content: space-between; gap: 20px; position: relative; }
@@ -302,6 +311,9 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-review__head b { font-size: 10px; padding: 0 3px; }
     .hp-review p { min-height: 93px; font-size: 8px; line-height: 1.6; padding: 10px; }
     .hp-promo { min-height: 182px; padding: 40px 27px; }
+    .hp-promo--middle { min-height: 282px; padding: 40px 27px; }
+    .hp-promo--middle .hp-promo__deck { min-height: 198px; }
+    .hp-promo--middle .hp-promo__card { padding: 16px 14px; }
     .hp-promo__deck { min-height: 98px; border-radius: 4px; }
     .hp-promo__card { padding: 22px 14px 25px; gap: 10px; }
     .hp-promo__card h2 { font-size: 12px; line-height: 1.5; }

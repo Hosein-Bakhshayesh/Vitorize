@@ -88,6 +88,7 @@ namespace Vitorize.Infrastructure.Services
                     MobileAltText = x.MobileAltText,
                     LinkUrl = x.LinkUrl,
                     LinkText = x.LinkText,
+                    Placement = x.Placement,
                     SortOrder = x.SortOrder
                 })
                 .ToListAsync();

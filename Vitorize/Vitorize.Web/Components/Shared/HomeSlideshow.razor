@@ -1,0 +1,91 @@
+@* The homepage's two slideshows. Both cross-fade the same way and take the same fields; only the
+   frame differs — the middle band is a wide 16:9 strip, the foot one a very wide 3.5:1 panel. They
+   used to be separate mechanisms, one of them an image-only banner that could not be captioned. *@
+
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (Slides.Count > 0)
+{
+    <section class="hp-section hp-promo hp-promo--@Variant" aria-label="@AriaLabel"
+             aria-roledescription="carousel" @ref="_root">
+        <div class="hp-promo__deck">
+            @for (var i = 0; i < Slides.Count; i++)
+            {
+                var slide = Slides[i];
+                var first = i == 0;
+                var hasCopy = !string.IsNullOrWhiteSpace(slide.Title) || !string.IsNullOrWhiteSpace(slide.Subtitle);
+                <article class="hp-promo__card @(first ? "is-active" : null) @(hasCopy ? "has-copy" : null)"
+                         aria-roledescription="slide" aria-label="@($"{i + 1} از {Slides.Count}")"
+                         aria-hidden="@(first ? "false" : "true")">
+                    <StoreImage Url="@slide.ImagePath" MobileUrl="@slide.MobileImagePath"
+                                Alt="@(slide.AltText ?? slide.Title)" />
+                    @* A middle-band slide normally carries its wording inside the artwork, so the
+                       copy block and the scrim behind it only appear when there is something to read. *@
+                    @if (hasCopy)
+                    {
+                        <div class="hp-promo__copy">
+                            @if (!string.IsNullOrWhiteSpace(slide.Title)) { <h2>@slide.Title</h2> }
+                            @if (!string.IsNullOrWhiteSpace(slide.Subtitle)) { <p>@slide.Subtitle</p> }
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(slide.LinkUrl) && !string.IsNullOrWhiteSpace(slide.LinkText))
+                    {
+                        <a href="@slide.LinkUrl" target="_blank" rel="noopener noreferrer">@slide.LinkText</a>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(slide.LinkUrl))
+                    {
+                        @* An unlabelled destination still has to be reachable, so the whole frame
+                           becomes the link rather than growing a button with nothing written on it. *@
+                        <a class="hp-promo__cover" href="@slide.LinkUrl" aria-label="@(slide.AltText ?? slide.Title)"></a>
+                    }
+                </article>
+            }
+            @if (Slides.Count > 1)
+            {
+                <div class="hp-dots" role="tablist" aria-label="انتخاب اسلاید">
+                    @for (var i = 0; i < Slides.Count; i++)
+                    {
+                        <button type="button" role="tab" class="@(i == 0 ? "is-active" : null)"
+                                aria-label="اسلاید @(i + 1)" aria-selected="@(i == 0 ? "true" : "false")"></button>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<StoreHomeSlideModel> Slides { get; set; } = Array.Empty<StoreHomeSlideModel>();
+
+    /// <summary>"middle" or "bottom" — picks the frame, not the behaviour.</summary>
+    [Parameter, EditorRequired] public string Variant { get; set; } = "bottom";
+
+    [Parameter] public string AriaLabel { get; set; } = "اسلایدشو";
+
+    [Parameter] public int IntervalMs { get; set; } = 6000;
+
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    private int _startedFor;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Rotation runs in the browser: a server-side timer would push a re-render down every
+        // circuit every few seconds, for a purely visual change. Re-arming is keyed on the slide
+        // count so a reload that changes the deck starts the new one.
+        if (Slides.Count < 2 || _startedFor == Slides.Count) return;
+
+        _startedFor = Slides.Count;
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
+        await _module.InvokeVoidAsync("startSlideshow", _root, IntervalMs);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // The circuit can drop while a call is in flight; a disconnected circuit is not an error.
+        try { if (_module is not null) await _module.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+        catch (ObjectDisposedException) { }
+    }
+}

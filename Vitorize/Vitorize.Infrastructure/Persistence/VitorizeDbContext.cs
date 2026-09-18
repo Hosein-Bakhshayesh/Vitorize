@@ -178,10 +178,12 @@ public partial class VitorizeDbContext : DbContext
         modelBuilder.Entity<HomeSlide>(entity =>
         {
             entity.HasIndex(e => new { e.IsActive, e.SortOrder }, "IX_HomeSlides_IsActive_SortOrder");
+            entity.HasIndex(e => new { e.Placement, e.SortOrder }, "IX_HomeSlides_Placement_SortOrder");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Placement).HasMaxLength(40).HasDefaultValue("home-bottom");
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Subtitle).HasMaxLength(500);
             entity.Property(e => e.ImagePath).HasMaxLength(500);

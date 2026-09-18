@@ -7,6 +7,7 @@
 @inject NavigationManager Nav
 @using Vitorize.Web.Models.Customer
 @using AUI = Vitorize.Web.Helpers.AdminUiHelper
+@using Vitorize.Shared.Storefront
 
 <SeoHead Description="@_branding.MetaDescription" CanonicalPath="/" ImagePath="@_branding.OgImagePath" JsonLd="@HomeJsonLd()" />
 <div class="hp-home" aria-busy="@_loading">
@@ -65,27 +66,7 @@
     }
     @* Unlike the four tiles at the top, which hold the composition together whether or not they are
        filled, this one spans the page on its own: an empty frame here is just a gap. *@
-    @if (CampaignBanners.Count > 0)
-    {
-    <section class="hp-section hp-showcase" aria-label="پیشنهادهای فروشگاه">
-        <div class="hp-banner">
-            @if (CampaignBanners.ElementAtOrDefault(_campaignIndex) is { } campaign)
-            { <a href="@(campaign.LinkUrl ?? "/shop")" aria-label="@campaign.Title"><StoreImage Url="@campaign.ImagePath" MobileUrl="@campaign.MobileImagePath" Alt="@(campaign.AltText ?? campaign.Title)" /></a> }
-            @* Padding the rail out to five made a lone banner look like a broken carousel, and the
-               filler dots did nothing when clicked. One dot per slide, none below two. *@
-            @if (CampaignBanners.Count > 1)
-            {
-                <div class="hp-dots" aria-label="انتخاب بنر">
-                    @for (var i = 0; i < CampaignBanners.Count; i++)
-                    {
-                        var index = i;
-                        <button type="button" class="@(index == _campaignIndex ? "is-active" : null)" aria-label="بنر @(index + 1)" aria-pressed="@(index == _campaignIndex)" @onclick="() => _campaignIndex = index"></button>
-                    }
-                </div>
-            }
-        </div>
-    </section>
-    }
+    <HomeSlideshow Slides="MiddleSlides" Variant="middle" AriaLabel="پیشنهادهای فروشگاه" />
     @* One card per configured feature, not a fixed four. The loop used to run to four whatever the
        settings held, so a shorter list left blank white circles standing on the page - and with the
        list empty, as it is on production, the whole section was four circles and nothing else. *@
@@ -135,43 +116,7 @@
     @* Was a fixed card whose only editable parts were two settings, with dot controls that were
        decoration: aria-hidden, never changing, nothing behind them. Each slide is a row now, with
        its own artwork and copy, and the dots drive it. *@
-    @if (Slides.Count > 0)
-    {
-        <section class="hp-section hp-promo" aria-label="پیشنهادهای ویتورایز"
-                 aria-roledescription="carousel" @ref="_slideshow">
-            <div class="hp-promo__deck">
-                @for (var i = 0; i < Slides.Count; i++)
-                {
-                    var slide = Slides[i];
-                    var first = i == 0;
-                    <article class="hp-promo__card @(first ? "is-active" : null)"
-                             aria-roledescription="slide" aria-label="@($"{i + 1} از {Slides.Count}")"
-                             aria-hidden="@(first ? "false" : "true")">
-                        <StoreImage Url="@slide.ImagePath" MobileUrl="@slide.MobileImagePath"
-                                    Alt="@(slide.AltText ?? slide.Title)" />
-                        <div class="hp-promo__copy">
-                            <h2>@slide.Title</h2>
-                            @if (!string.IsNullOrWhiteSpace(slide.Subtitle)) { <p>@slide.Subtitle</p> }
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(slide.LinkUrl) && !string.IsNullOrWhiteSpace(slide.LinkText))
-                        {
-                            <a href="@slide.LinkUrl" target="_blank" rel="noopener noreferrer">@slide.LinkText</a>
-                        }
-                    </article>
-                }
-                @if (Slides.Count > 1)
-                {
-                    <div class="hp-dots" role="tablist" aria-label="انتخاب اسلاید">
-                        @for (var i = 0; i < Slides.Count; i++)
-                        {
-                            <button type="button" role="tab" class="@(i == 0 ? "is-active" : null)"
-                                    aria-label="اسلاید @(i + 1)" aria-selected="@(i == 0 ? "true" : "false")"></button>
-                        }
-                    </div>
-                }
-            </div>
-        </section>
-    }
+    <HomeSlideshow Slides="BottomSlides" Variant="bottom" AriaLabel="پیشنهادهای ویتورایز" />
     <section class="hp-section hp-blog">
         <h2>@_branding.HomeBlogTitle</h2>
         <div class="hp-blog-grid">
@@ -204,7 +149,6 @@
     private bool _reviewsPositioned;
     private ElementReference _reviewRail;
     private IJSObjectReference? _module;
-    private int _campaignIndex;
     private StoreHomeModel _data = new();
     private List<StoreProductModel> _products = new();
     private List<CustomerReviewModel> _reviews = new();
@@ -213,14 +157,18 @@
     // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
     private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
 
-    private ElementReference _slideshow;
-    private bool _slideshowStarted;
-    /// <summary>Active slides that actually have artwork; a slide without one would render as a gap.</summary>
-    private List<StoreHomeSlideModel> Slides =>
-        _data.Slides.Where(x => !string.IsNullOrWhiteSpace(x.ImagePath)).ToList();
+    /// <summary>Active slides of one placement that actually have artwork; a slide without one
+    /// would render as a gap. Placement is normalised the same way the server does it, so a row
+    /// written before placements existed still reaches the foot slideshow it was made for.</summary>
+    private List<StoreHomeSlideModel> SlidesOf(string placement) => _data.Slides
+        .Where(x => !string.IsNullOrWhiteSpace(x.ImagePath) &&
+                    HomeSlidePlacements.Normalize(x.Placement) == placement)
+        .OrderBy(x => x.SortOrder).ToList();
+
+    private List<StoreHomeSlideModel> MiddleSlides => SlidesOf(HomeSlidePlacements.Middle);
+    private List<StoreHomeSlideModel> BottomSlides => SlidesOf(HomeSlidePlacements.Bottom);
     private string Empty(string name) => _loading ? "در حال دریافت اطلاعات…" : $"{name} برای نمایش وجود ندارد.";
     private List<StoreBannerModel> HeroBanners => Banners("home-hero");
-    private List<StoreBannerModel> CampaignBanners => Banners("home-secondary");
     private List<StoreBannerModel> Banners(string position) => _data.Banners
         .Where(b => string.Equals(b.Position, position, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
         .OrderBy(b => b.SortOrder).ToList();
@@ -228,15 +176,6 @@
     protected override async Task OnInitializedAsync() => await LoadAsync();
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Rotation runs in the browser: a server-side timer would push a re-render down every
-        // circuit every few seconds, for a purely visual change.
-        if (!_slideshowStarted && Slides.Count > 1)
-        {
-            _slideshowStarted = true;
-            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
-            await _module.InvokeVoidAsync("startSlideshow", _slideshow, 6000);
-        }
-
         if (_reviewsPositioned || _reviews.Count < 3) return;
         _reviewsPositioned = true;
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
@@ -263,7 +202,6 @@
             _products = _data.FeaturedProducts.Take(8).ToList();
             if (_products.Count == 0 && productsTask.Result is { IsSuccess: true, Data: not null })
                 _products = productsTask.Result.Data.Items.ToList();
-            _campaignIndex = 0;
             var reviewTasks = _products.Where(p => p.ReviewCount > 0).Take(4)
                 .Select(p => Api.GetAsync<CustomerReviewListModel>($"product-reviews/product/{p.Id}?page=1&pageSize=4&sort=newest")).ToArray();
             var results = await Task.WhenAll(reviewTasks);
@@ -271,7 +209,6 @@
                 .SelectMany(r => r.Data!.Reviews.Items).Where(r => r.IsApproved && !r.IsRejected).DistinctBy(r => r.Id)
                 .OrderByDescending(r => r.CreatedAt).Take(8).ToList();
             _reviewsPositioned = false;
-            _slideshowStarted = false;
         }
         catch { _loadFailed = true; }
         finally { _loading = false; }

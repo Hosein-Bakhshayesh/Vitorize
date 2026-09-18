@@ -78,7 +78,9 @@ namespace Vitorize.Web.Models.Admin.Banners
         public string Key { get; }
         public string Position { get; }
 
-        /// <summary>The sort order this slot pins, or null where the order is the slide sequence.</summary>
+        /// <summary>The sort order this slot pins. Every slot is a fixed tile now that the middle
+        /// band moved to the slideshow screen, but the column stays nullable so a future free-order
+        /// position does not have to reshape the type.</summary>
         public int? FixedSortOrder { get; }
 
         public string Title { get; }
@@ -93,8 +95,7 @@ namespace Vitorize.Web.Models.Admin.Banners
             new("hero-1", "home-hero", 0, "بالای صفحه — کاشی ۱", "مستطیل افقی، ردیف بالا"),
             new("hero-2", "home-hero", 1, "بالای صفحه — کاشی ۲", "تقریباً مربع، ردیف بالا"),
             new("hero-3", "home-hero", 2, "بالای صفحه — کاشی ۳", "مستطیل پهن، ردیف پایین"),
-            new("hero-4", "home-hero", 3, "بالای صفحه — کاشی ۴", "مستطیل عمودی باریک، ردیف پایین"),
-            new("slider", "home-secondary", null, "بنر میانی صفحه — اسلاید", "بنر پهن ۱۶:۹، چند اسلاید")
+            new("hero-4", "home-hero", 3, "بالای صفحه — کاشی ۴", "مستطیل عمودی باریک، ردیف پایین")
         };
 
         public const int HeroTileCount = 4;

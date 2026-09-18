@@ -1,3 +1,5 @@
+using Vitorize.Shared.Storefront;
+
 namespace Vitorize.Web.Helpers
 {
     /// <summary>راهنمای ابعاد پیشنهادی تصویر برای هر بخش آپلود در پنل مدیریت.</summary>
@@ -33,8 +35,15 @@ namespace Vitorize.Web.Helpers
         public static readonly ImageSpec BannerHeroTile2 = new("۸۰۰×۸۳۰", "۱:۱", "WebP", "۵۰۰ کیلوبایت", "کاشی تقریباً مربع ردیف بالا");
         public static readonly ImageSpec BannerHeroTile3 = new("۱۶۰۰×۸۳۰", "۱.۹:۱", "WebP", "۵۰۰ کیلوبایت", "کاشی پهن ردیف پایین");
         public static readonly ImageSpec BannerHeroTile4 = new("۵۲۰×۸۳۰", "۰.۶:۱", "WebP", "۵۰۰ کیلوبایت", "قاب عمودی است؛ تصویر افقی در آن به‌شدت برش می‌خورد");
-        public static readonly ImageSpec HomeSlide = new("۲۴۰۰×۶۷۵", "۳.۵:۱", "WebP", "۱ مگابایت", "قاب بسیار پهن؛ متن روی تصویر می‌نشیند، سمت راست را ساده نگه دارید");
-        public static readonly ImageSpec BannerSlider = new("۱۹۲۰×۱۰۸۰", "۱۶:۹", "WebP", "۱ مگابایت", "بنر پهن میانی صفحه");
+        public static readonly ImageSpec HomeSlideBottom = new("۲۴۰۰×۶۷۵", "۳.۵:۱", "WebP", "۱ مگابایت", "قاب بسیار پهن؛ متن روی تصویر می‌نشیند، سمت راست را ساده نگه دارید");
+        public static readonly ImageSpec HomeSlideMiddle = new("۱۹۲۰×۱۰۸۰", "۱۶:۹", "WebP", "۱ مگابایت", "بنر پهن میانی صفحه؛ اگر متن ننویسید، نوشته باید داخل خود تصویر باشد");
+
+        /// <summary>Guidance for a slide, keyed by <c>HomeSlidePlacements</c>. The two slideshows
+        /// share every field but not their proportions, so the panel must name the right one.</summary>
+        public static ImageSpec ForSlidePlacement(string? placement) =>
+            HomeSlidePlacements.Normalize(placement) == HomeSlidePlacements.Middle
+                ? HomeSlideMiddle
+                : HomeSlideBottom;
 
         /// <summary>Guidance for a banner slot, keyed by <c>AdminBannerSlot.Key</c>.</summary>
         public static ImageSpec? ForBannerSlot(string? slotKey) => slotKey switch
@@ -43,7 +52,6 @@ namespace Vitorize.Web.Helpers
             "hero-2" => BannerHeroTile2,
             "hero-3" => BannerHeroTile3,
             "hero-4" => BannerHeroTile4,
-            "slider" => BannerSlider,
             _ => null
         };
         public static readonly ImageSpec BlogCover = new("۱۲۰۰×۶۳۰", "۱.۹۱:۱", "WebP یا JPG", "۱ مگابایت");

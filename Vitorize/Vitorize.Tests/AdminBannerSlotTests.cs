@@ -38,12 +38,18 @@ public sealed class AdminBannerSlotTests
     [Theory]
     [InlineData(0)]
     [InlineData(7)]
-    public void The_middle_banner_accepts_any_order_because_it_is_a_slider(int sortOrder)
+    public void The_middle_band_is_no_longer_a_banner_slot(int sortOrder)
     {
-        var slot = AdminBannerSlot.Resolve("home-secondary", sortOrder);
+        // It is a slideshow now, managed beside the foot one on the slides screen, so a leftover
+        // row at the old position must read as unplaced rather than claiming a frame on the page.
+        AdminBannerSlot.Resolve("home-secondary", sortOrder).Should().BeNull();
+    }
 
-        slot!.Key.Should().Be("slider");
-        slot.IsHeroTile.Should().BeFalse("its order is the slide sequence, not a frame");
+    [Fact]
+    public void Every_slot_the_panel_offers_is_a_hero_tile()
+    {
+        AdminBannerSlot.All.Should().HaveCount(AdminBannerSlot.HeroTileCount);
+        AdminBannerSlot.All.Should().OnlyContain(x => x.IsHeroTile && x.Position == "home-hero");
     }
 
     [Fact]

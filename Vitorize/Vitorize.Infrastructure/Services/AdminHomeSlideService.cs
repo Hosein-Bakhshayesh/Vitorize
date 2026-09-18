@@ -4,6 +4,7 @@ using Vitorize.Application.Interfaces;
 using Vitorize.Domain.Entities;
 using Vitorize.Infrastructure.Persistence;
 using Vitorize.Shared.Exceptions;
+using Vitorize.Shared.Storefront;
 
 namespace Vitorize.Infrastructure.Services
 {
@@ -20,7 +21,8 @@ namespace Vitorize.Infrastructure.Services
         {
             return await _dbContext.HomeSlides
                 .AsNoTracking()
-                .OrderBy(x => x.SortOrder)
+                .OrderBy(x => x.Placement)
+                .ThenBy(x => x.SortOrder)
                 .ThenBy(x => x.CreatedAt)
                 .Select(x => Project(x))
                 .ToListAsync();
@@ -56,6 +58,7 @@ namespace Vitorize.Infrastructure.Services
                 MobileAltText = request.MobileAltText,
                 LinkUrl = request.LinkUrl,
                 LinkText = request.LinkText,
+                Placement = request.Placement,
                 SortOrder = request.SortOrder,
                 IsActive = request.IsActive,
                 StartsAt = request.StartsAt,
@@ -87,6 +90,7 @@ namespace Vitorize.Infrastructure.Services
             slide.MobileAltText = request.MobileAltText;
             slide.LinkUrl = request.LinkUrl;
             slide.LinkText = request.LinkText;
+            slide.Placement = request.Placement;
             slide.SortOrder = request.SortOrder;
             slide.IsActive = request.IsActive;
             slide.StartsAt = request.StartsAt;
@@ -120,6 +124,7 @@ namespace Vitorize.Infrastructure.Services
             MobileAltText = x.MobileAltText,
             LinkUrl = x.LinkUrl,
             LinkText = x.LinkText,
+            Placement = x.Placement,
             SortOrder = x.SortOrder,
             IsActive = x.IsActive,
             StartsAt = x.StartsAt,
@@ -138,6 +143,7 @@ namespace Vitorize.Infrastructure.Services
             request.MobileAltText = NormalizeNullable(request.MobileAltText);
             request.LinkUrl = NormalizeNullable(request.LinkUrl);
             request.LinkText = NormalizeNullable(request.LinkText);
+            request.Placement = HomeSlidePlacements.Normalize(request.Placement);
 
             if (request.SortOrder < 0)
                 request.SortOrder = 0;
@@ -145,8 +151,14 @@ namespace Vitorize.Infrastructure.Services
 
         private static void Validate(CreateHomeSlideRequestDto request)
         {
-            if (string.IsNullOrWhiteSpace(request.Title))
+            // The foot slideshow prints the heading beside the artwork, so it needs one. The middle
+            // band is a full-bleed image whose wording is usually part of the artwork itself; demanding
+            // a heading there would force operators to invent copy that then prints on top of it.
+            if (string.IsNullOrWhiteSpace(request.Title) && request.Placement != HomeSlidePlacements.Middle)
                 throw new BusinessException("عنوان اسلاید الزامی است.");
+
+            if (string.IsNullOrWhiteSpace(request.ImagePath) && request.Placement == HomeSlidePlacements.Middle)
+                throw new BusinessException("برای بنر میانی انتخاب تصویر الزامی است.");
 
             if (request.StartsAt.HasValue && request.EndsAt.HasValue && request.StartsAt > request.EndsAt)
                 throw new BusinessException("تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.");

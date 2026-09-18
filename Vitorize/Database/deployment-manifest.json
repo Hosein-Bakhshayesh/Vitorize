@@ -905,6 +905,24 @@
         "Staging",
         "Production"
       ]
+    },
+    {
+      "order": 145,
+      "version": "V0043",
+      "name": "V0043__unify_home_slideshows.sql",
+      "path": "Versioned/V0043__unify_home_slideshows.sql",
+      "sha256": "011ee050f68b7250b9bbb981eaf123dcc3ce554343786feadcc6ddb405f0bc78",
+      "classification": "required",
+      "dependencies": [
+        "V0042",
+        "dbo.HomeSlides",
+        "dbo.Banners"
+      ],
+      "environments": [
+        "Development",
+        "Staging",
+        "Production"
+      ]
     }
   ]
 }

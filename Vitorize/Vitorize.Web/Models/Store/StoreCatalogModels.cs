@@ -181,6 +181,7 @@ namespace Vitorize.Web.Models.Store
         public string? MobileAltText { get; set; }
         public string? LinkUrl { get; set; }
         public string? LinkText { get; set; }
+        public string? Placement { get; set; }
         public int SortOrder { get; set; }
     }
     public class StoreBannerModel

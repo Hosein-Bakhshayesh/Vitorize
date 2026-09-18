@@ -11,6 +11,7 @@ namespace Vitorize.Application.DTOs.Admin.HomeSlides
         public string? MobileAltText { get; set; }
         public string? LinkUrl { get; set; }
         public string? LinkText { get; set; }
+        public string Placement { get; set; } = "home-bottom";
         public int SortOrder { get; set; }
         public bool IsActive { get; set; }
         public DateTime? StartsAt { get; set; }
@@ -29,6 +30,7 @@ namespace Vitorize.Application.DTOs.Admin.HomeSlides
         public string? MobileAltText { get; set; }
         public string? LinkUrl { get; set; }
         public string? LinkText { get; set; }
+        public string Placement { get; set; } = "home-bottom";
         public int SortOrder { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime? StartsAt { get; set; }

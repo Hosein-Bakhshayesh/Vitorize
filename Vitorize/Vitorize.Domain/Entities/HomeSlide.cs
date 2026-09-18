@@ -3,8 +3,9 @@ using System;
 namespace Vitorize.Domain.Entities;
 
 /// <summary>
-/// One slide of the promotional block at the foot of the homepage. Unlike a banner it carries copy
-/// as well as artwork, which is why it is its own entity rather than more columns on <see cref="Banner"/>.
+/// One slide of a homepage slideshow. Unlike a banner it carries copy as well as artwork, which is
+/// why it is its own entity rather than more columns on <see cref="Banner"/>; <see cref="Placement"/>
+/// then says which of the page's two slideshows it belongs to.
 /// </summary>
 public partial class HomeSlide
 {
@@ -26,6 +27,9 @@ public partial class HomeSlide
 
     /// <summary>Label of the slide's button, for example "برو اینستاگرام".</summary>
     public string? LinkText { get; set; }
+
+    /// <summary>One of <c>Vitorize.Shared.Storefront.HomeSlidePlacements</c>.</summary>
+    public string Placement { get; set; } = "home-bottom";
 
     public int SortOrder { get; set; }
 
