@@ -64,6 +64,7 @@
                             <th>برند</th>
                             <th dir="ltr" style="text-align:start">Slug</th>
                             <th>تعداد محصول</th>
+                            <th>ترتیب</th>
                             <th>وضعیت</th>
                             <th>تاریخ ایجاد</th>
                             <th class="col-actions">عملیات</th>
@@ -90,6 +91,7 @@
                                 </td>
                                 <td class="vz-muted vz-mono">@b.Slug</td>
                                 <td class="num">@AUI.Number(b.ProductCount)</td>
+                                <td class="num">@AUI.Number(b.SortOrder)</td>
                                 <td><StatusBadge Text="@(b.IsActive ? "فعال" : "غیرفعال")" Intent="@(b.IsActive ? "success" : "muted")" /></td>
                                 <td><PersianDateDisplay Value="b.CreatedAt" /></td>
                                 <td class="col-actions">
@@ -194,7 +196,10 @@
             || b.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
             || b.Slug.Contains(_search, StringComparison.OrdinalIgnoreCase))
         .Where(b => _statusFilter switch { "active" => b.IsActive, "inactive" => !b.IsActive, _ => true })
-        .OrderByDescending(b => b.CreatedAt)
+        // The strip on the storefront reads brands in this order, so the panel lists them the same
+        // way; sorting by CreatedAt hid the field entirely and, until the date was actually
+        // projected, ordered every row by the same default value.
+        .OrderBy(b => b.SortOrder).ThenBy(b => b.Title, StringComparer.Ordinal)
         .ToList();
 
     private void OpenCreate()

@@ -33,7 +33,9 @@ namespace Vitorize.Infrastructure.Services
                     SeoDescription = x.SeoDescription,
                     FocusKeyword = x.FocusKeyword,
                     SortOrder = x.SortOrder,
-                    IsActive = x.IsActive
+                    IsActive = x.IsActive,
+                    CreatedAt = x.CreatedAt,
+                    ProductCount = x.Products.Count(p => p.IsActive && !p.IsDeleted)
                 })
                 .ToListAsync();
         }
@@ -55,7 +57,8 @@ namespace Vitorize.Infrastructure.Services
                     SeoDescription = x.SeoDescription,
                     FocusKeyword = x.FocusKeyword,
                     SortOrder = x.SortOrder,
-                    IsActive = x.IsActive
+                    IsActive = x.IsActive,
+                    CreatedAt = x.CreatedAt
                 })
                 .FirstOrDefaultAsync();
 

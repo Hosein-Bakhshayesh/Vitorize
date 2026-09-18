@@ -19,5 +19,11 @@ namespace Vitorize.Application.DTOs.Admin.Brands
 
 
         public bool IsActive { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>Active products carrying this brand. The list column existed long before
+        /// anything filled it, so every brand read as "بدون محصول" whatever the catalogue held.</summary>
+        public int ProductCount { get; set; }
     }
 }
