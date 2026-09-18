@@ -21,4 +21,12 @@
     <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
   </ItemGroup>
 
+  <!-- Development and test configuration must never reach a published package: these files carry a
+       JWT signing key, an encryption key and a local connection string, and a release is unpacked
+       straight into the host's application directory. The host supplies appsettings.Production.json. -->
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+    <Content Update="appsettings.Testing.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>
