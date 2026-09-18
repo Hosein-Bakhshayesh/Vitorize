@@ -118,7 +118,10 @@
     </section>
     <section class="hp-section hp-reviews">
         <h2>@_branding.HomeReviewsTitle</h2>
-        <div class="hp-review-track" @ref="_reviewRail" tabindex="0" role="region" aria-label="نظرات تاییدشده خریداران">
+        @* Below three reviews the rail cannot fill its width, and RTL would leave the cards pinned to
+           one edge with a dead half-screen beside them; the same threshold that skips the scroll
+           positioning below centres them instead. *@
+        <div class="hp-review-track @(_reviews.Count is > 0 and < 3 ? "hp-review-track--few" : null)" @ref="_reviewRail" tabindex="0" role="region" aria-label="نظرات تاییدشده خریداران">
             @foreach (var review in _reviews)
             {
                 <article class="hp-review">

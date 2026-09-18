@@ -142,6 +142,9 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-reviews { min-height: calc(679 * var(--hp-u)); padding-top: calc(90 * var(--hp-u)); padding-bottom: calc(98 * var(--hp-u)); }
 .hp-review-track { display: flex; gap: calc(48 * var(--hp-u)); overflow-x: auto; scrollbar-width: none; padding: 0 calc(100 * var(--hp-u)); margin-top: calc(103 * var(--hp-u)); }
 .hp-review-track::-webkit-scrollbar { display: none; }
+/* `safe` keeps the first card reachable if the few cards still overflow a narrow viewport; the plain
+   keyword before it is the fallback for engines that do not know the safe/unsafe alignment words. */
+.hp-review-track--few { justify-content: center; justify-content: safe center; }
 .hp-review { width: calc(420 * var(--hp-u)); min-height: calc(336 * var(--hp-u)); flex: 0 0 auto; background: var(--hp-soft); border-radius: calc(9 * var(--hp-u)); padding: calc(30 * var(--hp-u)); scroll-snap-align: center; }
 .hp-review__head { display: flex; align-items: center; gap: calc(16 * var(--hp-u)); min-height: calc(78 * var(--hp-u)); margin-bottom: calc(10 * var(--hp-u)); font-size: calc(17 * var(--hp-u)); }
 .hp-review__head i { flex: 0 0 auto; width: calc(70 * var(--hp-u)); height: calc(70 * var(--hp-u)); border-radius: 50%; background: var(--hp-media); }
