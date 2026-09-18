@@ -359,7 +359,7 @@ else
                 <div class="vz-card">
                     <div class="vz-card__body">
                         <div class="vz-section__head">
-                            <span class="vz-section__badge"><Icon Name="help-circle" Size="16" /></span>
+                            <span class="vz-section__badge"><Icon Name="circle-help" Size="16" /></span>
                             <span class="vz-section__title">سوالات متداول این محصول</span>
                         </div>
 
@@ -645,7 +645,7 @@ else
 </Modal>
 
 <Modal Visible="_faqOpen" Title="@(_faqEditingId is null ? "پرسش جدید محصول" : "ویرایش پرسش محصول")"
-       Icon="help-circle" OnClose="() => _faqOpen = false">
+       Icon="circle-help" OnClose="() => _faqOpen = false">
     <ChildContent>
         <EditForm Model="_faq" OnValidSubmit="SaveFaq" id="product-faq-form" data-testid="product-faq-form">
             <DataAnnotationsValidator />

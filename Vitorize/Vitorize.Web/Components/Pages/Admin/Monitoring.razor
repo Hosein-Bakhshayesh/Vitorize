@@ -27,7 +27,7 @@
 }
 else if (_data is null)
 {
-    <div class="vz-empty"><Icon Name="alert-triangle" Size="30" /><strong>دریافت وضعیت سامانه ناموفق بود.</strong></div>
+    <div class="vz-empty"><Icon Name="triangle-alert" Size="30" /><strong>دریافت وضعیت سامانه ناموفق بود.</strong></div>
 }
 else
 {
@@ -37,7 +37,7 @@ else
         <StatCard Label="دیتابیس" Value="@(_data.DatabaseReady ? "آماده" : "نامتاح")" Icon="database" Accent="@(_data.DatabaseReady ? "green" : "red")" />
         <StatCard Label="پرداخت معلق" Value="@AUI.Number(_data.PendingPayments)" Icon="credit-card" Accent="@(_data.PendingPayments > 0 ? "amber" : "green")" />
         <StatCard Label="Outbox متوقف" Value="@AUI.Number(_data.OutboxStuck + _data.OutboxDeadLetter)" Icon="inbox" Accent="@(_data.OutboxStuck + _data.OutboxDeadLetter > 0 ? "red" : "green")" />
-        <StatCard Label="خطاهای بازه" Value="@AUI.Number(_data.ErrorLogsInWindow)" Icon="alert-circle" Accent="@(_data.ErrorLogsInWindow > 0 ? "amber" : "green")" />
+        <StatCard Label="خطاهای بازه" Value="@AUI.Number(_data.ErrorLogsInWindow)" Icon="circle-alert" Accent="@(_data.ErrorLogsInWindow > 0 ? "amber" : "green")" />
         <StatCard Label="هشدار امنیتی" Value="@AUI.Number(_data.SecurityWarningsInWindow)" Icon="shield" Accent="@(_data.SecurityWarningsInWindow > 0 ? "amber" : "green")" />
     </div>
 

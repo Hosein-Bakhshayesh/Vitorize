@@ -386,7 +386,7 @@ else
     <Footer>
         @if (_detail is not null && CanGenerateInvoice(_detail))
         {
-            <button class="vz-btn vz-btn--primary" data-testid="admin-order-invoice" @onclick="PrintInvoice"><Icon Name="file-invoice" Size="16" /> صدور فاکتور</button>
+            <button class="vz-btn vz-btn--primary" data-testid="admin-order-invoice" @onclick="PrintInvoice"><Icon Name="tabler:file-invoice" Size="16" /> صدور فاکتور</button>
         }
         @if (_detail is not null && CanSendKycReminder(_detail))
         {

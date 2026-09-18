@@ -36,8 +36,11 @@
                     else if (!string.IsNullOrWhiteSpace(slide.LinkUrl))
                     {
                         @* An unlabelled destination still has to be reachable, so the whole frame
-                           becomes the link rather than growing a button with nothing written on it. *@
-                        <a class="hp-promo__cover" href="@slide.LinkUrl" aria-label="@(slide.AltText ?? slide.Title)"></a>
+                           becomes the link rather than growing a button with nothing written on it.
+                           A middle-band slide may carry neither alt text nor a heading, and a link
+                           with no accessible name is one a screen reader can only announce as
+                           "link" — hence a last-resort label rather than an empty string. *@
+                        <a class="hp-promo__cover" href="@slide.LinkUrl" aria-label="@CoverLabel(slide)"></a>
                     }
                 </article>
             }
@@ -64,6 +67,13 @@
     [Parameter] public string AriaLabel { get; set; } = "اسلایدشو";
 
     [Parameter] public int IntervalMs { get; set; } = 6000;
+
+    private static string CoverLabel(StoreHomeSlideModel slide)
+    {
+        if (!string.IsNullOrWhiteSpace(slide.AltText)) return slide.AltText;
+        if (!string.IsNullOrWhiteSpace(slide.Title)) return slide.Title;
+        return "مشاهده‌ی پیشنهاد";
+    }
 
     private ElementReference _root;
     private IJSObjectReference? _module;
