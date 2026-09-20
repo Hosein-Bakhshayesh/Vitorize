@@ -40,7 +40,7 @@
 .site-shell .cart-page .cart-loading { min-height: 300px; gap: 18px; background: var(--st-surface-2); border-radius: 6px; font-size: 13px; }
 .site-shell .cart-page .st-alert { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; border-radius: 6px; padding: 18px; margin: 0 0 24px; text-align: start; }
 .site-shell .cart-page .st-alert .st-btn { margin-inline-start: auto; }
-.site-shell .cart-page > .st-errpage { padding: 40px 24px; min-height: 360px; border: 1px solid var(--st-border); border-radius: 6px; background: var(--st-surface-2); }
+.site-shell .cart-page > .st-errpage { padding: 40px 24px; min-height: 360px; border: 1px solid var(--st-border); border-radius: 6px; background: var(--st-surface); }
 .site-shell .cart-page .st-errpage__art { width: 150px; height: auto; }
 .site-shell .cart-page .st-errpage__art .st-mascot { width: 150px; max-height: 150px; }
 .site-shell .cart-page .st-errpage__title { font-size: 22px; }

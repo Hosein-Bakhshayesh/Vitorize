@@ -21,10 +21,10 @@ else if (_faqs.Count == 0)
 }
 else
 {
-    <div class="st-stack faq-list">
+    <div class="st-stack faq-list content-faq">
         @foreach (var f in _faqs)
         {
-            <FaqItem Question="@f.Question" Answer="@f.Answer" />
+            <FaqItem Question="@f.Question" Answer="@f.Answer" Class="content-faq__item" />
         }
     </div>
 }

@@ -2139,6 +2139,8 @@ button {
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
+.st-faq__trigger { width: 100%; padding: 16px 20px; background: none; border: none; cursor: pointer; font-family: inherit; color: var(--st-text); text-align: start; }
+.st-faq__trigger > span { font-weight: 700; font-size: 14px; text-align: start; }
 
 /* =====================================================================
    Storefront home — UI/UX handoff 2026-09

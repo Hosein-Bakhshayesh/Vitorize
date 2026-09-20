@@ -1,6 +1,6 @@
-﻿<div class="st-card" style="overflow:hidden">
-    <button class="st-spread" style="width:100%;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--st-text)" @onclick="() => _open = !_open" type="button">
-        <span style="font-weight:700;font-size:14px;text-align:start">@Question</span>
+﻿<div class="st-card @Class">
+    <button class="st-spread st-faq__trigger" @onclick="() => _open = !_open" type="button" aria-expanded="@_open">
+        <span>@Question</span>
         <Icon Name="@(_open ? "chevron-up" : "chevron-down")" Size="18" />
     </button>
     @if (_open)
@@ -16,6 +16,7 @@
 @code {
     [Parameter] public string Question { get; set; } = string.Empty;
     [Parameter] public string Answer { get; set; } = string.Empty;
+    [Parameter] public string? Class { get; set; }
     [Parameter] public bool InitiallyOpen { get; set; }
     private bool _open;
     private bool _initialized;
