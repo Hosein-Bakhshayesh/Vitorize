@@ -24,13 +24,13 @@
         <div class="vz-pills">
             @foreach (var f in StatusChips)
             {
-                <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => _status = f.Key">
+                <button class="vz-pill @(_status == f.Key ? "active" : "")" @onclick="() => SetStatus(f.Key)">
                     @f.Label <span class="vz-pill__count">@AUI.Number(f.Key == "all" ? _items.Count : CountStatus(byte.Parse(f.Key)))</span>
                 </button>
             }
         </div>
         <div style="position:relative;min-width:240px">
-            <input class="vz-input" style="padding-inline-start:38px" placeholder="نام، موبایل یا کد ملی ..." @bind="_search" @bind:event="oninput" />
+            <input class="vz-input" style="padding-inline-start:38px" placeholder="نام، موبایل یا کد ملی ..." @bind="_search" @bind:event="oninput" @bind:after="SearchChangedAsync" />
             <span style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-3)"><Icon Name="search" Size="17" /></span>
         </div>
     </div>
@@ -242,6 +242,8 @@
 
     private List<VerificationProfileModel> Filtered => _items;
     private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SearchChangedAsync() { _page = 1; await Load(); }
+    private async Task SetStatus(string status) { _status = status; _page = 1; await Load(); }
 
     private static List<VerificationDocumentModel> Docs(VerificationProfileModel v) =>
         v.Documents.Count > 0 ? v.Documents : v.VerificationDocuments;

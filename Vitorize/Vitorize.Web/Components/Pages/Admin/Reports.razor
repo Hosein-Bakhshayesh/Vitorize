@@ -31,23 +31,23 @@ else
     {
         case "sales":
             <div class="vz-stats">
-                <StatCard Label="کل فروش" Value="@AUI.MoneyFa(_sales.TotalSales)" Icon="trending-up" Accent="green" />
+                <StatCard Label="کل فروش" Value="@AUI.MoneyFa(_sales.TotalRevenue)" Icon="trending-up" Accent="green" />
                 <StatCard Label="تعداد سفارش" Value="@AUI.Number(_sales.TotalOrders)" Icon="cart" Accent="teal" />
                 <StatCard Label="میانگین سبد" Value="@AUI.MoneyFa(_sales.AverageOrderValue)" Icon="bar-chart" Accent="blue" />
-                <StatCard Label="تکمیل شده" Value="@AUI.Number(_sales.CompletedOrders)" Icon="check-circle" Accent="green" />
-                <StatCard Label="لغو شده" Value="@AUI.Number(_sales.CancelledOrders)" Icon="x-circle" Accent="red" />
+                <StatCard Label="پرداخت‌شده" Value="@AUI.Number(_sales.PaidOrders)" Icon="check-circle" Accent="green" />
+                <StatCard Label="مالیات فروش" Value="@AUI.MoneyFa(_sales.TotalVatAmount)" Icon="receipt" Accent="orange" />
             </div>
-            <ReportRows Rows="_sales.DailySales.Count > 0 ? _sales.DailySales : _sales.Rows" />
+            <ReportRows Rows="SalesRows" />
             break;
 
         case "payments":
             <div class="vz-stats">
-                <StatCard Label="کل مبلغ" Value="@AUI.MoneyFa(_payments.TotalAmount)" Icon="credit-card" Accent="green" />
+                <StatCard Label="کل مبلغ پرداخت‌شده" Value="@AUI.MoneyFa(_payments.PaidAmount)" Icon="credit-card" Accent="green" />
                 <StatCard Label="تعداد پرداخت" Value="@AUI.Number(_payments.TotalPayments)" Icon="activity" Accent="teal" />
-                <StatCard Label="موفق" Value="@AUI.Number(_payments.PaidCount)" Icon="check-circle" Accent="green" />
-                <StatCard Label="ناموفق" Value="@AUI.Number(_payments.FailedCount)" Icon="x-circle" Accent="red" />
+                <StatCard Label="موفق" Value="@AUI.Number(_payments.PaidPayments)" Icon="check-circle" Accent="green" />
+                <StatCard Label="ناموفق" Value="@AUI.Number(_payments.FailedPayments)" Icon="x-circle" Accent="red" />
             </div>
-            <ReportRows Rows="_payments.Rows" />
+            <ReportRows Rows="PaymentRows" />
             break;
 
         case "wallet":
@@ -55,7 +55,7 @@ else
                 <StatCard Label="کل واریز" Value="@AUI.MoneyFa(_wallet.TotalCredit)" Icon="plus" Accent="green" />
                 <StatCard Label="کل برداشت" Value="@AUI.MoneyFa(_wallet.TotalDebit)" Icon="arrow-left" Accent="red" />
                 <StatCard Label="موجودی فعلی" Value="@AUI.MoneyFa(_wallet.CurrentBalance)" Icon="wallet" Accent="teal" />
-                <StatCard Label="تعداد تراکنش" Value="@AUI.Number(_wallet.TransactionCount)" Icon="activity" Accent="blue" />
+                <StatCard Label="تعداد تراکنش" Value="@AUI.Number(_wallet.TransactionsCount)" Icon="activity" Accent="blue" />
             </div>
             break;
 
@@ -63,18 +63,19 @@ else
             <div class="vz-stats">
                 <StatCard Label="کل کدها" Value="@AUI.Number(_coupons.TotalCoupons)" Icon="percent" Accent="purple" />
                 <StatCard Label="فعال" Value="@AUI.Number(_coupons.ActiveCoupons)" Icon="check-circle" Accent="green" />
-                <StatCard Label="کل استفاده" Value="@AUI.Number(_coupons.TotalUsage)" Icon="activity" Accent="teal" />
+                <StatCard Label="کل استفاده" Value="@AUI.Number(_coupons.TotalUsages)" Icon="activity" Accent="teal" />
                 <StatCard Label="کل تخفیف" Value="@AUI.MoneyFa(_coupons.TotalDiscount)" Icon="trending-up" Accent="orange" />
             </div>
+            <ReportRows Rows="CouponRows" />
             break;
 
         case "giftcodes":
             <div class="vz-stats">
                 <StatCard Label="کل کدها" Value="@AUI.Number(_giftcodes.TotalCodes)" Icon="gift" Accent="purple" />
-                <StatCard Label="موجود" Value="@AUI.Number(_giftcodes.AvailableCodes)" Icon="check-circle" Accent="green" />
-                <StatCard Label="فروخته‌شده" Value="@AUI.Number(_giftcodes.SoldCodes)" Icon="cart" Accent="teal" />
-                <StatCard Label="تحویل‌شده" Value="@AUI.Number(_giftcodes.DeliveredCodes)" Icon="package-check" Accent="blue" />
-                <StatCard Label="غیرفعال" Value="@AUI.Number(_giftcodes.DisabledCodes)" Icon="x-circle" Accent="red" />
+                <StatCard Label="موجود" Value="@AUI.Number(GiftCodeCount(GiftCodeStatus.Available))" Icon="check-circle" Accent="green" />
+                <StatCard Label="فروخته‌شده" Value="@AUI.Number(GiftCodeCount(GiftCodeStatus.Sold))" Icon="cart" Accent="teal" />
+                <StatCard Label="تحویل‌شده" Value="@AUI.Number(GiftCodeCount(GiftCodeStatus.Delivered))" Icon="package-check" Accent="blue" />
+                <StatCard Label="غیرفعال" Value="@AUI.Number(GiftCodeCount(GiftCodeStatus.Disabled))" Icon="x-circle" Accent="red" />
             </div>
             break;
 
@@ -101,6 +102,11 @@ else
     private CouponsReportModel _coupons = new();
     private GiftCodesReportModel _giftcodes = new();
     private UsersReportModel _users = new();
+
+    private List<ReportRowModel> SalesRows => _sales.DailySales.Select(x => new ReportRowModel { Date = x.Date, Count = x.OrdersCount, Amount = x.Revenue }).ToList();
+    private List<ReportRowModel> PaymentRows => _payments.ByGateway.Select(x => new ReportRowModel { Label = x.Gateway, Count = x.Count, Amount = x.Amount }).ToList();
+    private List<ReportRowModel> CouponRows => _coupons.TopCoupons.Select(x => new ReportRowModel { Label = string.IsNullOrWhiteSpace(x.Title) ? x.Code : $"{x.Code} — {x.Title}", Count = x.UsageCount }).ToList();
+    private int GiftCodeCount(GiftCodeStatus status) => _giftcodes.ByStatus.FirstOrDefault(x => x.Status == (byte)status)?.Count ?? 0;
 
     protected override Task OnInitializedAsync() => Reload();
 

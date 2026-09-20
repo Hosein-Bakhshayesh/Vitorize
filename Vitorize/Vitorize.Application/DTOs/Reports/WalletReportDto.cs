@@ -6,6 +6,9 @@
 
         public decimal TotalDebit { get; set; }
 
+        /// <summary>Current balance across all wallets; it is intentionally not limited by the report date range.</summary>
+        public decimal CurrentBalance { get; set; }
+
         public int TransactionsCount { get; set; }
 
         public List<WalletTransactionTypeReportDto> ByType { get; set; } = new();

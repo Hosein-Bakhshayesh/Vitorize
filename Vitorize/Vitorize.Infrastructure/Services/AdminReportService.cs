@@ -140,6 +140,10 @@ namespace Vitorize.Infrastructure.Services
 
             return new WalletReportDto
             {
+                CurrentBalance = await _dbContext.Wallets
+                    .AsNoTracking()
+                    .SumAsync(x => (decimal?)x.Balance) ?? 0,
+
                 TransactionsCount = await tx.CountAsync(),
 
                 TotalCredit = await tx
@@ -178,11 +182,19 @@ namespace Vitorize.Infrastructure.Services
 
                 TotalUsages = await _dbContext.CouponUsages
                     .AsNoTracking()
-                    .CountAsync(x => x.UsedAt >= from && x.UsedAt < to),
+                    .CountAsync(x => x.UsedAt >= from && x.UsedAt < to &&
+                                     x.Order.PaymentStatus == (byte)PaymentStatus.Paid),
+
+                TotalDiscount = await _dbContext.CouponUsages
+                    .AsNoTracking()
+                    .Where(x => x.UsedAt >= from && x.UsedAt < to &&
+                                x.Order.PaymentStatus == (byte)PaymentStatus.Paid)
+                    .SumAsync(x => (decimal?)x.Order.DiscountAmount) ?? 0,
 
                 TopCoupons = await _dbContext.CouponUsages
                     .AsNoTracking()
-                    .Where(x => x.UsedAt >= from && x.UsedAt < to)
+                    .Where(x => x.UsedAt >= from && x.UsedAt < to &&
+                                x.Order.PaymentStatus == (byte)PaymentStatus.Paid)
                     .GroupBy(x => new
                     {
                         x.CouponId,

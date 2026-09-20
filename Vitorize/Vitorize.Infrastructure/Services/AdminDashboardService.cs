@@ -44,6 +44,7 @@ namespace Vitorize.Infrastructure.Services
 
                 RevenueToday = await _dbContext.Orders
                     .Where(x =>
+                        x.PaymentStatus == (byte)PaymentStatus.Paid &&
                         x.PaidAt != null &&
                         x.PaidAt >= today &&
                         x.PaidAt < tomorrow)
@@ -51,6 +52,7 @@ namespace Vitorize.Infrastructure.Services
 
                 RevenueThisMonth = await _dbContext.Orders
                     .Where(x =>
+                        x.PaymentStatus == (byte)PaymentStatus.Paid &&
                         x.PaidAt != null &&
                         x.PaidAt >= monthStart)
                     .SumAsync(x => (decimal?)x.FinalAmount) ?? 0,
@@ -60,10 +62,14 @@ namespace Vitorize.Infrastructure.Services
 
                 PendingTickets = await _dbContext.Tickets
                     .CountAsync(x =>
-                        x.Status != (byte)TicketStatus.Closed),
+                        x.Status == (byte)TicketStatus.Open ||
+                        x.Status == (byte)TicketStatus.WaitingForAdmin),
 
                 PendingVerifications = await _dbContext.UserVerificationProfiles
                     .CountAsync(x =>
+                        x.SubmittedAt.HasValue &&
+                        x.EncryptedPayload != null &&
+                        x.EncryptedPayload != "" &&
                         x.Status == (byte)VerificationStatus.Pending),
 
                 UnreadNotifications = await _dbContext.Notifications
@@ -104,6 +110,7 @@ namespace Vitorize.Infrastructure.Services
 
             var salesRaw = await _dbContext.Orders
                 .Where(x =>
+                    x.PaymentStatus == (byte)PaymentStatus.Paid &&
                     x.PaidAt != null &&
                     x.PaidAt >= last7DaysStart)
                 .GroupBy(x => x.PaidAt!.Value.Date)

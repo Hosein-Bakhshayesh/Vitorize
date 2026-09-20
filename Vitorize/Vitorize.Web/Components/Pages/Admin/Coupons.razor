@@ -35,7 +35,7 @@
         </div>
         <div style="position:relative;min-width:240px">
             <input id="coupon-search" class="vz-input" style="padding-inline-start:38px" placeholder="کد یا عنوان ... ( / )"
-                   @bind="_search" @bind:event="oninput" />
+                   @bind="_search" @bind:event="oninput" @bind:after="SearchChangedAsync" />
             <span style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-3)"><Icon Name="search" Size="17" /></span>
         </div>
     </div>
@@ -271,6 +271,7 @@
 
     private List<AdminCouponModel> Filtered => _items;
     private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SearchChangedAsync() { _page = 1; await Load(); }
     private async Task SetStateFilter(string filter) { _stateFilter = filter; _page = 1; await Load(); }
 
     // ----- menu -----

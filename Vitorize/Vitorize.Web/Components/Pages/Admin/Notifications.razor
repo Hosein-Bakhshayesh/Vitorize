@@ -33,7 +33,7 @@
             }
         </div>
         <div style="position:relative;min-width:240px">
-            <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، متن یا کاربر ..." @bind="_search" @bind:event="oninput" />
+            <input class="vz-input" style="padding-inline-start:38px" placeholder="عنوان، متن یا کاربر ..." @bind="_search" @bind:event="oninput" @bind:after="SearchChangedAsync" />
             <span style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--text-3)"><Icon Name="search" Size="17" /></span>
         </div>
     </div>
@@ -676,6 +676,7 @@
 
     private List<AdminNotificationModel> Filtered => _items;
     private async Task ChangePage(int page) { _page = page; await Load(); }
+    private async Task SearchChangedAsync() { _page = 1; await Load(); }
     private async Task SetReadFilter(string filter) { _readFilter = filter; _page = 1; await Load(); }
 
     private async Task MarkRead(AdminNotificationModel n)

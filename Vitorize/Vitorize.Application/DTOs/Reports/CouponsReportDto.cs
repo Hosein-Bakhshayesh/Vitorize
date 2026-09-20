@@ -8,6 +8,9 @@
 
         public int TotalUsages { get; set; }
 
+        /// <summary>Discount granted by successful orders whose coupon usage falls in the selected range.</summary>
+        public decimal TotalDiscount { get; set; }
+
         public List<CouponUsageReportDto> TopCoupons { get; set; } = new();
     }
 
