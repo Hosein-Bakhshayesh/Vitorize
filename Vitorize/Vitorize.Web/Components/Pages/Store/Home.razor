@@ -58,8 +58,10 @@
     {
     <section class="hp-section hp-products">
         <h2>@_branding.HomeProductsTitle</h2>
-        <div class="hp-product-grid">
-            @foreach (var product in _products.Take(8)) { <HomeProductCard Product="product" /> }
+        @* Use the same interactive card as catalogue and related-products. Keeping a separate
+           home-only card caused the visual and purchase actions to drift from every other page. *@
+        <div class="st-lgrid hp-product-grid">
+            @foreach (var product in _products.Take(8)) { <StoreProductCard @key="product.Id" Product="product" /> }
             @if (_products.Count == 0) { <p class="hp-empty">@Empty("محصول")</p> }
         </div>
     </section>

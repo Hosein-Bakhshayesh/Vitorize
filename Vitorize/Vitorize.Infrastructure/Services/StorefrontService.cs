@@ -123,10 +123,14 @@ namespace Vitorize.Infrastructure.Services
                     Id = x.Id,
                     Title = x.Title,
                     Slug = x.Slug,
+                    RedirectUrl = x.RedirectUrl,
                     ThumbnailImagePath = x.ThumbnailImagePath,
                     BasePrice = x.BasePrice,
                     DiscountPrice = x.DiscountPrice,
+                    CurrencyType = x.CurrencyType,
                     IsFeatured = x.IsFeatured,
+                    CategoryTitle = x.Category.Title,
+                    HasVariants = x.ProductVariants.Any(v => v.IsActive),
                     ForceOutOfStock = x.ForceOutOfStock,
                     DeliveryType = x.DeliveryType,
                     AvailableStock = x.DeliveryType == (byte)DeliveryType.Instant
@@ -135,7 +139,25 @@ namespace Vitorize.Infrastructure.Services
                         : x.ProductVariants.Where(v => v.IsActive).Sum(v => (int?)v.StockQuantity) ?? 0,
                     IsUnlimitedStock = x.DeliveryType != (byte)DeliveryType.Instant &&
                         x.ProductVariants.Any(v => v.IsActive &&
-                            v.StockMode == (byte)ProductVariantStockMode.Unlimited)
+                            v.StockMode == (byte)ProductVariantStockMode.Unlimited),
+                    // Keep this definition aligned with the public review endpoint: replies,
+                    // rejected rows, deleted rows, and pending reviews never make a card count as
+                    // reviewable on the home page.
+                    ReviewCount = _dbContext.ProductReviews.Count(r =>
+                        r.ProductId == x.Id &&
+                        r.ParentId == null &&
+                        r.IsApproved &&
+                        !r.IsRejected &&
+                        !r.IsDeleted),
+                    AverageRating = _dbContext.ProductReviews
+                        .Where(r =>
+                            r.ProductId == x.Id &&
+                            r.ParentId == null &&
+                            r.IsApproved &&
+                            !r.IsRejected &&
+                            !r.IsDeleted)
+                        .Select(r => (double?)r.Rating)
+                        .Average() ?? 0
                 })
                 .ToListAsync();
 

@@ -78,7 +78,7 @@
         <link rel="preload" href="fonts/storefront/funnel-display-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     }
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
-    <link rel="stylesheet" href="css/home.css?v=20260919-2" />
+    <link rel="stylesheet" href="css/home.css?v=20260920-4" />
     <link rel="stylesheet" href="css/site-shell.css?v=20260912-1" />
     <link rel="stylesheet" href="css/catalog.css?v=20260913-1" />
     <link rel="stylesheet" href="css/product-page.css?v=20260913-1" />
@@ -134,6 +134,20 @@
             .vz-splash-mark img { width: 32px; height: 32px; }
             .vz-spinner { width: 30px; height: 30px; }
         }
+        /* Connection recovery is deliberately quiet for short network/VPN transitions. The
+           compact notice is only revealed by blazor-reconnect.js after a few seconds, rather
+           than letting Blazor's unstyled stock overlay interrupt a checkout or admin task. */
+        .vz-reconnect-status { position: fixed; inset-block-start: 12px; inset-inline: 12px;
+                               z-index: 10000; display: block; margin-inline: auto;
+                               width: fit-content; max-width: calc(100vw - 24px); padding: 9px 14px;
+                               border: 1px solid color-mix(in srgb, var(--st-primary, #0d9488) 32%, transparent);
+                               border-radius: 12px; background: color-mix(in srgb, var(--st-surface, #fff) 92%, #0d9488);
+                               color: var(--st-text, #243b3a); box-shadow: 0 8px 24px rgba(15,23,42,.16);
+                               font: 600 13px/1.7 var(--vz-font, Vazirmatn, Tahoma, sans-serif); text-align: center; }
+        .vz-reconnect-status[hidden] { display: none; }
+        .vz-error-ui { font-family: var(--vz-font, Vazirmatn, Tahoma, sans-serif); border-top: 1px solid currentColor; }
+        #blazor-error-ui .dismiss { float: none; margin-inline-start: 8px; border: 0; background: transparent;
+                                    color: inherit; cursor: pointer; font: inherit; font-size: 20px; line-height: 1; }
     </style>
 
     @if (!string.IsNullOrWhiteSpace(_b.GoogleAnalyticsId))
@@ -188,9 +202,9 @@
     <Routes @rendermode="PageRenderMode" />
 
     <div id="blazor-error-ui" class="vz-error-ui">
-        یک خطای پیش‌بینی‌نشده رخ داد.
-        <a href="" class="reload">بارگذاری مجدد</a>
-        <span class="dismiss">🗙</span>
+        مشکلی موقت در این صفحه پیش آمد.
+        <a href="" class="reload">تلاش دوباره</a>
+        <button type="button" class="dismiss" aria-label="بستن پیام">×</button>
     </div>
 
     <script src="_framework/blazor.web.js" autostart="false"></script>
@@ -200,7 +214,9 @@
             circuit: {
                 reconnectionHandler: window.vzBlazorReconnectHandler,
                 reconnectionOptions: {
-                    maxRetries: 60,
+                    // Match the server's 30-minute retained-circuit window. A VPN handoff can
+                    // take longer than the framework default without making the page unrecoverable.
+                    maxRetries: 900,
                     retryIntervalMilliseconds: 2000
                 }
             }
@@ -243,7 +259,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260919-1";
+    private const string AssetVersion = "20260920-2";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

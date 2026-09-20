@@ -17,16 +17,18 @@
 else
 {
     <a class="st-skip-link" href="#main-content">پرش به محتوای اصلی</a>
-    <div class="st-shell @(IsHome ? "home-shell" : "site-shell")">
-        @if (IsHome) { <HomeHeader /> }
-        else { <StoreHeader /> }
+    @* The home page keeps its distinct content blocks, but its chrome must be the same
+       StoreHeader/StoreFooter used everywhere else. The former bespoke pair omitted the theme
+       control and reserved three empty trust-seal frames when fewer seals were configured. *@
+    <div class="st-shell site-shell @(IsHome ? "home-shell" : null)">
+        <StoreHeader />
         <main id="main-content" class="st-main" tabindex="-1">
             <div class="st-container">
                 @Body
             </div>
         </main>
-        @if (IsHome) { <HomeFooter /> }
-        else { <StoreFooter /><StoreBottomNav /> }
+        <StoreFooter />
+        <StoreBottomNav />
     </div>
 }
 

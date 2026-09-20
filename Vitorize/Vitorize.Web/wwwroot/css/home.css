@@ -1,6 +1,6 @@
 /* Homepage only. Geometry is measured from the 1728px desktop and 402px mobile
    handoffs. Real content may grow a section; it is never clipped to fake a match. */
-.home-shell {
+.home-shell.site-shell {
     --hp-u: min(1px, calc(100vw / 1728));
     /* The content column. Every section between the header and the footer aligns to it; the footer
        and five of the sections already agreed on 100u, while the hero (80u) and the two promo bands
@@ -17,8 +17,8 @@
     min-height: 100vh; overflow-x: clip; position: relative;
 }
 .home-shell *, .home-shell *::before, .home-shell *::after { box-sizing: border-box; }
-.home-shell .st-main { padding: 0; flex: none; }
-.home-shell .st-main > .st-container { padding: 0; width: 100%; max-width: 1728px; margin: 0 auto; }
+.home-shell.site-shell .st-main { padding: 0; flex: none; }
+.home-shell.site-shell .st-main > .st-container { padding: 0; width: 100%; max-width: 1728px; margin: 0 auto; }
 .home-shell a { color: inherit; text-decoration: none; }
 .home-shell button { font: inherit; color: inherit; cursor: pointer; }
 .home-shell :is(a, button, summary):focus-visible { outline: 2px solid #168d85; outline-offset: 4px; }
@@ -115,7 +115,7 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-cat-more { display: flex; width: fit-content; margin: calc(52 * var(--hp-u)) auto 0; align-items: center; gap: calc(8 * var(--hp-u)); font-size: max(13px, calc(16 * var(--hp-u))); font-weight: 600; color: #14867c; border: 1px solid var(--hp-mint); border-radius: calc(8 * var(--hp-u)); padding: calc(10 * var(--hp-u)) calc(26 * var(--hp-u)); transition: background .2s, color .2s, border-color .2s; }
 .hp-cat-more:hover { background: var(--hp-teal); border-color: var(--hp-teal); color: #fff; }
 .hp-products { min-height: calc(1247 * var(--hp-u)); padding: calc(95 * var(--hp-u)) var(--hp-gutter) calc(100 * var(--hp-u)); }
-.hp-product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(60 * var(--hp-u)); margin-top: calc(98 * var(--hp-u)); }
+.hp-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin-top: calc(98 * var(--hp-u)); }
 .hp-product { display: block; min-width: 0; border: 1px solid #e9e9e9; padding: calc(15 * var(--hp-u)); border-radius: calc(12 * var(--hp-u)); background: white; }
 .hp-product__image { position: relative; height: calc(304 * var(--hp-u)); background: var(--hp-soft); }
 .hp-product__discount, .hp-product__stock { position: absolute; left: calc(18 * var(--hp-u)); top: calc(18 * var(--hp-u)); font-size: calc(12 * var(--hp-u)); line-height: 1.5; background: #ff5359; color: #fff; border-radius: 3px; padding: 1px 5px; }
@@ -285,8 +285,8 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-category__title { font-size: 11px; line-height: 1.5; }
     .hp-cat-more { margin-top: 26px; font-size: 12px; padding: 9px 20px; border-radius: 7px; }
     .hp-products { min-height: 632px; padding: 40px var(--hp-gutter); }
-    .hp-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; margin-top: 28px; }
-    .hp-product:nth-child(n+5) { display: none; }
+    .hp-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+    .hp-product-grid .st-pcard:nth-child(n+5) { display: none; }
     .hp-product { border-radius: 5px; padding: 7px; }
     .hp-product__image { height: auto; aspect-ratio: 1 / 1; }
     .hp-product__discount, .hp-product__stock { top: 8px; left: 8px; font-size: 7px; padding: 1px 3px; border-radius: 2px; }
