@@ -15,6 +15,17 @@ namespace Vitorize.Tests;
 /// </summary>
 public sealed class AdminBannerSlotTests
 {
+    [Fact]
+    public void Homepage_uses_the_assigned_hero_tile_not_the_banner_list_index()
+    {
+        var root = FindSolutionRoot();
+        var home = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "Components", "Pages", "Store", "Home.razor"));
+
+        home.Should().Contain("HeroBannerAt(i)");
+        home.Should().Contain("b.SortOrder == tile");
+        home.Should().NotContain("HeroBanners.ElementAtOrDefault(i)");
+    }
+
     [Theory]
     [InlineData(0, "hero-1")]
     [InlineData(1, "hero-2")]
@@ -108,5 +119,17 @@ public sealed class AdminBannerSlotTests
         });
 
         created.AltText.Should().BeNull();
+    }
+
+    private static string FindSolutionRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "Vitorize.sln"))) return directory.FullName;
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate the Vitorize solution root.");
     }
 }

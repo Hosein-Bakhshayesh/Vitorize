@@ -13,8 +13,8 @@
         </nav>
         <div class="hp-header__actions">
             <a class="hp-search" href="/search" aria-label="جستجو"><Icon Name="search" Size="20" /></a>
-            <a class="hp-cart" href="/cart" aria-label="سبد خرید"><Icon Name="cart" Size="20" />@if (Cart.Count > 0) { <span class="hp-cart__count">@AdminUiHelper.Number(Cart.Count)</span> }</a>
-            <a class="hp-account" href="@(_authenticated ? "/customer/dashboard" : "/login")" aria-label="حساب کاربری"><Icon Name="contact-round" Size="20" /></a>
+            <a class="hp-cart" href="/cart" aria-label="سبد خرید"><Icon Name="tabler:shopping-cart" Size="20" />@if (Cart.Count > 0) { <span class="hp-cart__count">@AdminUiHelper.Number(Cart.Count)</span> }</a>
+            <a class="hp-account" href="@(_authenticated ? "/customer/dashboard" : "/login")" aria-label="حساب کاربری"><Icon Name="circle-user-round" Size="20" /></a>
             <button class="hp-menu-toggle" type="button" @ref="_mobileTrigger" @onclick="Toggle" aria-label="دسته‌بندی‌ها و منو" aria-expanded="@_open" aria-controls="hp-category-panel"><Icon Name="menu" Size="20" /></button>
         </div>
     </div>

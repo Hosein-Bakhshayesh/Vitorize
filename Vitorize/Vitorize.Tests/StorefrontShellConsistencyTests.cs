@@ -18,8 +18,34 @@ public sealed class StorefrontShellConsistencyTests
         Assert.Contains("<StoreBottomNav />", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("<HomeHeader", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("<HomeFooter", layout, StringComparison.Ordinal);
-        Assert.Contains("css/home.css?v=20260920-4", app, StringComparison.Ordinal);
+        Assert.Contains("css/home.css?v=20260921-3", app, StringComparison.Ordinal);
+        Assert.Contains("css/site-shell.css?v=20260921-5", app, StringComparison.Ordinal);
+        Assert.Contains("css/auth-page.css?v=20260920-1", app, StringComparison.Ordinal);
         Assert.Contains(".home-shell.site-shell .st-main", homeCss, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Desktop_category_menu_keeps_root_category_titles_on_one_line()
+    {
+        var root = FindSolutionRoot();
+        var css = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "wwwroot", "css", "site-shell.css"));
+
+        Assert.Contains("grid-template-columns: clamp(340px, 22vw, 380px) minmax(0, 1fr)", css, StringComparison.Ordinal);
+        Assert.Contains(".site-shell .st-header .st-catmenu__t {", css, StringComparison.Ordinal);
+        Assert.Contains("white-space: nowrap;", css, StringComparison.Ordinal);
+        Assert.Contains("overflow-wrap: normal;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Desktop_category_menu_keeps_child_and_leaf_titles_on_one_line()
+    {
+        var root = FindSolutionRoot();
+        var css = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "wwwroot", "css", "site-shell.css"));
+
+        Assert.Contains("repeat(auto-fill, minmax(260px, 1fr))", css, StringComparison.Ordinal);
+        Assert.Contains(".site-shell .st-header .st-catmenu__child > span:nth-child(2)", css, StringComparison.Ordinal);
+        Assert.Contains(".site-shell .st-header .st-catmenu__leaves a", css, StringComparison.Ordinal);
+        Assert.Contains("white-space: nowrap;", css, StringComparison.Ordinal);
     }
 
     private static string FindSolutionRoot()

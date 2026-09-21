@@ -19,8 +19,8 @@
     }
     public void Dispose() { _disposed = true; Nav.LocationChanged -= OnLocationChanged; }
     private static readonly (string Path, string Icon, string Title)[] Items =
-    [("/", "home", "خانه"), ("/shop", "grid", "فروشگاه"), ("/cart", "cart", "سبد خرید"),
-     ("/customer/orders", "list", "سفارش‌ها"), ("/customer/dashboard", "user", "حساب من")];
+    [("/", "home", "خانه"), ("/shop", "grid", "فروشگاه"), ("/cart", "tabler:shopping-cart", "سبد خرید"),
+     ("/customer/orders", "list", "سفارش‌ها"), ("/customer/dashboard", "circle-user-round", "حساب من")];
     private string Selected => new Uri(Nav.Uri).AbsolutePath switch
     {
         "/" => "/",

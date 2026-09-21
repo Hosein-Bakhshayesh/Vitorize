@@ -32,6 +32,23 @@
 .site-shell .content-faq__item .st-faq__trigger:hover > svg { background: var(--st-primary-soft); color: var(--st-primary); }
 .site-shell .content-faq__item .st-faq__a { margin: 0 30px 24px; padding: 24px 28px; border-radius: 6px; background: var(--st-surface); color: var(--st-text-2); font-size: 14px; line-height: 2; }
 
+/* In dark mode a solid primary-colour disclosure circle overwhelms an otherwise calm surface.
+   Keep the icon recognisable through a stronger soft fill and border rather than a bright block. */
+:root[data-theme="dark"] .site-shell .content-faq__item .st-faq__trigger > svg {
+    background: color-mix(in srgb, var(--st-primary) 14%, var(--st-elevated));
+    color: var(--st-primary);
+    box-shadow: inset 0 0 0 1px var(--st-primary-border);
+}
+:root[data-theme="dark"] .site-shell .content-faq__item .st-faq__trigger[aria-expanded="true"] > svg {
+    background: color-mix(in srgb, var(--st-primary) 22%, var(--st-elevated));
+    color: var(--st-primary);
+    box-shadow: inset 0 0 0 1px var(--st-primary-border);
+}
+:root[data-theme="dark"] .site-shell .content-faq__item .st-faq__trigger:hover > svg {
+    background: color-mix(in srgb, var(--st-primary) 28%, var(--st-elevated));
+    color: var(--st-primary);
+}
+
 .site-shell .contact-details { margin-top: 22px; }
 .site-shell .contact-details__title { font-size: 16px; margin-bottom: 14px; }
 .site-shell .contact-details__list { gap: 10px; font-size: 13.5px; }

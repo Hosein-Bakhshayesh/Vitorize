@@ -17,6 +17,11 @@
 html, body { margin: 0; min-height: 100%; max-width: 100%; overflow-x: clip; }
 body { background: var(--st-bg, #fff); }
 
+/* Android Chrome's default blue tap flash sits on top of the site's own pressed states and makes
+   ordinary links look selected. Remove only that browser overlay; keyboard focus remains visible
+   through the :focus-visible rules below. */
+:where(a, button, summary, [role="button"]) { -webkit-tap-highlight-color: transparent; }
+
 /* Vazirmatn — the application's default UI face. Same local webfonts the admin panel uses,
    so the storefront can never be left rendering a browser default when a configured
    brand font is absent or fails to load. */

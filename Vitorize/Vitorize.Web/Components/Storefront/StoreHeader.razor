@@ -66,10 +66,12 @@
                                                         </a>
                                                         @if (leaves.Count > 0)
                                                         {
-                                                            <ul class="st-catmenu__leaves">
-                                                                @foreach (var leaf in leaves)
-                                                                { <li><a href="@($"/category/{leaf.Slug}")" @onclick="CloseCats">@leaf.Title</a></li> }
-                                                            </ul>
+                                                            <div class="st-catmenu__leaf-popover" aria-label="زیرمنوهای @child.Title">
+                                                                <ul class="st-catmenu__leaves">
+                                                                    @foreach (var leaf in leaves)
+                                                                    { <li><a href="@($"/category/{leaf.Slug}")" @onclick="CloseCats">@leaf.Title</a></li> }
+                                                                </ul>
+                                                            </div>
                                                         }
                                                     </div>
                                                 }
@@ -146,7 +148,7 @@
                 }
 
                 <a class="st-iconbtn sf-cart" href="/cart" title="سبد خرید" aria-label="سبد خرید">
-                    <Icon Name="cart" Size="19" />
+                    <Icon Name="tabler:shopping-cart" Size="19" />
                     @if (Cart.Count > 0)
                     {
                         <span class="badge">@AdminUiHelper.Number(Cart.Count)</span>
@@ -179,7 +181,7 @@
                 }
                 else
                 {
-                    <a class="st-btn st-btn--primary sf-account" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="contact-round" Size="20" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
+                    <a class="st-btn st-btn--primary sf-account" href="/login" aria-label="ورود یا ثبت‌نام"><Icon Name="circle-user-round" Size="20" /> <span class="st-mobile-hide">ورود | ثبت‌نام</span></a>
                 }
             </div>
         </div>

@@ -78,13 +78,13 @@
         <link rel="preload" href="fonts/storefront/funnel-display-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     }
     <link rel="stylesheet" href="css/storefront.css?v=@AssetVersion" />
-    <link rel="stylesheet" href="css/home.css?v=20260920-4" />
-    <link rel="stylesheet" href="css/site-shell.css?v=20260912-1" />
+    <link rel="stylesheet" href="css/home.css?v=20260921-3" />
+    <link rel="stylesheet" href="css/site-shell.css?v=20260921-5" />
     <link rel="stylesheet" href="css/catalog.css?v=20260913-1" />
     <link rel="stylesheet" href="css/product-page.css?v=20260913-1" />
     <link rel="stylesheet" href="css/cart-page.css?v=20260919-1" />
     <link rel="stylesheet" href="css/checkout-page.css?v=20260913-1" />
-    <link rel="stylesheet" href="css/auth-page.css?v=20260913-1" />
+    <link rel="stylesheet" href="css/auth-page.css?v=20260920-1" />
     <link rel="stylesheet" href="css/customer-page.css?v=20260913-1" />
     <link rel="stylesheet" href="css/customer-orders.css?v=20260914-2" />
     <link rel="stylesheet" href="css/customer-wallet.css?v=20260914-1" />
@@ -95,7 +95,7 @@
     <link rel="stylesheet" href="css/customer-reviews.css?v=20260914-1" />
     <link rel="stylesheet" href="css/customer-gift-codes.css?v=20260914-1" />
     <link rel="stylesheet" href="css/customer-tickets.css?v=20260914-1" />
-    <link rel="stylesheet" href="css/content-pages.css?v=20260919-1" />
+    <link rel="stylesheet" href="css/content-pages.css?v=20260921-1" />
 
     @* FIX-17: the boot loader paints before any stylesheet is guaranteed to have loaded, and
        admin.css — which previously held the only .vz-splash rules — is not linked on /cart,
@@ -259,7 +259,7 @@
 
     // Cache-busting token for the global stylesheets. Bump when admin.css/storefront.css change
     // so browsers fetch the new CSS instead of a stale copy.
-    private const string AssetVersion = "20260920-2";
+    private const string AssetVersion = "20260920-3";
 
     private Vitorize.Web.Services.UI.StoreBranding _b = new(new Dictionary<string, string>());
     private string _favicon = "favicon.ico";

@@ -38,6 +38,7 @@
 .site-shell .auth-page .auth-registration-notice > div { min-width: 160px; }
 .site-shell .auth-page .auth-registration-notice > a { margin-inline-start: auto; }
 .site-shell .auth-page .auth-code-notice { background: var(--st-surface-2); border-radius: 5px; text-align: center; padding: 12px; margin-bottom: 18px; }
+.site-shell .auth-page .auth-expired { color: var(--st-danger); font-weight: 700; }
 .site-shell .auth-page .auth-code-notice p { margin: 0; }
 .site-shell .auth-page .auth-code-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; margin-bottom: 18px; }
 .site-shell .auth-page .auth-code-meta .st-btn { min-height: 40px; white-space: normal; }

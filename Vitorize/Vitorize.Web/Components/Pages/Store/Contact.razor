@@ -89,13 +89,13 @@ else
 
     private List<SocialLink> Socials => new List<SocialLink>
     {
-        new(_b.InstagramUrl, "instagram", "اینستاگرام"),
-        new(_b.TelegramUrl, "send", "تلگرام"),
-        new(_b.WhatsAppUrl, "message-circle", "واتساپ"),
-        new(_b.XUrl, "twitter", "X"),
-        new(_b.LinkedInUrl, "linkedin", "لینکدین"),
-        new(_b.YouTubeUrl, "youtube", "یوتیوب"),
-        new(_b.FacebookUrl, "facebook", "فیسبوک"),
+        new(_b.InstagramUrl, "tabler:brand-instagram", "اینستاگرام"),
+        new(_b.TelegramUrl, "tabler:brand-telegram", "تلگرام"),
+        new(_b.WhatsAppUrl, "tabler:brand-whatsapp", "واتساپ"),
+        new(_b.XUrl, "tabler:brand-x", "X"),
+        new(_b.LinkedInUrl, "tabler:brand-linkedin", "لینکدین"),
+        new(_b.YouTubeUrl, "tabler:brand-youtube", "یوتیوب"),
+        new(_b.FacebookUrl, "tabler:brand-facebook", "فیسبوک"),
     }.Where(x => !string.IsNullOrWhiteSpace(x.Url)).ToList();
 
     protected override async Task OnInitializedAsync()

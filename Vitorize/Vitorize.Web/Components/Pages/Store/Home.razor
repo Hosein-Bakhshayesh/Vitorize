@@ -26,7 +26,10 @@
         <div class="hp-hero__mosaic">
             @for (var i = 0; i < 4; i++)
             {
-                var banner = HeroBanners.ElementAtOrDefault(i);
+                @* The hero is four fixed tiles, so a banner assigned to tile 3 must remain there
+                   even when tiles 1 and 2 are empty. Using its index in a filtered list moved it
+                   into the first empty tile. *@
+                var banner = HeroBannerAt(i);
                 @if (banner is not null)
                 { <a class="hp-hero__tile hp-hero__tile--@(i + 1)" href="@(banner.LinkUrl ?? "/shop")" aria-label="@banner.Title"><StoreImage Url="@banner.ImagePath" MobileUrl="@banner.MobileImagePath" Alt="@(banner.AltText ?? banner.Title)" Loading="eager" /></a> }
                 else { <div class="hp-hero__tile hp-hero__tile--@(i + 1) hp-ph hp-ph--@(i + 1)" aria-hidden="true"></div> }
@@ -64,6 +67,7 @@
             @foreach (var product in _products.Take(8)) { <StoreProductCard @key="product.Id" Product="product" /> }
             @if (_products.Count == 0) { <p class="hp-empty">@Empty("محصول")</p> }
         </div>
+        <a class="hp-products-more" href="/shop">مشاهده کالاهای بیشتر <Icon Name="arrow-left" Size="17" /></a>
     </section>
     }
     @* Unlike the four tiles at the top, which hold the composition together whether or not they are
@@ -87,18 +91,32 @@
             }
         </section>
     }
+    @if (BrandRailBrands.Count > 0)
+    {
     <section class="hp-section hp-brands" aria-label="برندها">
-        <div class="hp-brands__track">
-            @foreach (var brand in _data.Brands.Take(12).Reverse())
+        <div class="hp-brands__track" @ref="_brandRail">
+            @* Both cycles contain the exact same, sufficiently long sequence. Translating by
+               half the track therefore lands on identical pixels, with no empty tail or reset. *@
+            @foreach (var cycleIndex in Enumerable.Range(0, 2))
             {
-                <a href="@($"/brand/{brand.Slug}")" aria-label="@brand.Title">
-                    @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
-                    { <img src="@Media.Resolve(brand.ImagePath)" alt="@(brand.ImageAltText ?? brand.Title)" loading="lazy" /> }
-                    else { <span>@brand.Title</span> }
-                </a>
+                <div class="hp-brands__group" aria-hidden="@(cycleIndex > 0 ? "true" : "false")" data-cycle="@cycleIndex">
+                    @foreach (var repeatIndex in Enumerable.Range(0, BrandRailRepeats))
+                    {
+                        var isDuplicate = cycleIndex > 0 || repeatIndex > 0;
+                        <div class="hp-brands__sequence" aria-hidden="@(isDuplicate ? "true" : "false")">
+                            @foreach (var brand in BrandRailBrands.AsEnumerable().Reverse())
+                            {
+                                <a class="@(isDuplicate ? "hp-brand-clone" : null)" href="@($"/brand/{brand.Slug}")" aria-label="@(isDuplicate ? null : brand.Title)" tabindex="@(isDuplicate ? "-1" : null)">
+                                    <img src="@Media.Resolve(brand.ImagePath)" alt="@(isDuplicate ? string.Empty : (brand.ImageAltText ?? brand.Title))" loading="eager" />
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
             }
         </div>
     </section>
+    }
     <section class="hp-section hp-reviews">
         <h2>@_branding.HomeReviewsTitle</h2>
         @* Below three reviews the rail cannot fill its width, and RTL would leave the cards pinned to
@@ -108,7 +126,7 @@
             @foreach (var review in _reviews)
             {
                 <article class="hp-review">
-                    <div class="hp-review__head"><i aria-hidden="true"></i><div><strong>@review.UserDisplayName</strong><span>@(review.IsBuyer ? "خریدار محصول" : "کاربر ویتورایز")</span></div><b dir="ltr">@AUI.Number(review.Rating)/۵</b></div>
+                    <div class="hp-review__head"><span class="hp-review__avatar" aria-hidden="true"><Icon Name="user" Size="34" /></span><div><strong>@review.UserDisplayName</strong><span>@(review.IsBuyer ? "خریدار محصول" : "کاربر ویتورایز")</span></div><b class="hp-review__rating">@AUI.Number(review.Rating)/۵</b></div>
                     <p>@review.Comment</p>
                 </article>
             }
@@ -151,7 +169,9 @@
 @code {
     private bool _loading = true, _loadFailed;
     private bool _reviewsPositioned;
+    private bool _brandRailStarted;
     private ElementReference _reviewRail;
+    private ElementReference _brandRail;
     private IJSObjectReference? _module;
     private StoreHomeModel _data = new();
     private List<StoreProductModel> _products = new();
@@ -160,6 +180,10 @@
     // Placeholder copy from the design used to stand in for an unset list, but it carried no icon and
     // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
     private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
+    // Filter before limiting/repeating: text-only brands must not occupy logo slots.
+    private List<StoreBrandModel> BrandRailBrands => _data.Brands
+        .Where(brand => !string.IsNullOrWhiteSpace(brand.ImagePath)).Take(12).ToList();
+    private int BrandRailRepeats => Math.Max(2, (int)Math.Ceiling(16d / Math.Max(1, BrandRailBrands.Count)));
 
     /// <summary>Active slides of one placement that actually have artwork; a slide without one
     /// would render as a gap. Placement is normalised the same way the server does it, so a row
@@ -172,23 +196,38 @@
     private List<StoreHomeSlideModel> MiddleSlides => SlidesOf(HomeSlidePlacements.Middle);
     private List<StoreHomeSlideModel> BottomSlides => SlidesOf(HomeSlidePlacements.Bottom);
     private string Empty(string name) => _loading ? "در حال دریافت اطلاعات…" : $"{name} برای نمایش وجود ندارد.";
-    private List<StoreBannerModel> HeroBanners => Banners("home-hero");
-    private List<StoreBannerModel> Banners(string position) => _data.Banners
-        .Where(b => string.Equals(b.Position, position, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.ImagePath))
-        .OrderBy(b => b.SortOrder).ToList();
+    private StoreBannerModel? HeroBannerAt(int tile) => _data.Banners
+        .Where(b => string.Equals(b.Position, "home-hero", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(b.ImagePath) &&
+                    b.SortOrder == tile)
+        .FirstOrDefault();
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_reviewsPositioned || _reviews.Count < 3) return;
-        _reviewsPositioned = true;
-        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js");
-        await _module.InvokeVoidAsync("positionReviews", _reviewRail);
+        if (_brandRailStarted && (_reviewsPositioned || _reviews.Count < 3)) return;
+
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js?v=20260921-3");
+        if (!_brandRailStarted && BrandRailBrands.Count > 0)
+        {
+            _brandRailStarted = true;
+            await _module.InvokeVoidAsync("startBrandRail", _brandRail);
+        }
+        if (!_reviewsPositioned && _reviews.Count >= 3)
+        {
+            _reviewsPositioned = true;
+            await _module.InvokeVoidAsync("positionReviews", _reviewRail);
+        }
     }
     public async ValueTask DisposeAsync()
     {
         if (_module is null) return;
-        try { await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
+        try
+        {
+            await _module.InvokeVoidAsync("stopBrandRail", _brandRail);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
     }
     private async Task LoadAsync()
     {

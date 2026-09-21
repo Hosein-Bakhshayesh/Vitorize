@@ -9,7 +9,7 @@
     }
     @if (ShowWord)
     {
-        <span class="st-logo__word">@_word</span>
+        <img class="st-logo__wordmark" src="@DefaultWordmark" alt="" width="432" height="42" />
     }
 </a>
 
@@ -21,6 +21,7 @@
     [Parameter] public string Variant { get; set; } = "header";
 
     private const string DefaultLogo = "images/logo.png";
+    private const string DefaultWordmark = "images/vitorize-wordmark.png";
     private string _src = DefaultLogo;
     private string _darkSrc = DefaultLogo;
     private bool _hasDark;

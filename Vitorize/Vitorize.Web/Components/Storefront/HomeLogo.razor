@@ -1,17 +1,8 @@
-@inject MediaUrlResolver Media
 <a class="hp-logo" href="/" aria-label="@Branding.SiteName">
-    @if (!string.IsNullOrWhiteSpace(LogoPath))
-    {
-        <img class="hp-logo__custom" src="@Media.Resolve(LogoPath)" alt="@Branding.SiteName" />
-    }
-    else
-    {
-        <img class="hp-logo__mark" src="images/logo.png" alt="" width="40" height="40" />
-        <span>vitorize<small>VIRTUAL SERVICES</small></span>
-    }
+    <img class="hp-logo__mark" src="images/logo.png" alt="" width="40" height="40" />
+    <img class="hp-logo__wordmark" src="images/vitorize-wordmark.png" alt="" width="432" height="42" />
 </a>
 @code {
     [Parameter, EditorRequired] public StoreBranding Branding { get; set; } = default!;
     [Parameter] public bool Footer { get; set; }
-    private string LogoPath => Footer ? Branding.FooterLogoPath : Branding.HeaderLogoPath;
 }

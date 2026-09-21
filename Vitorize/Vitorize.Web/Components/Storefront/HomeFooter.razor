@@ -30,8 +30,8 @@
     }
     <div class="hp-footer__bar" aria-hidden="true"></div>
     <div class="hp-footer__socials">
-        @if (!string.IsNullOrWhiteSpace(_branding.TelegramUrl)) { <a href="@_branding.TelegramUrl" aria-label="تلگرام" target="_blank" rel="noopener noreferrer"><Icon Name="send" Size="24" /></a> }
-        @if (!string.IsNullOrWhiteSpace(_branding.InstagramUrl)) { <a href="@_branding.InstagramUrl" aria-label="اینستاگرام" target="_blank" rel="noopener noreferrer"><Icon Name="instagram" Size="24" /></a> }
+        @if (!string.IsNullOrWhiteSpace(_branding.TelegramUrl)) { <a href="@_branding.TelegramUrl" aria-label="تلگرام" target="_blank" rel="noopener noreferrer"><Icon Name="tabler:brand-telegram" Size="24" /></a> }
+        @if (!string.IsNullOrWhiteSpace(_branding.InstagramUrl)) { <a href="@_branding.InstagramUrl" aria-label="اینستاگرام" target="_blank" rel="noopener noreferrer"><Icon Name="tabler:brand-instagram" Size="24" /></a> }
     </div>
     <div class="hp-footer__contact">
         @if (!string.IsNullOrWhiteSpace(_branding.SupportPhone)) { <a href="tel:@_branding.SupportPhone" dir="ltr">@_branding.SupportPhone</a> }
