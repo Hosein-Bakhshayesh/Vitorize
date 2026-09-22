@@ -34,14 +34,18 @@ public sealed class HomepageBrandRailAndReviewPresentationTests
     {
         var root = FindSolutionRoot();
         var home = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "Components", "Pages", "Store", "Home.razor"));
+        var css = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "wwwroot", "css", "home.css"));
 
-        // The rail used to drop a brand that had no artwork, because a bare logo slot with nothing
-        // in it is not a brand. The chip carries the name, so nothing is filtered out any more.
+        // The rail used to drop a brand that had no artwork. It shows the mark alone where there is
+        // one, and falls back to the name where there is not, so nothing is filtered out any more.
         Assert.Contains("private List<StoreBrandModel> BrandRail => _data.Brands;", home, StringComparison.Ordinal);
-        Assert.DoesNotContain("!string.IsNullOrWhiteSpace(brand.ImagePath)", home, StringComparison.Ordinal);
-        Assert.Contains("class=\"hp-brandrail__title\">@brand.Title", home, StringComparison.Ordinal);
+        Assert.Contains("class=\"hp-brandrail__name\">@brand.Title", home, StringComparison.Ordinal);
         // A logo that fails to load leaves a drawn glyph rather than a broken-image icon.
         Assert.Contains("<StoreImage Url=\"@brand.ImagePath\"", home, StringComparison.Ordinal);
+        // Nothing is drawn around the mark, and object-fit is what fits and centres it in its slot.
+        // The selector outranks `.home-shell .st-img img`, which crops images to fill their frame.
+        Assert.Contains(".home-shell .hp-brandrail__media .st-img img { width: 100%; height: 100%; object-fit: contain;", css, StringComparison.Ordinal);
+        Assert.DoesNotContain(".hp-brandrail__title", css, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,6 +84,9 @@ public sealed class HomepageBrandRailAndReviewPresentationTests
         Assert.Contains(".hp-review {\n    background: transparent;\n    border-color: transparent;", css, StringComparison.Ordinal);
         Assert.Contains(".hp-review p {\n    background: var(--st-elevated);\n    color: var(--st-text-2);", css, StringComparison.Ordinal);
         Assert.Contains("filter: grayscale(1) brightness(0) invert(1);", css, StringComparison.Ordinal);
+        // A hovered mark takes the brand tint on the dark page rather than reverting to artwork
+        // drawn for white paper, which would leave it darker than its unhovered neighbours.
+        Assert.Contains(".hp-brandrail-clone):focus-visible img {\n    filter: brightness(0) saturate(100%) invert(52%)", css, StringComparison.Ordinal);
         Assert.Contains(".hp-faq summary i { color: var(--st-primary); }", css, StringComparison.Ordinal);
         Assert.Contains(".hp-faq details[open] summary i {\n    background: color-mix", css, StringComparison.Ordinal);
         Assert.Contains("box-shadow: inset 0 0 0 1px var(--st-primary-border);", css, StringComparison.Ordinal);

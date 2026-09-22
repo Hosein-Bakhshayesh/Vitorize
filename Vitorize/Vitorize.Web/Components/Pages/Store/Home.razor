@@ -91,9 +91,9 @@
             }
         </section>
     }
-    @* The brand band, as a rail of chips. It used to be bare logos, so a store with a handful of
-       uploaded marks slid the same few past forever and a brand without a logo could not appear at
-       all; a chip carries the name beside the mark, so every brand rides the rail. *@
+    @* The brand band: marks alone, each centred in its own slot, with nothing drawn around them.
+       A brand whose logo was never uploaded rides the rail as its name rather than being dropped,
+       which is what the band used to do with it. *@
     @if (BrandRail.Count > 0)
     {
     <section class="hp-section hp-brandrail" aria-label="برندهای فروشگاه">
@@ -109,14 +109,21 @@
                         <div class="hp-brandrail__sequence" aria-hidden="@(isDuplicate ? "true" : "false")">
                             @foreach (var brand in BrandRail.AsEnumerable().Reverse())
                             {
-                                <a class="@(isDuplicate ? "hp-brandrail-clone" : null)" href="@($"/brand/{brand.Slug}")" tabindex="@(isDuplicate ? "-1" : null)">
-                                    @* StoreImage rather than a bare <img>: a logo that is missing or
-                                       fails to load leaves the mark's frame drawn with a glyph in it,
-                                       not a broken-image icon next to the name. *@
-                                    <span class="hp-brandrail__media" aria-hidden="@(isDuplicate ? "true" : "false")">
-                                        <StoreImage Url="@brand.ImagePath" Alt="@(isDuplicate ? string.Empty : (brand.ImageAltText ?? brand.Title))" Icon="tag" IconSize="28" Contain="true" />
-                                    </span>
-                                    <span class="hp-brandrail__title">@brand.Title</span>
+                                <a class="@(isDuplicate ? "hp-brandrail-clone" : null)" href="@($"/brand/{brand.Slug}")" aria-label="@(isDuplicate ? null : brand.Title)" tabindex="@(isDuplicate ? "-1" : null)">
+                                    @if (!string.IsNullOrWhiteSpace(brand.ImagePath))
+                                    {
+                                        @* StoreImage rather than a bare <img>: a logo that fails to
+                                           load leaves a drawn glyph where the mark belongs, not a
+                                           broken-image icon. *@
+                                        <span class="hp-brandrail__media">
+                                            <StoreImage Url="@brand.ImagePath" Alt="@(isDuplicate ? string.Empty : (brand.ImageAltText ?? brand.Title))" Icon="tag" IconSize="26" Contain="true" />
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        @* Nothing to show but the name, which is still a brand. *@
+                                        <span class="hp-brandrail__name">@brand.Title</span>
+                                    }
                                 </a>
                             }
                         </div>
@@ -216,7 +223,7 @@
     {
         if (_brandRailStarted && (_reviewsPositioned || _reviews.Count < 3)) return;
 
-        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js?v=20260922-3");
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js?v=20260922-4");
         if (!_brandRailStarted && BrandRail.Count > 0)
         {
             _brandRailStarted = true;

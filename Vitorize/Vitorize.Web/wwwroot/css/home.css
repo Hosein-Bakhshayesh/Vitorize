@@ -138,25 +138,28 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 .hp-benefit__circle { display: grid; place-items: center; color: #14867c; width: calc(140 * var(--hp-u)); height: calc(140 * var(--hp-u)); background: #fff; border-radius: 50%; margin: 0 auto calc(20 * var(--hp-u)); }
 .hp-benefit h2 { font-size: calc(24 * var(--hp-u)); font-weight: 800; line-height: 1.5; }
 .hp-benefit p { font-size: calc(14 * var(--hp-u)); line-height: 1.65; margin-top: calc(7 * var(--hp-u)); }
-/* Sliding brand rail. It used to carry bare logos, so a store with three uploaded marks slid the
-   same three past forever and a brand with no logo could not appear at all; each brand is a chip
-   now, its mark beside its name, which is also what lets a brand without a mark ride along. */
+/* Sliding brand rail: the marks and nothing else. Framing each logo in a bordered chip put a box
+   round artwork that already carries its own shape, so the slot is bare now and the mark is
+   centred in it; a brand with no logo uploaded rides the rail as its name. */
 /* Anchor the oversized track at the LEFT edge even on the RTL storefront. */
 .hp-brandrail { height: calc(190 * var(--hp-u)); display: flex; align-items: center; overflow: hidden; direction: ltr; }
 .hp-brandrail__track { display: flex; flex: 0 0 auto; align-items: center; width: max-content; direction: ltr; will-change: transform; }
 .hp-brandrail__group, .hp-brandrail__sequence { display: flex; align-items: center; justify-content: flex-start; flex: 0 0 auto; min-width: max-content; }
 /* The trailing padding replaces the last gap, including at both cycle seams. */
-.hp-brandrail__sequence { gap: clamp(12px, 1.5vw, 26px); padding-inline-end: clamp(12px, 1.5vw, 26px); }
-/* The track runs left-to-right so the animation maths stays simple; each chip puts its own
-   contents back into reading order. */
-.hp-brandrail :is(a, .hp-brandrail-clone) { display: flex; direction: rtl; align-items: center; gap: calc(14 * var(--hp-u)); flex: 0 0 auto; min-height: calc(96 * var(--hp-u)); padding: calc(10 * var(--hp-u)) calc(26 * var(--hp-u)) calc(10 * var(--hp-u)) calc(30 * var(--hp-u)); border: 1px solid var(--hp-mint); border-radius: calc(12 * var(--hp-u)); background: #fff; cursor: pointer; transition: background .24s cubic-bezier(.22,.61,.36,1), border-color .24s cubic-bezier(.22,.61,.36,1), transform .24s cubic-bezier(.22,.61,.36,1); }
-.hp-brandrail__media { display: grid; place-items: center; flex: 0 0 auto; width: calc(62 * var(--hp-u)); height: calc(62 * var(--hp-u)); min-width: 40px; min-height: 40px; border-radius: calc(14 * var(--hp-u)); background: linear-gradient(145deg, #eefaf7 0%, #dff2f1 100%); color: #14867c; overflow: hidden; transition: background .24s cubic-bezier(.22,.61,.36,1), color .24s cubic-bezier(.22,.61,.36,1); }
-.hp-brandrail__media img { max-width: 76%; max-height: 76%; object-fit: contain; padding: 0; filter: grayscale(1) contrast(.9); opacity: .78; transition: filter .24s, opacity .24s; }
-.hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__media img, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__media img { filter: none; opacity: 1; }
-.hp-brandrail__title { font-size: max(12px, calc(17 * var(--hp-u))); font-weight: 600; line-height: 1.6; white-space: nowrap; transition: color .24s cubic-bezier(.22,.61,.36,1); }
-.hp-brandrail :is(a, .hp-brandrail-clone):hover, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible { border-color: #2cc3b3; background: #f2fbf9; transform: translateY(calc(-2 * var(--hp-u))); }
-.hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__media, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__media { background: linear-gradient(145deg, #2cc3b3 0%, #14867c 100%); color: #fff; }
-.hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__title, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__title { color: #14867c; }
+.hp-brandrail__sequence { gap: clamp(16px, 2vw, 40px); padding-inline-end: clamp(16px, 2vw, 40px); }
+.hp-brandrail :is(a, .hp-brandrail-clone) { display: grid; place-items: center; flex: 0 0 auto; min-width: calc(156 * var(--hp-u)); min-height: calc(76 * var(--hp-u)); padding: calc(6 * var(--hp-u)); background: transparent; border-radius: calc(8 * var(--hp-u)); cursor: pointer; }
+/* object-fit centres the mark in this box whatever its aspect ratio; sizing the image itself
+   smaller than the box would leave it parked against one corner instead.
+   The selector has to outrank `.home-shell .st-img img` a few lines up, which crops every image on
+   the page to fill its frame. That is right for a banner and wrong for a logo: it was cutting the
+   sides off every square mark on the rail. */
+.hp-brandrail__media { display: grid; place-items: center; width: calc(136 * var(--hp-u)); height: calc(54 * var(--hp-u)); min-width: 86px; min-height: 34px; }
+.hp-brandrail__media .st-img { background: transparent; }
+.hp-brandrail__media .st-img__ph { align-items: center; justify-content: center; background: transparent; color: var(--st-muted); }
+.home-shell .hp-brandrail__media .st-img img { width: 100%; height: 100%; object-fit: contain; padding: 0; border-radius: 0; filter: grayscale(1) contrast(.9); opacity: .74; transition: filter .18s, opacity .18s; }
+.hp-brandrail__name { color: var(--st-muted); font-size: max(13px, calc(26 * var(--hp-u))); font-weight: 700; line-height: 1.4; white-space: nowrap; transition: color .18s; }
+.hp-brandrail :is(a, .hp-brandrail-clone):hover img, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible img { filter: none; opacity: 1; }
+.hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__name, .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__name { color: var(--st-primary); }
 .hp-reviews { min-height: calc(679 * var(--hp-u)); padding-top: calc(90 * var(--hp-u)); padding-bottom: calc(98 * var(--hp-u)); }
 .hp-review-track { display: flex; gap: calc(48 * var(--hp-u)); overflow-x: auto; scrollbar-width: none; padding: 0 var(--hp-gutter); margin-top: calc(103 * var(--hp-u)); }
 .hp-review-track::-webkit-scrollbar { display: none; }
@@ -320,11 +323,11 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     .hp-benefit__circle { width: 68px; height: 68px; margin-bottom: 14px; }
     .hp-benefit h2 { font-size: 16px; line-height: 1.5; }
     .hp-benefit p { font-size: 9px; line-height: 1.5; margin-top: 4px; }
-    .hp-brandrail { height: 86px; }
-    .hp-brandrail__sequence { gap: 8px; padding-inline-end: 8px; }
-    .hp-brandrail :is(a, .hp-brandrail-clone) { min-height: 54px; gap: 7px; padding: 6px 10px 6px 12px; border-radius: 8px; }
-    .hp-brandrail__media { width: 36px; height: 36px; min-width: 0; min-height: 0; border-radius: 8px; }
-    .hp-brandrail__title { font-size: 11px; }
+    .hp-brandrail { height: 68px; }
+    .hp-brandrail__sequence { gap: 14px; padding-inline-end: 14px; }
+    .hp-brandrail :is(a, .hp-brandrail-clone) { min-width: 78px; min-height: 44px; padding: 4px; border-radius: 5px; }
+    .hp-brandrail__media { width: 64px; height: 24px; min-width: 0; min-height: 0; }
+    .hp-brandrail__name { font-size: 13px; }
     .hp-reviews { min-height: 270px; padding: 24px 0 38px; }
     .hp-review-track { margin-top: 30px; padding: 0 var(--hp-gutter); gap: 16px; }
     .hp-review { width: 150px; min-height: 150px; padding: 10px; border-radius: 4px; }
@@ -501,32 +504,24 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
     background: var(--st-elevated);
     color: var(--st-text-2);
 }
-/* Category artwork keeps its own colours in the dark theme - these are product pictures and
-   tinted icons, not the monochrome logos the band used to carry. Only the chip around them
-   changes, to the same surface the rest of the dark homepage uses. */
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone) {
-    background: var(--st-surface);
-    border-color: var(--st-border);
-}
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover,
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible {
-    background: var(--st-elevated);
-    border-color: var(--st-primary-border);
-}
-:root[data-theme="dark"] .home-shell .hp-brandrail__media { background: var(--st-primary-soft); color: var(--st-primary); }
-/* Most brand logos are dark marks made for white paper, so they are inverted here rather than left
-   to disappear into the frame; hovering restores the real artwork. */
-:root[data-theme="dark"] .home-shell .hp-brandrail__media img {
+/* Most brand logos are dark marks made for white paper, so they are inverted in the dark theme
+   rather than left to disappear into the page; hovering restores the real artwork. */
+:root[data-theme="dark"] .home-shell .hp-brandrail img {
     filter: grayscale(1) brightness(0) invert(1);
     opacity: .82;
 }
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__media img,
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__media img { filter: none; opacity: 1; }
-:root[data-theme="dark"] .home-shell .hp-brandrail__title { color: var(--st-text); }
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__media,
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__media { background: var(--st-primary); color: var(--st-on-grad); }
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__title,
-:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__title { color: var(--st-text); }
+/* Hovering used to hand the mark back its own artwork, which on a dark page is how a logo drawn
+   for white paper turns into a dark smudge - and with its neighbours still white, the one under the
+   pointer was the hardest of the row to see. The hovered mark takes the brand teal instead: one
+   colour, legible against the dark surface, whatever the logo's own palette is. */
+:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover img,
+:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible img {
+    filter: brightness(0) saturate(100%) invert(52%) sepia(31%) saturate(1278%) hue-rotate(124deg) brightness(91%) contrast(88%);
+    opacity: 1;
+}
+:root[data-theme="dark"] .home-shell .hp-brandrail__name { color: var(--st-text-2); }
+:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):hover .hp-brandrail__name,
+:root[data-theme="dark"] .home-shell .hp-brandrail :is(a, .hp-brandrail-clone):focus-visible .hp-brandrail__name { color: var(--st-primary); }
 :root[data-theme="dark"] .home-shell .hp-review__avatar { background: var(--st-surface-2); color: var(--st-primary); }
 :root[data-theme="dark"] .home-shell .hp-benefit__circle,
 :root[data-theme="dark"] .home-shell .hp-faq summary i { color: var(--st-primary); }
