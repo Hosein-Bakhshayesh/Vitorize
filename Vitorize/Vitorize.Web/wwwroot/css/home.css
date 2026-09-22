@@ -145,6 +145,7 @@ body:has(.home-shell .hp-header.is-focused) { overflow: hidden; }
 /* The trailing padding replaces the last gap, including at both cycle seams. */
 .hp-brands__sequence { gap: clamp(12px, 1.5vw, 26px); padding-inline-end: clamp(12px, 1.5vw, 26px); }
 .hp-brands :is(a, .hp-brand-clone) { display: grid; place-items: center; flex: 0 0 auto; min-width: calc(150 * var(--hp-u)); min-height: calc(72 * var(--hp-u)); padding: calc(6 * var(--hp-u)); background: transparent; border-radius: calc(8 * var(--hp-u)); cursor: pointer; }
+.hp-brands[hidden], .hp-brands a[hidden] { display: none; }
 .hp-brands img { width: calc(150 * var(--hp-u)); height: calc(60 * var(--hp-u)); object-fit: contain; filter: grayscale(1) contrast(.9); opacity: .74; transition: filter .18s, opacity .18s; }
 .hp-brands span { color: var(--st-muted); font: 700 calc(44 * var(--hp-u))/1 Arial, sans-serif; white-space: nowrap; transition: color .18s, opacity .18s; }
 .hp-brands :is(a, .hp-brand-clone):hover img, .hp-brands :is(a, .hp-brand-clone):focus-visible img { filter: brightness(0) saturate(100%) invert(52%) sepia(31%) saturate(1278%) hue-rotate(124deg) brightness(91%) contrast(88%); opacity: 1; }

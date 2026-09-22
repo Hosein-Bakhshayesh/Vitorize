@@ -64,7 +64,7 @@ export function startBrandRail(track) {
         frame = requestAnimationFrame(tick);
     };
     const start = () => {
-        if (running || hovered || focused || reduceMotion.matches || document.hidden) return;
+        if (running || hovered || focused || viewport.hidden || reduceMotion.matches || document.hidden) return;
         ensureCoverage();
         measure();
         if (!cycleWidth) return;
@@ -90,6 +90,18 @@ export function startBrandRail(track) {
         if (reduceMotion.matches) { offset = 0; paint(); }
         else start();
     };
+    const hideFailedImage = image => {
+        const source = image.getAttribute("src");
+        // Every repeated copy of a broken logo must disappear, not leave an empty slot.
+        track.querySelectorAll("img").forEach(copy => {
+            if (copy.getAttribute("src") === source) copy.closest("a").hidden = true;
+        });
+        viewport.hidden = !track.querySelector("a:not([hidden])");
+        if (viewport.hidden) stop();
+    };
+    const onImageError = event => {
+        if (event.target instanceof HTMLImageElement) hideFailedImage(event.target);
+    };
     const observer = new ResizeObserver(() => {
         const priorWidth = cycleWidth;
         ensureCoverage();
@@ -108,6 +120,7 @@ export function startBrandRail(track) {
     viewport.addEventListener("pointerleave", resume);
     viewport.addEventListener("focusin", onFocusIn);
     viewport.addEventListener("focusout", onFocusOut);
+    viewport.addEventListener("error", onImageError, true);
     brandRailStops.set(track, () => {
         stop();
         observer.disconnect();
@@ -117,8 +130,13 @@ export function startBrandRail(track) {
         viewport.removeEventListener("pointerleave", resume);
         viewport.removeEventListener("focusin", onFocusIn);
         viewport.removeEventListener("focusout", onFocusOut);
+        viewport.removeEventListener("error", onImageError, true);
+        viewport.hidden = false;
         track.style.transform = "";
         brandRailStops.delete(track);
+    });
+    track.querySelectorAll("img").forEach(image => {
+        if (image.complete && !image.naturalWidth) hideFailedImage(image);
     });
     ensureCoverage();
     measure();
