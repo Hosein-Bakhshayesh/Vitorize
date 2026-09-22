@@ -134,6 +134,10 @@ namespace Vitorize.Web.Services.UI
         public string LogoSmallPath => Get("LogoSmallPath", "");
         public string HeaderLogoPath => FirstNonEmpty("HeaderLogoPath", "LogoPath", "SiteLogoPath");
         public string FooterLogoPath => FirstNonEmpty("FooterLogoPath", "LogoPath", "SiteLogoPath");
+        /// <summary>The brand logotype beside the mark. Empty on purpose means the mark stands
+        /// alone; the shipped file is seeded as the value, not defaulted here, so that clearing the
+        /// setting actually clears it.</summary>
+        public string WordmarkPath => Get("WordmarkPath", "");
         public string FaviconPath => Get("FaviconPath", "");
         public string AppleTouchIconPath => Get("AppleTouchIconPath", "");
         public string OgImagePath => FirstNonEmpty("OgImagePath", "SocialPreviewImagePath");

@@ -1,15 +1,21 @@
 @inject Vitorize.Web.Services.UI.StoreBrandingService Branding
 @inject MediaUrlResolver Media
+@using Vitorize.Web.Helpers
 
-<a class="st-logo @(_custom ? "st-logo--custom" : null)" href="@Href" aria-label="@_alt">
+@* Without a logotype the mark has to carry the brand on its own, including on phones where the
+   header shows the logotype alone; the class is what tells the stylesheet to keep the mark there. *@
+<a class="st-logo @(_custom ? "st-logo--custom" : null) @(_hasWordmark ? null : "st-logo--markonly")" href="@Href" aria-label="@_alt">
     <img class="st-logo__img @(_hasDark ? "st-logo__img--light" : null)" src="@_src" alt="@_alt" width="42" height="42" />
     @if (_hasDark)
     {
         <img class="st-logo__img st-logo__img--dark" src="@_darkSrc" alt="@_alt" width="42" height="42" />
     }
-    @if (ShowWord)
+    @if (ShowWord && _hasWordmark)
     {
-        <img class="st-logo__wordmark" src="@DefaultWordmark" alt="" width="432" height="42" />
+        @* The shipped file's proportions are known, so its box can be reserved before it loads; an
+           uploaded one is measured by the browser instead of guessed at here. *@
+        <img class="st-logo__wordmark" src="@_wordmarkSrc" alt=""
+             width="@(_packagedWordmark ? 210 : (int?)null)" height="@(_packagedWordmark ? 42 : (int?)null)" />
     }
 </a>
 
@@ -21,13 +27,15 @@
     [Parameter] public string Variant { get; set; } = "header";
 
     private const string DefaultLogo = "images/logo.png";
-    private const string DefaultWordmark = "images/vitorize-wordmark.png";
     private string _src = DefaultLogo;
     private string _darkSrc = DefaultLogo;
     private bool _hasDark;
     private bool _custom;
     private string _alt = "ویتورایز";
     private string _word = "ویتورایز";
+    private string _wordmarkSrc = string.Empty;
+    private bool _hasWordmark;
+    private bool _packagedWordmark;
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,6 +65,13 @@
             _darkSrc = Versioned(Media.Resolve(b.LogoDarkPath), b.AssetVersion);
             _hasDark = true;
         }
+
+        // The logotype is a setting like any other image now, so it can be replaced without a
+        // release. Cleared deliberately, it leaves the mark standing on its own rather than a gap.
+        var wordmark = b.WordmarkPath;
+        _hasWordmark = !string.IsNullOrWhiteSpace(wordmark);
+        _packagedWordmark = BrandAsset.IsPackaged(wordmark);
+        _wordmarkSrc = _packagedWordmark ? wordmark : Versioned(Media.Resolve(wordmark), b.AssetVersion);
     }
 
     private static string FirstNonEmpty(params string[] values)

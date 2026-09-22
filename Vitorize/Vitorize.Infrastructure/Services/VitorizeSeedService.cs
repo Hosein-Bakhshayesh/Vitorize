@@ -278,6 +278,10 @@ namespace Vitorize.Infrastructure.Services
                 S("LogoSmallPath", "", "Logos", "image", "لوگوی کوچک / آیکون (نوار بالا، موبایل)"),
                 S("HeaderLogoPath", "", "Logos", "image", "لوگوی هدر (خالی = لوگوی اصلی)"),
                 S("FooterLogoPath", "", "Logos", "image", "لوگوی فوتر (خالی = لوگوی اصلی)"),
+                // Seeded with the file the application ships rather than left empty: the seeder only
+                // fills in missing keys, so an existing store keeps the logotype it already shows, and
+                // an administrator who clears this row gets what clearing it says - the mark alone.
+                S("WordmarkPath", "images/vitorize-wordmark.png", "Logos", "image", "لوگوتایپ (نوشتهٔ برند) — خالی = فقط نشان نمایش داده می‌شود"),
                 S("FaviconPath", "", "Logos", "image", "فاوآیکون سایت"),
                 S("AppleTouchIconPath", "", "Logos", "image", "آیکون Apple Touch"),
                 S("OgImagePath", "", "Logos", "image", "تصویر OpenGraph (اشتراک‌گذاری)"),

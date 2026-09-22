@@ -3,12 +3,15 @@
 @inject MediaUrlResolver Media
 @inject ToastService Toasts
 @inject IJSRuntime JS
+@using Vitorize.Web.Helpers
 
 <div class="vz-upload">
     @if (!string.IsNullOrWhiteSpace(Value))
     {
         <div class="vz-upload__preview">
-            <img src="@Media.Resolve(Value)" alt="پیش‌نمایش" />
+            @* A value that still points at a file this application ships must not be resolved
+               against the media host, which has never heard of it. *@
+            <img src="@(BrandAsset.IsPackaged(Value) ? Value : Media.Resolve(Value))" alt="پیش‌نمایش" />
             <button type="button" class="vz-iconaction danger" @onclick="Clear" title="حذف تصویر">
                 <Icon Name="trash" Size="16" />
             </button>

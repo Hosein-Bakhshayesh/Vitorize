@@ -50,12 +50,14 @@
     height: 96px; display: flex; position: relative; align-items: center;
     justify-content: space-between; gap: 24px; direction: ltr; z-index: 2;
 }
-.site-shell .st-header .st-logo { order: 0; position: static; inset: auto; margin: 0; transform: none; direction: ltr; gap: 0; flex-shrink: 0; }
+.site-shell .st-header .st-logo { order: 0; position: static; inset: auto; margin: 0; transform: none; direction: ltr; gap: 5px; flex-shrink: 0; }
 .site-shell .st-header .st-header__row { background: var(--st-header-bg); }
 .site-shell .st-logo__img { filter: none; }
 .site-shell .st-header .st-logo__img, .site-shell .st-header:has(.st-catmenu) .st-logo__img { width: 30px; height: 36px; object-fit: contain; }
 .site-shell .st-header .st-logo__word, .site-shell .st-header:has(.st-catmenu) .st-logo__word { color: var(--st-primary); font-size: 27px; font-weight: 800; }
-.site-shell .st-logo__wordmark { display: block; width: 180px; height: auto; max-height: 22px; margin-left: -6px; object-fit: contain; }
+/* Sized by height so the box always matches the artwork; the cap keeps an over-wide upload from
+   pushing the navigation off the row. */
+.site-shell .st-logo__wordmark { display: block; width: auto; height: 22px; max-width: 260px; object-fit: contain; }
 :root[data-theme="dark"] .site-shell .st-logo__wordmark,
 :root[data-theme="dark"] .site-shell .st-logo__img,
 :root[data-theme="dark"] .home-shell .hp-logo__wordmark,
@@ -154,7 +156,7 @@ body:has(.site-shell :is(.st-catmenu, .st-mobile-nav, .st-mobile-search)) { over
 .site-shell .st-footer__brand .st-logo { direction: ltr; justify-content: flex-start; gap: 0; }
 .site-shell .st-footer__brand .st-logo__word { font-size: 32px; color: var(--st-primary); }
 .site-shell .st-footer__brand .st-logo__img { width: 38px; height: 44px; object-fit: contain; }
-.site-shell .st-footer__brand .st-logo__wordmark { width: 220px; max-height: 26px; }
+.site-shell .st-footer__brand .st-logo__wordmark { height: 26px; }
 .site-shell .st-footer__brand > p { display: block; max-width: 340px; margin: 18px 0 0; color: var(--st-muted); font-size: 12px; }
 .site-shell .st-footer__contact { display: flex; margin-top: 14px; }
 .site-shell .st-footer__brand .st-socials { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
@@ -179,7 +181,7 @@ body:has(.site-shell :is(.st-catmenu, .st-mobile-nav, .st-mobile-search)) { over
     .site-shell .st-header .st-nav, .site-shell .st-header:has(.st-catmenu) .st-nav { gap: 4px; }
     .site-shell .st-header .st-header__actions { gap: 4px; }
     .site-shell .st-header .st-logo__word { font-size: 23px; }
-    .site-shell .st-header .st-logo__wordmark { width: 150px; max-height: 19px; }
+    .site-shell .st-header .st-logo__wordmark { height: 19px; }
     .site-shell .st-footer__main { gap: 24px; }
 }
 @media (max-width: 767px) {
@@ -192,15 +194,16 @@ body:has(.site-shell :is(.st-catmenu, .st-mobile-nav, .st-mobile-search)) { over
     .site-shell .st-header .st-logo--custom { max-width: calc(100% - 160px); min-width: 0; }
     .site-shell .st-header .st-logo--custom .st-logo__word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .site-shell .st-header .st-logo__img { display: none; }
-    .site-shell .st-header .st-logo__wordmark { width: 108px; max-height: 13px; }
+    .site-shell .st-header .st-logo__wordmark { height: 21px; max-width: min(180px, 48vw); }
+    /* With no logotype configured there is nothing else to show, so the mark comes back. */
+    .site-shell .st-header .st-logo--markonly .st-logo__img { display: block; width: 32px; height: 36px; }
+    .site-shell .st-header .st-logo--markonly .st-logo__img--dark { display: none; }
+    :root[data-theme="dark"] .site-shell .st-header .st-logo--markonly .st-logo__img--light { display: none; }
+    :root[data-theme="dark"] .site-shell .st-header .st-logo--markonly .st-logo__img--dark { display: block; }
     .site-shell .st-header .st-header__actions .st-avatar { width: 36px; min-width: 36px; height: 36px; }
     .site-shell .st-header .st-catmenu__childcol { max-width: none; }
     .site-shell .st-header .st-catmenu__leaf-popover { position: static; width: auto; margin-top: 6px; opacity: 1; visibility: visible; pointer-events: auto; transform: none; box-shadow: none; }
     .site-shell .st-header .st-catmenu__leaves { grid-template-columns: 1fr; }
-    .site-shell .st-header .st-logo--custom .st-logo__img { display: block; width: 24px; height: 32px; }
-    .site-shell .st-header .st-logo--custom .st-logo__img--dark { display: none; }
-    :root[data-theme="dark"] .site-shell .st-header .st-logo--custom .st-logo__img--light { display: none; }
-    :root[data-theme="dark"] .site-shell .st-header .st-logo--custom .st-logo__img--dark { display: block; }
     .site-shell .st-header .st-logo__word { font-size: 28px; }
     .site-shell .st-header .st-nav { display: none; }
     .site-shell .st-header .st-header__actions { display: contents; }
@@ -224,7 +227,7 @@ body:has(.site-shell :is(.st-catmenu, .st-mobile-nav, .st-mobile-search)) { over
     .site-shell .st-footer__col a { font-size: 11px; line-height: 1.7; padding: 6px 0; }
     .site-shell .st-footer__brand { order: 2; grid-column: 1 / -1; grid-row: auto; display: block; }
     .site-shell .st-footer__brand .st-logo { width: max-content; direction: ltr; }
-    .site-shell .st-footer__brand .st-logo__wordmark { width: 170px; max-height: 20px; }
+    .site-shell .st-footer__brand .st-logo__wordmark { height: 20px; }
     .site-shell .st-footer__brand > p { max-width: none; }
     .site-shell .st-footer__seals { order: 1; grid-column: 1 / -1; }
     .site-shell .st-footer__quick-contact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }

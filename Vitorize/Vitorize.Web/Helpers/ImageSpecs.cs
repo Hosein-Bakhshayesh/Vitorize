@@ -13,6 +13,7 @@ namespace Vitorize.Web.Helpers
     {
         public static readonly ImageSpec Logo = new("۵۱۲×۱۶۰", "آزاد (افقی)", "SVG یا PNG شفاف", "۵۱۲ کیلوبایت", "پس‌زمینه شفاف");
         public static readonly ImageSpec LogoDark = new("۵۱۲×۱۶۰", "آزاد (افقی)", "SVG یا PNG شفاف", "۵۱۲ کیلوبایت", "مناسب تم تیره");
+        public static readonly ImageSpec Wordmark = new("۵۲۰×۱۰۴", "۵:۱ (افقی)", "SVG یا PNG شفاف", "۲۵۶ کیلوبایت", "فقط نوشتهٔ برند، بدون نشان؛ حاشیهٔ شفاف نداشته باشد");
         public static readonly ImageSpec LogoSmall = new("۱۲۸×۱۲۸", "۱:۱", "SVG یا PNG شفاف", "۲۵۶ کیلوبایت");
         public static readonly ImageSpec Favicon = new("۶۴×۶۴", "۱:۱", "PNG یا ICO", "۱۲۸ کیلوبایت");
         public static readonly ImageSpec AppleTouchIcon = new("۱۸۰×۱۸۰", "۱:۱", "PNG", "۲۵۶ کیلوبایت");
@@ -66,6 +67,7 @@ namespace Vitorize.Web.Helpers
             ["SiteLogoPath"] = Logo,
             ["LogoDarkPath"] = LogoDark,
             ["LogoSmallPath"] = LogoSmall,
+            ["WordmarkPath"] = Wordmark,
             ["FaviconPath"] = Favicon,
             ["AppleTouchIconPath"] = AppleTouchIcon,
             ["OgImagePath"] = OgImage,

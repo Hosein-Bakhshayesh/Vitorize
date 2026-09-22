@@ -175,7 +175,9 @@
                 var faq = _data.Faqs[i];
                 @* The handoff drew this as a plain grey disc and it shipped that way: an empty <i>
                    with nothing in it, so the one control that says a row can be opened showed nothing. *@
-                <details open="@(i == 0)"><summary><span>@faq.Question</span><i aria-hidden="true"><Icon Name="chevron-down" Size="26" /></i></summary><div class="hp-faq__answer">@faq.Answer</div></details>
+                @* Every row starts closed: opening the first one on load pushed the rest down
+                   the page before the reader had asked anything. *@
+                <details><summary><span>@faq.Question</span><i aria-hidden="true"><Icon Name="chevron-down" Size="26" /></i></summary><div class="hp-faq__answer">@faq.Answer</div></details>
             }
             @if (_data.Faqs.Count == 0) { <p class="hp-empty">@Empty("سوال")</p> }
         </div>
