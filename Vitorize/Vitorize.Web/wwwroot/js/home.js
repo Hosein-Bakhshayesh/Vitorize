@@ -7,13 +7,13 @@ export function positionReviews(element) {
 }
 
 // The brand rail is a measured, duplicated cycle. A cycle is expanded to cover two viewports
-// before it moves, so a small configured brand list never leaves an empty tail at the hand-off.
+// before it moves, so a short brand list never leaves an empty tail at the hand-off.
 const brandRailStops = new WeakMap();
 
 export function startBrandRail(track) {
     if (!track?.isConnected || brandRailStops.has(track)) return;
 
-    const groups = [...track.querySelectorAll(".hp-brands__group")];
+    const groups = [...track.querySelectorAll(".hp-brandrail__group")];
     const cycle = groups[0];
     const viewport = track.parentElement;
     if (!cycle || groups.length < 2 || !viewport) return;
@@ -30,7 +30,7 @@ export function startBrandRail(track) {
     const makeDuplicateInert = element => {
         element.setAttribute("aria-hidden", "true");
         element.querySelectorAll("a").forEach(link => {
-            link.classList.add("hp-brand-clone");
+            link.classList.add("hp-brandrail-clone");
             link.setAttribute("tabindex", "-1");
             link.removeAttribute("aria-label");
             link.querySelectorAll("img").forEach(image => image.alt = "");
@@ -40,7 +40,7 @@ export function startBrandRail(track) {
     const ensureCoverage = () => {
         const viewportWidth = viewport.getBoundingClientRect().width;
         if (!viewportWidth) return;
-        const seeds = groups.map(group => group.querySelector(".hp-brands__sequence"));
+        const seeds = groups.map(group => group.querySelector(".hp-brandrail__sequence"));
         const sequenceWidth = seeds[0]?.getBoundingClientRect().width ?? 0;
         if (!sequenceWidth) return;
         const missing = Math.max(0, Math.ceil((viewportWidth * 2 - cycle.getBoundingClientRect().width) / sequenceWidth));
@@ -90,18 +90,6 @@ export function startBrandRail(track) {
         if (reduceMotion.matches) { offset = 0; paint(); }
         else start();
     };
-    const hideFailedImage = image => {
-        const source = image.getAttribute("src");
-        // Every repeated copy of a broken logo must disappear, not leave an empty slot.
-        track.querySelectorAll("img").forEach(copy => {
-            if (copy.getAttribute("src") === source) copy.closest("a").hidden = true;
-        });
-        viewport.hidden = !track.querySelector("a:not([hidden])");
-        if (viewport.hidden) stop();
-    };
-    const onImageError = event => {
-        if (event.target instanceof HTMLImageElement) hideFailedImage(event.target);
-    };
     const observer = new ResizeObserver(() => {
         const priorWidth = cycleWidth;
         ensureCoverage();
@@ -120,7 +108,6 @@ export function startBrandRail(track) {
     viewport.addEventListener("pointerleave", resume);
     viewport.addEventListener("focusin", onFocusIn);
     viewport.addEventListener("focusout", onFocusOut);
-    viewport.addEventListener("error", onImageError, true);
     brandRailStops.set(track, () => {
         stop();
         observer.disconnect();
@@ -130,13 +117,8 @@ export function startBrandRail(track) {
         viewport.removeEventListener("pointerleave", resume);
         viewport.removeEventListener("focusin", onFocusIn);
         viewport.removeEventListener("focusout", onFocusOut);
-        viewport.removeEventListener("error", onImageError, true);
-        viewport.hidden = false;
         track.style.transform = "";
         brandRailStops.delete(track);
-    });
-    track.querySelectorAll("img").forEach(image => {
-        if (image.complete && !image.naturalWidth) hideFailedImage(image);
     });
     ensureCoverage();
     measure();

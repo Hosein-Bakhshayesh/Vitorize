@@ -91,23 +91,32 @@
             }
         </section>
     }
-    @if (BrandRailBrands.Count > 0)
+    @* The brand band, as a rail of chips. It used to be bare logos, so a store with a handful of
+       uploaded marks slid the same few past forever and a brand without a logo could not appear at
+       all; a chip carries the name beside the mark, so every brand rides the rail. *@
+    @if (BrandRail.Count > 0)
     {
-    <section class="hp-section hp-brands" aria-label="برندها">
-        <div class="hp-brands__track" @ref="_brandRail">
+    <section class="hp-section hp-brandrail" aria-label="برندهای فروشگاه">
+        <div class="hp-brandrail__track" @ref="_brandRail">
             @* Both cycles contain the exact same, sufficiently long sequence. Translating by
                half the track therefore lands on identical pixels, with no empty tail or reset. *@
             @foreach (var cycleIndex in Enumerable.Range(0, 2))
             {
-                <div class="hp-brands__group" aria-hidden="@(cycleIndex > 0 ? "true" : "false")" data-cycle="@cycleIndex">
+                <div class="hp-brandrail__group" aria-hidden="@(cycleIndex > 0 ? "true" : "false")" data-cycle="@cycleIndex">
                     @foreach (var repeatIndex in Enumerable.Range(0, BrandRailRepeats))
                     {
                         var isDuplicate = cycleIndex > 0 || repeatIndex > 0;
-                        <div class="hp-brands__sequence" aria-hidden="@(isDuplicate ? "true" : "false")">
-                            @foreach (var brand in BrandRailBrands.AsEnumerable().Reverse())
+                        <div class="hp-brandrail__sequence" aria-hidden="@(isDuplicate ? "true" : "false")">
+                            @foreach (var brand in BrandRail.AsEnumerable().Reverse())
                             {
-                                <a class="@(isDuplicate ? "hp-brand-clone" : null)" href="@($"/brand/{brand.Slug}")" aria-label="@(isDuplicate ? null : brand.Title)" tabindex="@(isDuplicate ? "-1" : null)">
-                                    <img src="@Media.Resolve(brand.ImagePath)" alt="@(isDuplicate ? string.Empty : (brand.ImageAltText ?? brand.Title))" loading="eager" />
+                                <a class="@(isDuplicate ? "hp-brandrail-clone" : null)" href="@($"/brand/{brand.Slug}")" tabindex="@(isDuplicate ? "-1" : null)">
+                                    @* StoreImage rather than a bare <img>: a logo that is missing or
+                                       fails to load leaves the mark's frame drawn with a glyph in it,
+                                       not a broken-image icon next to the name. *@
+                                    <span class="hp-brandrail__media" aria-hidden="@(isDuplicate ? "true" : "false")">
+                                        <StoreImage Url="@brand.ImagePath" Alt="@(isDuplicate ? string.Empty : (brand.ImageAltText ?? brand.Title))" Icon="tag" IconSize="28" Contain="true" />
+                                    </span>
+                                    <span class="hp-brandrail__title">@brand.Title</span>
                                 </a>
                             }
                         </div>
@@ -180,10 +189,10 @@
     // Placeholder copy from the design used to stand in for an unset list, but it carried no icon and
     // no body text, so it produced cards with a bare heading. Nothing configured now means no section.
     private IReadOnlyList<HomeBlockItem> HomeFeatures => _branding.HomeFeatures;
-    // Filter before limiting/repeating: text-only brands must not occupy logo slots.
-    private List<StoreBrandModel> BrandRailBrands => _data.Brands
-        .Where(brand => !string.IsNullOrWhiteSpace(brand.ImagePath)).Take(12).ToList();
-    private int BrandRailRepeats => Math.Max(2, (int)Math.Ceiling(16d / Math.Max(1, BrandRailBrands.Count)));
+    // Nothing is filtered out: the chip has room for a name, so a brand with no logo uploaded
+    // rides the rail like any other instead of being dropped for lack of artwork.
+    private List<StoreBrandModel> BrandRail => _data.Brands;
+    private int BrandRailRepeats => Math.Max(2, (int)Math.Ceiling(16d / Math.Max(1, BrandRail.Count)));
 
     /// <summary>Active slides of one placement that actually have artwork; a slide without one
     /// would render as a gap. Placement is normalised the same way the server does it, so a row
@@ -207,8 +216,8 @@
     {
         if (_brandRailStarted && (_reviewsPositioned || _reviews.Count < 3)) return;
 
-        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js?v=20260921-3");
-        if (!_brandRailStarted && BrandRailBrands.Count > 0)
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/home.js?v=20260922-3");
+        if (!_brandRailStarted && BrandRail.Count > 0)
         {
             _brandRailStarted = true;
             await _module.InvokeVoidAsync("startBrandRail", _brandRail);

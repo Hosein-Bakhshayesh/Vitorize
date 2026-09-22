@@ -240,9 +240,9 @@ export async function expectRtlAndNoOverflow(page: Page): Promise<void> {
     const offenders = Array.from(document.querySelectorAll<HTMLElement>('body *'))
       .filter(element => {
         const rect = element.getBoundingClientRect();
-        // .hp-brands is the home brand ticker: a deliberately over-wide animated track clipped by
-        // its own overflow:hidden parent, like the other carousels listed here.
-        return !element.closest('.vz-splash, .st-marquee, .st-hslider, .st-catrail, .st-news, .st-trustchips, .hp-brands, .vz-sidebar, .vz-table-wrap, .vz-tabs, .vz-settabs')
+        // .hp-brandrail is the home brand ticker: a deliberately over-wide animated track clipped
+        // by its own overflow:hidden parent, like the other carousels listed here.
+        return !element.closest('.vz-splash, .st-marquee, .st-hslider, .st-catrail, .st-news, .st-trustchips, .hp-brandrail, .vz-sidebar, .vz-table-wrap, .vz-tabs, .vz-settabs')
           && !Array.from(element.classList).some(className => className.includes('aurora'))
           && rect.width > 0
           && (rect.left < -1 || rect.right > window.innerWidth + 1);

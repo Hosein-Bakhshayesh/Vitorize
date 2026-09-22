@@ -18,7 +18,7 @@ public sealed class StorefrontShellConsistencyTests
         Assert.Contains("<StoreBottomNav />", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("<HomeHeader", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("<HomeFooter", layout, StringComparison.Ordinal);
-        Assert.Contains("css/home.css?v=20260921-3", app, StringComparison.Ordinal);
+        Assert.Contains("css/home.css?v=20260922-3", app, StringComparison.Ordinal);
         Assert.Contains("css/site-shell.css?v=20260921-5", app, StringComparison.Ordinal);
         Assert.Contains("css/auth-page.css?v=20260920-1", app, StringComparison.Ordinal);
         Assert.Contains(".home-shell.site-shell .st-main", homeCss, StringComparison.Ordinal);

@@ -2,7 +2,7 @@ using Xunit;
 
 namespace Vitorize.Tests;
 
-public sealed class HomepageBrandAndReviewPresentationTests
+public sealed class HomepageBrandRailAndReviewPresentationTests
 {
     [Fact]
     public void Brand_rail_moves_right_to_left_and_every_visible_copy_is_pointer_clickable()
@@ -12,12 +12,11 @@ public sealed class HomepageBrandAndReviewPresentationTests
         var css = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "wwwroot", "css", "home.css"));
         var script = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "wwwroot", "js", "home.js"));
 
-        Assert.Contains("class=\"hp-brands__sequence\"", home, StringComparison.Ordinal);
-        Assert.Contains("isDuplicate ? \"hp-brand-clone\" : null", home, StringComparison.Ordinal);
+        Assert.Contains("class=\"hp-brandrail__sequence\"", home, StringComparison.Ordinal);
+        Assert.Contains("isDuplicate ? \"hp-brandrail-clone\" : null", home, StringComparison.Ordinal);
         Assert.Contains("isDuplicate ? \"-1\" : null", home, StringComparison.Ordinal);
         Assert.Contains("Enumerable.Range(0, 2)", home, StringComparison.Ordinal);
         Assert.Contains("BrandRailRepeats", home, StringComparison.Ordinal);
-        Assert.Contains("loading=\"eager\"", home, StringComparison.Ordinal);
         Assert.Contains("@ref=\"_brandRail\"", home, StringComparison.Ordinal);
         Assert.Contains("startBrandRail", home, StringComparison.Ordinal);
         Assert.Contains("startBrandRail", script, StringComparison.Ordinal);
@@ -27,8 +26,22 @@ public sealed class HomepageBrandAndReviewPresentationTests
         Assert.Contains("viewport.addEventListener(\"pointerleave\", resume)", script, StringComparison.Ordinal);
         Assert.Contains("ResizeObserver", script, StringComparison.Ordinal);
         Assert.Contains("justify-content: flex-start", css, StringComparison.Ordinal);
-        Assert.Contains("background: transparent", css, StringComparison.Ordinal);
         Assert.Contains("prefers-reduced-motion", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Every_brand_rides_the_rail_including_one_with_no_logo_uploaded()
+    {
+        var root = FindSolutionRoot();
+        var home = File.ReadAllText(Path.Combine(root, "Vitorize.Web", "Components", "Pages", "Store", "Home.razor"));
+
+        // The rail used to drop a brand that had no artwork, because a bare logo slot with nothing
+        // in it is not a brand. The chip carries the name, so nothing is filtered out any more.
+        Assert.Contains("private List<StoreBrandModel> BrandRail => _data.Brands;", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("!string.IsNullOrWhiteSpace(brand.ImagePath)", home, StringComparison.Ordinal);
+        Assert.Contains("class=\"hp-brandrail__title\">@brand.Title", home, StringComparison.Ordinal);
+        // A logo that fails to load leaves a drawn glyph rather than a broken-image icon.
+        Assert.Contains("<StoreImage Url=\"@brand.ImagePath\"", home, StringComparison.Ordinal);
     }
 
     [Fact]
